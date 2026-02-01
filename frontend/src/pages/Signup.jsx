@@ -60,7 +60,7 @@ function SignUpPage() {
 
     const userData = {
       email: formData.email,
-      password_hash: formData.password, // will be hashed on backend
+      password: formData.password, // will be hashed on backend
       first_name: formData.firstName,
       last_name: formData.lastName,
       phone: formData.phone || null,
@@ -203,6 +203,18 @@ function SignUpPage() {
               </div>
 
               <div className="mb-8">
+                <div className="mb-4">
+                  <Link
+                    to="/"
+                    className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to Landing Page
+                  </Link>
+                </div>
+
                 <h2 className="text-3xl md:text-4xl font-black text-white mb-2">Create Account</h2>
                 <p className="text-gray-400">Fill in your details to get started</p>
               </div>

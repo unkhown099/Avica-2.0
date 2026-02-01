@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import Swal from "sweetalert2";
 
 function SignIn() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -18,10 +21,44 @@ function SignIn() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle sign in logic here
-    console.log('Sign in data:', formData);
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/login/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Invalid email or password");
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Login Successful",
+        text: "Welcome back!",
+        confirmButtonColor: "#dc2626",
+      });
+
+      navigate("/dashboard"); // redirect to landing page
+
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Login Failed",
+        text: err.message,
+        confirmButtonColor: "#dc2626",
+      });
+    }
   };
 
   return (
