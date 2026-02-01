@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import swal from 'sweetalert2';
 
 function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -79,13 +80,51 @@ function SignUpPage() {
       console.log("Signup response:", data);
 
       if (response.ok) {
-        alert("Signup successful!");
-        // Optionally redirect to signin page
+      // SweetAlert for success
+      swal.fire({
+        title: data.title || "Account Created!",
+        text: data.message || "Your customer account has been successfully created.",
+        icon: 'success',
+        background: 'linear-gradient(to bottom right, #1f2937, #111827)', // matches your bg-gradient-to-br from-gray-800 to-gray-900
+        color: '#fff',
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Great!'
+      });
+
+      // Optionally, reset the form or redirect
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        password: '',
+        confirmPassword: '',
+        role: 'customer',
+        agreeToTerms: false
+      });
       } else {
-        alert("Signup failed: " + (data.detail || JSON.stringify(data)));
-      }
+      // SweetAlert for failure
+      swal.fire({
+        title: data.title || "Signup Failed",
+        text: JSON.stringify(data.errors || data.detail),
+        icon: 'error',
+        background: 'linear-gradient(to bottom right, #1f2937, #111827)',
+        color: '#fff',
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Try Again'
+      });
+    }
     } catch (error) {
       console.error("Error during signup:", error);
+      swal.fire({
+        title: "Error",
+        text: "Something went wrong. Please try again.",
+        icon: 'error',
+        background: 'linear-gradient(to bottom right, #1f2937, #111827)',
+        color: '#fff',
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Ok'
+      });
     }
   };
 

@@ -222,7 +222,7 @@ function SignIn() {
       </div>
 
       {/* CSS for custom checkbox */}
-      <style jsx>{`
+      <style>{`
         input[type="checkbox"]:checked {
           background-color: #dc2626;
           border-color: #dc2626;
