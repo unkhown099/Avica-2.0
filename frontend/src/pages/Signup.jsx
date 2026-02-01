@@ -6,13 +6,16 @@ function SignUpPage() {
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
+    role: 'customer', // Default role for new signups
     agreeToTerms: false
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -20,12 +23,70 @@ function SignUpPage() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    // Validate password strength
+    if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    }
+
+    // Validate phone format (optional but if provided, should be valid)
+    if (formData.phone && !/^[\d\s\+\-\(\)]+$/.test(formData.phone)) {
+      newErrors.phone = 'Invalid phone number format';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle sign up logic here
-    console.log('Sign up data:', formData);
+    
+    if (!validateForm()) return;
+
+    const userData = {
+      email: formData.email,
+      password_hash: formData.password, // will be hashed on backend
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      phone: formData.phone || null,
+      role: formData.role
+    };
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/signup/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(userData)
+      });
+
+      const data = await response.json();
+      console.log("Signup response:", data);
+
+      if (response.ok) {
+        alert("Signup successful!");
+        // Optionally redirect to signin page
+      } else {
+        alert("Signup failed: " + (data.detail || JSON.stringify(data)));
+      }
+    } catch (error) {
+      console.error("Error during signup:", error);
+    }
   };
 
   return (
@@ -91,7 +152,7 @@ function SignUpPage() {
 
           {/* Right Side - Sign Up Form */}
           <div className="w-full">
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-8 md:p-12 border border-gray-700 shadow-2xl">
+            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-8 md:p-12 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
               {/* Mobile Logo */}
               <div className="lg:hidden mb-8 text-center">
                 <div className="bg-white rounded-full px-8 py-3 inline-block shadow-2xl">
@@ -112,7 +173,7 @@ function SignUpPage() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="firstName" className="block text-sm font-semibold text-gray-300 mb-2">
-                      First Name
+                      First Name <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="text"
@@ -127,7 +188,7 @@ function SignUpPage() {
                   </div>
                   <div>
                     <label htmlFor="lastName" className="block text-sm font-semibold text-gray-300 mb-2">
-                      Last Name
+                      Last Name <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="text"
@@ -145,7 +206,7 @@ function SignUpPage() {
                 {/* Email */}
                 <div>
                   <label htmlFor="email" className="block text-sm font-semibold text-gray-300 mb-2">
-                    Email Address
+                    Email Address <span className="text-red-600">*</span>
                   </label>
                   <input
                     type="email"
@@ -159,10 +220,27 @@ function SignUpPage() {
                   />
                 </div>
 
+                {/* Phone */}
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-semibold text-gray-300 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 bg-gray-900 border ${errors.phone ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                    placeholder="+63 XXX XXX XXXX"
+                  />
+                  {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                </div>
+
                 {/* Password */}
                 <div>
                   <label htmlFor="password" className="block text-sm font-semibold text-gray-300 mb-2">
-                    Password
+                    Password <span className="text-red-600">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -171,7 +249,7 @@ function SignUpPage() {
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12"
+                      className={`w-full px-4 py-3 bg-gray-900 border ${errors.password ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12`}
                       placeholder="••••••••"
                       required
                     />
@@ -192,12 +270,13 @@ function SignUpPage() {
                       )}
                     </button>
                   </div>
+                  {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
                 </div>
 
                 {/* Confirm Password */}
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-300 mb-2">
-                    Confirm Password
+                    Confirm Password <span className="text-red-600">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -206,7 +285,7 @@ function SignUpPage() {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12"
+                      className={`w-full px-4 py-3 bg-gray-900 border ${errors.confirmPassword ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12`}
                       placeholder="••••••••"
                       required
                     />
@@ -227,6 +306,7 @@ function SignUpPage() {
                       )}
                     </button>
                   </div>
+                  {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
                 </div>
 
                 {/* Terms and Conditions */}
@@ -296,7 +376,7 @@ function SignUpPage() {
                 </div>
 
                 {/* Sign In Link */}
-                <div className="text-center mt-6">
+                 <div className="text-center mt-6">
                   <p className="text-gray-400">
                     Already have an account?{' '}
                     <Link
@@ -313,11 +393,30 @@ function SignUpPage() {
         </div>
       </div>
 
-      {/* CSS for custom checkbox */}
+      {/* CSS for custom checkbox and scrollbar */}
       <style>{`
         input[type="checkbox"]:checked {
           background-color: #dc2626;
           border-color: #dc2626;
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #1f2937;
+          border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #4b5563;
+          border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #dc2626;
         }
       `}</style>
     </div>
