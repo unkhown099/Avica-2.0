@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import logo from "../../assets/otokwikklogo.png";
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -22,12 +23,13 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <div className="flex items-center">
-            <div className="bg-white rounded-full px-6 py-2.5 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-              <span className="text-3xl font-black tracking-tight">
-                <span className="text-red-600">oto</span>
-                <span className="text-black">kwikk</span>
-              </span>
-            </div>
+              <div>
+                <img
+                  src={logo}
+                  alt="Otokwikk logo"
+                  className="h-16 md:h-20 object-contain"
+                />
+              </div>
           </div>
 
           {/* Auth Buttons */}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from "sweetalert2";
+import logo from "../assets/otokwikklogo.png"
 
 function SignIn() {
   const navigate = useNavigate();
@@ -76,13 +77,13 @@ function SignIn() {
           <div className="hidden lg:block">
             <div className="space-y-8">
               {/* Logo */}
-              <div className="bg-white rounded-full px-12 py-4 inline-block shadow-2xl">
-                <span className="text-5xl font-black tracking-tight">
-                  <span className="text-red-600">oto</span>
-                  <span className="text-black">kwikk</span>
-                </span>
+              <div>
+                <img
+                  src={logo}
+                  alt="Otokwikk logo"
+                  className="h-16 md:h-20 object-contain"
+                />
               </div>
-
               <div>
                 <h1 className="text-5xl md:text-6xl font-black text-white mb-6 leading-tight">
                   Welcome<br />Back!
@@ -109,13 +110,13 @@ function SignIn() {
           {/* Right Side - Sign In Form */}
           <div className="w-full">
             <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-8 md:p-12 border border-gray-700 shadow-2xl">
-              {/* Mobile Logo */}
               <div className="lg:hidden mb-8 text-center">
-                <div className="bg-white rounded-full px-8 py-3 inline-block shadow-2xl">
-                  <span className="text-3xl font-black tracking-tight">
-                    <span className="text-red-600">oto</span>
-                    <span className="text-black">kwikk</span>
-                  </span>
+                <div>
+                  <img
+                    src={logo}
+                    alt="Otokwikk logo"
+                    className="h-16 md:h-20 object-contain"
+                  />
                 </div>
               </div>
 

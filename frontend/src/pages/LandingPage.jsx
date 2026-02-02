@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Landing/LandingNav.jsx';
+import logo from "../assets/otokwikklogo.png";
 
 function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
@@ -43,12 +44,13 @@ function LandingPage() {
             className="mb-12 inline-block animate-[fadeIn_1s_ease-out]"
             style={{ animation: 'fadeIn 1s ease-out' }}
           >
-            <div className="bg-white rounded-full px-14 py-5 shadow-2xl hover:shadow-red-600/30 transition-all duration-500 hover:scale-105">
-              <span className="text-6xl font-black tracking-tight">
-                <span className="text-red-600">oto</span>
-                <span className="text-black">kwikk</span>
-              </span>
-            </div>
+              <div>
+                <img
+                  src={logo}
+                  alt="Otokwikk logo"
+                  className="h-16 md:h-20 object-contain"
+                />
+              </div>
           </div>
 
           {/* Main Heading */}
@@ -281,11 +283,12 @@ function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div className="md:col-span-2">
-              <div className="bg-white rounded-full px-8 py-3 inline-block mb-6">
-                <span className="text-3xl font-black">
-                  <span className="text-red-600">oto</span>
-                  <span className="text-black">kwikk</span>
-                </span>
+              <div>
+                <img
+                  src={logo}
+                  alt="Otokwikk logo"
+                  className="h-16 md:h-20 object-contain"
+                />
               </div>
               <p className="text-gray-400 text-lg mb-6 leading-relaxed max-w-md">
                 Professional auto detailing services across Metro Manila. We bring showroom shine to your doorstep.

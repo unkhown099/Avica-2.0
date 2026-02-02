@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import swal from 'sweetalert2';
+import logo from "../assets/otokwikklogo.png"
 
 function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -143,11 +144,12 @@ function SignUpPage() {
           <div className="hidden lg:block">
             <div className="space-y-8">
               {/* Logo */}
-              <div className="bg-white rounded-full px-12 py-4 inline-block shadow-2xl">
-                <span className="text-5xl font-black tracking-tight">
-                  <span className="text-red-600">oto</span>
-                  <span className="text-black">kwikk</span>
-                </span>
+              <div>
+                <img
+                  src={logo}
+                  alt="Otokwikk logo"
+                  className="h-16 md:h-20 object-contain"
+                />
               </div>
 
               <div>
