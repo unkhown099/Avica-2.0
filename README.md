@@ -1,4 +1,4 @@
-# Project Name
+# Avica
 
 A web application built with Django (backend) and React (frontend).
 
