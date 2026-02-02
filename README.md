@@ -19,26 +19,44 @@ A web application built with Django (backend) and React (frontend).
 ```bash
 git clone <your-repo-url>
 cd <your-repo-folder>
+```
 
-# Create virtual environment
+### 2. Create Virtual Environment
+```bash
 python -m venv venv
+```
 
-# Activate virtual environment
+### 3. Activate Virtual Environment
+```bash
 # Windows:
 venv\Scripts\activate
 
 # Mac/Linux:
 source venv/bin/activate
+```
 
+### 4. Install Backend Dependencies
+```bash
 pip install -r requirements.txt
+```
 
-# Apply migrations
+### 5. Apply Database Migrations
+```bash
 python manage.py migrate
+```
 
+### 6. Run Backend Server
+```bash
 python manage.py runserver
+```
 
-cd frontend  # or your frontend directory name
-
+### 7. Install Frontend Dependencies
+```bash
+cd frontend
 npm install
+```
 
+### 8. Run Frontend Development Server
+```bash
 npm run dev
+```
