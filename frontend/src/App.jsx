@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import Navbar from "./components/Landing/LandingNav.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import Signup from "./pages/Signup.jsx";
@@ -14,6 +19,10 @@ import AdminInventory from "./pages/admin/AdminInventory.jsx";
 import AdminAppointments from "./pages/admin/AdminAppointments.jsx";
 import AdminBranches from "./pages/admin/AdminBranches.jsx";
 import AdminReports from "./pages/admin/AdminReports.jsx";
+import AdminStaff from "./pages/admin/AdminStaffAccounts.jsx";
+
+// this route protect the staffs and admins routes
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function Layout() {
   const location = useLocation();
@@ -31,14 +40,78 @@ function Layout() {
         {/* Customer Routes */}
         <Route path="/dashboard" element={<CustomerDashboard />} />
         {/* Admin Routes */}
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/services" element={<AdminServices />} />
-        <Route path="/admin/customers" element={<AdminCustomers />} />
-        <Route path="/admin/ai-recognition" element={<AdminAI />} />
-        <Route path="/admin/inventory" element={<AdminInventory />} />
-        <Route path="/admin/appointments" element={<AdminAppointments />} />
-        <Route path="/admin/branches" element={<AdminBranches />} />
-        <Route path="/admin/reports" element={<AdminReports />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/services"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminServices />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/customers"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminCustomers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/ai-recognition"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminAI />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/inventory"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminInventory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/appointments"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminAppointments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/branches"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminBranches />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminReports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/staff"
+          element={
+            <ProtectedRoute isAdmin={true}>
+              <AdminStaff />
+            </ProtectedRoute>
+          }
+        />
         {/* <Route path="*" element={<LandingPage />} /> */}
       </Routes>
     </>

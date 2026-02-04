@@ -18,3 +18,20 @@ class Customer(models.Model):
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True, null=True)
     loyalty_points = models.IntegerField(default=0)
+
+class Staff(models.Model):
+    ROLE_CHOICES = [
+        ("Admin", "Admin"),
+        ("Business Owner/Manager", "Business Owner/Manager"),
+        ("Branch Manager", "Branch Manager"),
+        ("Service Advisor/Staff", "Service Advisor/Staff"),
+        ("Inventory Manager", "Inventory Manager"),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_profile")
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20)
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    branch = models.CharField(max_length=100)
+    status = models.CharField(max_length=20, default="Active")

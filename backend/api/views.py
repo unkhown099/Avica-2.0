@@ -3,12 +3,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .serializers import SignupSerializer
+from .serializers import SignupSerializer, StaffSerializer
 from .models import Customer
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from rest_framework.permissions import AllowAny
 from django.contrib.auth.hashers import check_password
-from .models import User
+from .models import User, Staff
 class SignupView(APIView):
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
@@ -55,10 +55,60 @@ class LoginView(APIView):
             return Response({"success": False, "message": "Invalid credentials"}, status=401)
 
         login(request, user)
-        return Response({"success": True, "message": "Login successful", "user": {"id": user.id, "email": user.email}}, status=200)
 
+        # Determine role: check if this user has a staff profile with role "Admin"
+        try:
+            staff_profile = user.staff_profile  # OneToOneField related_name
+            if staff_profile.role == "Admin":
+                user_role = "admin"
+            else:
+                user_role = "staff"  # other staff roles
+        except Staff.DoesNotExist:
+            user_role = "customer"
+
+        return Response({
+            "success": True,
+            "message": "Login successful",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user_role
+            }
+        }, status=200)
 
 class LogoutView(APIView):
     def post(self, request):
         logout(request)
         return Response({"success": True, "message": "Logged out"}, status=status.HTTP_200_OK)
+
+class StaffView(APIView):
+    permission_classes = [AllowAny]  # change later to admin-only
+
+    def get(self, request):
+        staff = Staff.objects.select_related("user").all()
+
+        data = []
+        for s in staff:
+            data.append({
+                "id": s.id,
+                "name": f"{s.first_name} {s.last_name}",
+                "email": s.user.email,
+                "phone": s.phone,
+                "role": s.role,
+                "branch": s.branch,
+                "status": s.status,
+                "lastLogin": s.user.last_login,
+            })
+
+        return Response(data)
+
+    def post(self, request):
+        serializer = StaffSerializer(data=request.data)
+        if serializer.is_valid():
+            staff = serializer.save()
+            return Response({
+                "success": True,
+                "staff_id": staff.id
+            }, status=201)
+
+        return Response(serializer.errors, status=400)

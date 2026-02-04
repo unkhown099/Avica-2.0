@@ -1,9 +1,11 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from "../../assets/otokwikklogo.png";
+import Swal from 'sweetalert2';
 
 function AdminSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const menuItems = [
     {
@@ -34,12 +36,21 @@ function AdminSidebar() {
         </svg>
       )
     },
+    // {
+    //   name: 'AI Recognition',
+    //   path: '/admin/ai-recognition',
+    //   icon: (
+    //     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    //     </svg>
+    //   )
+    // },
     {
-      name: 'AI Recognition',
-      path: '/admin/ai-recognition',
+      name: 'Staff',
+      path: '/admin/staff',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       )
     },
@@ -81,6 +92,41 @@ function AdminSidebar() {
       )
     }
   ];
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/logout/", {
+        method: "POST",
+        credentials: "include", // if using session auth
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Clear localStorage
+        localStorage.removeItem("user");
+
+        await Swal.fire({
+          icon: "success",
+          title: "Logged Out",
+          text: "You have been successfully logged out.",
+          confirmButtonColor: "#dc2626",
+        });
+
+        // Redirect to sign-in page
+        navigate("/signin");
+      } else {
+        throw new Error(data.message || "Logout failed");
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message,
+        confirmButtonColor: "#dc2626",
+      });
+    }
+  };
 
   const isActive = (path) => location.pathname === path;
 
@@ -129,7 +175,10 @@ function AdminSidebar() {
             <p className="text-gray-400 text-xs">System Manager</p>
           </div>
         </div>
-        <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-red-600 text-gray-400 hover:text-white rounded-lg transition-all duration-200">
+        <button
+          onClick={handleLogout} // ✅ add the click handler here
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-red-600 text-gray-400 hover:text-white rounded-lg transition-all duration-200"
+        >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>

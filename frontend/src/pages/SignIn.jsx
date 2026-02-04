@@ -43,6 +43,9 @@ function SignIn() {
         throw new Error(data.message || "Invalid email or password");
       }
 
+      // Store user info (optional, for ProtectedRoute)
+      localStorage.setItem("user", JSON.stringify(data.user));
+
       await Swal.fire({
         icon: "success",
         title: "Login Successful",
@@ -50,7 +53,12 @@ function SignIn() {
         confirmButtonColor: "#dc2626",
       });
 
-      navigate("/dashboard"); // redirect to landing page
+      // Redirect based on role
+      if (data.user.role === "admin") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/dashboard"); // customer dashboard
+      }
 
     } catch (err) {
       Swal.fire({

@@ -17,13 +17,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
-from api.views import SignupView, LoginView, LogoutView
+from api.views import SignupView, LoginView, LogoutView, StaffView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('signup/', SignupView.as_view(), name='signup'),
     path('login/', LoginView.as_view(), name='login'),
     path("logout/", LogoutView.as_view()),
+    path("staff/", StaffView.as_view()),
 
     # Redirect root to signup
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
