@@ -69,7 +69,7 @@ function SignUpPage() {
     };
 
     try {
-      const response = await fetch("${import.meta.env.VITE_API_BASE_URL}/signup/", {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/signup/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
