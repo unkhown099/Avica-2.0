@@ -24,6 +24,9 @@ import AdminStaff from "./pages/admin/AdminStaffAccounts.jsx";
 // this route protect the staffs and admins routes
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
+// error page
+import ErrorPage from "./pages/ErrorPage.jsx";
+
 function Layout() {
   const location = useLocation();
 
@@ -112,7 +115,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-        {/* <Route path="*" element={<LandingPage />} /> */}
+        <Route path="*" element={<ErrorPage />} />
       </Routes>
     </>
   );
