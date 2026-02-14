@@ -13,6 +13,7 @@ function SignIn() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -20,10 +21,38 @@ function SignIn() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Validate email
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Validate password
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/login/`, {
@@ -50,6 +79,8 @@ function SignIn() {
         icon: "success",
         title: "Login Successful",
         text: "Welcome back!",
+        background: 'linear-gradient(to bottom right, #1f2937, #111827)',
+        color: '#fff',
         confirmButtonColor: "#dc2626",
       });
 
@@ -65,6 +96,8 @@ function SignIn() {
         icon: "error",
         title: "Login Failed",
         text: err.message,
+        background: 'linear-gradient(to bottom right, #1f2937, #111827)',
+        color: '#fff',
         confirmButtonColor: "#dc2626",
       });
     }
@@ -129,11 +162,23 @@ function SignIn() {
               </div>
 
               <div className="mb-8">
+                <div className="mb-4">
+                  <Link
+                    to="/"
+                    className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to Landing Page
+                  </Link>
+                </div>
+
                 <h2 className="text-3xl md:text-4xl font-black text-white mb-2">Sign In</h2>
                 <p className="text-gray-400">Enter your credentials to access your account</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                 {/* Email */}
                 <div>
                   <label htmlFor="email" className="block text-sm font-semibold text-gray-300 mb-2">
@@ -145,10 +190,11 @@ function SignIn() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300"
+                    autoComplete="off"
+                    className={`w-full px-4 py-3 bg-gray-900 border ${errors.email ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                     placeholder="john.doe@example.com"
-                    required
                   />
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
 
                 {/* Password */}
@@ -163,9 +209,9 @@ function SignIn() {
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12"
+                      autoComplete="off"
+                      className={`w-full px-4 py-3 bg-gray-900 border ${errors.password ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12`}
                       placeholder="••••••••"
-                      required
                     />
                     <button
                       type="button"
@@ -184,6 +230,7 @@ function SignIn() {
                       )}
                     </button>
                   </div>
+                  {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
                 </div>
 
                 {/* Remember Me & Forgot Password */}
@@ -195,6 +242,7 @@ function SignIn() {
                       name="rememberMe"
                       checked={formData.rememberMe}
                       onChange={handleChange}
+                      autoComplete="off"
                       className="w-4 h-4 bg-gray-900 border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer"
                     />
                     <label htmlFor="rememberMe" className="text-sm text-gray-400 cursor-pointer">

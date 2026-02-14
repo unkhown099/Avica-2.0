@@ -8,6 +8,7 @@ function SignUpPage() {
     firstName: '',
     lastName: '',
     email: '',
+    countryCode: '+63', // Default to Philippines
     phone: '',
     password: '',
     confirmPassword: '',
@@ -18,9 +19,91 @@ function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, text: '', color: '' });
+
+  // Common country codes
+  const countryCodes = [
+    { code: '+63', country: 'PH', flag: '🇵🇭' },
+    { code: '+1', country: 'US', flag: '🇺🇸' },
+    { code: '+44', country: 'GB', flag: '🇬🇧' },
+    { code: '+81', country: 'JP', flag: '🇯🇵' },
+    { code: '+82', country: 'KR', flag: '🇰🇷' },
+    { code: '+86', country: 'CN', flag: '🇨🇳' },
+    { code: '+65', country: 'SG', flag: '🇸🇬' },
+    { code: '+60', country: 'MY', flag: '🇲🇾' },
+    { code: '+66', country: 'TH', flag: '🇹🇭' },
+    { code: '+84', country: 'VN', flag: '🇻🇳' },
+    { code: '+61', country: 'AU', flag: '🇦🇺' },
+    { code: '+64', country: 'NZ', flag: '🇳🇿' },
+  ];
+
+  // Format phone number with spaces (XXX XXX XXXX)
+  const formatPhoneNumber = (value) => {
+    // Remove all non-digit characters
+    const phoneNumber = value.replace(/\D/g, '');
+    
+    // Format with spaces: XXX XXX XXXX
+    if (phoneNumber.length <= 3) {
+      return phoneNumber;
+    } else if (phoneNumber.length <= 6) {
+      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3)}`;
+    } else {
+      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6, 10)}`;
+    }
+  };
+
+  // Calculate password strength
+  const calculatePasswordStrength = (password) => {
+    let score = 0;
+    
+    if (!password) {
+      return { score: 0, text: '', color: '' };
+    }
+
+    // Length check
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+
+    // Character variety checks
+    if (/[a-z]/.test(password)) score++; // lowercase
+    if (/[A-Z]/.test(password)) score++; // uppercase
+    if (/\d/.test(password)) score++;    // numbers
+    if (/[^a-zA-Z\d]/.test(password)) score++; // special characters
+
+    // Determine strength
+    if (score <= 2) {
+      return { score: 1, text: 'Weak', color: 'bg-red-600' };
+    } else if (score <= 4) {
+      return { score: 2, text: 'Medium', color: 'bg-yellow-500' };
+    } else {
+      return { score: 3, text: 'Strong', color: 'bg-green-600' };
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Special handling for phone number
+    if (name === 'phone') {
+      const formattedPhone = formatPhoneNumber(value);
+      setFormData(prev => ({
+        ...prev,
+        phone: formattedPhone
+      }));
+      
+      // Clear error when user starts typing
+      if (errors.phone) {
+        setErrors(prev => ({ ...prev, phone: '' }));
+      }
+      return;
+    }
+
+    // Special handling for password to update strength meter
+    if (name === 'password') {
+      const strength = calculatePasswordStrength(value);
+      setPasswordStrength(strength);
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -35,19 +118,76 @@ function SignUpPage() {
   const validateForm = () => {
     const newErrors = {};
 
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+    // Validate first name - only letters and spaces
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.firstName)) {
+      newErrors.firstName = 'First name can only contain letters and spaces';
+    } else if (/\d/.test(formData.firstName)) {
+      newErrors.firstName = 'First name cannot contain numbers';
     }
 
-    // Validate password strength
-    if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+    // Validate last name - only letters and spaces
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.lastName)) {
+      newErrors.lastName = 'Last name can only contain letters and spaces';
+    } else if (/\d/.test(formData.lastName)) {
+      newErrors.lastName = 'Last name cannot contain numbers';
+    }
+
+    // Validate email - must end with @domain.extension
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email must be in format: example@domain.com';
+    } else if (!formData.email.includes('@')) {
+      newErrors.email = 'Email must contain @ symbol';
+    } else {
+      // Check if email has valid domain after @
+      const emailParts = formData.email.split('@');
+      if (emailParts.length !== 2 || !emailParts[1].includes('.')) {
+        newErrors.email = 'Email must end with @domain.com format';
+      }
     }
 
     // Validate phone format (optional but if provided, should be valid)
-    if (formData.phone && !/^[\d\s\+\-\(\)]+$/.test(formData.phone)) {
-      newErrors.phone = 'Invalid phone number format';
+    if (formData.phone) {
+      // Remove spaces for validation
+      const phoneDigits = formData.phone.replace(/\s/g, '');
+      if (!/^\d+$/.test(phoneDigits)) {
+        newErrors.phone = 'Phone number can only contain digits';
+      } else if (phoneDigits.length !== 10) {
+        newErrors.phone = 'Phone number must be exactly 10 digits';
+      }
+    }
+
+    // Validate password
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    } else if (!/(?=.*[a-z])/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one lowercase letter';
+    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one uppercase letter';
+    } else if (!/(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one number';
+    } else if (passwordStrength.score < 2) {
+      // PREVENT WEAK PASSWORDS - Must be at least "Medium" strength
+      newErrors.password = 'Password is too weak. Please create a stronger password';
+    }
+
+    // Validate confirm password
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    // Validate terms agreement
+    if (!formData.agreeToTerms) {
+      newErrors.agreeToTerms = 'You must agree to the Terms and Conditions';
     }
 
     setErrors(newErrors);
@@ -57,14 +197,25 @@ function SignUpPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      // Scroll to first error
+      const firstErrorField = Object.keys(errors)[0];
+      const element = document.getElementById(firstErrorField);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // Remove spaces from phone number before sending
+    const cleanedPhone = formData.phone ? formData.phone.replace(/\s/g, '') : '';
 
     const userData = {
       email: formData.email,
       password: formData.password, // will be hashed on backend
       first_name: formData.firstName,
       last_name: formData.lastName,
-      phone: formData.phone || null,
+      phone: cleanedPhone ? `${formData.countryCode}${cleanedPhone}` : null,
       role: formData.role
     };
 
@@ -97,12 +248,15 @@ function SignUpPage() {
         firstName: '',
         lastName: '',
         email: '',
+        countryCode: '+63',
         phone: '',
         password: '',
         confirmPassword: '',
         role: 'customer',
         agreeToTerms: false
       });
+      setErrors({});
+      setPasswordStrength({ score: 0, text: '', color: '' });
       } else {
       // SweetAlert for failure
       swal.fire({
@@ -221,7 +375,7 @@ function SignUpPage() {
                 <p className="text-gray-400">Fill in your details to get started</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                 {/* Name Fields */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
@@ -234,10 +388,11 @@ function SignUpPage() {
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300"
+                      autoComplete="off"
+                      className={`w-full px-4 py-3 bg-gray-900 border ${errors.firstName ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                       placeholder="John"
-                      required
                     />
+                    {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
                   </div>
                   <div>
                     <label htmlFor="lastName" className="block text-sm font-semibold text-gray-300 mb-2">
@@ -249,10 +404,11 @@ function SignUpPage() {
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300"
+                      autoComplete="off"
+                      className={`w-full px-4 py-3 bg-gray-900 border ${errors.lastName ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                       placeholder="Doe"
-                      required
                     />
+                    {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>}
                   </div>
                 </div>
 
@@ -267,26 +423,46 @@ function SignUpPage() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300"
+                    autoComplete="off"
+                    className={`w-full px-4 py-3 bg-gray-900 border ${errors.email ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                     placeholder="john.doe@example.com"
-                    required
                   />
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
 
-                {/* Phone */}
+                {/* Phone with Country Code Dropdown */}
                 <div>
                   <label htmlFor="phone" className="block text-sm font-semibold text-gray-300 mb-2">
                     Phone Number
                   </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-3 bg-gray-900 border ${errors.phone ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
-                    placeholder="+63 XXX XXX XXXX"
-                  />
+                  <div className="flex gap-2">
+                    {/* Country Code Dropdown */}
+                    <select
+                      name="countryCode"
+                      value={formData.countryCode}
+                      onChange={handleChange}
+                      className="px-3 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 cursor-pointer"
+                      style={{ width: '110px' }}
+                    >
+                      {countryCodes.map((item) => (
+                        <option key={item.code} value={item.code}>
+                          {item.flag} {item.code}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Phone Number Input */}
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      autoComplete="off"
+                      className={`flex-1 px-4 py-3 bg-gray-900 border ${errors.phone ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                      placeholder="XXX XXX XXXX"
+                    />
+                  </div>
                   {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                 </div>
 
@@ -302,9 +478,9 @@ function SignUpPage() {
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
+                      autoComplete="new-password"
                       className={`w-full px-4 py-3 bg-gray-900 border ${errors.password ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12`}
                       placeholder="••••••••"
-                      required
                     />
                     <button
                       type="button"
@@ -324,6 +500,28 @@ function SignUpPage() {
                     </button>
                   </div>
                   {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+                  
+                  {/* Password Strength Meter */}
+                  {formData.password && (
+                    <div className="mt-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                            style={{ width: `${(passwordStrength.score / 3) * 100}%` }}
+                          />
+                        </div>
+                        <span className={`text-xs font-semibold ${
+                          passwordStrength.score === 1 ? 'text-red-600' : 
+                          passwordStrength.score === 2 ? 'text-yellow-500' : 
+                          'text-green-600'
+                        }`}>
+                          {passwordStrength.text}
+                        </span>
+                      </div>
+                      <p className="text-gray-500 text-xs">Use 8+ characters with uppercase, lowercase, numbers & symbols</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Confirm Password */}
@@ -338,9 +536,9 @@ function SignUpPage() {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
+                      autoComplete="new-password"
                       className={`w-full px-4 py-3 bg-gray-900 border ${errors.confirmPassword ? 'border-red-600' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12`}
                       placeholder="••••••••"
-                      required
                     />
                     <button
                       type="button"
@@ -363,26 +561,28 @@ function SignUpPage() {
                 </div>
 
                 {/* Terms and Conditions */}
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    id="agreeToTerms"
-                    name="agreeToTerms"
-                    checked={formData.agreeToTerms}
-                    onChange={handleChange}
-                    className="w-5 h-5 mt-0.5 bg-gray-900 border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer"
-                    required
-                  />
-                  <label htmlFor="agreeToTerms" className="text-sm text-gray-400 cursor-pointer">
-                    I agree to the{' '}
-                    <a href="#" className="text-red-600 hover:text-red-500 font-semibold">
-                      Terms and Conditions
-                    </a>
-                    {' '}and{' '}
-                    <a href="#" className="text-red-600 hover:text-red-500 font-semibold">
-                      Privacy Policy
-                    </a>
-                  </label>
+                <div>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="agreeToTerms"
+                      name="agreeToTerms"
+                      checked={formData.agreeToTerms}
+                      onChange={handleChange}
+                      className={`w-5 h-5 mt-0.5 bg-gray-900 border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer ${errors.agreeToTerms ? 'border-red-600' : ''}`}
+                    />
+                    <label htmlFor="agreeToTerms" className="text-sm text-gray-400 cursor-pointer">
+                      I agree to the{' '}
+                      <a href="#" className="text-red-600 hover:text-red-500 font-semibold">
+                        Terms and Conditions
+                      </a>
+                      {' '}and{' '}
+                      <a href="#" className="text-red-600 hover:text-red-500 font-semibold">
+                        Privacy Policy
+                      </a>
+                    </label>
+                  </div>
+                  {errors.agreeToTerms && <p className="text-red-500 text-sm mt-1">{errors.agreeToTerms}</p>}
                 </div>
 
                 {/* Submit Button */}
