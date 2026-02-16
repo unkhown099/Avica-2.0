@@ -22,10 +22,10 @@ class Customer(models.Model):
 class Staff(models.Model):
     ROLE_CHOICES = [
         ("Admin", "Admin"),
-        ("Business Owner/Manager", "Business Owner/Manager"),
+        ("Business Owner", "Business Owner"),
         ("Branch Manager", "Branch Manager"),
-        ("Service Advisor/Staff", "Service Advisor/Staff"),
-        ("Inventory Manager", "Inventory Manager"),
+        ("Staff", "Staff (Cashier)"),
+        ("Employee", "Employee (Mechanic)"),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_profile")
