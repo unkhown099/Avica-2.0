@@ -14,7 +14,7 @@ export default {
           },
           '50%': {
             opacity: '1',
-            transform: 'translateY(10px) rotateX(0deg)',
+            transform: 'translateY(100px) rotateX(0deg)',
           },
           '100%': {
             opacity: '1',
