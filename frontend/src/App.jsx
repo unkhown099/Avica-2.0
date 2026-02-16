@@ -1,16 +1,19 @@
+import { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   useLocation,
 } from "react-router-dom";
+
 import Navbar from "./components/Landing/LandingNav.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import Signup from "./pages/Signup.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import CustomerDashboard from "./pages/customer/CustomerDashboard.jsx";
+import LoadingScreen from "./components/LoadingScreen.jsx";
 
-// Admin Imports below (if any) can be added here
+// Admin Imports
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AdminServices from "./pages/admin/AdminServices.jsx";
 import AdminCustomers from "./pages/admin/AdminCustomers.jsx";
@@ -21,16 +24,11 @@ import AdminBranches from "./pages/admin/AdminBranches.jsx";
 import AdminReports from "./pages/admin/AdminReports.jsx";
 import AdminStaff from "./pages/admin/AdminStaffAccounts.jsx";
 
-// this route protect the staffs and admins routes
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
-
-// error page
 import ErrorPage from "./pages/ErrorPage.jsx";
 
 function Layout() {
   const location = useLocation();
-
-  // show navbar only on landing page
   const showNavbar = location.pathname === "/";
 
   return (
@@ -40,13 +38,13 @@ function Layout() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<SignIn />} />
-        {/* Customer Routes */}
         <Route path="/dashboard" element={<CustomerDashboard />} />
+
         {/* Admin Routes */}
         <Route
           path="/admin/dashboard"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -54,7 +52,7 @@ function Layout() {
         <Route
           path="/admin/services"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminServices />
             </ProtectedRoute>
           }
@@ -62,7 +60,7 @@ function Layout() {
         <Route
           path="/admin/customers"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminCustomers />
             </ProtectedRoute>
           }
@@ -70,7 +68,7 @@ function Layout() {
         <Route
           path="/admin/ai-recognition"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminAI />
             </ProtectedRoute>
           }
@@ -78,7 +76,7 @@ function Layout() {
         <Route
           path="/admin/inventory"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminInventory />
             </ProtectedRoute>
           }
@@ -86,7 +84,7 @@ function Layout() {
         <Route
           path="/admin/appointments"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminAppointments />
             </ProtectedRoute>
           }
@@ -94,7 +92,7 @@ function Layout() {
         <Route
           path="/admin/branches"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminBranches />
             </ProtectedRoute>
           }
@@ -102,7 +100,7 @@ function Layout() {
         <Route
           path="/admin/reports"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminReports />
             </ProtectedRoute>
           }
@@ -110,11 +108,12 @@ function Layout() {
         <Route
           path="/admin/staff"
           element={
-            <ProtectedRoute isAdmin={true}>
+            <ProtectedRoute isAdmin>
               <AdminStaff />
             </ProtectedRoute>
           }
         />
+
         <Route path="*" element={<ErrorPage />} />
       </Routes>
     </>
@@ -122,10 +121,54 @@ function Layout() {
 }
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [contentReady, setContentReady] = useState(false);
+
+  // Preload critical assets
+  useEffect(() => {
+    const loadContent = async () => {
+      const assets = ["/assets/otokwikklogo.png", "/assets/bgpic.png"].map(
+        (src) =>
+          new Promise((resolve) => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = src;
+          }),
+      );
+
+      await Promise.race([
+        Promise.all(assets),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
+
+      setContentReady(true);
+    };
+
+    loadContent();
+  }, []);
+
+  const handleLoadingComplete = () => {
+    // Only hide loading screen when both animation AND content are ready
+    if (contentReady) {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <Router>
-      <Layout />
-    </Router>
+    <>
+      {/* Loading Screen */}
+      <LoadingScreen onLoadingComplete={handleLoadingComplete} />
+
+      {/* Main App */}
+      <div
+        className={`transition-opacity duration-500 ${isLoading ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+      >
+        <Router>
+          <Layout />
+        </Router>
+      </div>
+    </>
   );
 }
 
