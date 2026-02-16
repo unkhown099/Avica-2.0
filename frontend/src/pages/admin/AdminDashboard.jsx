@@ -26,7 +26,7 @@ ChartJS.register(
 );
 
 function AdminDashboard() {
-  // Stats data
+  // Stats data with pastel colors
   const stats = [
     {
       title: 'Total Revenue',
@@ -38,8 +38,10 @@ function AdminDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      iconBg: 'bg-red-100',
-      iconColor: 'text-red-600'
+      iconBg: 'bg-red-50',
+      iconColor: 'text-red-500',
+      cardBg: 'bg-gradient-to-br from-red-50 to-pink-50',
+      borderColor: 'border-red-100'
     },
     {
       title: 'Total Customers',
@@ -51,8 +53,10 @@ function AdminDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       ),
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600'
+      iconBg: 'bg-blue-50',
+      iconColor: 'text-blue-500',
+      cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
+      borderColor: 'border-blue-100'
     },
     {
       title: 'Services Completed',
@@ -65,8 +69,10 @@ function AdminDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       ),
-      iconBg: 'bg-red-100',
-      iconColor: 'text-red-600'
+      iconBg: 'bg-purple-50',
+      iconColor: 'text-purple-500',
+      cardBg: 'bg-gradient-to-br from-purple-50 to-violet-50',
+      borderColor: 'border-purple-100'
     },
     {
       title: 'Avg. Satisfaction',
@@ -78,12 +84,14 @@ function AdminDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      iconBg: 'bg-green-100',
-      iconColor: 'text-green-600'
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-500',
+      cardBg: 'bg-gradient-to-br from-emerald-50 to-teal-50',
+      borderColor: 'border-emerald-100'
     }
   ];
 
-  // Line chart data for Revenue & Services Trend
+  // Line chart data for Revenue & Services Trend with original colors
   const lineChartData = {
     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [
@@ -124,7 +132,10 @@ function AdminDashboard() {
         type: 'linear',
         display: true,
         position: 'left',
-        beginAtZero: true
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)'
+        }
       },
       y1: {
         type: 'linear',
@@ -138,7 +149,7 @@ function AdminDashboard() {
     }
   };
 
-  // Doughnut chart data for Service Distribution
+  // Doughnut chart data for Service Distribution with original colors
   const doughnutChartData = {
     labels: ['Oil Change', 'Tire Service', 'Engine Repair', 'Body Work', 'Other'],
     datasets: [
@@ -169,13 +180,19 @@ function AdminDashboard() {
 
   return (
     <AdminLayout 
-      title="Dashboard" 
-      subtitle="Welcome to Otokwikk - Automotive Service Management System"
+      title="" 
+      subtitle=""
     >
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+        {/* Admin Dashboard Title */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white">Admin Dashboard</h1>
+        </div>
+        
+        {/* Stats Cards with Pastel Gradient Backgrounds */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div key={index} className={`${stat.cardBg} rounded-xl p-6 shadow-sm border-2 ${stat.borderColor}`}>
             <div className="flex items-start justify-between mb-4">
               <div>
                 <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
@@ -186,16 +203,16 @@ function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-1 text-sm">
-              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-4 h-4 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              <span className="text-red-600 font-medium">{stat.change}</span>
+              <span className={`${stat.iconColor} font-medium`}>{stat.change}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Charts Row */}
+      {/* Charts Row with Pastel Backgrounds */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         {/* Line Chart - Revenue & Services Trend */}
         <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-200">
@@ -250,6 +267,7 @@ function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </AdminLayout>
   );
