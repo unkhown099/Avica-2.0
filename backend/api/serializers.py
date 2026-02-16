@@ -2,6 +2,7 @@
 from rest_framework import serializers
 from .models import User, Staff
 from django.contrib.auth.hashers import make_password
+from django.db import transaction
 
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -37,10 +38,11 @@ class StaffSerializer(serializers.ModelSerializer):
         email = validated_data.pop("email")
         password = validated_data.pop("password")
 
-        user = User.objects.create(
-            email=email,
-            password_hash=make_password(password)
-        )
-
-        staff = Staff.objects.create(user=user, **validated_data)
+        with transaction.atomic():  # start transaction
+            user = User.objects.create(
+                email=email,
+                password_hash=make_password(password)
+            )
+            staff = Staff.objects.create(user=user, **validated_data)
+        
         return staff

@@ -9,6 +9,7 @@ from django.contrib.auth import authenticate, login, logout, get_user_model
 from rest_framework.permissions import AllowAny
 from django.contrib.auth.hashers import check_password
 from .models import User, Staff
+
 class SignupView(APIView):
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
@@ -38,6 +39,9 @@ class SignupView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({"message": "Signup endpoint. Use POST."})
 
     def post(self, request):
         email = request.data.get("email", "").strip()
