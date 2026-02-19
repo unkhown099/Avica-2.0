@@ -60,15 +60,20 @@ class LoginView(APIView):
 
         login(request, user)
 
-        # Determine role: check if this user has a staff profile with role "Admin"
+        ROLE_MAP = {
+            "Admin": "admin",
+            "Business Owner/Manager": "business_owner",
+            "Branch Manager": "branch_manager",
+            "Staff": "staff",
+            "Employee": "employee",
+        }
+
         try:
-            staff_profile = user.staff_profile  # OneToOneField related_name
-            if staff_profile.role == "Admin":
-                user_role = "admin"
-            else:
-                user_role = "staff"  # other staff roles
+            staff_profile = user.staff_profile
+            user_role = ROLE_MAP.get(staff_profile.role, "staff")
         except Staff.DoesNotExist:
             user_role = "customer"
+
 
         return Response({
             "success": True,

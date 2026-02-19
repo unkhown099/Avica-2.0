@@ -17,12 +17,13 @@ import LoadingScreen from "./components/LoadingScreen.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AdminServices from "./pages/admin/AdminServices.jsx";
 import AdminCustomers from "./pages/admin/AdminCustomers.jsx";
-import AdminAI from "./pages/admin/AdminAI.jsx";
 import AdminInventory from "./pages/admin/AdminInventory.jsx";
 import AdminAppointments from "./pages/admin/AdminAppointments.jsx";
 import AdminBranches from "./pages/admin/AdminBranches.jsx";
-import AdminReports from "./pages/admin/AdminReports.jsx";
 import AdminStaff from "./pages/admin/AdminStaffAccounts.jsx";
+
+// Branch Owner Imports
+import BranchOwnerDashboard from "./pages/branch_owner/BranchOwnerDashboard.jsx";
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
@@ -44,7 +45,7 @@ function Layout() {
         <Route
           path="/admin/dashboard"
           element={
-            <ProtectedRoute isAdmin>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -52,7 +53,7 @@ function Layout() {
         <Route
           path="/admin/services"
           element={
-            <ProtectedRoute isAdmin>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminServices />
             </ProtectedRoute>
           }
@@ -60,23 +61,15 @@ function Layout() {
         <Route
           path="/admin/customers"
           element={
-            <ProtectedRoute isAdmin>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminCustomers />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/ai-recognition"
-          element={
-            <ProtectedRoute isAdmin>
-              <AdminAI />
             </ProtectedRoute>
           }
         />
         <Route
           path="/admin/inventory"
           element={
-            <ProtectedRoute isAdmin>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminInventory />
             </ProtectedRoute>
           }
@@ -84,7 +77,7 @@ function Layout() {
         <Route
           path="/admin/appointments"
           element={
-            <ProtectedRoute isAdmin>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminAppointments />
             </ProtectedRoute>
           }
@@ -92,27 +85,29 @@ function Layout() {
         <Route
           path="/admin/branches"
           element={
-            <ProtectedRoute isAdmin>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminBranches />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/reports"
-          element={
-            <ProtectedRoute isAdmin>
-              <AdminReports />
             </ProtectedRoute>
           }
         />
         <Route
           path="/admin/staff"
           element={
-            <ProtectedRoute isAdmin>
+            <ProtectedRoute allowedRoles={["admin"]}>
               <AdminStaff />
             </ProtectedRoute>
           }
         />
+        {/* Branch Owner Routes */}
+        <Route
+          path="/branch-owner/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        {/*  */}
 
         <Route path="*" element={<ErrorPage />} />
       </Routes>
