@@ -26,7 +26,7 @@ ChartJS.register(
 );
 
 function BranchOwnerDashboard() {
-  // Stats data
+  // Stats data with pastel colors
   const stats = [
     {
       title: 'Total Revenue',
@@ -91,7 +91,7 @@ function BranchOwnerDashboard() {
     }
   ];
 
-  // Line chart data for Revenue Trend
+  // Line chart data for Revenue & Services Trend with original colors
   const lineChartData = {
     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [
@@ -100,7 +100,16 @@ function BranchOwnerDashboard() {
         data: [350000, 380000, 360000, 420000, 450000, 457000],
         borderColor: '#dc2626',
         backgroundColor: 'rgba(220, 38, 38, 0.1)',
-        tension: 0.4
+        tension: 0.4,
+        yAxisID: 'y'
+      },
+      {
+        label: 'Services',
+        data: [1200, 1300, 1250, 1380, 1450, 1525],
+        borderColor: '#1f2937',
+        backgroundColor: 'rgba(31, 41, 55, 0.1)',
+        tension: 0.4,
+        yAxisID: 'y1'
       }
     ]
   };
@@ -108,6 +117,10 @@ function BranchOwnerDashboard() {
   const lineChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
     plugins: {
       legend: {
         display: true,
@@ -116,26 +129,38 @@ function BranchOwnerDashboard() {
     },
     scales: {
       y: {
+        type: 'linear',
+        display: true,
+        position: 'left',
         beginAtZero: true,
         grid: {
           color: 'rgba(0, 0, 0, 0.05)'
         }
-      }
+      },
+      y1: {
+        type: 'linear',
+        display: true,
+        position: 'right',
+        beginAtZero: true,
+        grid: {
+          drawOnChartArea: false,
+        },
+      },
     }
   };
 
-  // Doughnut chart data for Branch Performance
+  // Doughnut chart data for Branch Revenue Distribution with original colors
   const doughnutChartData = {
     labels: ['San Mateo Rizal', 'South Caloocan', 'Quezon City', 'North Caloocan', 'Camarin'],
     datasets: [
       {
         data: [125000, 98000, 82000, 87000, 65000],
         backgroundColor: [
-          '#dc2626',
-          '#1f2937',
-          '#6b7280',
-          '#ef4444',
-          '#374151'
+          '#dc2626', // Red
+          '#1f2937', // Dark gray
+          '#6b7280', // Gray
+          '#ef4444', // Light red
+          '#374151'  // Medium gray
         ],
         borderWidth: 2,
         borderColor: '#ffffff'
@@ -153,132 +178,97 @@ function BranchOwnerDashboard() {
     }
   };
 
-  // Top performing branches
-  const topBranches = [
-    { name: 'San Mateo Rizal', revenue: '₱125,000', services: 450, satisfaction: 92 },
-    { name: 'South Caloocan', revenue: '₱98,000', services: 320, satisfaction: 88 },
-    { name: 'Quezon City', revenue: '₱82,000', services: 265, satisfaction: 90 }
-  ];
-
   return (
     <BranchOwnerLayout 
-      title="Dashboard" 
-      subtitle="Welcome to Otokwikk - Branch Owner Management System"
+      title="" 
+      subtitle=""
     >
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => (
-          <div key={index} className={`${stat.cardBg} rounded-xl p-6 shadow-sm border-2 ${stat.borderColor}`}>
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
-              </div>
-              <div className={`${stat.iconBg} ${stat.iconColor} p-3 rounded-lg`}>
-                {stat.icon}
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-sm">
-              {stat.trend === 'up' && (
-                <svg className={`w-4 h-4 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              )}
-              <span className={stat.trend === 'up' ? stat.iconColor : 'text-gray-600'}>{stat.change}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* Line Chart - Revenue Trend */}
-        <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Revenue Trend</h3>
-          <div className="h-80">
-            <Line data={lineChartData} options={lineChartOptions} />
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+        {/* Branch Owner Dashboard Title */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white">Branch Owner Dashboard</h1>
         </div>
-
-        {/* Doughnut Chart - Branch Revenue Distribution */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Branch Revenue Distribution</h3>
-          <div className="h-64 flex items-center justify-center mb-6">
-            <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
-          </div>
-          {/* Legend */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-600 rounded-full"></div>
-                <span className="text-sm text-gray-600">San Mateo Rizal</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-900">₱125k</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-gray-900 rounded-full"></div>
-                <span className="text-sm text-gray-600">South Caloocan</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-900">₱98k</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Quezon City</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-900">₱82k</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                <span className="text-sm text-gray-600">North Caloocan</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-900">₱87k</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-gray-700 rounded-full"></div>
-                <span className="text-sm text-gray-600">Camarin</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-900">₱65k</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Top Performing Branches */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-bold text-gray-900 mb-6">Top Performing Branches</h3>
-        <div className="space-y-4">
-          {topBranches.map((branch, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center justify-center w-10 h-10 bg-red-100 text-red-600 font-bold rounded-lg">
-                  #{index + 1}
-                </div>
+        
+        {/* Stats Cards with Pastel Gradient Backgrounds */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {stats.map((stat, index) => (
+            <div key={index} className={`${stat.cardBg} rounded-xl p-6 shadow-sm border-2 ${stat.borderColor}`}>
+              <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h4 className="font-semibold text-gray-900">{branch.name}</h4>
-                  <p className="text-sm text-gray-600">{branch.services} services completed</p>
+                  <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
+                  <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
+                </div>
+                <div className={`${stat.iconBg} ${stat.iconColor} p-3 rounded-lg`}>
+                  {stat.icon}
                 </div>
               </div>
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Revenue</p>
-                  <p className="font-bold text-gray-900">{branch.revenue}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Satisfaction</p>
-                  <div className="flex items-center gap-1">
-                    <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    <span className="font-bold text-gray-900">{branch.satisfaction}%</span>
-                  </div>
-                </div>
+              <div className="flex items-center gap-1 text-sm">
+                {stat.trend === 'up' && (
+                  <svg className={`w-4 h-4 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                )}
+                <span className={stat.trend === 'up' ? `${stat.iconColor} font-medium` : 'text-gray-600 font-medium'}>{stat.change}</span>
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Line Chart - Revenue & Services Trend */}
+          <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Revenue & Services Trend</h3>
+            <div className="h-80">
+              <Line data={lineChartData} options={lineChartOptions} />
+            </div>
+          </div>
+
+          {/* Doughnut Chart - Branch Revenue Distribution */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Branch Revenue Distribution</h3>
+            <div className="h-64 flex items-center justify-center mb-6">
+              <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
+            </div>
+            {/* Legend */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-600 rounded-full"></div>
+                  <span className="text-sm text-gray-600">San Mateo Rizal</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">₱125k</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-900 rounded-full"></div>
+                  <span className="text-sm text-gray-600">South Caloocan</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">₱98k</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Quezon City</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">₱82k</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                  <span className="text-sm text-gray-600">North Caloocan</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">₱87k</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-700 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Camarin</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">₱65k</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </BranchOwnerLayout>

@@ -337,7 +337,7 @@ function SignIn() {
                   type="submit"
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50"
                 >
-                  Sign In
+                  Log In
                 </button>
 
                 {/* Divider */}
