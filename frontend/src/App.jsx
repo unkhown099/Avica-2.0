@@ -38,6 +38,9 @@ import ManagerAccountManagement from "./pages/manager/ManagerAccountManagement.j
 import ManagerHistory from "./pages/manager/ManagerHistory.jsx";
 import ManagerCustomerManagement from "./pages/manager/ManagerCustomerManagement.jsx";
 
+// Staff Imports
+import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
+
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
 
@@ -206,6 +209,15 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["branch_manager"]}>
               <ManagerCustomerManagement />
+            </ProtectedRoute>
+          }
+        />
+        {/* Staff Routes */}
+        <Route
+          path="/staff/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffDashboard />
             </ProtectedRoute>
           }
         />
