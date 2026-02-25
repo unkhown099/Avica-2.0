@@ -24,6 +24,11 @@ import AdminStaff from "./pages/admin/AdminStaffAccounts.jsx";
 
 // Branch Owner Imports
 import BranchOwnerDashboard from "./pages/branch_owner/BranchOwnerDashboard.jsx";
+import BranchOwnerAppointments from "./pages/branch_owner/BranchOwnerAppointments.jsx";
+import BranchOwnerServices from "./pages/branch_owner/BranchOwnerServices.jsx";
+import BranchOwnerInventory from "./pages/branch_owner/BranchOwnerInventory.jsx";
+import BranchOwnerAccountsManagement from "./pages/branch_owner/BranchOwnerAccountsManagement.jsx";
+import BranchOwnerBranches from "./pages/branch_owner/BranchOwnerBranches.jsx";
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
@@ -104,6 +109,46 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["business_owner"]}>
               <BranchOwnerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/appointments"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerAppointments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/services"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerServices />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/inventory"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerInventory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/accounts"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerAccountsManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/branches"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerBranches />
             </ProtectedRoute>
           }
         />
