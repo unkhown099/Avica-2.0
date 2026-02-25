@@ -1,5 +1,5 @@
 import React from "react";
-import Sidebar from "../../components/admin/AdminSidebar.jsx";
+import Sidebar from "../../components/manager/ManagerSidebar.jsx";
 
 function AdminLayout({ children, title, subtitle }) {
   return (
