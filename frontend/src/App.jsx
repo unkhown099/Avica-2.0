@@ -39,7 +39,9 @@ import ManagerHistory from "./pages/manager/ManagerHistory.jsx";
 import ManagerCustomerManagement from "./pages/manager/ManagerCustomerManagement.jsx";
 
 // Staff Imports
-import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
+import StaffPOS from "./pages/staff/StaffPOS.jsx";
+import StaffAppointment from "./pages/staff/StaffAppointment.jsx";
+import StaffVehicleRecognition from "./pages/staff/StaffVehicleRecognition.jsx";
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
@@ -214,13 +216,30 @@ function Layout() {
         />
         {/* Staff Routes */}
         <Route
-          path="/staff/dashboard"
+          path="/staff/pos"
           element={
             <ProtectedRoute allowedRoles={["staff"]}>
-              <StaffDashboard />
+              <StaffPOS />
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/staff/appointments"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffAppointment />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff/vehicle-recognition"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffVehicleRecognition />
+            </ProtectedRoute>
+          }
+        />
+        {/*  */}
 
         <Route path="*" element={<ErrorPage />} />
       </Routes>
