@@ -148,7 +148,7 @@ def analyze_vehicle(request):
             },
             json={
                 "model": "qwen/qwen3.5-27b",
-                "max_tokens": 512,
+                "max_tokens": 256,
                 "messages": [
                     {
                         "role": "user",
