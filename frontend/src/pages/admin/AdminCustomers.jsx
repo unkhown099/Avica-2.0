@@ -150,11 +150,11 @@ function AdminCustomers() {
   );
 
   return (
-    <AdminLayout 
-      title="" 
+    <AdminLayout
+      title=""
       subtitle=""
     >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/50 -m-8 p-8">
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Customers</h1>
@@ -188,7 +188,7 @@ function AdminCustomers() {
         <div className="bg-white rounded-xl shadow-lg border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Customer Database</h2>
-            
+
             {/* Search Bar */}
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

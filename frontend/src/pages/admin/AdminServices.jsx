@@ -114,7 +114,7 @@ function AdminServices() {
 
   const getCategoryBadge = (category) => {
     const categoryStyles = {
-      'Maintenance': 'bg-blue-50 text-blue-700 border-blue-200',
+      'Maintenance': 'bg-red-50 text-red-700 border-red-200',
       'Repair': 'bg-red-50 text-red-700 border-red-200',
       'Diagnostic': 'bg-purple-50 text-purple-700 border-purple-200',
       'Cosmetic': 'bg-pink-50 text-pink-700 border-pink-200'
@@ -128,24 +128,24 @@ function AdminServices() {
   };
 
   const filteredServices = services.filter(service => {
-    const matchesSearch = 
+    const matchesSearch =
       service.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       service.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesCategory = categoryFilter === 'All Categories' || service.category === categoryFilter;
-    
+
     const matchesBranch = branchFilter === 'All Branches' || service.branches.includes(branchFilter);
-    
+
     return matchesSearch && matchesCategory && matchesBranch;
   });
 
   return (
-    <AdminLayout 
-      title="" 
+    <AdminLayout
+      title=""
       subtitle=""
     >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/50 -m-8 p-8">
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Services</h1>

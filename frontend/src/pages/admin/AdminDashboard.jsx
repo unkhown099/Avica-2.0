@@ -53,10 +53,10 @@ function AdminDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       ),
-      iconBg: 'bg-blue-50',
-      iconColor: 'text-blue-500',
-      cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
-      borderColor: 'border-blue-100'
+      iconBg: 'bg-red-500/10',
+      iconColor: 'text-red-500',
+      cardBg: 'bg-gradient-to-br from-red-50 to-orange-50',
+      borderColor: 'border-red-100'
     },
     {
       title: 'Services Completed',
@@ -69,10 +69,10 @@ function AdminDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       ),
-      iconBg: 'bg-purple-50',
-      iconColor: 'text-purple-500',
-      cardBg: 'bg-gradient-to-br from-purple-50 to-violet-50',
-      borderColor: 'border-purple-100'
+      iconBg: 'bg-red-500/10',
+      iconColor: 'text-red-500',
+      cardBg: 'bg-gradient-to-br from-red-50 to-pink-50',
+      borderColor: 'border-red-100'
     },
     {
       title: 'Avg. Satisfaction',
@@ -84,10 +84,10 @@ function AdminDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      iconBg: 'bg-emerald-50',
-      iconColor: 'text-emerald-500',
-      cardBg: 'bg-gradient-to-br from-emerald-50 to-teal-50',
-      borderColor: 'border-emerald-100'
+      iconBg: 'bg-red-500/10',
+      iconColor: 'text-red-500',
+      cardBg: 'bg-gradient-to-br from-red-50 to-amber-50',
+      borderColor: 'border-red-100'
     }
   ];
 
@@ -179,95 +179,95 @@ function AdminDashboard() {
   };
 
   return (
-    <AdminLayout 
-      title="" 
+    <AdminLayout
+      title=""
       subtitle=""
     >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/50 -m-8 p-8">
         {/* Admin Dashboard Title */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white">Admin Dashboard</h1>
         </div>
-        
+
         {/* Stats Cards with Pastel Gradient Backgrounds */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => (
-          <div key={index} className={`${stat.cardBg} rounded-xl p-6 shadow-sm border-2 ${stat.borderColor}`}>
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
+          {stats.map((stat, index) => (
+            <div key={index} className={`${stat.cardBg} rounded-xl p-6 shadow-sm border-2 ${stat.borderColor}`}>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
+                  <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
+                </div>
+                <div className={`${stat.iconBg} ${stat.iconColor} p-3 rounded-lg`}>
+                  {stat.icon}
+                </div>
               </div>
-              <div className={`${stat.iconBg} ${stat.iconColor} p-3 rounded-lg`}>
-                {stat.icon}
+              <div className="flex items-center gap-1 text-sm">
+                <svg className={`w-4 h-4 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                <span className={`${stat.iconColor} font-medium`}>{stat.change}</span>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-sm">
-              <svg className={`w-4 h-4 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-              <span className={`${stat.iconColor} font-medium`}>{stat.change}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts Row with Pastel Backgrounds */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* Line Chart - Revenue & Services Trend */}
-        <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Revenue & Services Trend</h3>
-          <div className="h-80">
-            <Line data={lineChartData} options={lineChartOptions} />
-          </div>
+          ))}
         </div>
 
-        {/* Doughnut Chart - Service Distribution */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">Service Distribution</h3>
-          <div className="h-64 flex items-center justify-center mb-6">
-            <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
+        {/* Charts Row with Pastel Backgrounds */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Line Chart - Revenue & Services Trend */}
+          <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Revenue & Services Trend</h3>
+            <div className="h-80">
+              <Line data={lineChartData} options={lineChartOptions} />
+            </div>
           </div>
-          {/* Legend */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-600 rounded-full"></div>
-                <span className="text-sm text-gray-600">Oil Change</span>
-              </div>
-              <span className="text-sm font-semibold text-gray-900">35%</span>
+
+          {/* Doughnut Chart - Service Distribution */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Service Distribution</h3>
+            <div className="h-64 flex items-center justify-center mb-6">
+              <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-gray-900 rounded-full"></div>
-                <span className="text-sm text-gray-600">Tire Service</span>
+            {/* Legend */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-600 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Oil Change</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">35%</span>
               </div>
-              <span className="text-sm font-semibold text-gray-900">25%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Engine Repair</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-900 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Tire Service</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">25%</span>
               </div>
-              <span className="text-sm font-semibold text-gray-900">20%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                <span className="text-sm text-gray-600">Body Work</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Engine Repair</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">20%</span>
               </div>
-              <span className="text-sm font-semibold text-gray-900">12%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-gray-700 rounded-full"></div>
-                <span className="text-sm text-gray-600">Other</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Body Work</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">12%</span>
               </div>
-              <span className="text-sm font-semibold text-gray-900">8%</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-700 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Other</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">8%</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </AdminLayout>
   );

@@ -9,6 +9,14 @@ from django.contrib.auth import authenticate, login, logout, get_user_model
 from rest_framework.permissions import AllowAny
 from django.contrib.auth.hashers import check_password
 from .models import User, Staff
+import os
+import requests
+import base64
+
+from google import genai
+from google.genai import types
+import json
+import re
 
 class SignupView(APIView):
     def post(self, request):
@@ -121,3 +129,66 @@ class StaffView(APIView):
             }, status=201)
 
         return Response(serializer.errors, status=400)
+
+class CarRecognitionView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        car_image = request.FILES.get('car_image')
+        if not car_image:
+            return Response({"success": False, "message": "No image provided"}, status=400)
+
+        api_key = os.getenv("GOOGLE_API_KEY")
+        
+        # Check if API key is invalid/missing
+        if not api_key or api_key == "YOUR_GOOGLE_AI_STUDIO_KEY_HERE":
+            # Return demo data but inform the user
+            return Response({
+                "success": True, 
+                "result": {
+                    "make": "Toyota",
+                    "model": "Fortuner",
+                    "year": "2023",
+                    "color": "White",
+                    "confidence": "98%",
+                    "is_demo": True
+                },
+                "demo_mode": True
+            })
+
+        try:
+            client = genai.Client(api_key=api_key)
+            
+            # Read image data
+            image_data = car_image.read()
+            
+            prompt = """
+            Identify the car in this image. 
+            Return the result ONLY as a JSON object with these keys:
+            "make", "model", "year", "color".
+            If you are unsure, provide your best guess.
+            Example: {"make": "Toyota", "model": "Camry", "year": "2022", "color": "Silver"}
+            """
+
+            response = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=[
+                    prompt,
+                    types.Part.from_bytes(data=image_data, mime_type=car_image.content_type)
+                ]
+            )
+
+            # Extract JSON from response
+            text = response.text
+            # Basic cleanup in case of markdown blocks
+            json_match = re.search(r'\{.*\}', text, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+                result["confidence"] = "High" # Gemini doesn't always provide score in a simple way
+                result["is_demo"] = False
+                return Response({"success": True, "result": result})
+            
+            return Response({"success": False, "message": "Failed to parse AI response"})
+
+        except Exception as e:
+            return Response({"success": False, "message": str(e)}, status=500)

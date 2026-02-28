@@ -32,10 +32,10 @@ function AdminInventory() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      iconColor: 'text-blue-500',
-      iconBg: 'bg-blue-50',
-      cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
-      borderColor: 'border-blue-100'
+      iconColor: 'text-red-500',
+      iconBg: 'bg-red-500/10',
+      cardBg: 'bg-gradient-to-br from-red-50 to-orange-50',
+      borderColor: 'border-red-100'
     },
     {
       label: 'Low Stock Alert',
@@ -194,15 +194,15 @@ function AdminInventory() {
   };
 
   const filteredItems = inventoryItems.filter(item => {
-    const matchesSearch = 
+    const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesCategory = categoryFilter === 'All Categories' || item.category === categoryFilter;
     const matchesBranch = branchFilter === 'All Branches' || item.branch === branchFilter;
     const matchesStatus = statusFilter === 'All Status' || item.status === statusFilter;
-    
+
     return matchesSearch && matchesCategory && matchesBranch && matchesStatus;
   });
 
@@ -211,11 +211,11 @@ function AdminInventory() {
   });
 
   return (
-    <AdminLayout 
-      title="" 
+    <AdminLayout
+      title=""
       subtitle=""
     >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/50 -m-8 p-8">
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Inventory</h1>
@@ -259,7 +259,7 @@ function AdminInventory() {
                   <h3 className="font-semibold text-gray-900">{item.name}</h3>
                   <div className="flex items-center gap-4 mt-1">
                     <p className="text-sm text-gray-600">
-                      Current: <span className="font-medium text-red-600">{item.current} {item.unit}</span> | 
+                      Current: <span className="font-medium text-red-600">{item.current} {item.unit}</span> |
                       Min: <span className="font-medium">{item.minimum} {item.unit}</span>
                     </p>
                     <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -292,7 +292,7 @@ function AdminInventory() {
         <div className="bg-white rounded-xl shadow-lg border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Inventory Items</h2>
-            
+
             {/* Search and Filters */}
             <div className="flex flex-col md:flex-row items-center gap-4">
               <div className="flex-1 relative w-full">
