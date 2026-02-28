@@ -1,7 +1,7 @@
 import React from "react";
-import Sidebar from "../../components/admin/AdminSidebar.jsx";
+import Sidebar from "../../components/staff/StaffSidebar.jsx";
 
-function AdminLayout({ children, title, subtitle }) {
+function StaffLayout({ children, title, subtitle }) {
   return (
     <div className="min-h-screen bg-gray-100">
       <Sidebar />
@@ -15,4 +15,4 @@ function AdminLayout({ children, title, subtitle }) {
   );
 }
 
-export default AdminLayout;
+export default StaffLayout;

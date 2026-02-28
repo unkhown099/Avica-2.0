@@ -17,6 +17,11 @@ from google import genai
 from google.genai import types
 import json
 import re
+import requests
+from django.conf import settings
+from django.http import JsonResponse
+import json
+from django.views.decorators.csrf import csrf_exempt
 
 class SignupView(APIView):
     def post(self, request):
@@ -130,65 +135,94 @@ class StaffView(APIView):
 
         return Response(serializer.errors, status=400)
 
-class CarRecognitionView(APIView):
-    permission_classes = [AllowAny]
+@csrf_exempt
+def analyze_vehicle(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+        except Exception as e:
+            print("JSON PARSE ERROR:", e)
+            return JsonResponse({"error": "Invalid JSON body"}, status=400)
 
-    def post(self, request):
-        car_image = request.FILES.get('car_image')
-        if not car_image:
-            return Response({"success": False, "message": "No image provided"}, status=400)
+        base64_image = data.get("image")
+        if not base64_image:
+            return JsonResponse({"error": "No image provided"}, status=400)
 
-        api_key = os.getenv("GOOGLE_API_KEY")
-        
-        # Check if API key is invalid/missing
-        if not api_key or api_key == "YOUR_GOOGLE_AI_STUDIO_KEY_HERE":
-            # Return demo data but inform the user
-            return Response({
-                "success": True, 
-                "result": {
-                    "make": "Toyota",
-                    "model": "Fortuner",
-                    "year": "2023",
-                    "color": "White",
-                    "confidence": "98%",
-                    "is_demo": True
-                },
-                "demo_mode": True
-            })
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "qwen/qwen3.5-27b",
+                "max_tokens": 256,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": """
+                                Analyze the vehicle and return JSON ONLY in this exact format:
+
+                                {
+                                  "make": "Toyota",
+                                  "model": "Corolla",
+                                  "year": "2015",
+                                  "color": "Red",
+                                  "bodyType": "Sedan",
+                                  "condition": "Good",
+                                  "confidence": "high",
+                                  "features": ["sunroof", "alloy wheels"],
+                                  "additionalNotes": "..."
+                                }
+
+                                If you cannot determine a field, set it to null.
+                                Do not return anything except JSON.
+                                """
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        )
+
+        ai_response = response.json()
+
+        print("=== OPENROUTER RAW RESPONSE ===")
+        print(ai_response)
 
         try:
-            client = genai.Client(api_key=api_key)
-            
-            # Read image data
-            image_data = car_image.read()
-            
-            prompt = """
-            Identify the car in this image. 
-            Return the result ONLY as a JSON object with these keys:
-            "make", "model", "year", "color".
-            If you are unsure, provide your best guess.
-            Example: {"make": "Toyota", "model": "Camry", "year": "2022", "color": "Silver"}
-            """
+            content = ai_response["choices"][0]["message"]["content"]
+            print("=== AI CONTENT (raw) ===")
+            print(content)
 
-            response = client.models.generate_content(
-                model='gemini-1.5-flash',
-                contents=[
-                    prompt,
-                    types.Part.from_bytes(data=image_data, mime_type=car_image.content_type)
-                ]
-            )
+            # Strip markdown code fences if present
+            content = content.strip()
 
-            # Extract JSON from response
-            text = response.text
-            # Basic cleanup in case of markdown blocks
-            json_match = re.search(r'\{.*\}', text, re.DOTALL)
-            if json_match:
-                result = json.loads(json_match.group())
-                result["confidence"] = "High" # Gemini doesn't always provide score in a simple way
-                result["is_demo"] = False
-                return Response({"success": True, "result": result})
-            
-            return Response({"success": False, "message": "Failed to parse AI response"})
+            if content.startswith("```"):
+                content = content.strip("```")
+                content = content.replace("json", "").strip()
+
+            print("=== AI CONTENT (cleaned) ===")
+            print(content)
+
+            analysis_json = json.loads(content)
+            print("=== PARSED JSON ===")
+            print(analysis_json)
 
         except Exception as e:
-            return Response({"success": False, "message": str(e)}, status=500)
+            print("ERROR PARSING AI RESPONSE:", e)
+            return JsonResponse({
+                "error": "AI response not valid JSON",
+                "raw": ai_response
+            })
+
+        return JsonResponse(analysis_json)

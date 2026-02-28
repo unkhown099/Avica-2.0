@@ -88,8 +88,8 @@ function SignIn() {
         const roleRoutes = {
           admin: "/admin/dashboard",
           business_owner: "/branch-owner/dashboard",
-          branch_manager: "/branch/dashboard",
-          staff: "/staff/dashboard",
+          branch_manager: "/manager/dashboard",
+          staff: "/staff/pos",
           employee: "/employee/dashboard",
           customer: "/dashboard",
         };

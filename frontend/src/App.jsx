@@ -24,6 +24,24 @@ import AdminStaff from "./pages/admin/AdminStaffAccounts.jsx";
 
 // Branch Owner Imports
 import BranchOwnerDashboard from "./pages/branch_owner/BranchOwnerDashboard.jsx";
+import BranchOwnerAppointments from "./pages/branch_owner/BranchOwnerAppointments.jsx";
+import BranchOwnerServices from "./pages/branch_owner/BranchOwnerServices.jsx";
+import BranchOwnerInventory from "./pages/branch_owner/BranchOwnerInventory.jsx";
+import BranchOwnerAccountsManagement from "./pages/branch_owner/BranchOwnerAccountsManagement.jsx";
+import BranchOwnerBranches from "./pages/branch_owner/BranchOwnerBranches.jsx";
+
+// Manager Imports
+import ManagerDashboard from "./pages/manager/ManagerDashboard.jsx";
+import ManagerAppointments from "./pages/manager/ManagerAppointments.jsx";
+import ManagerInventory from "./pages/manager/ManagerInventory.jsx";
+import ManagerAccountManagement from "./pages/manager/ManagerAccountManagement.jsx";
+import ManagerHistory from "./pages/manager/ManagerHistory.jsx";
+import ManagerCustomerManagement from "./pages/manager/ManagerCustomerManagement.jsx";
+
+// Staff Imports
+import StaffPOS from "./pages/staff/StaffPOS.jsx";
+import StaffAppointment from "./pages/staff/StaffAppointment.jsx";
+import StaffVehicleRecognition from "./pages/staff/StaffVehicleRecognition.jsx";
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
@@ -104,6 +122,120 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["business_owner"]}>
               <BranchOwnerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/appointments"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerAppointments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/services"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerServices />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/inventory"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerInventory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/accounts"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerAccountsManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/branches"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerBranches />
+            </ProtectedRoute>
+          }
+        />
+        {/* Manager Routes */}
+        <Route
+          path="/manager/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/appointments"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ManagerAppointments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/inventory"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ManagerInventory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/accounts"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ManagerAccountManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/history"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ManagerHistory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/customers"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ManagerCustomerManagement />
+            </ProtectedRoute>
+          }
+        />
+        {/* Staff Routes */}
+        <Route
+          path="/staff/pos"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffPOS />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff/appointments"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffAppointment />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff/vehicle-recognition"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffVehicleRecognition />
             </ProtectedRoute>
           }
         />
