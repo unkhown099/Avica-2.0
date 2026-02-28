@@ -52,3 +52,7 @@ out/
 # Optional IDE files
 .vscode/
 .idea/
+
+# Python cache
+__pycache__/
+*.py[cod]
