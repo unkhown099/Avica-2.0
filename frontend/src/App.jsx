@@ -60,14 +60,7 @@ function Layout() {
         <Route path="/dashboard" element={<CustomerDashboard />} />
 
         {/* Admin Routes */}
-        <Route
-          path="/admin/dashboard"
-          element={
-            
-              <AdminDashboard />
-           
-          }
-        />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route
           path="/admin/services"
           element={
@@ -116,6 +109,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         {/* Branch Owner Routes */}
         <Route
           path="/branch-owner/dashboard"
@@ -165,6 +159,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         {/* Manager Routes */}
         <Route
           path="/manager/dashboard"
@@ -214,6 +209,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         {/* Staff Routes */}
         <Route
           path="/staff/pos"
@@ -239,7 +235,6 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-        {/*  */}
 
         <Route path="*" element={<ErrorPage />} />
       </Routes>
@@ -250,6 +245,7 @@ function Layout() {
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [contentReady, setContentReady] = useState(false);
+  const [contentVisible, setContentVisible] = useState(false);
 
   // Preload critical assets
   useEffect(() => {
@@ -276,20 +272,40 @@ function App() {
   }, []);
 
   const handleLoadingComplete = () => {
-    // Only hide loading screen when both animation AND content are ready
     if (contentReady) {
+      setContentVisible(true);
       setIsLoading(false);
+    } else {
+      // Assets not ready yet — wait for them then reveal
+      const check = setInterval(() => {
+        setContentReady((ready) => {
+          if (ready) {
+            clearInterval(check);
+            setContentVisible(true);
+            setIsLoading(false);
+          }
+          return ready;
+        });
+      }, 50);
     }
   };
 
   return (
     <>
-      {/* Loading Screen */}
+      {/* Loading Screen — sits on top, fades itself out */}
       <LoadingScreen onLoadingComplete={handleLoadingComplete} />
 
-      {/* Main App */}
+      {/*
+        Keep the background dark (#07070d) until the app is fully revealed.
+        This prevents the white flash between loading screen fade-out and
+        the actual page content appearing.
+      */}
       <div
-        className={`transition-opacity duration-500 ${isLoading ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+        style={{ background: contentVisible ? "transparent" : "#07070d" }}
+        className={`
+          transition-opacity duration-700
+          ${contentVisible ? "opacity-100" : "opacity-0"}
+        `}
       >
         <Router>
           <Layout />
