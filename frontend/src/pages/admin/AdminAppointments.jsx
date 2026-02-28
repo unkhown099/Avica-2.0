@@ -135,11 +135,11 @@ function AdminAppointments() {
   };
 
   return (
-    <AdminLayout 
-      title="" 
+    <AdminLayout
+      title=""
       subtitle=""
     >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/50 -m-8 p-8">
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Appointments</h1>
@@ -214,11 +214,10 @@ function AdminAppointments() {
                   <button
                     key={item.day}
                     onClick={() => setSelectedDate(item.day)}
-                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all relative ${
-                      selectedDate === item.day
+                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all relative ${selectedDate === item.day
                         ? 'bg-red-600 text-white shadow-md'
-                        : 'hover:bg-gray-100 text-gray-700'
-                    }`}
+                        : 'hover:bg-red-50 text-gray-700'
+                      }`}
                   >
                     <span>{item.day}</span>
                     {hasAppointments && (
@@ -226,13 +225,12 @@ function AdminAppointments() {
                         {item.appointments.map((apt, idx) => (
                           <div
                             key={idx}
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              selectedDate === item.day
+                            className={`w-1.5 h-1.5 rounded-full ${selectedDate === item.day
                                 ? 'bg-white'
                                 : apt === 'confirmed'
-                                ? 'bg-emerald-500'
-                                : 'bg-yellow-500'
-                            }`}
+                                  ? 'bg-emerald-500'
+                                  : 'bg-yellow-500'
+                              }`}
                           ></div>
                         ))}
                       </div>

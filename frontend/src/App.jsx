@@ -63,9 +63,9 @@ function Layout() {
         <Route
           path="/admin/dashboard"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            
               <AdminDashboard />
-            </ProtectedRoute>
+           
           }
         />
         <Route

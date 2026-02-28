@@ -9,6 +9,14 @@ from django.contrib.auth import authenticate, login, logout, get_user_model
 from rest_framework.permissions import AllowAny
 from django.contrib.auth.hashers import check_password
 from .models import User, Staff
+import os
+import requests
+import base64
+
+from google import genai
+from google.genai import types
+import json
+import re
 import requests
 from django.conf import settings
 from django.http import JsonResponse

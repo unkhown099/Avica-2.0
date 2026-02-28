@@ -42,7 +42,7 @@ function SignUpPage() {
   const formatPhoneNumber = (value) => {
     // Remove all non-digit characters
     const phoneNumber = value.replace(/\D/g, '');
-    
+
     // Format with spaces: XXX XXX XXXX
     if (phoneNumber.length <= 3) {
       return phoneNumber;
@@ -56,7 +56,7 @@ function SignUpPage() {
   // Calculate password strength
   const calculatePasswordStrength = (password) => {
     let score = 0;
-    
+
     if (!password) {
       return { score: 0, text: '', color: '' };
     }
@@ -83,7 +83,7 @@ function SignUpPage() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     // Special handling for phone number
     if (name === 'phone') {
       const formattedPhone = formatPhoneNumber(value);
@@ -91,7 +91,7 @@ function SignUpPage() {
         ...prev,
         phone: formattedPhone
       }));
-      
+
       // Clear error when user starts typing
       if (errors.phone) {
         setErrors(prev => ({ ...prev, phone: '' }));
@@ -104,12 +104,12 @@ function SignUpPage() {
       const strength = calculatePasswordStrength(value);
       setPasswordStrength(strength);
     }
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -136,7 +136,7 @@ function SignUpPage() {
       } else if (/\d/.test(formData.lastName)) {
         newErrors.lastName = 'Last name cannot contain numbers';
       }
-    } 
+    }
     else if (step === 2) {
       // Validate Contact Information (Email & Phone)
       if (!formData.email.trim()) {
@@ -206,7 +206,7 @@ function SignUpPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateStep(3)) {
       return;
     }
@@ -349,7 +349,7 @@ function SignUpPage() {
 
           {/* Right Side - Sign Up Form */}
           <div className="w-full">
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-8 md:p-12 border border-gray-700 shadow-2xl">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-8 md:p-12 border border-white/5 shadow-2xl">
               {/* Mobile Logo */}
               <div className="lg:hidden mb-8 text-center">
                 <div className="bg-white rounded-full px-8 py-3 inline-block shadow-2xl">
@@ -541,7 +541,7 @@ function SignUpPage() {
                         </button>
                       </div>
                       {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
-                      
+
                       {formData.password && (
                         <div className="mt-2">
                           <div className="flex items-center gap-2 mb-1">
@@ -551,11 +551,10 @@ function SignUpPage() {
                                 style={{ width: `${(passwordStrength.score / 3) * 100}%` }}
                               />
                             </div>
-                            <span className={`text-xs font-semibold ${
-                              passwordStrength.score === 1 ? 'text-red-600' : 
-                              passwordStrength.score === 2 ? 'text-yellow-500' : 
-                              'text-green-600'
-                            }`}>
+                            <span className={`text-xs font-semibold ${passwordStrength.score === 1 ? 'text-red-600' :
+                                passwordStrength.score === 2 ? 'text-yellow-500' :
+                                  'text-green-600'
+                              }`}>
                               {passwordStrength.text}
                             </span>
                           </div>
@@ -636,7 +635,7 @@ function SignUpPage() {
                       Previous
                     </button>
                   )}
-                  
+
                   {currentStep < 3 ? (
                     <button
                       type="button"
@@ -658,7 +657,7 @@ function SignUpPage() {
                 {/* Divider and Social Sign Up - Only show on step 3 */}
                 {/* {currentStep === 3 && (
                   <> */}
-                    {/* <div className="relative my-6">
+                {/* <div className="relative my-6">
                       <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-700"></div>
                       </div>
@@ -667,7 +666,7 @@ function SignUpPage() {
                       </div>
                     </div> */}
 
-                    {/* <div className="grid grid-cols-2 gap-4">
+                {/* <div className="grid grid-cols-2 gap-4">
                       <button
                         type="button"
                         className="flex items-center justify-center gap-3 px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white hover:bg-gray-800 hover:border-gray-600 transition-all duration-300"
@@ -690,7 +689,7 @@ function SignUpPage() {
                         <span className="font-semibold">Google</span>
                       </button>
                     </div> */}
-                  {/* </>
+                {/* </>
                 )} */}
 
                 {/* Sign In Link */}

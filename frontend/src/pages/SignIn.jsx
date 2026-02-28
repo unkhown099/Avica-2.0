@@ -148,13 +148,13 @@ function SignIn() {
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700">
+                  <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-6 border border-white/5">
                     <div className="text-4xl font-black text-red-600 mb-2">
                       10K+
                     </div>
                     <div className="text-sm text-gray-400">Happy Customers</div>
                   </div>
-                  <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700">
+                  <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-6 border border-white/5">
                     <div className="text-4xl font-black text-red-600 mb-2">
                       5★
                     </div>
@@ -167,7 +167,7 @@ function SignIn() {
 
           {/* Right Side - Sign In Form */}
           <div className="w-full">
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-8 md:p-12 border border-gray-700 shadow-2xl">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-8 md:p-12 border border-white/5 shadow-2xl">
               <div className="lg:hidden mb-8 text-center">
                 <div>
                   <img

@@ -35,7 +35,7 @@ function AdminStaffAccounts() {
     const styles = {
       Admin: "bg-red-100 text-red-700 border-red-200",
       "Business Owner": "bg-purple-100 text-purple-700 border-purple-200",
-      "Branch Manager": "bg-blue-100 text-blue-700 border-blue-200",
+      "Branch Manager": "bg-red-50 text-red-700 border-red-200",
       Staff: "bg-green-100 text-green-700 border-green-200",
       Employee: "bg-yellow-100 text-yellow-700 border-yellow-200",
     };
@@ -50,11 +50,10 @@ function AdminStaffAccounts() {
 
   const getStatusBadge = (status) => (
     <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-        status === "Active"
+      className={`px-3 py-1 rounded-full text-xs font-semibold border ${status === "Active"
           ? "bg-emerald-100 text-emerald-700 border-emerald-200"
           : "bg-gray-100 text-gray-700 border-gray-200"
-      }`}
+        }`}
     >
       {status}
     </span>
@@ -73,7 +72,7 @@ function AdminStaffAccounts() {
   if (loading) {
     return (
       <AdminLayout title="" subtitle="">
-        <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+        <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/50 -m-8 p-8">
           <div className="p-10 text-center text-slate-300">Loading...</div>
         </div>
       </AdminLayout>

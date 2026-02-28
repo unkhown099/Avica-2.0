@@ -66,11 +66,11 @@ function AdminBranches() {
   ];
 
   return (
-    <AdminLayout 
-      title="" 
+    <AdminLayout
+      title=""
       subtitle=""
     >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/50 -m-8 p-8">
         {/* Page Title */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -103,10 +103,10 @@ function AdminBranches() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 shadow-lg border-2 border-blue-100">
+          <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 shadow-lg border-2 border-red-100">
             <div className="flex items-center gap-3 mb-2">
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-red-100 p-3 rounded-lg">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
@@ -117,10 +117,10 @@ function AdminBranches() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-6 shadow-lg border-2 border-emerald-100">
+          <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 shadow-lg border-2 border-red-100">
             <div className="flex items-center gap-3 mb-2">
-              <div className="bg-emerald-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-red-100 p-3 rounded-lg">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -166,18 +166,18 @@ function AdminBranches() {
 
               {/* Staff & Mechanics */}
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                <div className="bg-red-50 rounded-lg p-4 border border-red-100">
                   <div className="flex items-center gap-2 mb-2">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                     <span className="text-xs text-gray-600">Staff</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900">{branch.staff}</p>
                 </div>
-                <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+                <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
                   <div className="flex items-center gap-2 mb-2">
-                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
@@ -195,10 +195,9 @@ function AdminBranches() {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
-                    className={`h-3 rounded-full transition-all duration-300 ${
-                      branch.bayUtilization >= 80 ? 'bg-emerald-500' :
-                      branch.bayUtilization >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}
+                    className={`h-3 rounded-full transition-all duration-300 ${branch.bayUtilization >= 80 ? 'bg-emerald-500' :
+                        branch.bayUtilization >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
                     style={{ width: `${branch.bayUtilization}%` }}
                   ></div>
                 </div>
