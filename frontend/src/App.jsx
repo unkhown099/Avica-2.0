@@ -43,6 +43,13 @@ import StaffPOS from "./pages/staff/StaffPOS.jsx";
 import StaffAppointment from "./pages/staff/StaffAppointment.jsx";
 import StaffVehicleRecognition from "./pages/staff/StaffVehicleRecognition.jsx";
 
+// Mechanic Imports
+import MechanicDashboard from "./pages/employee/MechanicDashboard.jsx";
+import MechanicSchedule from "./pages/employee/MechanicSchedule.jsx";
+import MechanicActiveJobs from "./pages/employee/MechanicActiveJobs.jsx";
+import MechanicJobHistory from "./pages/employee/MechanicJobHistory.jsx";
+import MechanicInventoryRequest from "./pages/employee/MechanicInventoryRequest.jsx";
+
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
 
@@ -232,6 +239,47 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["staff"]}>
               <StaffVehicleRecognition />
+            </ProtectedRoute>
+          }
+        />
+        {/* Mechanic Routes */}
+        <Route
+          path="/mechanic/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["employee"]}>
+              <MechanicDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mechanic/schedule"
+          element={
+            <ProtectedRoute allowedRoles={["employee"]}>
+              <MechanicSchedule />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mechanic/active-jobs"
+          element={
+            <ProtectedRoute allowedRoles={["employee"]}>
+              <MechanicActiveJobs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mechanic/job-history"
+          element={
+            <ProtectedRoute allowedRoles={["employee"]}>
+              <MechanicJobHistory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mechanic/inventory-requests"
+          element={
+            <ProtectedRoute allowedRoles={["employee"]}>
+              <MechanicInventoryRequest />
             </ProtectedRoute>
           }
         />
