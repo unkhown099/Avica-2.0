@@ -22,7 +22,6 @@ function SignIn() {
       [name]: type === "checkbox" ? checked : value,
     }));
 
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -31,14 +30,12 @@ function SignIn() {
   const validateForm = () => {
     const newErrors = {};
 
-    // Validate email
     if (!formData.email.trim()) {
       newErrors.email = "Email address is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address";
     }
 
-    // Validate password
     if (!formData.password) {
       newErrors.password = "Password is required";
     }
@@ -72,7 +69,6 @@ function SignIn() {
         throw new Error(data.message || "Invalid email or password");
       }
 
-      // Store user info (optional, for ProtectedRoute)
       localStorage.setItem("user", JSON.stringify(data.user));
 
       await Swal.fire({
@@ -111,7 +107,27 @@ function SignIn() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 relative overflow-hidden">
+    <div className="h-screen bg-black flex items-center justify-center px-6 relative overflow-hidden">
+      {/* Top-left back arrow */}
+      <Link
+        to="/"
+        className="fixed top-5 left-5 z-50 w-11 h-11 bg-white/5 hover:bg-red-600 border border-white/10 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all duration-300 shadow-lg backdrop-blur-sm"
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2.5}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </Link>
+
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse" />
@@ -123,20 +139,17 @@ function SignIn() {
 
       {/* Main Container */}
       <div className="w-full max-w-6xl relative z-10">
-        <div className="grid lg:grid-cols-2 gap-8 items-center">
+        <div className="grid lg:grid-cols-2 gap-14 items-center">
           {/* Left Side - Branding */}
           <div className="hidden lg:block">
             <div className="space-y-8">
-              {/* Logo */}
+              <img
+                src={logo}
+                alt="Otokwikk logo"
+                className="h-20 object-contain"
+              />
               <div>
-                <img
-                  src={logo}
-                  alt="Otokwikk logo"
-                  className="h-16 md:h-20 object-contain"
-                />
-              </div>
-              <div>
-                <h1 className="text-5xl md:text-6xl font-black text-white mb-6 leading-tight">
+                <h1 className="text-6xl font-black text-white mb-5 leading-tight">
                   Welcome
                   <br />
                   Back!
@@ -145,20 +158,18 @@ function SignIn() {
                   Sign in to access your account and continue enjoying premium
                   auto detailing services.
                 </p>
-
-                {/* Stats */}
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-6 border border-white/5">
-                    <div className="text-4xl font-black text-red-600 mb-2">
+                  <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-7 border border-white/5">
+                    <div className="text-5xl font-black text-red-600 mb-2">
                       10K+
                     </div>
-                    <div className="text-sm text-gray-400">Happy Customers</div>
+                    <div className="text-lg text-gray-400">Happy Customers</div>
                   </div>
-                  <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-6 border border-white/5">
-                    <div className="text-4xl font-black text-red-600 mb-2">
+                  <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-7 border border-white/5">
+                    <div className="text-5xl font-black text-red-600 mb-2">
                       5★
                     </div>
-                    <div className="text-sm text-gray-400">Average Rating</div>
+                    <div className="text-lg text-gray-400">Average Rating</div>
                   </div>
                 </div>
               </div>
@@ -167,58 +178,32 @@ function SignIn() {
 
           {/* Right Side - Sign In Form */}
           <div className="w-full">
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-8 md:p-12 border border-white/5 shadow-2xl">
-              <div className="lg:hidden mb-8 text-center">
-                <div>
-                  <img
-                    src={logo}
-                    alt="Otokwikk logo"
-                    className="h-16 md:h-20 object-contain"
-                  />
-                </div>
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-10 border border-white/5 shadow-2xl">
+              <div className="lg:hidden mb-6 text-center">
+                <img
+                  src={logo}
+                  alt="Otokwikk logo"
+                  className="h-14 object-contain mx-auto"
+                />
               </div>
 
-              <div className="mb-8">
-                <div className="mb-4">
-                  <Link
-                    to="/"
-                    className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                      />
-                    </svg>
-                    Back to Landing Page
-                  </Link>
-                </div>
-
-                <h2 className="text-3xl md:text-4xl font-black text-white mb-2">
-                  Sign In
-                </h2>
-                <p className="text-gray-400">
+              <div className="mb-7">
+                <h2 className="text-4xl font-black text-white mb-2">Sign In</h2>
+                <p className="text-gray-400 text-lg">
                   Enter your credentials to access your account
                 </p>
               </div>
 
               <form
                 onSubmit={handleSubmit}
-                className="space-y-6"
+                className="space-y-5"
                 autoComplete="off"
               >
                 {/* Email */}
                 <div>
                   <label
                     htmlFor="email"
-                    className="block text-sm font-semibold text-gray-300 mb-2"
+                    className="block text-lg font-semibold text-gray-300 mb-2"
                   >
                     Email Address
                   </label>
@@ -229,11 +214,13 @@ function SignIn() {
                     value={formData.email}
                     onChange={handleChange}
                     autoComplete="off"
-                    className={`w-full px-4 py-3 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                    className={`w-full px-5 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                     placeholder="john.doe@example.com"
                   />
                   {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                    <p className="text-red-500 text-base mt-1">
+                      {errors.email}
+                    </p>
                   )}
                 </div>
 
@@ -241,7 +228,7 @@ function SignIn() {
                 <div>
                   <label
                     htmlFor="password"
-                    className="block text-sm font-semibold text-gray-300 mb-2"
+                    className="block text-lg font-semibold text-gray-300 mb-2"
                   >
                     Password
                   </label>
@@ -253,17 +240,17 @@ function SignIn() {
                       value={formData.password}
                       onChange={handleChange}
                       autoComplete="off"
-                      className={`w-full px-4 py-3 bg-gray-900 border ${errors.password ? "border-red-600" : "border-gray-700"} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12`}
+                      className={`w-full px-5 py-3.5 bg-gray-900 border ${errors.password ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-14`}
                       placeholder="••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                     >
                       {showPassword ? (
                         <svg
-                          className="w-5 h-5"
+                          className="w-6 h-6"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -277,7 +264,7 @@ function SignIn() {
                         </svg>
                       ) : (
                         <svg
-                          className="w-5 h-5"
+                          className="w-6 h-6"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -299,7 +286,7 @@ function SignIn() {
                     </button>
                   </div>
                   {errors.password && (
-                    <p className="text-red-500 text-sm mt-1">
+                    <p className="text-red-500 text-base mt-1">
                       {errors.password}
                     </p>
                   )}
@@ -307,7 +294,7 @@ function SignIn() {
 
                 {/* Remember Me & Forgot Password */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       id="rememberMe"
@@ -315,18 +302,18 @@ function SignIn() {
                       checked={formData.rememberMe}
                       onChange={handleChange}
                       autoComplete="off"
-                      className="w-4 h-4 bg-gray-900 border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer"
+                      className="w-5 h-5 bg-gray-900 border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer"
                     />
                     <label
                       htmlFor="rememberMe"
-                      className="text-sm text-gray-400 cursor-pointer"
+                      className="text-lg text-gray-400 cursor-pointer"
                     >
                       Remember me
                     </label>
                   </div>
                   <a
                     href="#"
-                    className="text-sm text-red-600 hover:text-red-500 font-semibold"
+                    className="text-lg text-red-600 hover:text-red-500 font-semibold"
                   >
                     Forgot Password?
                   </a>
@@ -335,18 +322,18 @@ function SignIn() {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50 text-xl"
                 >
                   Log In
                 </button>
 
                 {/* Divider */}
-                <div className="relative my-6">
+                <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-gray-700"></div>
                   </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-gray-800 text-gray-400">
+                  <div className="relative flex justify-center">
+                    <span className="px-4 bg-gray-900 text-gray-400 text-base">
                       Or continue with
                     </span>
                   </div>
@@ -356,10 +343,10 @@ function SignIn() {
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     type="button"
-                    className="flex items-center justify-center gap-3 px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white hover:bg-gray-800 hover:border-gray-600 transition-all duration-300"
+                    className="flex items-center justify-center gap-3 px-4 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-lg hover:bg-gray-800 hover:border-gray-600 transition-all duration-300"
                   >
                     <svg
-                      className="w-5 h-5"
+                      className="w-6 h-6"
                       fill="currentColor"
                       viewBox="0 0 24 24"
                     >
@@ -369,10 +356,10 @@ function SignIn() {
                   </button>
                   <button
                     type="button"
-                    className="flex items-center justify-center gap-3 px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white hover:bg-gray-800 hover:border-gray-600 transition-all duration-300"
+                    className="flex items-center justify-center gap-3 px-4 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-lg hover:bg-gray-800 hover:border-gray-600 transition-all duration-300"
                   >
                     <svg
-                      className="w-5 h-5"
+                      className="w-6 h-6"
                       fill="currentColor"
                       viewBox="0 0 24 24"
                     >
@@ -398,8 +385,8 @@ function SignIn() {
                 </div>
 
                 {/* Sign Up Link */}
-                <div className="text-center mt-6">
-                  <p className="text-gray-400">
+                <div className="text-center">
+                  <p className="text-gray-400 text-lg">
                     Don't have an account?{" "}
                     <Link
                       to="/signup"
@@ -415,7 +402,6 @@ function SignIn() {
         </div>
       </div>
 
-      {/* CSS for custom checkbox */}
       <style>{`
         input[type="checkbox"]:checked {
           background-color: #dc2626;
