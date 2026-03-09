@@ -1,5 +1,5 @@
+# api/serializers/staff_serializer.py
 from rest_framework import serializers
-from django.contrib.auth.hashers import make_password
 from django.db import transaction
 from ..models import User, Staff
 
@@ -27,9 +27,9 @@ class StaffSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password")
 
         with transaction.atomic():
-            user = User.objects.create(
+            user = User.objects.create_user(
                 email=email,
-                password_hash=make_password(password)
+                password=password
             )
             staff = Staff.objects.create(user=user, **validated_data)
 
