@@ -8,44 +8,32 @@ function Navbar({ user, setUser }) {
 
   const handleLogout = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/logout/", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "X-CSRFToken": getCookie("csrftoken"),
-        },
+      // Remove tokens from localStorage
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      // Clear user state
+      if (typeof setUser === "function") setUser(null);
+
+      await Swal.fire({
+        icon: "success",
+        title: "Logged Out",
+        text: "You have been logged out successfully.",
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
+        confirmButtonColor: "#dc2626",
       });
 
-      if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("Logout response:", data);
-
-      if (data.success) {
-        // guard against undefined setUser
-        if (typeof setUser === "function") {
-          setUser(null);
-        }
-
-        await Swal.fire({
-          icon: "success",
-          title: "Logged Out",
-          text: "You have been logged out successfully.",
-        });
-
-        window.location.href = "/signin";
-      } else {
-        throw new Error(data.message || "Logout failed");
-      }
+      // Redirect to sign in page
+      window.location.href = "/signin";
     } catch (error) {
-      console.error("Logout crash:", error);
-
+      console.error("Logout error:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: error.message || "Unexpected frontend error",
+        text: error.message || "Unexpected error during logout",
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
+        confirmButtonColor: "#dc2626",
       });
     }
   };

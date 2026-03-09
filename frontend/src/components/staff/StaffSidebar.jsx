@@ -75,34 +75,33 @@ function StaffSidebar() {
 
   const handleLogout = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/logout/", {
-        method: "POST",
-        credentials: "include", // if using session auth
+      // Remove tokens from localStorage
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      // Optionally remove user info
+      localStorage.removeItem("user");
+
+      // Clear user state if you have one (optional)
+      // setUser(null); // Uncomment if you pass setUser prop
+
+      await Swal.fire({
+        icon: "success",
+        title: "Logged Out",
+        text: "You have been successfully logged out.",
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
+        confirmButtonColor: "#dc2626",
       });
 
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        // Clear localStorage
-        localStorage.removeItem("user");
-
-        await Swal.fire({
-          icon: "success",
-          title: "Logged Out",
-          text: "You have been successfully logged out.",
-          confirmButtonColor: "#dc2626",
-        });
-
-        // Redirect to sign-in page
-        navigate("/signin");
-      } else {
-        throw new Error(data.message || "Logout failed");
-      }
+      navigate("/signin");
     } catch (err) {
+      console.error("Logout error:", err);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: err.message,
+        text: err.message || "Unexpected error during logout",
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
         confirmButtonColor: "#dc2626",
       });
     }
