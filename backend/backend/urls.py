@@ -15,18 +15,28 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
 from django.views.generic import RedirectView
-from api.views import SignupView, LoginView, LogoutView, StaffView, analyze_vehicle
+
+# Import views from their respective modules
+from api.views.auth_views import SignupView, LoginView, LogoutView
+from api.views.staff_views import StaffView
+from api.views.vehicle_views import AnalyzeVehicleView  # class-based version of analyze_vehicle
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # Authentication
     path('signup/', SignupView.as_view(), name='signup'),
     path('login/', LoginView.as_view(), name='login'),
-    path("logout/", LogoutView.as_view()),
-    path("staff/", StaffView.as_view()),
-    path("api/analyze-vehicle/", analyze_vehicle),
+    path('logout/', LogoutView.as_view(), name='logout'),
 
-    # Redirect root to signup
+    # Staff management
+    path('staff/', StaffView.as_view(), name='staff'),
+
+    # Vehicle AI analysis
+    path('api/analyze-vehicle/', AnalyzeVehicleView.as_view(), name='analyze_vehicle'),
+
+    # Redirect root to signup page
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
 ]

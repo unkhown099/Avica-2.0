@@ -12,12 +12,18 @@ class User(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        db_table = "users"
+
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="customer_profile")
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True, null=True)
     loyalty_points = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "customers"
 
 class Staff(models.Model):
     ROLE_CHOICES = [
@@ -35,3 +41,6 @@ class Staff(models.Model):
     role = models.CharField(max_length=50, choices=ROLE_CHOICES)
     branch = models.CharField(max_length=100)
     status = models.CharField(max_length=20, default="Active")
+
+    class Meta:
+        db_table = "staffs"
