@@ -1,32 +1,22 @@
 import React, { useState } from "react";
-import Sidebar from "../../components/admin/AdminSidebar.jsx";
+import Sidebar from "../../components/UnifiedSidebar.jsx";
 
-function AdminLayout({ children, title, subtitle }) {
+function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
+    <div className="min-h-screen bg-gray-950">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content Area */}
       <div className="lg:ml-60 min-h-screen flex flex-col">
         {/* Mobile Top Bar */}
-        <header className="lg:hidden flex items-center gap-4 px-4 py-3 bg-gray-900 sticky top-0 z-10 shadow-md">
+        <header className="lg:hidden flex items-center gap-4 px-4 py-3 bg-gray-900 sticky top-0 z-10 shadow-md border-b border-gray-800">
           <button
             onClick={() => setSidebarOpen(true)}
             className="text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
             aria-label="Open sidebar"
           >
-            {/* Hamburger 3 stripes */}
             <svg
               className="w-6 h-6"
               fill="none"
@@ -41,9 +31,11 @@ function AdminLayout({ children, title, subtitle }) {
               />
             </svg>
           </button>
-          <span className="text-white font-bold text-lg tracking-wide">
-            Admin Panel
-          </span>
+          <img
+            src="/assets/otokwikklogo.png"
+            alt="Otokwikk"
+            className="h-8 object-contain"
+          />
         </header>
 
         {/* Page Content */}

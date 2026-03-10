@@ -71,7 +71,11 @@ function SignIn() {
       }
 
       // Store user info if you want immediate access
-      localStorage.setItem("user", JSON.stringify(data.user));
+      if (formData.rememberMe) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      } else {
+        sessionStorage.setItem("user", JSON.stringify(data.user));
+      }
 
       // Navigate based on role
       const roleRoutes = {
