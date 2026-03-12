@@ -10,8 +10,16 @@ import Navbar from "./components/Landing/LandingNav.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import Signup from "./pages/Signup.jsx";
 import SignIn from "./pages/SignIn.jsx";
-import CustomerDashboard from "./pages/customer/CustomerDashboard.jsx";
 import LoadingScreen from "./components/LoadingScreen.jsx";
+
+// Customer Imports
+import CustomerDashboard from "./pages/customer/CustomerDashboard.jsx";
+import CustomerServices from "./pages/customer/CustomerServices.jsx";
+import CustomerBooking from "./pages/customer/CustomerBooking.jsx";
+import CustomerHistory from "./pages/customer/CustomerHistory.jsx";
+import CustomerProfile from "./pages/customer/CustomerProfile.jsx";
+import CustomerSettings from "./pages/customer/CustomerSettings.jsx";
+import HelpPage from "./pages/customer/CustomerHelp.jsx";
 
 // Admin Imports
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
@@ -64,6 +72,7 @@ function Layout() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<SignIn />} />
+        // Customer Routes
         <Route
           path="/dashboard"
           element={
@@ -72,7 +81,54 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/services"
+          element={
+            <ProtectedRoute allowedRoles={["customer"]}>
+              <CustomerServices />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bookings"
+          element={
+            <ProtectedRoute allowedRoles={["customer"]}>
+              <CustomerBooking />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <ProtectedRoute allowedRoles={["customer"]}>
+              <CustomerHistory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute allowedRoles={["customer"]}>
+              <CustomerProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute allowedRoles={["customer"]}>
+              <CustomerSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/help"
+          element={
+            <ProtectedRoute allowedRoles={["customer"]}>
+              <HelpPage />
+            </ProtectedRoute>
+          }
+        />
         {/* Admin Routes */}
         <Route
           path="/admin/dashboard"
@@ -130,7 +186,6 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-
         {/* Branch Owner Routes */}
         <Route
           path="/branch-owner/dashboard"
@@ -180,7 +235,6 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-
         {/* Manager Routes */}
         <Route
           path="/manager/dashboard"
@@ -230,7 +284,6 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-
         {/* Staff Routes */}
         <Route
           path="/staff/pos"
@@ -297,7 +350,6 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-
         <Route path="*" element={<ErrorPage />} />
       </Routes>
     </>
