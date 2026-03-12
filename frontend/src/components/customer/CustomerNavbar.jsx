@@ -1,11 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/otokwikklogo.png";
+import { getUserFromSession } from "../../utils/getUser";
 
-function Navbar({ user, setUser }) {
+function Navbar({ user: userProp, setUser }) {
+  const [localUser, setLocalUser] = useState(
+    () => userProp || getUserFromSession(),
+  );
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Sync when parent passes updated user prop
+  useEffect(() => {
+    if (userProp) setLocalUser(userProp);
+  }, [userProp]);
+
+  // Re-read if storage changes (e.g. silent token refresh)
+  useEffect(() => {
+    const handleStorage = () => {
+      const derived = getUserFromSession();
+      if (derived) setLocalUser(derived);
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const user = localUser;
 
   const handleLogout = async () => {
     const refresh =
@@ -16,7 +37,7 @@ function Navbar({ user, setUser }) {
       sessionStorage.getItem("access_token");
 
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}/logout/`, {
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}logout/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -25,7 +46,7 @@ function Navbar({ user, setUser }) {
         body: JSON.stringify({ refresh }),
       });
     } catch (_) {
-      // fail silently — still clear storage
+      // fail silently
     }
 
     ["access_token", "refresh_token", "user"].forEach((key) => {
@@ -47,6 +68,16 @@ function Navbar({ user, setUser }) {
     navigate("/signin");
   };
 
+  // Display helpers — firstName/lastName come from getUser.js which reads
+  // the `user` object saved by LoginView (has first_name, last_name from Customer model)
+  const fullName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Guest";
+  const initials =
+    (
+      (user?.firstName?.[0] || "") + (user?.lastName?.[0] || "")
+    ).toUpperCase() || "?";
+  const email = user?.email || "";
+
   return (
     <nav className="fixed top-0 w-full z-50 bg-black/95 backdrop-blur-md shadow-lg border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -62,7 +93,7 @@ function Navbar({ user, setUser }) {
             </a>
           </div>
 
-          {/* Navigation Links */}
+          {/* Nav links */}
           <div className="hidden md:flex items-center gap-8">
             {[
               { label: "Dashboard", href: "/dashboard" },
@@ -81,23 +112,24 @@ function Navbar({ user, setUser }) {
             ))}
           </div>
 
-          {/* User Profile Section */}
+          {/* Profile button */}
           <div className="relative">
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-lg">
-                  {user?.firstName?.charAt(0)}
-                  {user?.lastName?.charAt(0)}
-                </span>
+              <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center shrink-0">
+                <span className="text-white font-bold text-sm">{initials}</span>
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-white font-semibold text-sm">
-                  {user?.firstName} {user?.lastName}
+                <p className="text-white font-semibold text-sm leading-tight">
+                  {fullName}
                 </p>
-                <p className="text-gray-400 text-xs">{user?.email}</p>
+                {email && (
+                  <p className="text-gray-400 text-xs truncate max-w-[160px]">
+                    {email}
+                  </p>
+                )}
               </div>
               <svg
                 className={`w-5 h-5 text-white transition-transform duration-300 ${isProfileOpen ? "rotate-180" : ""}`}
@@ -105,7 +137,12 @@ function Navbar({ user, setUser }) {
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
 
@@ -113,10 +150,10 @@ function Navbar({ user, setUser }) {
             {isProfileOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
                 <div className="p-4 border-b border-gray-700">
-                  <p className="text-white font-bold">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-gray-400 text-sm">{user?.email}</p>
+                  <p className="text-white font-bold">{fullName}</p>
+                  {email && (
+                    <p className="text-gray-400 text-sm truncate">{email}</p>
+                  )}
                 </div>
 
                 <div className="py-2">
@@ -142,8 +179,18 @@ function Navbar({ user, setUser }) {
                       href={href}
                       className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-300"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
+                      <svg
+                        className="w-5 h-5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d={icon}
+                        />
                       </svg>
                       <span>{label}</span>
                     </a>
@@ -155,8 +202,18 @@ function Navbar({ user, setUser }) {
                     onClick={handleLogout}
                     className="flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-600/10 transition-colors duration-300 w-full rounded-lg"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    <svg
+                      className="w-5 h-5 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
                     </svg>
                     <span className="font-semibold">Logout</span>
                   </button>
