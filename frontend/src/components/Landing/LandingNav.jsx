@@ -67,6 +67,13 @@ const Navbar = () => {
     navigate("/");
   };
 
+  // Friendly display name: first name > email prefix
+  const displayName = user
+    ? user.name
+      ? user.name.split(" ")[0]
+      : user.email?.split("@")[0]
+    : null;
+
   return (
     <nav
       className={`fixed top-0 w-full z-50 transition-all duration-500 ${
@@ -88,7 +95,7 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* Auth Buttons — logged out */}
+          {/* ── Logged OUT ── */}
           {!user && (
             <div className="flex items-center gap-6">
               <Link to="/signin">
@@ -123,9 +130,10 @@ const Navbar = () => {
             </div>
           )}
 
-          {/* Nav links — logged in */}
+          {/* ── Logged IN ── */}
           {user && (
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-5">
+              {/* Nav links by role */}
               {user.role === "customer" && (
                 <>
                   <Link to="/dashboard">
@@ -152,7 +160,20 @@ const Navbar = () => {
                 </Link>
               )}
 
-              {/* Logout — same animated button style */}
+              {/* ── Welcome Badge ── */}
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-red-600/40 bg-red-600/10 backdrop-blur-sm">
+                {/* Ping dot */}
+                <span className="relative flex h-2 w-2 flex-shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600" />
+                </span>
+                <span className="text-sm font-medium text-white/70 whitespace-nowrap">
+                  Hey,{" "}
+                  <span className="font-black text-white">{displayName}</span>!
+                </span>
+              </div>
+
+              {/* Logout */}
               <button
                 onClick={handleLogout}
                 className="relative inline-flex items-center justify-center px-8 py-3 overflow-hidden font-bold text-white transition duration-300 ease-out border-2 border-red-600 rounded-full shadow-md group"
