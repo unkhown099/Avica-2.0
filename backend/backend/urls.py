@@ -24,6 +24,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from api.views.auth_views import SignupView, LogoutView, MeView, LoginView
 from api.views.staff_views import StaffView
 from api.views.vehicle_views import AnalyzeVehicleView
+from api.views.chatbot_views import chat_with_groq
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -40,6 +41,9 @@ urlpatterns = [
 
     # Vehicle AI analysis
     path('api/analyze-vehicle/', AnalyzeVehicleView.as_view(), name='analyze_vehicle'),
+
+    # Chatbot endpoint
+    path("api/chat/", chat_with_groq, name="chat_with_groq"),
 
     # Redirect root to signup page
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
