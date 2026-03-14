@@ -1,257 +1,365 @@
-import React, { useState } from 'react';
-import ManagerLayout from './ManagerLayout';
+import React, { useState } from "react";
+import ManagerLayout from "./ManagerLayout";
 
 function ManagerAccountManagement() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All Roles');
-  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("All Roles");
+  const [statusFilter, setStatusFilter] = useState("All Status");
 
-  // Staff accounts for San Mateo Rizal branch only
   const staffAccounts = [
-    { id: 1, name: 'Carl Roy Gamilla', email: 'carl@otokwikk.com', phone: '0917-123-4567', role: 'Branch Manager', status: 'Active' },
-    { id: 2, name: 'Mike Johnson', email: 'mike.j@otokwikk.com', phone: '0922-678-9012', role: 'Mechanic', status: 'Active' },
-    { id: 3, name: 'Sarah Connor', email: 'sarah.c@otokwikk.com', phone: '0923-789-0123', role: 'Mechanic', status: 'Active' },
-    { id: 4, name: 'Lisa Davis', email: 'lisa.d@otokwikk.com', phone: '0925-901-2345', role: 'Mechanic', status: 'Active' },
-    { id: 5, name: 'Robert Lee', email: 'robert.l@otokwikk.com', phone: '0926-012-3456', role: 'Service Advisor', status: 'Active' },
-    { id: 6, name: 'Jennifer White', email: 'jen.w@otokwikk.com', phone: '0927-123-4567', role: 'Service Advisor', status: 'Active' },
-    { id: 7, name: 'David Brown', email: 'david.b@otokwikk.com', phone: '0928-234-5678', role: 'Receptionist', status: 'Active' },
-    { id: 8, name: 'Emily Garcia', email: 'emily.g@otokwikk.com', phone: '0929-345-6789', role: 'Receptionist', status: 'Active' },
-    { id: 9, name: 'James Wilson', email: 'james.w@otokwikk.com', phone: '0930-456-7890', role: 'Parts Manager', status: 'Active' },
-    { id: 10, name: 'Patricia Martinez', email: 'patricia.m@otokwikk.com', phone: '0931-567-8901', role: 'Parts Manager', status: 'Active' },
-    { id: 11, name: 'Michael Anderson', email: 'michael.a@otokwikk.com', phone: '0932-678-9012', role: 'Mechanic', status: 'Active' },
-    { id: 12, name: 'Susan Taylor', email: 'susan.t@otokwikk.com', phone: '0933-789-0123', role: 'Service Advisor', status: 'Active' },
-    { id: 13, name: 'Kevin Moore', email: 'kevin.m@otokwikk.com', phone: '0934-890-1234', role: 'Mechanic', status: 'Active' },
-    { id: 14, name: 'Linda Jackson', email: 'linda.j@otokwikk.com', phone: '0935-901-2345', role: 'Receptionist', status: 'Active' },
-    { id: 15, name: 'Thomas White', email: 'thomas.w@otokwikk.com', phone: '0936-012-3456', role: 'Mechanic', status: 'Active' }
+    {
+      id: 1,
+      name: "Carl Roy Gamilla",
+      email: "carl@otokwikk.com",
+      phone: "0917-123-4567",
+      role: "Branch Manager",
+      status: "Active",
+    },
+    {
+      id: 2,
+      name: "Mike Johnson",
+      email: "mike.j@otokwikk.com",
+      phone: "0922-678-9012",
+      role: "Mechanic",
+      status: "Active",
+    },
+    {
+      id: 3,
+      name: "Sarah Connor",
+      email: "sarah.c@otokwikk.com",
+      phone: "0923-789-0123",
+      role: "Mechanic",
+      status: "Active",
+    },
+    {
+      id: 4,
+      name: "Lisa Davis",
+      email: "lisa.d@otokwikk.com",
+      phone: "0925-901-2345",
+      role: "Mechanic",
+      status: "Active",
+    },
+    {
+      id: 5,
+      name: "Robert Lee",
+      email: "robert.l@otokwikk.com",
+      phone: "0926-012-3456",
+      role: "Service Advisor",
+      status: "Active",
+    },
+    {
+      id: 6,
+      name: "Jennifer White",
+      email: "jen.w@otokwikk.com",
+      phone: "0927-123-4567",
+      role: "Service Advisor",
+      status: "Active",
+    },
+    {
+      id: 7,
+      name: "David Brown",
+      email: "david.b@otokwikk.com",
+      phone: "0928-234-5678",
+      role: "Receptionist",
+      status: "Active",
+    },
+    {
+      id: 8,
+      name: "Emily Garcia",
+      email: "emily.g@otokwikk.com",
+      phone: "0929-345-6789",
+      role: "Receptionist",
+      status: "Active",
+    },
+    {
+      id: 9,
+      name: "James Wilson",
+      email: "james.w@otokwikk.com",
+      phone: "0930-456-7890",
+      role: "Parts Manager",
+      status: "Active",
+    },
+    {
+      id: 10,
+      name: "Patricia Martinez",
+      email: "patricia.m@otokwikk.com",
+      phone: "0931-567-8901",
+      role: "Parts Manager",
+      status: "Active",
+    },
+    {
+      id: 11,
+      name: "Michael Anderson",
+      email: "michael.a@otokwikk.com",
+      phone: "0932-678-9012",
+      role: "Mechanic",
+      status: "Active",
+    },
+    {
+      id: 12,
+      name: "Susan Taylor",
+      email: "susan.t@otokwikk.com",
+      phone: "0933-789-0123",
+      role: "Service Advisor",
+      status: "Active",
+    },
+    {
+      id: 13,
+      name: "Kevin Moore",
+      email: "kevin.m@otokwikk.com",
+      phone: "0934-890-1234",
+      role: "Mechanic",
+      status: "Active",
+    },
+    {
+      id: 14,
+      name: "Linda Jackson",
+      email: "linda.j@otokwikk.com",
+      phone: "0935-901-2345",
+      role: "Receptionist",
+      status: "Active",
+    },
+    {
+      id: 15,
+      name: "Thomas White",
+      email: "thomas.w@otokwikk.com",
+      phone: "0936-012-3456",
+      role: "Mechanic",
+      status: "Active",
+    },
   ];
 
-  const getRoleBadge = (role) => {
-    const colors = {
-      'Branch Manager': 'bg-purple-100 text-purple-700 border-purple-200',
-      'Mechanic': 'bg-blue-100 text-blue-700 border-blue-200',
-      'Service Advisor': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      'Receptionist': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      'Parts Manager': 'bg-red-100 text-red-700 border-red-200'
-    };
-    return colors[role] || 'bg-gray-100 text-gray-700 border-gray-200';
+  const roleBadge = {
+    "Branch Manager": "bg-purple-500/20 text-purple-400 border-purple-500/30",
+    Mechanic: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    "Service Advisor":
+      "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    Receptionist: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    "Parts Manager": "bg-red-500/20 text-red-400 border-red-500/30",
+  };
+  const roleColors = {
+    "Branch Manager": "#a855f7",
+    Mechanic: "#3b82f6",
+    "Service Advisor": "#10b981",
+    Receptionist: "#f59e0b",
+    "Parts Manager": "#ef4444",
   };
 
-  const getStatusBadge = (status) => {
-    if (status === 'Active') {
-      return (
-        <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-          Active
-        </span>
-      );
-    }
-    return (
-      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 border border-gray-200">
-        Inactive
-      </span>
-    );
-  };
+  const roles = [
+    "Branch Manager",
+    "Mechanic",
+    "Service Advisor",
+    "Receptionist",
+    "Parts Manager",
+  ];
+  const roleCounts = roles.reduce((acc, r) => {
+    acc[r] = staffAccounts.filter((s) => s.role === r).length;
+    return acc;
+  }, {});
 
-  const filteredStaff = staffAccounts.filter(staff => {
-    const matchesSearch = 
-      staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      staff.email.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesRole = roleFilter === 'All Roles' || staff.role === roleFilter;
-    const matchesStatus = statusFilter === 'All Status' || staff.status === statusFilter;
-    
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  const filteredStaff = staffAccounts.filter(
+    (s) =>
+      (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (roleFilter === "All Roles" || s.role === roleFilter) &&
+      (statusFilter === "All Status" || s.status === statusFilter),
+  );
 
   return (
-    <ManagerLayout 
-      title="" 
-      subtitle=""
-    >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
-        {/* Page Title */}
+    <ManagerLayout title="" subtitle="">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Account Management</h1>
-          <p className="text-slate-300">Manage staff accounts for San Mateo Rizal branch</p>
+          <h1 className="text-3xl font-black text-white tracking-tight">
+            Account Management
+          </h1>
+          <p className="text-gray-400 mt-1">
+            Manage staff accounts for San Mateo Rizal branch
+          </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 shadow-lg border-2 border-red-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="bg-red-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
+        {/* Role Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          {roles.map((role) => (
+            <div
+              key={role}
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all"
+            >
+              <div className="text-2xl font-black text-white mb-1">
+                {roleCounts[role] || 0}
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Staff</p>
-                <p className="text-3xl font-bold text-gray-900">{staffAccounts.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 shadow-lg border-2 border-blue-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Mechanics</p>
-                <p className="text-3xl font-bold text-gray-900">{staffAccounts.filter(s => s.role === 'Mechanic').length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-6 shadow-lg border-2 border-emerald-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="bg-emerald-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Service Advisors</p>
-                <p className="text-3xl font-bold text-gray-900">{staffAccounts.filter(s => s.role === 'Service Advisor').length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 shadow-lg border-2 border-purple-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="bg-purple-100 p-3 rounded-lg">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Active</p>
-                <p className="text-3xl font-bold text-gray-900">{staffAccounts.filter(s => s.status === 'Active').length}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Staff List */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Staff Accounts</h2>
-            
-            {/* Search and Filters */}
-            <div className="flex flex-col md:flex-row items-center gap-4">
-              <div className="flex-1 relative w-full">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by name or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              <div className="text-xs text-gray-400 font-medium">{role}</div>
+              <div className="mt-2 h-1 rounded-full bg-gray-800">
+                <div
+                  className="h-1 rounded-full"
+                  style={{
+                    width: `${((roleCounts[role] || 0) / staffAccounts.length) * 100}%`,
+                    backgroundColor: roleColors[role],
+                  }}
                 />
               </div>
-
-              <div className="relative w-full md:w-auto">
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="appearance-none w-full md:w-48 bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer"
-                >
-                  <option>All Roles</option>
-                  <option>Branch Manager</option>
-                  <option>Mechanic</option>
-                  <option>Service Advisor</option>
-                  <option>Receptionist</option>
-                  <option>Parts Manager</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-
-              <div className="relative w-full md:w-auto">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="appearance-none w-full md:w-40 bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer"
-                >
-                  <option>All Status</option>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
             </div>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1">
+            <svg
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
+            />
+          </div>
+          {[
+            {
+              value: roleFilter,
+              onChange: setRoleFilter,
+              options: ["All Roles", ...roles],
+            },
+            {
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: ["All Status", "Active", "Inactive"],
+            },
+          ].map((sel, i) => (
+            <select
+              key={i}
+              value={sel.value}
+              onChange={(e) => sel.onChange(e.target.value)}
+              className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
+            >
+              {sel.options.map((o) => (
+                <option key={o}>{o}</option>
+              ))}
+            </select>
+          ))}
+        </div>
+
+        {/* Table */}
+        <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+          <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="col-span-3">Name</div>
+            <div className="col-span-3">Phone</div>
+            <div className="col-span-3">Role</div>
+            <div className="col-span-2">Status</div>
+            <div className="col-span-1 text-right">Actions</div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Name</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Email</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Phone</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Role</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredStaff.map((staff) => (
-                  <tr key={staff.id} className="hover:bg-gray-50 transition-colors duration-150">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{staff.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{staff.email}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{staff.phone}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadge(staff.role)}`}>
-                        {staff.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">{getStatusBadge(staff.status)}</td>
-                    <td className="px-6 py-4">
-                      <button className="text-gray-600 hover:text-red-600 transition-colors duration-200">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Empty State */}
-          {filteredStaff.length === 0 && (
-            <div className="text-center py-12">
-              <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          {filteredStaff.length === 0 ? (
+            <div className="py-20 text-center">
+              <svg
+                className="w-12 h-12 text-gray-700 mx-auto mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                />
               </svg>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No staff found</h3>
-              <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+              <p className="text-gray-500 text-lg">No staff found</p>
+              <p className="text-gray-600 text-sm mt-1">
+                Try adjusting your search or filters
+              </p>
+            </div>
+          ) : (
+            filteredStaff.map((staff) => (
+              <div
+                key={staff.id}
+                className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+              >
+                <div className="col-span-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{
+                        backgroundColor:
+                          (roleColors[staff.role] || "#6b7280") + "22",
+                        color: roleColors[staff.role] || "#6b7280",
+                      }}
+                    >
+                      {staff.name.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="text-white font-semibold text-sm">
+                        {staff.name}
+                      </div>
+                      <div className="text-gray-500 text-xs truncate max-w-[150px]">
+                        {staff.email}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-span-3 text-gray-400 text-sm">
+                  {staff.phone}
+                </div>
+                <div className="col-span-3">
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${roleBadge[staff.role] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+                  >
+                    {staff.role}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                    {staff.status}
+                  </span>
+                </div>
+                <div className="col-span-1 flex justify-end">
+                  <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+
+          {filteredStaff.length > 0 && (
+            <div className="px-6 py-4">
+              <p className="text-gray-500 text-sm">
+                Showing{" "}
+                <span className="text-white font-semibold">
+                  {filteredStaff.length}
+                </span>{" "}
+                of{" "}
+                <span className="text-white font-semibold">
+                  {staffAccounts.length}
+                </span>{" "}
+                staff accounts
+              </p>
             </div>
           )}
         </div>
-
-        {/* Results Counter */}
-        {filteredStaff.length > 0 && (
-          <div className="mt-4 text-sm text-slate-300">
-            Showing {filteredStaff.length} of {staffAccounts.length} staff accounts
-          </div>
-        )}
       </div>
     </ManagerLayout>
   );

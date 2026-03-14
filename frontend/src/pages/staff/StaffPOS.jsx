@@ -1,336 +1,480 @@
-import React, { useState } from 'react';
-import StaffLayout from './StaffLayout';
+import React, { useState } from "react";
+import StaffLayout from "./StaffLayout";
 
 function StaffPOS() {
   const [cart, setCart] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('services'); // services or products
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("services");
   const [customerInfo, setCustomerInfo] = useState({
-    name: '',
-    phone: '',
-    vehicle: ''
+    name: "",
+    phone: "",
+    vehicle: "",
   });
 
-  // Services available
   const services = [
-    { id: 1, name: 'Oil Change', price: 1200, category: 'Maintenance', duration: '30-45 mins' },
-    { id: 2, name: 'Brake Inspection', price: 800, category: 'Inspection', duration: '20-30 mins' },
-    { id: 3, name: 'Engine Diagnostic', price: 1800, category: 'Diagnostic', duration: '45-60 mins' },
-    { id: 4, name: 'Tire Replacement', price: 3500, category: 'Maintenance', duration: '1 hour' },
-    { id: 5, name: 'Full Service', price: 3800, category: 'Maintenance', duration: '2 hours' },
-    { id: 6, name: 'AC Service', price: 2200, category: 'Maintenance', duration: '1.5 hours' },
-    { id: 7, name: 'Battery Replacement', price: 4800, category: 'Parts & Service', duration: '30 mins' },
-    { id: 8, name: 'Brake Repair', price: 3200, category: 'Repair', duration: '2 hours' }
+    {
+      id: 1,
+      name: "Oil Change",
+      price: 1200,
+      category: "Maintenance",
+      duration: "30-45 mins",
+    },
+    {
+      id: 2,
+      name: "Brake Inspection",
+      price: 800,
+      category: "Inspection",
+      duration: "20-30 mins",
+    },
+    {
+      id: 3,
+      name: "Engine Diagnostic",
+      price: 1800,
+      category: "Diagnostic",
+      duration: "45-60 mins",
+    },
+    {
+      id: 4,
+      name: "Tire Replacement",
+      price: 3500,
+      category: "Maintenance",
+      duration: "1 hour",
+    },
+    {
+      id: 5,
+      name: "Full Service",
+      price: 3800,
+      category: "Maintenance",
+      duration: "2 hours",
+    },
+    {
+      id: 6,
+      name: "AC Service",
+      price: 2200,
+      category: "Maintenance",
+      duration: "1.5 hours",
+    },
+    {
+      id: 7,
+      name: "Battery Replacement",
+      price: 4800,
+      category: "Parts & Service",
+      duration: "30 mins",
+    },
+    {
+      id: 8,
+      name: "Brake Repair",
+      price: 3200,
+      category: "Repair",
+      duration: "2 hours",
+    },
   ];
 
-  // Products available
   const products = [
-    { id: 1, name: 'Engine Oil 5W-30', price: 450, category: 'Lubricants', stock: 45, unit: 'Liter' },
-    { id: 2, name: 'Brake Pads Set', price: 2500, category: 'Brakes', stock: 12, unit: 'Set' },
-    { id: 3, name: 'Air Filter', price: 350, category: 'Filters', stock: 8, unit: 'Piece' },
-    { id: 4, name: 'Battery 12V 60Ah', price: 4200, category: 'Batteries', stock: 5, unit: 'Piece' },
-    { id: 5, name: 'Tire 195/65R15', price: 3500, category: 'Tires', stock: 24, unit: 'Piece' },
-    { id: 6, name: 'Engine Oil 10W-40', price: 420, category: 'Lubricants', stock: 32, unit: 'Liter' },
-    { id: 7, name: 'Spark Plugs Set', price: 800, category: 'Ignition', stock: 18, unit: 'Set' },
-    { id: 8, name: 'Coolant Fluid', price: 350, category: 'Lubricants', stock: 28, unit: 'Liter' }
+    {
+      id: 1,
+      name: "Engine Oil 5W-30",
+      price: 450,
+      category: "Lubricants",
+      stock: 45,
+    },
+    {
+      id: 2,
+      name: "Brake Pads Set",
+      price: 2500,
+      category: "Brakes",
+      stock: 12,
+    },
+    { id: 3, name: "Air Filter", price: 350, category: "Filters", stock: 8 },
+    {
+      id: 4,
+      name: "Battery 12V 60Ah",
+      price: 4200,
+      category: "Batteries",
+      stock: 5,
+    },
+    {
+      id: 5,
+      name: "Tire 195/65R15",
+      price: 3500,
+      category: "Tires",
+      stock: 24,
+    },
+    {
+      id: 6,
+      name: "Engine Oil 10W-40",
+      price: 420,
+      category: "Lubricants",
+      stock: 32,
+    },
+    {
+      id: 7,
+      name: "Spark Plugs Set",
+      price: 800,
+      category: "Ignition",
+      stock: 18,
+    },
+    {
+      id: 8,
+      name: "Coolant Fluid",
+      price: 350,
+      category: "Lubricants",
+      stock: 28,
+    },
   ];
 
-  const filteredServices = services.filter(service =>
-    service.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredServices = services.filter((s) =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const addToCart = (item, type) => {
-    const existingItem = cart.find(cartItem => cartItem.id === item.id && cartItem.type === type);
-    
-    if (existingItem) {
-      setCart(cart.map(cartItem =>
-        cartItem.id === item.id && cartItem.type === type
-          ? { ...cartItem, quantity: cartItem.quantity + 1 }
-          : cartItem
-      ));
+    const existing = cart.find((c) => c.id === item.id && c.type === type);
+    if (existing) {
+      setCart(
+        cart.map((c) =>
+          c.id === item.id && c.type === type
+            ? { ...c, quantity: c.quantity + 1 }
+            : c,
+        ),
+      );
     } else {
       setCart([...cart, { ...item, quantity: 1, type }]);
     }
   };
 
-  const removeFromCart = (itemId, type) => {
-    setCart(cart.filter(item => !(item.id === itemId && item.type === type)));
+  const removeFromCart = (id, type) =>
+    setCart(cart.filter((c) => !(c.id === id && c.type === type)));
+
+  const updateQuantity = (id, type, qty) => {
+    if (qty < 1) return;
+    setCart(
+      cart.map((c) =>
+        c.id === id && c.type === type ? { ...c, quantity: qty } : c,
+      ),
+    );
   };
 
-  const updateQuantity = (itemId, type, newQuantity) => {
-    if (newQuantity < 1) return;
-    setCart(cart.map(item =>
-      item.id === itemId && item.type === type
-        ? { ...item, quantity: newQuantity }
-        : item
-    ));
-  };
-
-  const calculateSubtotal = () => {
-    return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  };
-
-  const calculateTax = () => {
-    return calculateSubtotal() * 0.12; // 12% VAT
-  };
-
-  const calculateTotal = () => {
-    return calculateSubtotal() + calculateTax();
-  };
+  const subtotal = () => cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const tax = () => subtotal() * 0.12;
+  const total = () => subtotal() + tax();
+  const fmt = (n) => n.toLocaleString("en-US", { minimumFractionDigits: 2 });
 
   const handleCheckout = () => {
     if (cart.length === 0) {
-      alert('Cart is empty!');
+      alert("Cart is empty!");
       return;
     }
     if (!customerInfo.name || !customerInfo.phone) {
-      alert('Please enter customer information!');
+      alert("Please enter customer information!");
       return;
     }
-    // Process payment
-    const total = calculateTotal();
-    alert(`Payment processed successfully!\nTotal: ₱${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
-    // Clear cart and customer info
+    alert(`Payment processed successfully!\nTotal: ₱${fmt(total())}`);
     setCart([]);
-    setCustomerInfo({ name: '', phone: '', vehicle: '' });
+    setCustomerInfo({ name: "", phone: "", vehicle: "" });
   };
 
   const handleClearCart = () => {
-    if (window.confirm('Are you sure you want to clear the cart?')) {
-      setCart([]);
-    }
+    if (window.confirm("Are you sure you want to clear the cart?")) setCart([]);
   };
 
   return (
-    <StaffLayout 
-      title="" 
-      subtitle=""
-    >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
-        {/* Page Title */}
+    <StaffLayout title="" subtitle="">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Point of Sale</h1>
-          <p className="text-slate-300">Process transactions for products and services</p>
+          <h1 className="text-3xl font-black text-white tracking-tight">
+            Point of Sale
+          </h1>
+          <p className="text-gray-400 mt-1">
+            Process transactions for products and services
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Products/Services Section */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-6">
-              {/* Tabs */}
-              <div className="flex border-b border-gray-200">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Products / Services Panel */}
+          <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm flex flex-col">
+            {/* Tabs */}
+            <div className="flex border-b border-white/5">
+              {["services", "products"].map((tab) => (
                 <button
-                  onClick={() => setActiveTab('services')}
-                  className={`flex-1 px-6 py-4 font-semibold transition-colors ${
-                    activeTab === 'services'
-                      ? 'text-red-600 border-b-2 border-red-600'
-                      : 'text-gray-600 hover:text-gray-900'
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 px-6 py-4 text-sm font-black uppercase tracking-wider transition-all ${
+                    activeTab === tab
+                      ? "text-white border-b-2 border-red-500"
+                      : "text-gray-500 hover:text-gray-300"
                   }`}
                 >
-                  Services
+                  {tab}
                 </button>
-                <button
-                  onClick={() => setActiveTab('products')}
-                  className={`flex-1 px-6 py-4 font-semibold transition-colors ${
-                    activeTab === 'products'
-                      ? 'text-red-600 border-b-2 border-red-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Products
-                </button>
-              </div>
+              ))}
+            </div>
 
-              {/* Search */}
-              <div className="p-6 border-b border-gray-200">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder={`Search ${activeTab}...`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            {/* Search */}
+            <div className="p-4 border-b border-white/5">
+              <div className="relative">
+                <svg
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
-                </div>
+                </svg>
+                <input
+                  type="text"
+                  placeholder={`Search ${activeTab}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
+                />
               </div>
+            </div>
 
-              {/* Items Grid */}
-              <div className="p-6 max-h-[600px] overflow-y-auto">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {activeTab === 'services' && filteredServices.map((service) => (
+            {/* Items Grid */}
+            <div className="p-4 overflow-y-auto max-h-[600px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {activeTab === "services" &&
+                  filteredServices.map((service) => (
                     <button
                       key={service.id}
-                      onClick={() => addToCart(service, 'service')}
-                      className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-100 rounded-xl p-4 hover:shadow-md transition-all text-left"
+                      onClick={() => addToCart(service, "service")}
+                      className="bg-gray-800/60 border border-white/5 rounded-xl p-4 hover:border-red-500/30 hover:bg-gray-800 transition-all text-left group"
                     >
-                      <h3 className="font-bold text-gray-900 mb-2">{service.name}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{service.category}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-blue-600">₱{service.price.toLocaleString()}</span>
-                        <span className="text-xs text-gray-500">{service.duration}</span>
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-black text-white text-sm group-hover:text-red-400 transition-colors">
+                          {service.name}
+                        </h3>
+                        <span className="text-xs text-gray-500 bg-gray-700/60 px-2 py-0.5 rounded-full shrink-0 ml-2">
+                          {service.duration}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-3">
+                        {service.category}
+                      </p>
+                      <div className="text-lg font-black text-red-400">
+                        ₱{service.price.toLocaleString()}
                       </div>
                     </button>
                   ))}
 
-                  {activeTab === 'products' && filteredProducts.map((product) => (
+                {activeTab === "products" &&
+                  filteredProducts.map((product) => (
                     <button
                       key={product.id}
-                      onClick={() => addToCart(product, 'product')}
-                      className="bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-100 rounded-xl p-4 hover:shadow-md transition-all text-left"
+                      onClick={() => addToCart(product, "product")}
+                      className="bg-gray-800/60 border border-white/5 rounded-xl p-4 hover:border-emerald-500/30 hover:bg-gray-800 transition-all text-left group"
                     >
-                      <h3 className="font-bold text-gray-900 mb-2">{product.name}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{product.category}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-emerald-600">₱{product.price.toLocaleString()}</span>
-                        <span className="text-xs text-gray-500">Stock: {product.stock}</span>
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-black text-white text-sm group-hover:text-emerald-400 transition-colors">
+                          {product.name}
+                        </h3>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full shrink-0 ml-2 ${product.stock <= 8 ? "bg-red-500/20 text-red-400" : "bg-emerald-500/20 text-emerald-400"}`}
+                        >
+                          {product.stock} left
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-3">
+                        {product.category}
+                      </p>
+                      <div className="text-lg font-black text-emerald-400">
+                        ₱{product.price.toLocaleString()}
                       </div>
                     </button>
                   ))}
-                </div>
-
-                {((activeTab === 'services' && filteredServices.length === 0) ||
-                  (activeTab === 'products' && filteredProducts.length === 0)) && (
-                  <div className="text-center py-12">
-                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <p className="text-gray-600">No {activeTab} found</p>
-                  </div>
-                )}
               </div>
+
+              {((activeTab === "services" && filteredServices.length === 0) ||
+                (activeTab === "products" &&
+                  filteredProducts.length === 0)) && (
+                <div className="py-16 text-center">
+                  <p className="text-gray-500">No {activeTab} found</p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Cart Section */}
-          <div>
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 sticky top-8">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900">Cart</h2>
-              </div>
+          {/* Cart Panel */}
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm sticky top-8 flex flex-col">
+            <div className="px-6 py-4 border-b border-white/5">
+              <h2 className="text-lg font-black text-white">
+                Cart{" "}
+                <span className="text-gray-500 font-normal text-sm">
+                  ({cart.length})
+                </span>
+              </h2>
+            </div>
 
-              {/* Customer Info */}
-              <div className="p-6 border-b border-gray-200 bg-gray-50">
-                <h3 className="font-semibold text-gray-900 mb-3">Customer Information</h3>
-                <div className="space-y-3">
+            {/* Customer Info */}
+            <div className="p-5 border-b border-white/5 bg-white/[0.02]">
+              <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-3">
+                Customer Information
+              </p>
+              <div className="space-y-2.5">
+                {[
+                  { key: "name", placeholder: "Customer Name *", type: "text" },
+                  { key: "phone", placeholder: "Phone Number *", type: "tel" },
+                  {
+                    key: "vehicle",
+                    placeholder: "Vehicle (Optional)",
+                    type: "text",
+                  },
+                ].map((f) => (
                   <input
-                    type="text"
-                    placeholder="Customer Name *"
-                    value={customerInfo.name}
-                    onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    key={f.key}
+                    type={f.type}
+                    placeholder={f.placeholder}
+                    value={customerInfo[f.key]}
+                    onChange={(e) =>
+                      setCustomerInfo({
+                        ...customerInfo,
+                        [f.key]: e.target.value,
+                      })
+                    }
+                    className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
                   />
-                  <input
-                    type="tel"
-                    placeholder="Phone Number *"
-                    value={customerInfo.phone}
-                    onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Vehicle (Optional)"
-                    value={customerInfo.vehicle}
-                    onChange={(e) => setCustomerInfo({...customerInfo, vehicle: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Cart Items */}
+            <div className="p-5 max-h-[280px] overflow-y-auto">
+              {cart.length === 0 ? (
+                <div className="py-10 text-center">
+                  <svg
+                    className="w-12 h-12 text-gray-700 mx-auto mb-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                  <p className="text-gray-600 text-sm">Cart is empty</p>
                 </div>
-              </div>
-
-              {/* Cart Items */}
-              <div className="p-6 max-h-[300px] overflow-y-auto">
-                {cart.length === 0 ? (
-                  <div className="text-center py-8">
-                    <svg className="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <p className="text-gray-500 text-sm">Cart is empty</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {cart.map((item, index) => (
-                      <div key={`${item.type}-${item.id}-${index}`} className="bg-gray-50 rounded-lg p-3">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 text-sm">{item.name}</h4>
-                            <p className="text-xs text-gray-600">
-                              {item.type === 'service' ? 'Service' : 'Product'}
-                            </p>
+              ) : (
+                <div className="space-y-2.5">
+                  {cart.map((item, i) => (
+                    <div
+                      key={`${item.type}-${item.id}-${i}`}
+                      className="bg-gray-800/60 border border-white/5 rounded-xl p-3"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-semibold text-sm truncate">
+                            {item.name}
                           </div>
-                          <button
-                            onClick={() => removeFromCart(item.id, item.type)}
-                            className="text-red-500 hover:text-red-700"
+                          <div className="text-xs text-gray-500">
+                            {item.type === "service" ? "Service" : "Product"}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(item.id, item.type)}
+                          className="text-gray-600 hover:text-red-400 transition-colors ml-2 shrink-0"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() =>
+                              updateQuantity(
+                                item.id,
+                                item.type,
+                                item.quantity - 1,
+                              )
+                            }
+                            className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white text-sm transition-colors"
+                          >
+                            −
+                          </button>
+                          <span className="text-sm font-bold text-white w-6 text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() =>
+                              updateQuantity(
+                                item.id,
+                                item.type,
+                                item.quantity + 1,
+                              )
+                            }
+                            className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white text-sm transition-colors"
+                          >
+                            +
                           </button>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)}
-                              className="w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
-                            >
-                              -
-                            </button>
-                            <span className="text-sm font-semibold w-8 text-center">{item.quantity}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)}
-                              className="w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center"
-                            >
-                              +
-                            </button>
-                          </div>
-                          <span className="font-bold text-gray-900">
-                            ₱{(item.price * item.quantity).toLocaleString()}
-                          </span>
-                        </div>
+                        <span className="text-white font-bold text-sm">
+                          ₱{(item.price * item.quantity).toLocaleString()}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-              {/* Totals */}
-              <div className="p-6 border-t border-gray-200 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-semibold text-gray-900">₱{calculateSubtotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax (12%)</span>
-                  <span className="font-semibold text-gray-900">₱{calculateTax().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-lg pt-3 border-t border-gray-200">
-                  <span className="font-bold text-gray-900">Total</span>
-                  <span className="font-bold text-red-600">₱{calculateTotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                </div>
+            {/* Totals */}
+            <div className="px-5 py-4 border-t border-white/5 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="text-gray-300 font-semibold">
+                  ₱{fmt(subtotal())}
+                </span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Tax (12%)</span>
+                <span className="text-gray-300 font-semibold">
+                  ₱{fmt(tax())}
+                </span>
+              </div>
+              <div className="flex justify-between pt-3 border-t border-white/5">
+                <span className="text-white font-black">Total</span>
+                <span className="text-red-400 font-black text-lg">
+                  ₱{fmt(total())}
+                </span>
+              </div>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="p-6 border-t border-gray-200 space-y-3">
-                <button
-                  onClick={handleCheckout}
-                  className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors shadow-md"
-                >
-                  Proceed to Payment
-                </button>
-                <button
-                  onClick={handleClearCart}
-                  className="w-full px-6 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg font-semibold transition-colors"
-                >
-                  Clear Cart
-                </button>
-              </div>
+            {/* Actions */}
+            <div className="px-5 pb-5 space-y-2.5">
+              <button
+                onClick={handleCheckout}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-3 rounded-xl transition-all shadow-lg shadow-red-600/20"
+              >
+                Proceed to Payment
+              </button>
+              <button
+                onClick={handleClearCart}
+                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold py-3 rounded-xl transition-all"
+              >
+                Clear Cart
+              </button>
             </div>
           </div>
         </div>

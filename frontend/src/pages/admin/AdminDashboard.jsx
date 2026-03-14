@@ -45,10 +45,10 @@ function AdminDashboard() {
           />
         </svg>
       ),
-      iconBg: "bg-red-50",
-      iconColor: "text-red-500",
-      cardBg: "bg-gradient-to-br from-red-50 to-pink-50",
-      borderColor: "border-red-100",
+      accent: "#ef4444",
+      accentBg: "bg-red-500/10",
+      accentText: "text-red-400",
+      border: "border-red-500/20",
     },
     {
       title: "Total Customers",
@@ -69,10 +69,10 @@ function AdminDashboard() {
           />
         </svg>
       ),
-      iconBg: "bg-red-500/10",
-      iconColor: "text-red-500",
-      cardBg: "bg-gradient-to-br from-red-50 to-orange-50",
-      borderColor: "border-red-100",
+      accent: "#a855f7",
+      accentBg: "bg-purple-500/10",
+      accentText: "text-purple-400",
+      border: "border-purple-500/20",
     },
     {
       title: "Services Completed",
@@ -99,10 +99,10 @@ function AdminDashboard() {
           />
         </svg>
       ),
-      iconBg: "bg-red-500/10",
-      iconColor: "text-red-500",
-      cardBg: "bg-gradient-to-br from-red-50 to-pink-50",
-      borderColor: "border-red-100",
+      accent: "#3b82f6",
+      accentBg: "bg-blue-500/10",
+      accentText: "text-blue-400",
+      border: "border-blue-500/20",
     },
     {
       title: "Avg. Satisfaction",
@@ -119,14 +119,14 @@ function AdminDashboard() {
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
       ),
-      iconBg: "bg-red-500/10",
-      iconColor: "text-red-500",
-      cardBg: "bg-gradient-to-br from-red-50 to-amber-50",
-      borderColor: "border-red-100",
+      accent: "#10b981",
+      accentBg: "bg-emerald-500/10",
+      accentText: "text-emerald-400",
+      border: "border-emerald-500/20",
     },
   ];
 
@@ -136,18 +136,26 @@ function AdminDashboard() {
       {
         label: "Revenue (₱)",
         data: [50000, 52000, 48000, 58000, 61000, 70000],
-        borderColor: "#dc2626",
-        backgroundColor: "rgba(220, 38, 38, 0.1)",
+        borderColor: "#ef4444",
+        backgroundColor: "rgba(239, 68, 68, 0.08)",
         tension: 0.4,
+        pointBackgroundColor: "#ef4444",
+        pointRadius: 4,
+        pointHoverRadius: 6,
         yAxisID: "y",
+        fill: true,
       },
       {
         label: "Services",
         data: [120, 135, 125, 138, 145, 165],
-        borderColor: "#1f2937",
-        backgroundColor: "rgba(31, 41, 55, 0.1)",
+        borderColor: "#6b7280",
+        backgroundColor: "rgba(107, 114, 128, 0.05)",
         tension: 0.4,
+        pointBackgroundColor: "#6b7280",
+        pointRadius: 4,
+        pointHoverRadius: 6,
         yAxisID: "y1",
+        fill: true,
       },
     ],
   };
@@ -157,15 +165,37 @@ function AdminDashboard() {
     maintainAspectRatio: false,
     interaction: { mode: "index", intersect: false },
     plugins: {
-      legend: { display: true, position: "bottom" },
+      legend: {
+        display: true,
+        position: "bottom",
+        labels: {
+          color: "#9ca3af",
+          usePointStyle: true,
+          pointStyleWidth: 8,
+          padding: 20,
+          font: { size: 12 },
+        },
+      },
+      tooltip: {
+        backgroundColor: "#111827",
+        borderColor: "rgba(255,255,255,0.1)",
+        borderWidth: 1,
+        titleColor: "#f9fafb",
+        bodyColor: "#9ca3af",
+      },
     },
     scales: {
+      x: {
+        grid: { color: "rgba(255,255,255,0.04)" },
+        ticks: { color: "#6b7280" },
+      },
       y: {
         type: "linear",
         display: true,
         position: "left",
         beginAtZero: true,
-        grid: { color: "rgba(0, 0, 0, 0.05)" },
+        grid: { color: "rgba(255,255,255,0.04)" },
+        ticks: { color: "#6b7280" },
       },
       y1: {
         type: "linear",
@@ -173,6 +203,7 @@ function AdminDashboard() {
         position: "right",
         beginAtZero: true,
         grid: { drawOnChartArea: false },
+        ticks: { color: "#6b7280" },
       },
     },
   };
@@ -189,14 +220,15 @@ function AdminDashboard() {
       {
         data: [35, 25, 20, 12, 8],
         backgroundColor: [
-          "#dc2626",
-          "#1f2937",
-          "#6b7280",
           "#ef4444",
-          "#374151",
+          "#a855f7",
+          "#3b82f6",
+          "#10b981",
+          "#f59e0b",
         ],
         borderWidth: 2,
-        borderColor: "#ffffff",
+        borderColor: "#111827",
+        hoverBorderColor: "#1f2937",
       },
     ],
   };
@@ -204,114 +236,277 @@ function AdminDashboard() {
   const doughnutChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
+    cutout: "72%",
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#111827",
+        borderColor: "rgba(255,255,255,0.1)",
+        borderWidth: 1,
+        titleColor: "#f9fafb",
+        bodyColor: "#9ca3af",
+      },
+    },
   };
 
   const serviceBreakdown = [
-    { label: "Oil Change", color: "bg-red-600", pct: "35%" },
-    { label: "Tire Service", color: "bg-gray-900", pct: "25%" },
-    { label: "Engine Repair", color: "bg-gray-500", pct: "20%" },
-    { label: "Body Work", color: "bg-red-400", pct: "12%" },
-    { label: "Other", color: "bg-gray-700", pct: "8%" },
+    { label: "Oil Change", color: "#ef4444", pct: "35%", val: 35 },
+    { label: "Tire Service", color: "#a855f7", pct: "25%", val: 25 },
+    { label: "Engine Repair", color: "#3b82f6", pct: "20%", val: 20 },
+    { label: "Body Work", color: "#10b981", pct: "12%", val: 12 },
+    { label: "Other", color: "#f59e0b", pct: "8%", val: 8 },
   ];
+
+  const recentActivity = [
+    {
+      name: "Juan dela Cruz",
+      service: "Oil Change",
+      amount: "₱850",
+      status: "Completed",
+      avatar: "J",
+    },
+    {
+      name: "Maria Santos",
+      service: "Tire Service",
+      amount: "₱1,200",
+      status: "In Progress",
+      avatar: "M",
+    },
+    {
+      name: "Pedro Reyes",
+      service: "Engine Repair",
+      amount: "₱4,500",
+      status: "Completed",
+      avatar: "P",
+    },
+    {
+      name: "Ana Gonzales",
+      service: "Body Work",
+      amount: "₱8,000",
+      status: "Pending",
+      avatar: "A",
+    },
+    {
+      name: "Carlo Mendoza",
+      service: "Oil Change",
+      amount: "₱850",
+      status: "Completed",
+      avatar: "C",
+    },
+  ];
+
+  const statusStyle = {
+    Completed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    "In Progress": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    Pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  };
 
   return (
     <AdminLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/50 -m-4 sm:-m-6 lg:-m-8 p-4 sm:p-6 lg:p-8">
-        {/* Title */}
-        <div className="mb-6 lg:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-black text-white tracking-tight">
             Admin Dashboard
           </h1>
+          <p className="text-gray-400 mt-1">
+            Welcome back — here's what's happening today.
+          </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 lg:mb-8">
-          {stats.map((stat, index) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+          {stats.map((stat, i) => (
             <div
-              key={index}
-              className={`${stat.cardBg} rounded-xl p-5 shadow-sm border-2 ${stat.borderColor}`}
+              key={i}
+              className={`bg-gray-900/60 border ${stat.border} rounded-2xl p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}
             >
               <div className="flex items-start justify-between mb-4">
-                <div className="min-w-0 flex-1 pr-3">
-                  <p className="text-sm text-gray-600 mb-1 truncate">
-                    {stat.title}
-                  </p>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
-                    {stat.value}
-                  </h3>
-                </div>
                 <div
-                  className={`${stat.iconBg} ${stat.iconColor} p-3 rounded-lg flex-shrink-0`}
+                  className={`${stat.accentBg} ${stat.accentText} p-3 rounded-xl`}
                 >
                   {stat.icon}
                 </div>
+                <div
+                  className={`flex items-center gap-1 text-xs font-semibold ${stat.accentText} ${stat.accentBg} px-2 py-1 rounded-full`}
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                    />
+                  </svg>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-sm">
-                <svg
-                  className={`w-4 h-4 flex-shrink-0 ${stat.iconColor}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                  />
-                </svg>
-                <span
-                  className={`${stat.iconColor} font-medium text-xs sm:text-sm`}
-                >
-                  {stat.change}
-                </span>
+              <div className="text-2xl font-black text-white mb-1">
+                {stat.value}
+              </div>
+              <div className="text-sm text-gray-500 mb-3">{stat.title}</div>
+              <div className={`text-xs font-semibold ${stat.accentText}`}>
+                {stat.change}
               </div>
             </div>
           ))}
         </div>
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
           {/* Line Chart */}
-          <div className="xl:col-span-2 bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
-            <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 sm:mb-6">
-              Revenue & Services Trend
-            </h3>
-            <div className="h-60 sm:h-72 lg:h-80">
+          <div className="xl:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-black text-white">
+                  Revenue & Services Trend
+                </h3>
+                <p className="text-gray-500 text-sm mt-0.5">
+                  January – June 2025
+                </p>
+              </div>
+              <div className="flex items-center gap-2 bg-gray-800/60 rounded-xl p-1">
+                {["6M", "1Y", "All"].map((t) => (
+                  <button
+                    key={t}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${t === "6M" ? "bg-red-600 text-white shadow-lg shadow-red-600/30" : "text-gray-500 hover:text-gray-300"}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="h-64 sm:h-72">
               <Line data={lineChartData} options={lineChartOptions} />
             </div>
           </div>
 
           {/* Doughnut Chart */}
-          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
-            <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 sm:mb-6">
-              Service Distribution
-            </h3>
-            <div className="h-48 sm:h-56 lg:h-64 flex items-center justify-center mb-4 sm:mb-6">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="mb-6">
+              <h3 className="text-lg font-black text-white">
+                Service Distribution
+              </h3>
+              <p className="text-gray-500 text-sm mt-0.5">
+                By category this month
+              </p>
+            </div>
+            <div className="h-44 flex items-center justify-center mb-6">
               <Doughnut
                 data={doughnutChartData}
                 options={doughnutChartOptions}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {serviceBreakdown.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-3 h-3 ${item.color} rounded-full flex-shrink-0`}
-                    ></div>
-                    <span className="text-sm text-gray-600">{item.label}</span>
-                  </div>
-                  <span className="text-sm font-semibold text-gray-900">
-                    {item.pct}
+                <div key={item.label} className="flex items-center gap-3">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-sm text-gray-400 flex-1">
+                    {item.label}
                   </span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: item.pct, backgroundColor: item.color }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-white w-8 text-right">
+                      {item.pct}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Recent Transactions Table */}
+        <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+            <div>
+              <h3 className="text-lg font-black text-white">
+                Recent Transactions
+              </h3>
+              <p className="text-gray-500 text-sm mt-0.5">
+                Latest service activity
+              </p>
+            </div>
+            <button className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors">
+              View all →
+            </button>
+          </div>
+
+          {/* Table Header */}
+          <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+            <div className="col-span-4">Customer</div>
+            <div className="col-span-3">Service</div>
+            <div className="col-span-2">Amount</div>
+            <div className="col-span-2">Status</div>
+            <div className="col-span-1 text-right">Actions</div>
+          </div>
+
+          {/* Table Body */}
+          {recentActivity.map((row, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+            >
+              <div className="col-span-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center text-sm font-bold shrink-0">
+                    {row.avatar}
+                  </div>
+                  <span className="text-white font-semibold text-sm">
+                    {row.name}
+                  </span>
+                </div>
+              </div>
+              <div className="col-span-3 text-gray-400 text-sm">
+                {row.service}
+              </div>
+              <div className="col-span-2 text-white font-bold text-sm">
+                {row.amount}
+              </div>
+              <div className="col-span-2">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusStyle[row.status]}`}
+                >
+                  {row.status}
+                </span>
+              </div>
+              <div className="col-span-1 flex justify-end">
+                <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <div className="px-6 py-4">
+            <p className="text-gray-500 text-sm">
+              Showing <span className="text-white font-semibold">5</span> of{" "}
+              <span className="text-white font-semibold">883</span> transactions
+            </p>
           </div>
         </div>
       </div>

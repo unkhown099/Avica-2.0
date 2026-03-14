@@ -1,184 +1,285 @@
-import React, { useState } from 'react';
-import StaffLayout from './StaffLayout';
+import React, { useState } from "react";
+import StaffLayout from "./StaffLayout";
 
 function StaffAppointments() {
   const [showAddWalkIn, setShowAddWalkIn] = useState(false);
   const [selectedDate, setSelectedDate] = useState(2);
-  const [currentMonth] = useState('February 2026');
+  const [currentMonth] = useState("February 2026");
 
-  // Form state for walk-in customer
   const [walkInForm, setWalkInForm] = useState({
-    customerName: '',
-    phone: '',
-    email: '',
-    vehicleMake: '',
-    vehicleModel: '',
-    vehicleYear: '',
-    plateNumber: '',
-    service: '',
-    notes: ''
+    customerName: "",
+    phone: "",
+    email: "",
+    vehicleMake: "",
+    vehicleModel: "",
+    vehicleYear: "",
+    plateNumber: "",
+    service: "",
+    notes: "",
   });
 
-  // Calendar days
   const calendarDays = Array.from({ length: 28 }, (_, i) => ({
     day: i + 1,
-    appointments: i === 1 ? ['confirmed', 'pending'] : i === 3 ? ['confirmed'] : i === 6 ? ['pending'] : i === 9 ? ['confirmed'] : i === 14 ? ['confirmed', 'pending'] : []
+    appointments:
+      i === 1
+        ? ["confirmed", "pending"]
+        : i === 3
+          ? ["confirmed"]
+          : i === 6
+            ? ["pending"]
+            : i === 9
+              ? ["confirmed"]
+              : i === 14
+                ? ["confirmed", "pending"]
+                : [],
   }));
 
-  // Appointments for San Mateo Rizal branch
   const allAppointments = [
-    { date: 2, customer: 'John Doe', status: 'Confirmed', vehicle: 'Toyota Corolla 2020', time: '09:00 AM', service: 'Oil Change', mechanic: 'Mike Johnson', type: 'Scheduled' },
-    { date: 2, customer: 'Jane Smith', status: 'Pending', vehicle: 'Honda Civic 2019', time: '11:00 AM', service: 'Brake Inspection', mechanic: 'Unassigned', type: 'Walk-in' },
-    { date: 4, customer: 'Robert Wilson', status: 'Confirmed', vehicle: 'Ford Ranger 2021', time: '10:00 AM', service: 'Engine Diagnostic', mechanic: 'Sarah Connor', type: 'Scheduled' },
-    { date: 7, customer: 'Emily Brown', status: 'Pending', vehicle: 'Nissan Altima 2022', time: '02:00 PM', service: 'Tire Replacement', mechanic: 'Tom Hardy', type: 'Walk-in' },
-    { date: 10, customer: 'Michael Chen', status: 'Confirmed', vehicle: 'Mazda 3 2020', time: '08:00 AM', service: 'Full Service', mechanic: 'Mike Johnson', type: 'Scheduled' },
-    { date: 15, customer: 'Sarah Johnson', status: 'Confirmed', vehicle: 'Hyundai Tucson 2021', time: '01:00 PM', service: 'AC Service', mechanic: 'Lisa Davis', type: 'Scheduled' },
-    { date: 15, customer: 'David Martinez', status: 'Pending', vehicle: 'Kia Sportage 2022', time: '03:00 PM', service: 'Battery Replacement', mechanic: 'Unassigned', type: 'Walk-in' }
+    {
+      date: 2,
+      customer: "John Doe",
+      status: "Confirmed",
+      vehicle: "Toyota Corolla 2020",
+      time: "09:00 AM",
+      service: "Oil Change",
+      mechanic: "Mike Johnson",
+      type: "Scheduled",
+    },
+    {
+      date: 2,
+      customer: "Jane Smith",
+      status: "Pending",
+      vehicle: "Honda Civic 2019",
+      time: "11:00 AM",
+      service: "Brake Inspection",
+      mechanic: "Unassigned",
+      type: "Walk-in",
+    },
+    {
+      date: 4,
+      customer: "Robert Wilson",
+      status: "Confirmed",
+      vehicle: "Ford Ranger 2021",
+      time: "10:00 AM",
+      service: "Engine Diagnostic",
+      mechanic: "Sarah Connor",
+      type: "Scheduled",
+    },
+    {
+      date: 7,
+      customer: "Emily Brown",
+      status: "Pending",
+      vehicle: "Nissan Altima 2022",
+      time: "02:00 PM",
+      service: "Tire Replacement",
+      mechanic: "Tom Hardy",
+      type: "Walk-in",
+    },
+    {
+      date: 10,
+      customer: "Michael Chen",
+      status: "Confirmed",
+      vehicle: "Mazda 3 2020",
+      time: "08:00 AM",
+      service: "Full Service",
+      mechanic: "Mike Johnson",
+      type: "Scheduled",
+    },
+    {
+      date: 15,
+      customer: "Sarah Johnson",
+      status: "Confirmed",
+      vehicle: "Hyundai Tucson 2021",
+      time: "01:00 PM",
+      service: "AC Service",
+      mechanic: "Lisa Davis",
+      type: "Scheduled",
+    },
+    {
+      date: 15,
+      customer: "David Martinez",
+      status: "Pending",
+      vehicle: "Kia Sportage 2022",
+      time: "03:00 PM",
+      service: "Battery Replacement",
+      mechanic: "Unassigned",
+      type: "Walk-in",
+    },
   ];
 
-  const filteredAppointments = allAppointments.filter(apt => apt.date === selectedDate);
+  const filteredAppointments = allAppointments.filter(
+    (a) => a.date === selectedDate,
+  );
 
-  const getStatusBadge = (status) => {
-    if (status === 'Confirmed') {
-      return (
-        <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-          Confirmed
-        </span>
-      );
-    }
-    return (
-      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
-        Pending
-      </span>
-    );
+  const statusStyle = {
+    Confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    Pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  };
+  const typeStyle = {
+    "Walk-in": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    Scheduled: "bg-gray-500/20 text-gray-400 border-gray-500/30",
   };
 
-  const getTypeBadge = (type) => {
-    if (type === 'Walk-in') {
-      return (
-        <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-          Walk-in
-        </span>
-      );
-    }
-    return (
-      <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-        Scheduled
-      </span>
-    );
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setWalkInForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  const handleInputChange = (e) =>
+    setWalkInForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleSubmitWalkIn = (e) => {
     e.preventDefault();
-    // Here you would handle the form submission
-    console.log('Walk-in customer added:', walkInForm);
-    // Reset form and close modal
     setWalkInForm({
-      customerName: '',
-      phone: '',
-      email: '',
-      vehicleMake: '',
-      vehicleModel: '',
-      vehicleYear: '',
-      plateNumber: '',
-      service: '',
-      notes: ''
+      customerName: "",
+      phone: "",
+      email: "",
+      vehicleMake: "",
+      vehicleModel: "",
+      vehicleYear: "",
+      plateNumber: "",
+      service: "",
+      notes: "",
     });
     setShowAddWalkIn(false);
-    // Show success message (you can implement this with a toast notification)
-    alert('Walk-in customer added successfully!');
+    alert("Walk-in customer added successfully!");
   };
 
+  const confirmedCount = allAppointments.filter(
+    (a) => a.status === "Confirmed",
+  ).length;
+  const pendingCount = allAppointments.filter(
+    (a) => a.status === "Pending",
+  ).length;
+  const walkinCount = allAppointments.filter(
+    (a) => a.type === "Walk-in",
+  ).length;
+
   return (
-    <StaffLayout 
-      title="" 
-      subtitle=""
-    >
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
-        {/* Page Title */}
-        <div className="mb-8 flex items-center justify-between">
+    <StaffLayout title="" subtitle="">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Appointments</h1>
-            <p className="text-slate-300">View appointments and add walk-in customers</p>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              Appointments
+            </h1>
+            <p className="text-gray-400 mt-1">
+              View appointments and add walk-in customers
+            </p>
           </div>
           <button
             onClick={() => setShowAddWalkIn(true)}
-            className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors duration-200 shadow-lg flex items-center gap-2"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+              />
             </svg>
             Add Walk-in Customer
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="text-2xl font-black text-white mb-1">
+              {allAppointments.length}
+            </div>
+            <div className="text-xs text-gray-400">Total This Month</div>
+          </div>
+          <div className="bg-gray-900/60 border border-emerald-500/20 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="text-2xl font-black text-emerald-400 mb-1">
+              {confirmedCount}
+            </div>
+            <div className="text-xs text-gray-400">Confirmed</div>
+          </div>
+          <div className="bg-gray-900/60 border border-blue-500/20 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="text-2xl font-black text-blue-400 mb-1">
+              {walkinCount}
+            </div>
+            <div className="text-xs text-gray-400">Walk-ins</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendar */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center gap-2 mb-6">
-              <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <h2 className="text-lg font-bold text-gray-900">Calendar</h2>
-            </div>
-
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-6">
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h3 className="font-semibold text-gray-900">{currentMonth}</h3>
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              <h2 className="text-lg font-black text-white">Calendar</h2>
+              <div className="flex items-center gap-1">
+                <button className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                <span className="text-sm text-gray-300 font-semibold px-2">
+                  {currentMonth}
+                </span>
+                <button className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-7 gap-2 mb-4">
-              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-                <div key={day} className="text-center text-sm font-medium text-gray-500">
-                  {day}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                <div
+                  key={d}
+                  className="text-center text-xs font-semibold text-gray-600 py-1"
+                >
+                  {d}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1">
               {calendarDays.map((item) => {
-                const hasAppointments = item.appointments.length > 0;
+                const isSelected = selectedDate === item.day;
                 return (
                   <button
                     key={item.day}
                     onClick={() => setSelectedDate(item.day)}
-                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all relative ${
-                      selectedDate === item.day
-                        ? 'bg-red-600 text-white shadow-md'
-                        : 'hover:bg-gray-100 text-gray-700'
+                    className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
+                      isSelected
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                        : "hover:bg-white/5 text-gray-400 hover:text-white"
                     }`}
                   >
                     <span>{item.day}</span>
-                    {hasAppointments && (
-                      <div className="flex gap-0.5 mt-1">
+                    {item.appointments.length > 0 && (
+                      <div className="flex gap-0.5 mt-0.5">
                         {item.appointments.map((apt, idx) => (
                           <div
                             key={idx}
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              selectedDate === item.day
-                                ? 'bg-white'
-                                : apt === 'confirmed'
-                                ? 'bg-emerald-500'
-                                : 'bg-yellow-500'
-                            }`}
-                          ></div>
+                            className={`w-1 h-1 rounded-full ${isSelected ? "bg-white/70" : apt === "confirmed" ? "bg-emerald-400" : "bg-amber-400"}`}
+                          />
                         ))}
                       </div>
                     )}
@@ -187,225 +288,300 @@ function StaffAppointments() {
               })}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-gray-200 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                <span className="text-gray-600">Confirmed</span>
+            <div className="mt-6 pt-5 border-t border-white/5 space-y-2">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
+                Confirmed
               </div>
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <span className="text-gray-600">Pending</span>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
               </div>
             </div>
           </div>
 
-          {/* Appointments List */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900">
-                  Appointments - February {selectedDate}, 2026
+          {/* Appointments Panel */}
+          <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-black text-white">
+                  February {selectedDate}, 2026
                 </h2>
-                <span className="text-sm text-gray-600">
-                  {filteredAppointments.length} {filteredAppointments.length === 1 ? 'appointment' : 'appointments'}
-                </span>
+                <p className="text-gray-500 text-sm mt-0.5">
+                  {filteredAppointments.length} appointment
+                  {filteredAppointments.length !== 1 ? "s" : ""}
+                </p>
               </div>
+            </div>
 
+            {filteredAppointments.length === 0 ? (
+              <div className="py-16 text-center">
+                <svg
+                  className="w-12 h-12 text-gray-700 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <p className="text-gray-500 text-lg">No appointments</p>
+                <p className="text-gray-600 text-sm mt-1">
+                  No appointments for this date
+                </p>
+              </div>
+            ) : (
               <div className="space-y-4">
-                {filteredAppointments.map((apt, index) => (
-                  <div key={index} className="border-2 border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors">
+                {filteredAppointments.map((apt, i) => (
+                  <div
+                    key={i}
+                    className="bg-gray-800/60 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all"
+                  >
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-lg font-bold text-gray-900">{apt.customer}</h3>
-                          {getStatusBadge(apt.status)}
-                          {getTypeBadge(apt.type)}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${apt.status === "Confirmed" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}
+                        >
+                          {apt.customer.charAt(0)}
                         </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            <span className="font-medium">{apt.vehicle}</span>
+                        <div>
+                          <div className="text-white font-black text-base">
+                            {apt.customer}
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="font-medium">{apt.time}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span>{apt.service}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            <span>Mechanic: {apt.mechanic}</span>
+                          <div className="text-gray-500 text-xs">
+                            {apt.time}
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium border border-gray-300">
-                          View
-                        </button>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${typeStyle[apt.type]}`}
+                        >
+                          {apt.type}
+                        </span>
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${statusStyle[apt.status]}`}
+                        >
+                          {apt.status}
+                        </span>
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
+                      {[
+                        {
+                          icon: (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                            />
+                          ),
+                          label: apt.vehicle,
+                        },
+                        {
+                          icon: (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                          ),
+                          label: apt.service,
+                        },
+                        {
+                          icon: (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                            />
+                          ),
+                          label: `Mechanic: ${apt.mechanic}`,
+                        },
+                      ].map((row, j) => (
+                        <div
+                          key={j}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5 text-gray-600 shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            {row.icon}
+                          </svg>
+                          <span className="text-gray-400 truncate">
+                            {row.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 border-t border-white/5">
+                      <button className="text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl transition-all">
+                        View
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {filteredAppointments.length === 0 && (
-                <div className="text-center py-12">
-                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No appointments scheduled</h3>
-                  <p className="text-gray-600">There are no appointments for this date</p>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Add Walk-in Customer Modal */}
+        {/* Walk-in Modal */}
         {showAddWalkIn && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-                <h2 className="text-2xl font-bold text-gray-900">Add Walk-in Customer</h2>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-white/10 sticky top-0 bg-gray-900">
+                <div>
+                  <h2 className="text-xl font-black text-white">
+                    Add Walk-in Customer
+                  </h2>
+                  <p className="text-gray-500 text-sm mt-0.5">
+                    Fill in customer and vehicle details
+                  </p>
+                </div>
                 <button
                   onClick={() => setShowAddWalkIn(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitWalkIn} className="p-6">
+              <form onSubmit={handleSubmitWalkIn} className="p-6 space-y-6">
                 {/* Customer Information */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Information</h3>
+                <div>
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
+                    Customer Information
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Customer Name *
-                      </label>
-                      <input
-                        type="text"
-                        name="customerName"
-                        value={walkInForm.customerName}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="Enter customer name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number *
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={walkInForm.phone}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="0917-XXX-XXXX"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={walkInForm.email}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="customer@email.com"
-                      />
-                    </div>
+                    {[
+                      {
+                        label: "Customer Name *",
+                        name: "customerName",
+                        type: "text",
+                        placeholder: "Enter customer name",
+                        required: true,
+                        span: false,
+                      },
+                      {
+                        label: "Phone Number *",
+                        name: "phone",
+                        type: "tel",
+                        placeholder: "0917-XXX-XXXX",
+                        required: true,
+                        span: false,
+                      },
+                      {
+                        label: "Email Address",
+                        name: "email",
+                        type: "email",
+                        placeholder: "customer@email.com",
+                        required: false,
+                        span: true,
+                      },
+                    ].map((f) => (
+                      <div
+                        key={f.name}
+                        className={f.span ? "md:col-span-2" : ""}
+                      >
+                        <label className="block text-sm font-semibold text-gray-400 mb-2">
+                          {f.label}
+                        </label>
+                        <input
+                          type={f.type}
+                          name={f.name}
+                          value={walkInForm[f.name]}
+                          onChange={handleInputChange}
+                          required={f.required}
+                          placeholder={f.placeholder}
+                          className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {/* Vehicle Information */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Vehicle Information</h3>
+                <div>
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
+                    Vehicle Information
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Vehicle Make *
-                      </label>
-                      <input
-                        type="text"
-                        name="vehicleMake"
-                        value={walkInForm.vehicleMake}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="e.g., Toyota"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Vehicle Model *
-                      </label>
-                      <input
-                        type="text"
-                        name="vehicleModel"
-                        value={walkInForm.vehicleModel}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="e.g., Corolla"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Year *
-                      </label>
-                      <input
-                        type="text"
-                        name="vehicleYear"
-                        value={walkInForm.vehicleYear}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="e.g., 2020"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Plate Number *
-                      </label>
-                      <input
-                        type="text"
-                        name="plateNumber"
-                        value={walkInForm.plateNumber}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="ABC 1234"
-                      />
-                    </div>
+                    {[
+                      {
+                        label: "Vehicle Make *",
+                        name: "vehicleMake",
+                        placeholder: "e.g., Toyota",
+                        required: true,
+                      },
+                      {
+                        label: "Vehicle Model *",
+                        name: "vehicleModel",
+                        placeholder: "e.g., Corolla",
+                        required: true,
+                      },
+                      {
+                        label: "Year *",
+                        name: "vehicleYear",
+                        placeholder: "e.g., 2020",
+                        required: true,
+                      },
+                      {
+                        label: "Plate Number *",
+                        name: "plateNumber",
+                        placeholder: "ABC 1234",
+                        required: true,
+                      },
+                    ].map((f) => (
+                      <div key={f.name}>
+                        <label className="block text-sm font-semibold text-gray-400 mb-2">
+                          {f.label}
+                        </label>
+                        <input
+                          type="text"
+                          name={f.name}
+                          value={walkInForm[f.name]}
+                          onChange={handleInputChange}
+                          required={f.required}
+                          placeholder={f.placeholder}
+                          className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {/* Service Information */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Information</h3>
+                <div>
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
+                    Service Information
+                  </h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-400 mb-2">
                         Service Required *
                       </label>
                       <select
@@ -413,21 +589,25 @@ function StaffAppointments() {
                         value={walkInForm.service}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer"
                       >
                         <option value="">Select a service</option>
-                        <option value="Oil Change">Oil Change</option>
-                        <option value="Brake Inspection">Brake Inspection</option>
-                        <option value="Engine Diagnostic">Engine Diagnostic</option>
-                        <option value="Tire Replacement">Tire Replacement</option>
-                        <option value="Full Service">Full Service</option>
-                        <option value="AC Service">AC Service</option>
-                        <option value="Battery Replacement">Battery Replacement</option>
-                        <option value="Other">Other</option>
+                        {[
+                          "Oil Change",
+                          "Brake Inspection",
+                          "Engine Diagnostic",
+                          "Tire Replacement",
+                          "Full Service",
+                          "AC Service",
+                          "Battery Replacement",
+                          "Other",
+                        ].map((s) => (
+                          <option key={s}>{s}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-400 mb-2">
                         Additional Notes
                       </label>
                       <textarea
@@ -435,25 +615,25 @@ function StaffAppointments() {
                         value={walkInForm.notes}
                         onChange={handleInputChange}
                         rows="3"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                         placeholder="Any additional information..."
-                      ></textarea>
+                        className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all resize-none"
+                      />
                     </div>
                   </div>
                 </div>
 
-                {/* Form Actions */}
-                <div className="flex gap-4 pt-4 border-t border-gray-200">
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
                   <button
                     type="button"
                     onClick={() => setShowAddWalkIn(false)}
-                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                    className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl transition-all font-semibold shadow-lg shadow-red-600/30"
                   >
                     Add Walk-in Customer
                   </button>

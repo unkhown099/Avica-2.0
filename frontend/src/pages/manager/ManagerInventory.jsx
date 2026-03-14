@@ -6,90 +6,12 @@ function ManagerInventory() {
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [statusFilter, setStatusFilter] = useState("All Status");
 
-  // Inventory stats
-  const stats = [
-    {
-      label: "Total Items",
-      value: "8",
-      subtitle: "In this branch",
-      icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-          />
-        </svg>
-      ),
-      iconColor: "text-red-500",
-      iconBg: "bg-red-50",
-      cardBg: "bg-gradient-to-br from-red-50 to-pink-50",
-      borderColor: "border-red-100",
-    },
-    {
-      label: "Inventory Value",
-      value: "₱161,550",
-      subtitle: "Total stock value",
-      icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      ),
-      iconColor: "text-blue-500",
-      iconBg: "bg-blue-50",
-      cardBg: "bg-gradient-to-br from-blue-50 to-indigo-50",
-      borderColor: "border-blue-100",
-    },
-    {
-      label: "Low Stock Alert",
-      value: "3",
-      subtitle: "Items need reordering",
-      icon: (
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
-      ),
-      iconColor: "text-yellow-500",
-      iconBg: "bg-yellow-50",
-      cardBg: "bg-gradient-to-br from-yellow-50 to-amber-50",
-      borderColor: "border-yellow-100",
-    },
-  ];
-
-  // Low stock items
   const lowStockItems = [
     { name: "Brake Pads Set", current: 12, minimum: 15, unit: "Sets" },
     { name: "Air Filter", current: 8, minimum: 10, unit: "Pieces" },
     { name: "Battery 12V 60Ah", current: 5, minimum: 8, unit: "Pieces" },
   ];
 
-  // Inventory items (San Mateo Rizal branch only)
   const inventoryItems = [
     {
       id: "INV-001",
@@ -181,76 +103,118 @@ function ManagerInventory() {
     },
   ];
 
-  const getStatusBadge = (status) => {
-    if (status === "In Stock") {
-      return (
-        <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-          In Stock
-        </span>
-      );
-    }
-    return (
-      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700 border border-red-200">
-        Low Stock
-      </span>
-    );
-  };
+  const getStatusBadge = (status) => (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-semibold border ${status === "In Stock" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"}`}
+    >
+      {status}
+    </span>
+  );
 
   const filteredItems = inventoryItems.filter((item) => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesCategory =
-      categoryFilter === "All Categories" || item.category === categoryFilter;
-    const matchesStatus =
-      statusFilter === "All Status" || item.status === statusFilter;
-
-    return matchesSearch && matchesCategory && matchesStatus;
+    const q = searchQuery.toLowerCase();
+    return (
+      (item.name.toLowerCase().includes(q) ||
+        item.sku.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q)) &&
+      (categoryFilter === "All Categories" ||
+        item.category === categoryFilter) &&
+      (statusFilter === "All Status" || item.status === statusFilter)
+    );
   });
 
   return (
     <ManagerLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
-        {/* Page Title */}
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Inventory</h1>
-          <p className="text-slate-300">
+          <h1 className="text-3xl font-black text-white tracking-tight">
+            Inventory
+          </h1>
+          <p className="text-gray-400 mt-1">
             Track and manage inventory for San Mateo Rizal branch
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {stats.map((stat, index) => (
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          {[
+            {
+              label: "Total Items",
+              value: "8",
+              sub: "In this branch",
+              color: "#ef4444",
+              icon: (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              ),
+            },
+            {
+              label: "Inventory Value",
+              value: "₱161,550",
+              sub: "Total stock value",
+              color: "#3b82f6",
+              icon: (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              ),
+            },
+            {
+              label: "Low Stock Alert",
+              value: lowStockItems.length,
+              sub: "Items need reordering",
+              color: "#f59e0b",
+              icon: (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              ),
+            },
+          ].map((stat) => (
             <div
-              key={index}
-              className={`${stat.cardBg} rounded-xl p-6 shadow-lg border-2 ${stat.borderColor}`}
+              key={stat.label}
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
-                  <h3 className="text-3xl font-bold text-gray-900">
-                    {stat.value}
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">{stat.subtitle}</p>
-                </div>
+              <div className="flex items-start justify-between mb-3">
                 <div
-                  className={`${stat.iconBg} ${stat.iconColor} p-3 rounded-lg`}
+                  className="p-3 rounded-xl"
+                  style={{ backgroundColor: stat.color + "22" }}
                 >
-                  {stat.icon}
+                  <svg
+                    className="w-5 h-5"
+                    style={{ color: stat.color }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    {stat.icon}
+                  </svg>
                 </div>
               </div>
+              <div className="text-2xl font-black text-white mb-1">
+                {stat.value}
+              </div>
+              <div className="text-sm text-gray-500">{stat.label}</div>
+              <div className="text-xs text-gray-600 mt-0.5">{stat.sub}</div>
             </div>
           ))}
         </div>
 
         {/* Low Stock Alert */}
-        <div className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-xl p-6 mb-8 shadow-lg">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 mb-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 mb-4">
             <svg
-              className="w-5 h-5 text-red-600"
+              className="w-4 h-4 text-red-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -262,221 +226,113 @@ function ManagerInventory() {
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-            <h2 className="text-lg font-bold text-gray-900">Low Stock Alert</h2>
-            <span className="ml-auto text-sm text-gray-600">
-              {lowStockItems.length}{" "}
-              {lowStockItems.length === 1 ? "item" : "items"}
+            <h2 className="text-sm font-black text-red-400 uppercase tracking-wider">
+              Low Stock Alert
+            </h2>
+            <span className="ml-auto text-xs text-gray-500">
+              {lowStockItems.length} items
             </span>
           </div>
-
-          <div className="space-y-3">
-            {lowStockItems.map((item, index) => (
+          <div className="space-y-2.5">
+            {lowStockItems.map((item, i) => (
               <div
-                key={index}
-                className="bg-white rounded-lg p-4 flex items-center justify-between shadow-sm"
+                key={i}
+                className="bg-gray-900/60 border border-white/5 rounded-xl p-4 flex items-center justify-between"
               >
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                <div>
+                  <div className="text-white font-semibold text-sm">
+                    {item.name}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
                     Current:{" "}
-                    <span className="font-medium text-red-600">
+                    <span className="text-red-400 font-bold">
                       {item.current} {item.unit}
-                    </span>{" "}
-                    | Min:{" "}
-                    <span className="font-medium">
+                    </span>
+                    <span className="mx-2 text-gray-700">·</span>
+                    Min:{" "}
+                    <span className="text-gray-300">
                       {item.minimum} {item.unit}
                     </span>
-                  </p>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Inventory Items */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
-              Inventory Items
-            </h2>
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1">
+            <svg
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by name, SKU, or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
+            />
+          </div>
+          {[
+            {
+              value: categoryFilter,
+              onChange: setCategoryFilter,
+              options: [
+                "All Categories",
+                "Lubricants",
+                "Brakes",
+                "Filters",
+                "Batteries",
+                "Tires",
+                "Ignition",
+              ],
+            },
+            {
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: ["All Status", "In Stock", "Low Stock"],
+            },
+          ].map((sel, i) => (
+            <select
+              key={i}
+              value={sel.value}
+              onChange={(e) => sel.onChange(e.target.value)}
+              className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
+            >
+              {sel.options.map((o) => (
+                <option key={o}>{o}</option>
+              ))}
+            </select>
+          ))}
+        </div>
 
-            {/* Search and Filters */}
-            <div className="flex flex-col md:flex-row items-center gap-4">
-              <div className="flex-1 relative w-full">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg
-                    className="w-5 h-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by name, SKU, or category..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="relative w-full md:w-auto">
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 w-full md:w-48 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer"
-                >
-                  <option>All Categories</option>
-                  <option>Lubricants</option>
-                  <option>Brakes</option>
-                  <option>Filters</option>
-                  <option>Batteries</option>
-                  <option>Tires</option>
-                  <option>Ignition</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg
-                    className="w-5 h-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              <div className="relative w-full md:w-auto">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 w-full md:w-40 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer"
-                >
-                  <option>All Status</option>
-                  <option>In Stock</option>
-                  <option>Low Stock</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg
-                    className="w-5 h-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
+        {/* Table */}
+        <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+          <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="col-span-2">Name</div>
+            <div className="col-span-2">Category</div>
+            <div className="col-span-2">SKU</div>
+            <div className="col-span-2">Quantity</div>
+            <div className="col-span-1">Price</div>
+            <div className="col-span-2">Supplier</div>
+            <div className="col-span-1 text-right">Status</div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    Name
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    Category
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    SKU
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    Quantity
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    Unit Price
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    Supplier
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-gray-50 transition-colors duration-150"
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {item.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {item.category}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {item.sku}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {item.quantity} {item.unit}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      {item.price}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {item.supplier}
-                    </td>
-                    <td className="px-6 py-4">{getStatusBadge(item.status)}</td>
-                    <td className="px-6 py-4">
-                      <button className="text-gray-600 hover:text-red-600 transition-colors duration-200">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Empty State */}
-          {filteredItems.length === 0 && (
-            <div className="text-center py-12">
+          {filteredItems.length === 0 ? (
+            <div className="py-20 text-center">
               <svg
-                className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                className="w-12 h-12 text-gray-700 mx-auto mb-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -484,27 +340,65 @@ function ManagerInventory() {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
                 />
               </svg>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No items found
-              </h3>
-              <p className="text-gray-600">
-                Try adjusting your search or filter criteria
+              <p className="text-gray-500 text-lg">No items found</p>
+              <p className="text-gray-600 text-sm mt-1">
+                Try adjusting your search or filters
+              </p>
+            </div>
+          ) : (
+            filteredItems.map((item) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+              >
+                <div className="col-span-2 text-white font-semibold text-sm">
+                  {item.name}
+                </div>
+                <div className="col-span-2 text-gray-400 text-sm">
+                  {item.category}
+                </div>
+                <div className="col-span-2 text-gray-500 text-xs font-mono">
+                  {item.sku}
+                </div>
+                <div className="col-span-2 text-gray-300 text-sm font-semibold">
+                  {item.quantity}{" "}
+                  <span className="text-gray-600 font-normal text-xs">
+                    {item.unit}
+                  </span>
+                </div>
+                <div className="col-span-1 text-white font-bold text-sm">
+                  {item.price}
+                </div>
+                <div className="col-span-2 text-gray-400 text-sm">
+                  {item.supplier}
+                </div>
+                <div className="col-span-1 flex justify-end">
+                  {getStatusBadge(item.status)}
+                </div>
+              </div>
+            ))
+          )}
+
+          {filteredItems.length > 0 && (
+            <div className="px-6 py-4">
+              <p className="text-gray-500 text-sm">
+                Showing{" "}
+                <span className="text-white font-semibold">
+                  {filteredItems.length}
+                </span>{" "}
+                of{" "}
+                <span className="text-white font-semibold">
+                  {inventoryItems.length}
+                </span>{" "}
+                items
               </p>
             </div>
           )}
         </div>
-
-        {/* Results Summary */}
-        {filteredItems.length > 0 && (
-          <div className="mt-4 text-sm text-slate-300">
-            Showing {filteredItems.length} of {inventoryItems.length} inventory
-            items
-          </div>
-        )}
       </div>
     </ManagerLayout>
   );

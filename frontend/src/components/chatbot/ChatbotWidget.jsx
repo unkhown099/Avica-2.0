@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Chatbot from "./Chatbot";
 
 export default function ChatbotWidget() {
@@ -6,10 +6,100 @@ export default function ChatbotWidget() {
   const [hasUnread, setHasUnread] = useState(true);
   const [pulseActive, setPulseActive] = useState(false);
 
-  // Start pulsing after 3s to draw attention
+  const [pos, setPos] = useState(null);
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const windowRef = useRef(null);
+
   useEffect(() => {
     const t = setTimeout(() => setPulseActive(true), 3000);
     return () => clearTimeout(t);
+  }, []);
+
+  // Mouse drag
+  const onMouseMove = useCallback((e) => {
+    if (!dragging.current) return;
+    const x = e.clientX - dragOffset.current.x;
+    const y = e.clientY - dragOffset.current.y;
+    const w = windowRef.current?.offsetWidth || 360;
+    const h = windowRef.current?.offsetHeight || 520;
+    setPos({
+      x: Math.max(8, Math.min(window.innerWidth - w - 8, x)),
+      y: Math.max(8, Math.min(window.innerHeight - h - 8, y)),
+    });
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    dragging.current = false;
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  }, [onMouseMove]);
+
+  const onMouseDown = useCallback(
+    (e) => {
+      // Only initiate drag if clicking on the background area (not on interactive elements)
+      const target = e.target;
+      const isInteractive =
+        target.closest("button") ||
+        target.closest("input") ||
+        target.closest("textarea") ||
+        target.closest('[role="button"]') ||
+        target.closest("a") ||
+        target.closest(".close-button"); // Add any specific close button class
+
+      if (isInteractive) return;
+
+      e.preventDefault();
+      dragging.current = true;
+      const rect = windowRef.current.getBoundingClientRect();
+      dragOffset.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [onMouseMove, onMouseUp],
+  );
+
+  // Touch drag
+  const onTouchStart = useCallback((e) => {
+    const target = e.target;
+    const isInteractive =
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("textarea") ||
+      target.closest('[role="button"]') ||
+      target.closest("a") ||
+      target.closest(".close-button");
+
+    if (isInteractive) return;
+
+    const touch = e.touches[0];
+    dragging.current = true;
+    const rect = windowRef.current.getBoundingClientRect();
+    dragOffset.current = {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    };
+  }, []);
+
+  const onTouchMove = useCallback((e) => {
+    if (!dragging.current) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const x = touch.clientX - dragOffset.current.x;
+    const y = touch.clientY - dragOffset.current.y;
+    const w = windowRef.current?.offsetWidth || 360;
+    const h = windowRef.current?.offsetHeight || 520;
+    setPos({
+      x: Math.max(8, Math.min(window.innerWidth - w - 8, x)),
+      y: Math.max(8, Math.min(window.innerHeight - h - 8, y)),
+    });
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    dragging.current = false;
   }, []);
 
   const handleOpen = () => {
@@ -18,24 +108,54 @@ export default function ChatbotWidget() {
     setPulseActive(false);
   };
 
+  const handleClose = () => {
+    setIsOpen(false);
+    setPos(null);
+  };
+
   return (
     <>
-      {/* ── Chat Window ── */}
       {isOpen && (
         <div
-          className="fixed bottom-24 right-5 sm:right-6 w-[calc(100vw-40px)] sm:w-[360px] h-[520px] rounded-2xl z-[9999] shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(220,38,38,0.1)] border border-white/10 overflow-hidden"
-          style={{ animation: "otoChatSlideUp 0.25s cubic-bezier(0.2,0.8,0.2,1) both" }}
+          ref={windowRef}
+          className="fixed w-[calc(100vw-40px)] sm:w-[360px] max-h-[80vh] rounded-2xl z-[9999] shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(220,38,38,0.1)] border border-white/10 overflow-hidden select-none flex flex-col"
+          style={{
+            ...(pos
+              ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
+              : { bottom: "96px", right: "20px" }),
+            animation: "otoChatSlideUp 0.25s cubic-bezier(0.2,0.8,0.2,1) both",
+          }}
+          onMouseDown={onMouseDown}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
-          <Chatbot onClose={() => setIsOpen(false)} />
+          {/* Draggable indicator */}
+          <div className="absolute top-0 left-0 right-0 h-8 flex items-center justify-center pointer-events-none">
+            <div className="flex gap-[3px] opacity-25">
+              {[...Array(6)].map((_, i) => (
+                <span
+                  key={i}
+                  className="w-[3px] h-[3px] bg-white rounded-full"
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Chatbot component */}
+          <div className="relative z-10 flex-1 overflow-y-auto">
+            <Chatbot onClose={handleClose} />
+          </div>
         </div>
       )}
 
-      {/* ── Floating Button ── */}
       {!isOpen && (
         <button
           onClick={handleOpen}
           className={`fixed bottom-6 right-5 sm:right-6 w-14 h-14 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center z-[9999] transition-all duration-300 hover:scale-110 border border-red-500/50 ${
-            pulseActive ? "shadow-[0_0_0_0_rgba(220,38,38,0.5)]" : "shadow-[0_4px_24px_rgba(220,38,38,0.35)]"
+            pulseActive
+              ? "shadow-[0_0_0_0_rgba(220,38,38,0.5)]"
+              : "shadow-[0_4px_24px_rgba(220,38,38,0.35)]"
           }`}
           style={pulseActive ? { animation: "otoPulse 2s ease-in-out 3" } : {}}
           aria-label="Open chat support"
@@ -54,7 +174,6 @@ export default function ChatbotWidget() {
             />
           </svg>
 
-          {/* Unread badge */}
           {hasUnread && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-red-600 text-xs font-black rounded-full flex items-center justify-center border-2 border-red-600 shadow-lg">
               1
@@ -66,12 +185,12 @@ export default function ChatbotWidget() {
       <style>{`
         @keyframes otoChatSlideUp {
           from { opacity: 0; transform: translateY(16px) scale(0.96); }
-          to   { opacity: 1; transform: translateY(0)   scale(1); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes otoPulse {
           0%   { box-shadow: 0 0 0 0   rgba(220,38,38,0.55); }
-          70%  { box-shadow: 0 0 0 16px rgba(220,38,38,0);   }
-          100% { box-shadow: 0 0 0 0   rgba(220,38,38,0);    }
+          70%  { box-shadow: 0 0 0 16px rgba(220,38,38,0); }
+          100% { box-shadow: 0 0 0 0   rgba(220,38,38,0); }
         }
       `}</style>
     </>

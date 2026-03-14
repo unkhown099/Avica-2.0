@@ -153,18 +153,18 @@ function CustomerDashboard() {
   return (
     <CustomerLayout>
       {/* Hero */}
-      <div className="relative bg-gradient-to-b from-red-950/20 via-black to-black py-16 border-b border-white/5">
+      <div className="relative bg-gradient-to-b from-red-950/20 via-gray-900 to-gray-950 py-16 border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div>
-              <h1 className="text-4xl md:text-5xl font-black text-white mb-4">
+              <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">
                 Welcome back, {displayFirst}!
               </h1>
               <p className="text-xl text-gray-400">
                 Ready to keep your car looking its best?
               </p>
             </div>
-            <button className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-red-600/50 flex items-center gap-2">
+            <button className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg shadow-red-600/30 flex items-center gap-2">
               <svg
                 className="w-6 h-6"
                 fill="none"
@@ -186,37 +186,53 @@ function CustomerDashboard() {
 
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
         {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-6 mb-12">
+        <div className="grid md:grid-cols-4 gap-4 mb-12">
           {[
             {
               icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
               value: upcomingBookings.length,
               label: "Upcoming",
+              accent: "#ef4444",
+              border: "border-red-500/20",
+              bg: "bg-red-500/10",
+              text: "text-red-400",
             },
             {
               icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
               value: serviceHistory.length,
               label: "Completed",
+              accent: "#10b981",
+              border: "border-emerald-500/20",
+              bg: "bg-emerald-500/10",
+              text: "text-emerald-400",
             },
             {
               icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
               value: 0,
               label: "Rewards Points",
+              accent: "#a855f7",
+              border: "border-purple-500/20",
+              bg: "bg-purple-500/10",
+              text: "text-purple-400",
             },
             {
               icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
               value: "5.0",
               label: "Your Rating",
+              accent: "#f59e0b",
+              border: "border-amber-500/20",
+              bg: "bg-amber-500/10",
+              text: "text-amber-400",
             },
-          ].map(({ icon, value, label }) => (
+          ].map(({ icon, value, label, border, bg, text }) => (
             <div
               key={label}
-              className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-6 border border-white/5 hover:border-red-600/30 transition-all"
+              className={`bg-gray-900/60 border ${border} rounded-2xl p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center shrink-0">
+              <div className="flex items-start gap-4">
+                <div className={`${bg} ${text} p-3 rounded-xl shrink-0`}>
                   <svg
-                    className="w-6 h-6 text-white"
+                    className="w-6 h-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -230,8 +246,8 @@ function CustomerDashboard() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-3xl font-black text-white">{value}</div>
-                  <div className="text-sm text-gray-400">{label}</div>
+                  <div className="text-2xl font-black text-white">{value}</div>
+                  <div className="text-sm text-gray-500">{label}</div>
                 </div>
               </div>
             </div>
@@ -240,32 +256,38 @@ function CustomerDashboard() {
 
         {/* Quick Actions */}
         <div className="mb-12">
-          <h2 className="text-3xl font-black text-white mb-6">Quick Actions</h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <h2 className="text-2xl font-black text-white mb-6">Quick Actions</h2>
+          <div className="grid md:grid-cols-3 gap-4">
             {[
               {
                 title: "Book a Service",
                 desc: "Schedule your next auto detailing appointment",
                 icon: "M12 4v16m8-8H4",
+                accent: "#ef4444",
               },
               {
                 title: "Manage Bookings",
                 desc: "View and modify your appointments",
                 icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+                accent: "#3b82f6",
               },
               {
                 title: "Service History",
                 desc: "Review your past services",
                 icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+                accent: "#10b981",
               },
-            ].map(({ title, desc, icon }) => (
+            ].map(({ title, desc, icon, accent }) => (
               <button
                 key={title}
-                className="group bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-8 border border-white/5 hover:border-red-600 transition-all duration-300 hover:scale-105 text-left"
+                className="group bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300 hover:scale-105 text-left"
               >
-                <div className="w-14 h-14 bg-red-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                <div
+                  className="w-12 h-12 bg-red-500/10 text-red-400 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300"
+                  style={{ color: accent }}
+                >
                   <svg
-                    className="w-7 h-7 text-white"
+                    className="w-6 h-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -278,8 +300,8 @@ function CustomerDashboard() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-                <p className="text-gray-400">{desc}</p>
+                <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
+                <p className="text-sm text-gray-400">{desc}</p>
               </button>
             ))}
           </div>
@@ -288,24 +310,24 @@ function CustomerDashboard() {
         {/* Car AI Analysis */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-3xl font-black text-white">Car AI Analysis</h2>
-            <div className="flex items-center gap-2 px-3 py-1 bg-red-600/20 rounded-full border border-red-600/30">
-              <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
-              <span className="text-xs font-bold text-red-500 uppercase tracking-widest">
+            <h2 className="text-2xl font-black text-white">Car AI Analysis</h2>
+            <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 rounded-full border border-red-500/30">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <span className="text-xs font-bold text-red-400 uppercase tracking-widest">
                 Powered by Gemini AI
               </span>
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 items-stretch">
+          <div className="grid lg:grid-cols-2 gap-6 items-stretch">
             {/* Upload */}
-            <div className="bg-gradient-to-br from-red-950/30 to-black rounded-3xl p-8 border border-red-600/20 shadow-[0_0_50px_rgba(220,38,38,0.1)] flex flex-col items-center justify-center text-center relative overflow-hidden group">
-              <div className="absolute inset-0 bg-red-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-8 backdrop-blur-sm flex flex-col items-center justify-center text-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
               {!previewImage ? (
                 <>
-                  <div className="w-20 h-20 bg-red-600/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                  <div className="w-20 h-20 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
                     <svg
-                      className="w-10 h-10 text-red-600"
+                      className="w-10 h-10 text-red-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -324,14 +346,14 @@ function CustomerDashboard() {
                       />
                     </svg>
                   </div>
-                  <h3 className="text-2xl font-black text-white mb-2">
+                  <h3 className="text-xl font-black text-white mb-2">
                     Identify Your Car
                   </h3>
-                  <p className="text-gray-400 mb-8 max-w-xs">
+                  <p className="text-sm text-gray-400 mb-8 max-w-xs">
                     Upload a photo of your vehicle for personalised service
                     recommendations
                   </p>
-                  <label className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 rounded-xl cursor-pointer transition-all duration-300 shadow-xl shadow-red-600/30">
+                  <label className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 rounded-xl cursor-pointer transition-all duration-300 shadow-lg shadow-red-600/30">
                     Upload Car Photo
                     <input
                       type="file"
@@ -346,11 +368,11 @@ function CustomerDashboard() {
                   <img
                     src={previewImage}
                     alt="Car preview"
-                    className="w-full h-64 object-cover rounded-2xl border border-white/10"
+                    className="w-full h-64 object-cover rounded-xl border border-white/10"
                   />
                   {isAnalyzing && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl">
-                      <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4" />
+                    <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl">
+                      <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4" />
                       <p className="text-white font-bold animate-pulse uppercase tracking-widest text-sm">
                         Analysing Vehicle…
                       </p>
@@ -361,7 +383,7 @@ function CustomerDashboard() {
                       setPreviewImage(null);
                       setAnalysisResult(null);
                     }}
-                    className="absolute top-4 right-4 bg-black/60 hover:bg-red-600 p-2 rounded-lg text-white border border-white/20 transition-all opacity-0 group-hover/preview:opacity-100"
+                    className="absolute top-4 right-4 bg-gray-900/60 hover:bg-red-600 p-2 rounded-lg text-white border border-white/10 transition-all opacity-0 group-hover/preview:opacity-100"
                   >
                     <svg
                       className="w-5 h-5"
@@ -382,37 +404,37 @@ function CustomerDashboard() {
             </div>
 
             {/* Result */}
-            <div className="bg-gradient-to-br from-gray-900 to-black rounded-3xl p-8 border border-white/5 flex flex-col">
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-8 backdrop-blur-sm flex flex-col">
               {analysisResult ? (
                 <div>
                   <div className="flex items-start justify-between mb-8">
                     <div>
-                      <div className="text-sm font-bold text-red-600 uppercase tracking-widest mb-1">
+                      <div className="text-sm font-bold text-red-400 uppercase tracking-widest mb-1">
                         Detected Vehicle
                       </div>
-                      <h3 className="text-4xl font-black text-white">
+                      <h3 className="text-3xl font-black text-white">
                         {analysisResult.make} {analysisResult.model}
                       </h3>
                       <p className="text-gray-400 font-medium">
                         {analysisResult.year} • {analysisResult.color}
                       </p>
                     </div>
-                    <div className="bg-green-600/20 text-green-500 px-4 py-2 rounded-xl border border-green-600/30 font-bold text-sm">
+                    <div className="bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-xl border border-emerald-500/30 font-bold text-sm">
                       98% Match
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                       Tailored Recommendations
                     </div>
                     {analysisResult.recommendations.map((rec, idx) => (
                       <div
                         key={idx}
-                        className="bg-white/5 rounded-2xl p-4 border border-white/5 hover:border-red-600/30 transition-all group/rec"
+                        className="bg-white/5 rounded-xl p-4 border border-white/5 hover:border-red-500/30 transition-all group/rec"
                       >
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex-1">
-                            <h4 className="text-white font-bold mb-1 group-hover/rec:text-red-500 transition-colors">
+                            <h4 className="text-white font-bold mb-1 group-hover/rec:text-red-400 transition-colors">
                               {rec.title}
                             </h4>
                             <p className="text-sm text-gray-400">
@@ -423,7 +445,7 @@ function CustomerDashboard() {
                             <div className="text-lg font-black text-white mb-1">
                               {rec.price}
                             </div>
-                            <button className="text-xs font-bold text-red-600 hover:text-red-500 uppercase">
+                            <button className="text-xs font-bold text-red-400 hover:text-red-300 uppercase">
                               Book Now
                             </button>
                           </div>
@@ -459,43 +481,43 @@ function CustomerDashboard() {
         {/* Upcoming Bookings */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-3xl font-black text-white">
+            <h2 className="text-2xl font-black text-white">
               Upcoming Bookings
             </h2>
             <a
               href="/bookings"
-              className="text-red-600 hover:text-red-500 font-semibold"
+              className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
             >
-              View All
+              View All →
             </a>
           </div>
           <div className="space-y-4">
             {upcomingBookings.map((booking) => (
               <div
                 key={booking.id}
-                className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-6 border border-white/5 hover:border-red-600 transition-all duration-300"
+                className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-white">
+                      <h3 className="text-lg font-bold text-white">
                         {booking.service}
                       </h3>
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${
                           booking.status === "confirmed"
-                            ? "bg-green-600/20 text-green-400"
-                            : "bg-yellow-600/20 text-yellow-400"
+                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            : "bg-amber-500/20 text-amber-400 border-amber-500/30"
                         }`}
                       >
                         {booking.status.charAt(0).toUpperCase() +
                           booking.status.slice(1)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-gray-400">
+                    <div className="flex items-center gap-4 text-sm text-gray-400">
                       <div className="flex items-center gap-2">
                         <svg
-                          className="w-5 h-5"
+                          className="w-4 h-4 text-gray-600"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -511,7 +533,7 @@ function CustomerDashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         <svg
-                          className="w-5 h-5"
+                          className="w-4 h-4 text-gray-600"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -528,14 +550,14 @@ function CustomerDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-2xl font-black text-white">
+                    <div className="text-xl font-black text-white">
                       {booking.price}
                     </div>
                     <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                      <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold transition-colors border border-white/5">
                         Reschedule
                       </button>
-                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
                         Cancel
                       </button>
                     </div>
@@ -549,35 +571,35 @@ function CustomerDashboard() {
         {/* Service History */}
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-3xl font-black text-white">
+            <h2 className="text-2xl font-black text-white">
               Recent Service History
             </h2>
             <a
               href="/history"
-              className="text-red-600 hover:text-red-500 font-semibold"
+              className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
             >
-              View All
+              View All →
             </a>
           </div>
           <div className="space-y-4">
             {serviceHistory.map((service) => (
               <div
                 key={service.id}
-                className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-6 border border-white/5 hover:border-red-600/30 transition-all duration-300"
+                className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-white/10 transition-all duration-300"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-white">
+                      <h3 className="text-lg font-bold text-white">
                         {service.service}
                       </h3>
-                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-600/20 text-green-400">
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                         Completed
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-400">
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
                       <svg
-                        className="w-5 h-5"
+                        className="w-4 h-4 text-gray-600"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -593,14 +615,14 @@ function CustomerDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-2xl font-black text-white">
+                    <div className="text-xl font-black text-white">
                       {service.price}
                     </div>
                     <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
                         Book Again
                       </button>
-                      <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                      <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold transition-colors border border-white/5">
                         Leave Review
                       </button>
                     </div>

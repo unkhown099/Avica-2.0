@@ -6,7 +6,6 @@ function BranchOwnerAppointments() {
   const [currentMonth] = useState("February 2026");
   const [branchFilter, setBranchFilter] = useState("All Branches");
 
-  // Calendar days
   const calendarDays = Array.from({ length: 28 }, (_, i) => ({
     day: i + 1,
     appointments:
@@ -23,7 +22,6 @@ function BranchOwnerAppointments() {
                 : [],
   }));
 
-  // All appointments with dates
   const allAppointments = [
     {
       date: 2,
@@ -97,62 +95,89 @@ function BranchOwnerAppointments() {
     },
   ];
 
-  const filteredAppointments = allAppointments.filter((apt) => {
-    const matchesDate = apt.date === selectedDate;
-    const matchesBranch =
-      branchFilter === "All Branches" || apt.branch === branchFilter;
-    return matchesDate && matchesBranch;
-  });
+  const filteredAppointments = allAppointments.filter(
+    (a) =>
+      a.date === selectedDate &&
+      (branchFilter === "All Branches" || a.branch === branchFilter),
+  );
 
-  const getStatusBadge = (status) => {
-    if (status === "Confirmed") {
-      return (
-        <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-          Confirmed
-        </span>
-      );
-    }
-    return (
-      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
-        Pending
-      </span>
-    );
+  const statusStyle = {
+    Confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    Pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   };
+
+  const confirmedCount = allAppointments.filter(
+    (a) => a.status === "Confirmed",
+  ).length;
+  const pendingCount = allAppointments.filter(
+    (a) => a.status === "Pending",
+  ).length;
 
   return (
     <BranchOwnerLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 -m-8 p-8">
-        {/* Page Title */}
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Appointments</h1>
-          <p className="text-slate-300">
+          <h1 className="text-3xl font-black text-white tracking-tight">
+            Appointments
+          </h1>
+          <p className="text-gray-400 mt-1">
             Manage service appointments across all branches
           </p>
         </div>
 
-        {/* Branch Filter */}
-        <div className="mb-6">
-          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20 inline-block">
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">
-                Filter by Branch:
-              </label>
-              <div className="relative">
-                <select
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer"
-                >
-                  <option>All Branches</option>
-                  <option>San Mateo Rizal</option>
-                  <option>South Caloocan</option>
-                  <option>North Caloocan</option>
-                  <option>Quezon City</option>
-                  <option>Camarin</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+        {/* Stats + Branch Filter */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="text-2xl font-black text-white mb-1">
+              {allAppointments.length}
+            </div>
+            <div className="text-xs text-gray-400">Total This Month</div>
+          </div>
+          <div className="bg-gray-900/60 border border-emerald-500/20 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="text-2xl font-black text-emerald-400 mb-1">
+              {confirmedCount}
+            </div>
+            <div className="text-xs text-gray-400">Confirmed</div>
+          </div>
+          <div className="bg-gray-900/60 border border-amber-500/20 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="text-2xl font-black text-amber-400 mb-1">
+              {pendingCount}
+            </div>
+            <div className="text-xs text-gray-400">Pending</div>
+          </div>
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm flex items-center">
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className="w-full bg-transparent text-white text-sm focus:outline-none cursor-pointer"
+            >
+              <option className="bg-gray-900" value="All Branches">
+                All Branches
+              </option>
+              {[
+                "San Mateo Rizal",
+                "South Caloocan",
+                "North Caloocan",
+                "Quezon City",
+                "Camarin",
+              ].map((b) => (
+                <option key={b} className="bg-gray-900">
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Calendar */}
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-black text-white">Calendar</h2>
+              <div className="flex items-center gap-1">
+                <button className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all">
                   <svg
-                    className="w-5 h-5 text-gray-400"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -161,107 +186,63 @@ function BranchOwnerAppointments() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
+                      d="M15 19l-7-7 7-7"
                     />
                   </svg>
-                </div>
+                </button>
+                <span className="text-sm text-gray-300 font-semibold px-2">
+                  {currentMonth}
+                </span>
+                <button className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Calendar */}
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center gap-2 mb-6">
-              <svg
-                className="w-5 h-5 text-gray-900"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <h2 className="text-lg font-bold text-gray-900">Calendar</h2>
-            </div>
-
-            <div className="flex items-center justify-between mb-6">
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <h3 className="font-semibold text-gray-900">{currentMonth}</h3>
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-2 mb-4">
-              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
                 <div
-                  key={day}
-                  className="text-center text-sm font-medium text-gray-500"
+                  key={d}
+                  className="text-center text-xs font-semibold text-gray-600 py-1"
                 >
-                  {day}
+                  {d}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1">
               {calendarDays.map((item) => {
-                const hasAppointments = item.appointments.length > 0;
+                const isSelected = selectedDate === item.day;
                 return (
                   <button
                     key={item.day}
                     onClick={() => setSelectedDate(item.day)}
-                    className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all relative ${
-                      selectedDate === item.day
-                        ? "bg-red-600 text-white shadow-md"
-                        : "hover:bg-gray-100 text-gray-700"
+                    className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
+                      isSelected
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                        : "hover:bg-white/5 text-gray-400 hover:text-white"
                     }`}
                   >
                     <span>{item.day}</span>
-                    {hasAppointments && (
-                      <div className="flex gap-0.5 mt-1">
+                    {item.appointments.length > 0 && (
+                      <div className="flex gap-0.5 mt-0.5">
                         {item.appointments.map((apt, idx) => (
                           <div
                             key={idx}
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              selectedDate === item.day
-                                ? "bg-white"
-                                : apt === "confirmed"
-                                  ? "bg-emerald-500"
-                                  : "bg-yellow-500"
-                            }`}
-                          ></div>
+                            className={`w-1 h-1 rounded-full ${isSelected ? "bg-white/70" : apt === "confirmed" ? "bg-emerald-400" : "bg-amber-400"}`}
+                          />
                         ))}
                       </div>
                     )}
@@ -270,176 +251,156 @@ function BranchOwnerAppointments() {
               })}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-gray-200 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                <span className="text-gray-600">Confirmed</span>
+            <div className="mt-6 pt-5 border-t border-white/5 space-y-2">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
+                Confirmed
               </div>
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <span className="text-gray-600">Pending</span>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
               </div>
             </div>
           </div>
 
-          {/* Appointments List */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900">
-                  Appointments - February {selectedDate}, 2026
+          {/* Appointments Panel */}
+          <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-black text-white">
+                  February {selectedDate}, 2026
                 </h2>
-                <span className="text-sm text-gray-600">
-                  {filteredAppointments.length}{" "}
-                  {filteredAppointments.length === 1
-                    ? "appointment"
-                    : "appointments"}
-                </span>
+                <p className="text-gray-500 text-sm mt-0.5">
+                  {filteredAppointments.length} appointment
+                  {filteredAppointments.length !== 1 ? "s" : ""}
+                </p>
               </div>
+            </div>
 
+            {filteredAppointments.length === 0 ? (
+              <div className="py-16 text-center">
+                <svg
+                  className="w-12 h-12 text-gray-700 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <p className="text-gray-500 text-lg">No appointments</p>
+                <p className="text-gray-600 text-sm mt-1">
+                  No appointments for this date and branch
+                </p>
+              </div>
+            ) : (
               <div className="space-y-4">
-                {filteredAppointments.map((apt, index) => (
+                {filteredAppointments.map((apt, i) => (
                   <div
-                    key={index}
-                    className="border-2 border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors"
+                    key={i}
+                    className="bg-gray-800/60 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-lg font-bold text-gray-900">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${apt.status === "Confirmed" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}
+                        >
+                          {apt.customer.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="text-white font-black text-base">
                             {apt.customer}
-                          </h3>
-                          {getStatusBadge(apt.status)}
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg
-                              className="w-4 h-4 text-gray-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                              />
-                            </svg>
-                            <span className="font-medium">{apt.vehicle}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg
-                              className="w-4 h-4 text-gray-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <span className="font-medium">{apt.time}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg
-                              className="w-4 h-4 text-gray-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                            </svg>
-                            <span>{apt.service}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg
-                              className="w-4 h-4 text-gray-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                            </svg>
-                            <span>{apt.branch}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg
-                              className="w-4 h-4 text-gray-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                              />
-                            </svg>
-                            <span>Mechanic: {apt.mechanic}</span>
+                          <div className="text-gray-500 text-xs">
+                            {apt.time}
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium border border-gray-300">
-                          View
-                        </button>
-                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusStyle[apt.status]}`}
+                      >
+                        {apt.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
+                      {[
+                        {
+                          icon: (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                            />
+                          ),
+                          label: apt.vehicle,
+                        },
+                        {
+                          icon: (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                          ),
+                          label: apt.service,
+                        },
+                        {
+                          icon: (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                          ),
+                          label: apt.branch,
+                        },
+                        {
+                          icon: (
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                            />
+                          ),
+                          label: `Mechanic: ${apt.mechanic}`,
+                        },
+                      ].map((row, j) => (
+                        <div
+                          key={j}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5 text-gray-600 shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            {row.icon}
+                          </svg>
+                          <span className="text-gray-400 truncate">
+                            {row.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 border-t border-white/5">
+                      <button className="text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl transition-all">
+                        View
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {filteredAppointments.length === 0 && (
-                <div className="text-center py-12">
-                  <svg
-                    className="w-16 h-16 text-gray-400 mx-auto mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    No appointments scheduled
-                  </h3>
-                  <p className="text-gray-600">
-                    There are no appointments for this date and branch
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
