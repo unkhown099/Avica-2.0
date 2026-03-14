@@ -122,6 +122,11 @@ const MENU_ITEMS = {
       icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
     },
     {
+      name: "Queue Management",
+      path: "/staff/queue",
+      icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9",
+    },
+    {
       name: "Vehicle Recognition",
       path: "/staff/vehicle-recognition",
       icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9",

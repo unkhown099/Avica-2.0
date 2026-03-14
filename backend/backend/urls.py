@@ -19,32 +19,49 @@ from django.contrib import admin
 from django.urls import path
 from django.views.generic import RedirectView
 from rest_framework_simplejwt.views import TokenRefreshView
-
-# Import other views
+ 
 from api.views.auth_views import SignupView, LogoutView, MeView, LoginView
 from api.views.staff_views import StaffView
 from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
-
+from api.views.bookings_views import (
+    BranchListView,
+    BookingListCreateView,
+    BookingDetailView,
+    StaffBookingListView,
+    StaffBookingActionView,
+)
+ 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
+ 
     # Authentication
-    path('signup/', SignupView.as_view(), name='signup'),
-    path('login/', LoginView.as_view(), name='login'),
+    path('signup/',        SignupView.as_view(),       name='signup'),
+    path('login/',         LoginView.as_view(),        name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('logout/', LogoutView.as_view(), name='logout'),
-    path('me/', MeView.as_view(), name='me'),
-
+    path('logout/',        LogoutView.as_view(),       name='logout'),
+    path('me/',            MeView.as_view(),           name='me'),
+ 
     # Staff management
     path('staff/', StaffView.as_view(), name='staff'),
-
+ 
     # Vehicle AI analysis
     path('api/analyze-vehicle/', AnalyzeVehicleView.as_view(), name='analyze_vehicle'),
-
-    # Chatbot endpoint
-    path("api/chat/", chat_with_groq, name="chat_with_groq"),
-
-    # Redirect root to signup page
+ 
+    # Chatbot
+    path('api/chat/', chat_with_groq, name='chat_with_groq'),
+ 
+    # Branches
+    path('api/branches/', BranchListView.as_view(), name='branch-list'),
+ 
+    # Customer booking endpoints
+    path('api/bookings/',          BookingListCreateView.as_view(), name='booking-list-create'),
+    path('api/bookings/<int:pk>/', BookingDetailView.as_view(),     name='booking-detail'),
+ 
+    # Staff / Manager booking endpoints
+    path('api/staff/bookings/',                    StaffBookingListView.as_view(),   name='staff-booking-list'),
+    path('api/staff/bookings/<int:pk>/action/',    StaffBookingActionView.as_view(), name='staff-booking-action'),
+ 
+    # Redirect root
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
 ]

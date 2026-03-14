@@ -2,6 +2,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin, Group, Permission
 from django.utils import timezone
+from django.conf import settings
 
 # Custom user manager
 class UserManager(BaseUserManager):
@@ -88,3 +89,43 @@ class Staff(models.Model):
 
     class Meta:
         db_table = "staffs"
+
+class Branch(models.Model):
+    name    = models.CharField(max_length=100)
+    address = models.CharField(max_length=200)
+    hours   = models.CharField(max_length=100)
+    slots   = models.PositiveIntegerField(default=5)
+    is_active = models.BooleanField(default=True)
+ 
+    def __str__(self):
+        return self.name
+    class Meta:
+        db_table = "branches"
+
+class Booking(models.Model):
+    STATUS_CHOICES = [
+        ("pending",   "Pending"),
+        ("confirmed", "Confirmed"),
+        ("cancelled", "Cancelled"),
+    ]
+ 
+    user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bookings")
+    service      = models.CharField(max_length=100)
+    price        = models.CharField(max_length=20)        # e.g. "₱2,500"
+    branch       = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, related_name="bookings")
+    date         = models.DateField()
+    time         = models.CharField(max_length=20)        # e.g. "10:00 AM"
+    vehicle      = models.CharField(max_length=100, blank=True, default="")
+    plate_number = models.CharField(max_length=20,  blank=True, default="")
+    notes        = models.TextField(blank=True, default="")
+    status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    staff        = models.CharField(max_length=100, blank=True, default="TBA")
+    created_at   = models.DateTimeField(auto_now_add=True)
+ 
+    class Meta:
+        ordering = ["-created_at"]
+ 
+    def __str__(self):
+        return f"{self.user} — {self.service} @ {self.branch} on {self.date}"
+    class Meta:
+        db_table = "bookings"
