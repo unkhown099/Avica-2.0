@@ -16,6 +16,7 @@ function AdminStaffAccounts() {
     "Branch Manager",
     "Staff",
     "Employee",
+    "Inventory",
   ];
 
   useEffect(() => {
@@ -66,6 +67,7 @@ function AdminStaffAccounts() {
       "Branch Manager": "bg-blue-500/20 text-blue-400 border-blue-500/30",
       Staff: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
       Employee: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      Inventory: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     };
     return (
       <span
@@ -104,6 +106,7 @@ function AdminStaffAccounts() {
     "Branch Manager": "#3b82f6",
     Staff: "#10b981",
     Employee: "#f59e0b",
+    Inventory: "#f97316"
   };
 
   const roleCounts = roles.reduce((acc, role) => {

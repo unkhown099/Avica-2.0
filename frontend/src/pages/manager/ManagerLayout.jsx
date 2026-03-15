@@ -1,8 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import UnifiedSidebar from "../../components/UnifiedSidebar.jsx";
+
+const PAGE_TITLES = {
+  "/manager/dashboard": "Dashboard",
+  "/manager/appointments": "Appointments",
+  "/manager/inventory": "Inventory",
+  "/manager/accounts": "Account Management",
+  "/manager/history": "History",
+  "/manager/customers": "Customer Management",
+};
 
 function ManagerLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const title = PAGE_TITLES[location.pathname] ?? "Manager";
+    document.title = `${title} | Otokwikk`;
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-950">

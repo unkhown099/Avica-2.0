@@ -82,6 +82,7 @@ function SignIn() {
         admin: "/admin/dashboard",
         business_owner: "/branch-owner/dashboard",
         branch_manager: "/manager/dashboard",
+        inventory: "/inventory/dashboard",
         staff: "/staff/pos",
         employee: "/mechanic/dashboard",
         customer: "/dashboard",

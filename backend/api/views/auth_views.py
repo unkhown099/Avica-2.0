@@ -51,6 +51,7 @@ def _get_profile_data(user):
         "Branch Manager": "branch_manager",
         "Staff":          "staff",
         "Employee":       "employee",
+        "Inventory":      "inventory",
     }
 
     # Check staff first
@@ -107,6 +108,7 @@ class LoginView(APIView):
                 )
 
             user_role, first_name, last_name, phone = _get_profile_data(user)
+            print("user_role from _get_profile_data:", user_role)
 
             # Build JWT with extra claims so the frontend can decode the name
             refresh = RefreshToken.for_user(user)
