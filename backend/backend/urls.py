@@ -1,25 +1,8 @@
-"""
-URL configuration for backend project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 # backend/urls.py
 from django.contrib import admin
 from django.urls import path
 from django.views.generic import RedirectView
 from rest_framework_simplejwt.views import TokenRefreshView
- 
 from api.views.auth_views import SignupView, LogoutView, MeView, LoginView
 from api.views.staff_views import StaffView
 from api.views.vehicle_views import AnalyzeVehicleView
@@ -31,37 +14,58 @@ from api.views.bookings_views import (
     StaffBookingListView,
     StaffBookingActionView,
 )
- 
+from api.views.queue_views import (
+    queue_list,
+    queue_walk_in,
+    queue_from_booking,
+    queue_action,
+    queue_assign,
+    queue_employees,
+    queue_remove,
+    queue_history,
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
- 
+
     # Authentication
     path('signup/',        SignupView.as_view(),       name='signup'),
     path('login/',         LoginView.as_view(),        name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/',        LogoutView.as_view(),       name='logout'),
     path('me/',            MeView.as_view(),           name='me'),
- 
+
     # Staff management
     path('staff/', StaffView.as_view(), name='staff'),
- 
+
     # Vehicle AI analysis
     path('api/analyze-vehicle/', AnalyzeVehicleView.as_view(), name='analyze_vehicle'),
- 
+
     # Chatbot
     path('api/chat/', chat_with_groq, name='chat_with_groq'),
- 
+
     # Branches
     path('api/branches/', BranchListView.as_view(), name='branch-list'),
- 
+
     # Customer booking endpoints
     path('api/bookings/',          BookingListCreateView.as_view(), name='booking-list-create'),
     path('api/bookings/<int:pk>/', BookingDetailView.as_view(),     name='booking-detail'),
- 
+
     # Staff / Manager booking endpoints
-    path('api/staff/bookings/',                    StaffBookingListView.as_view(),   name='staff-booking-list'),
-    path('api/staff/bookings/<int:pk>/action/',    StaffBookingActionView.as_view(), name='staff-booking-action'),
- 
+    path('api/staff/bookings/',                 StaffBookingListView.as_view(),   name='staff-booking-list'),
+    path('api/staff/bookings/<int:pk>/action/', StaffBookingActionView.as_view(), name='staff-booking-action'),
+
+    # Queue endpoints
+    # NOTE: static paths must come before <int:pk> paths
+    path('api/queue/',                    queue_list,         name='queue-list'),
+    path('api/queue/walk-in/',            queue_walk_in,      name='queue-walk-in'),
+    path('api/queue/from-booking/',       queue_from_booking, name='queue-from-booking'),
+    path('api/queue/history/',            queue_history,      name='queue-history'),
+    path('api/queue/employees/',          queue_employees,    name='queue-employees'),
+    path('api/queue/<int:pk>/action/',    queue_action,       name='queue-action'),
+    path('api/queue/<int:pk>/assign/',    queue_assign,       name='queue-assign'),
+    path('api/queue/<int:pk>/',           queue_remove,       name='queue-remove'),
+
     # Redirect root
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
 ]

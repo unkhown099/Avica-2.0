@@ -1,8 +1,10 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from ..models import Branch, Booking
+from rest_framework.permissions import IsAuthenticated
+from ..models import Branch, Booking, Booking
 from ..serializers.bookings_serializer import BranchSerializer, BookingSerializer  # ✅ correct import
+from api.views.queue_views import _booking_to_queue_entry
 
 
 # ─── Helper: check if user is staff/manager/admin ────────────────────────────
@@ -96,41 +98,37 @@ class StaffBookingListView(generics.ListAPIView):
         return qs.order_by("date", "time")
 
 
+
 class StaffBookingActionView(APIView):
-    """
-    PATCH /api/staff/bookings/<id>/action/
-    Staff or manager approves (confirmed) or rejects (cancelled) a booking.
-    Body: { "status": "confirmed" } or { "status": "cancelled" }
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
+    permission_classes = [IsAuthenticated]
+ 
     def patch(self, request, pk):
-        if not is_staff_or_above(request.user):
-            return Response(
-                {"detail": "You do not have permission to perform this action."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         try:
-            booking = Booking.objects.get(pk=pk)
+            booking = Booking.objects.select_related(
+                "branch", "user__customer_profile"
+            ).get(pk=pk)
         except Booking.DoesNotExist:
-            return Response({"detail": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
-
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+ 
         new_status = request.data.get("status")
-        if new_status not in ["confirmed", "cancelled"]:
+        allowed = ["pending", "confirmed", "cancelled"]
+        if new_status not in allowed:
             return Response(
-                {"detail": "Status must be 'confirmed' or 'cancelled'."},
+                {"detail": f"Invalid status. Allowed: {allowed}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        if booking.status == "cancelled":
-            return Response(
-                {"detail": "This booking has already been cancelled."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+ 
         booking.status = new_status
         booking.save()
-
-        serializer = BookingSerializer(booking)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+ 
+        # ── Auto-queue when a booking is confirmed ────────────────────────────
+        if new_status == "confirmed":
+            try:
+                _booking_to_queue_entry(booking)
+            except Exception:
+                # Never let queue creation failure break the booking approval
+                pass
+ 
+        # Return the updated booking — reuse your existing serializer
+        from api.serializers.bookings_serializer import BookingSerializer  # adjust import if needed
+        return Response(BookingSerializer(booking).data)

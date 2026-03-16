@@ -130,3 +130,75 @@ class Booking(models.Model):
         return f"{self.user} — {self.service} @ {self.branch} on {self.date}"
     class Meta:
         db_table = "bookings"
+
+class QueueEntry(models.Model):
+    STATUS_CHOICES = [
+        ("waiting",    "Waiting"),
+        ("in_service", "In Service"),
+        ("done",       "Done"),
+        ("skipped",    "Skipped"),
+    ]
+ 
+    SOURCE_CHOICES = [
+        ("booking",  "Booking"),
+        ("walk_in",  "Walk-in"),
+    ]
+ 
+    # Linked booking — null for walk-ins
+    booking = models.OneToOneField(
+        "Booking",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="queue_entry",
+    )
+ 
+    # Assigned mechanic/employee — null until assigned
+    assigned_employee = models.ForeignKey(
+        "Staff",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="queue_assignments",
+        limit_choices_to={"role": "Employee"},  # only Employees (Mechanics)
+    )
+ 
+    # Denormalised fields — populated from booking or entered manually
+    customer_name = models.CharField(max_length=200)
+    phone         = models.CharField(max_length=50,  blank=True, default="")
+    vehicle       = models.CharField(max_length=200, blank=True, default="")
+    plate_number  = models.CharField(max_length=50,  blank=True, default="")
+    service       = models.CharField(max_length=200)
+    branch        = models.CharField(max_length=200, blank=True, default="")
+    notes         = models.TextField(blank=True, default="")
+ 
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="walk_in")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="waiting")
+ 
+    # Position in the queue — auto-assigned on creation
+    position = models.PositiveIntegerField(default=0)
+ 
+    # Timestamps
+    queued_at          = models.DateTimeField(default=timezone.now)
+    service_started_at = models.DateTimeField(null=True, blank=True)
+    completed_at       = models.DateTimeField(null=True, blank=True)
+ 
+    class Meta:
+        db_table = "queue_entries"
+        ordering = ["position", "queued_at"]
+ 
+    def __str__(self):
+        emp = self.assigned_employee.first_name if self.assigned_employee else "Unassigned"
+        return f"#{self.position} {self.customer_name} — {self.service} [{self.status}] → {emp}"
+ 
+    def save(self, *args, **kwargs):
+        # Auto-assign next available position for brand-new entries
+        if not self.pk and self.position == 0:
+            last = QueueEntry.objects.filter(
+                status__in=["waiting", "in_service"]
+            ).order_by("-position").first()
+            self.position = (last.position + 1) if last else 1
+        super().save(*args, **kwargs)
+    
+    class Meta:
+        db_table = "queue_entries"
