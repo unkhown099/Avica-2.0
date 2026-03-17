@@ -34,11 +34,12 @@ export function getUserFromSession() {
       // Normalise: backend returns snake_case, frontend uses camelCase
       return {
         firstName: parsed.first_name || parsed.firstName || '',
-        lastName:  parsed.last_name  || parsed.lastName  || '',
-        email:     parsed.email      || '',
-        phone:     parsed.phone      || '',
-        role:      parsed.role       || '',
-        id:        parsed.id         || null,
+        lastName: parsed.last_name || parsed.lastName || '',
+        email: parsed.email || '',
+        phone: parsed.phone || '',
+        role: parsed.role || '',
+        id: parsed.id || null,
+        profilePicture: parsed.profile_picture || parsed.profilePicture || null,
       };
     } catch { /* fall through */ }
   }
@@ -53,11 +54,12 @@ export function getUserFromSession() {
     if (payload) {
       return {
         firstName: payload.first_name || payload.firstName || '',
-        lastName:  payload.last_name  || payload.lastName  || '',
-        email:     payload.email      || '',
-        phone:     payload.phone      || '',
-        role:      payload.role       || '',
-        id:        payload.user_id    || null,
+        lastName: payload.last_name || payload.lastName || '',
+        email: payload.email || '',
+        phone: payload.phone || '',
+        role: payload.role || '',
+        id: payload.user_id || null,
+        profilePicture: payload.profile_picture || payload.profilePicture || null,
       };
     }
   }

@@ -21,7 +21,10 @@ from django.views.generic import RedirectView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 # Import other views
-from api.views.auth_views import SignupView, LogoutView, MeView, LoginView
+from api.views.auth_views import (
+    SignupView, LogoutView, MeView, LoginView, 
+    GoogleLoginView, VerifyEmailView, ForgotPasswordView, ResetPasswordView
+)
 from api.views.staff_views import StaffView
 from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
@@ -31,7 +34,11 @@ urlpatterns = [
 
     # Authentication
     path('signup/', SignupView.as_view(), name='signup'),
+    path('verify-email/', VerifyEmailView.as_view(), name='verify_email_api'),
     path('login/', LoginView.as_view(), name='login'),
+    path('google-login/', GoogleLoginView.as_view(), name='google_login'),
+    path('forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
+    path('reset-password/', ResetPasswordView.as_view(), name='reset_password'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('me/', MeView.as_view(), name='me'),

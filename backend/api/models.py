@@ -62,8 +62,11 @@ class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="customer_profile")
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
+    suffix = models.CharField(max_length=20, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     loyalty_points = models.IntegerField(default=0)
+    profile_picture = models.URLField(max_length=500, blank=True, null=True)
+    birthdate = models.DateField(blank=True, null=True)
 
     class Meta:
         db_table = "customers"
@@ -81,10 +84,13 @@ class Staff(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_profile")
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
+    suffix = models.CharField(max_length=20, blank=True, null=True)
     phone = models.CharField(max_length=20)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES)
     branch = models.CharField(max_length=100)
     status = models.CharField(max_length=20, default="Active")
+    profile_picture = models.URLField(max_length=500, blank=True, null=True)
+    birthdate = models.DateField(blank=True, null=True)
 
     class Meta:
         db_table = "staffs"
