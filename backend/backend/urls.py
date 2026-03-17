@@ -7,6 +7,7 @@ from api.views.auth_views import SignupView, LogoutView, MeView, LoginView
 from api.views.staff_views import StaffView
 from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
+from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.bookings_views import (
     BranchListView,
     BookingListCreateView,
@@ -65,6 +66,9 @@ urlpatterns = [
     path('api/queue/<int:pk>/action/',    queue_action,       name='queue-action'),
     path('api/queue/<int:pk>/assign/',    queue_assign,       name='queue-assign'),
     path('api/queue/<int:pk>/',           queue_remove,       name='queue-remove'),
+
+    # Customer endpoints
+    path("api/customer/dashboard/", CustomerDashboardAPIView.as_view()),
 
     # Redirect root
     path('', RedirectView.as_view(url='/signup/', permanent=False)),

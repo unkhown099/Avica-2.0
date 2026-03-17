@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout.jsx";
 import { getUserFromSession } from "../../utils/getUser";
 
@@ -8,6 +8,76 @@ function CustomerDashboard() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+
+  const [stats, setStats] = useState({
+    upcoming: 0,
+    completed: 0,
+    points: 0,
+    rating: 5.0,
+  });
+  const [upcomingBookings, setUpcomingBookings] = useState([]);
+  const [serviceHistory, setServiceHistory] = useState([]);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState(null);
+
+  const getAuthHeaders = () => {
+    const token =
+      localStorage.getItem("access_token") ||
+      sessionStorage.getItem("access_token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setIsDashboardLoading(true);
+      setDashboardError(null);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/api/customer/dashboard/`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              ...getAuthHeaders(),
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch dashboard data (${response.status})`,
+          );
+        }
+
+        const data = await response.json();
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const trueUpcoming = (data.upcoming_bookings || []).filter((b) => {
+          const bookingDate = new Date(b.date);
+          bookingDate.setHours(0, 0, 0, 0);
+          return bookingDate >= today;
+        });
+
+        setStats(
+          data.stats || { upcoming: 0, completed: 0, points: 0, rating: 5.0 },
+        );
+        setUpcomingBookings(trueUpcoming);
+        setServiceHistory(data.service_history || []);
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+        setDashboardError("Failed to load dashboard data. Please refresh.");
+      } finally {
+        setIsDashboardLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const handleCarImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -24,16 +94,12 @@ function CustomerDashboard() {
     const formData = new FormData();
     formData.append("car_image", file);
 
-    const token =
-      localStorage.getItem("access_token") ||
-      sessionStorage.getItem("access_token");
-
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}api/car-recognition/`,
         {
           method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: getAuthHeaders(),
           body: formData,
         },
       );
@@ -112,43 +178,53 @@ function CustomerDashboard() {
     return recs;
   };
 
-  const upcomingBookings = [
-    {
-      id: 1,
-      service: "Exterior Detailing",
-      date: "2026-02-05",
-      time: "10:00 AM",
-      status: "confirmed",
-      price: "₱2,500",
-    },
-    {
-      id: 2,
-      service: "Interior Detailing",
-      date: "2026-02-10",
-      time: "2:00 PM",
-      status: "pending",
-      price: "₱3,000",
-    },
-  ];
-
-  const serviceHistory = [
-    {
-      id: 1,
-      service: "Full Detailing",
-      date: "2026-01-15",
-      status: "completed",
-      price: "₱5,000",
-    },
-    {
-      id: 2,
-      service: "Paint Protection",
-      date: "2025-12-20",
-      status: "completed",
-      price: "₱8,000",
-    },
-  ];
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
+    const date = new Date(dateStr);
+    if (isNaN(date)) return dateStr;
+    return date.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const displayFirst = user?.firstName || "there";
+
+  const statCards = [
+    {
+      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+      value: stats.upcoming,
+      label: "Upcoming",
+      border: "border-red-500/20",
+      bg: "bg-red-500/10",
+      text: "text-red-400",
+    },
+    {
+      icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+      value: stats.completed,
+      label: "Completed",
+      border: "border-emerald-500/20",
+      bg: "bg-emerald-500/10",
+      text: "text-emerald-400",
+    },
+    {
+      icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+      value: stats.points,
+      label: "Rewards Points",
+      border: "border-purple-500/20",
+      bg: "bg-purple-500/10",
+      text: "text-purple-400",
+    },
+    {
+      icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
+      value: stats.rating ?? "5.0",
+      label: "Your Rating",
+      border: "border-amber-500/20",
+      bg: "bg-amber-500/10",
+      text: "text-amber-400",
+    },
+  ];
 
   return (
     <CustomerLayout>
@@ -185,46 +261,29 @@ function CustomerDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
+        {/* Error Banner */}
+        {dashboardError && (
+          <div className="mb-8 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center gap-3 text-red-400">
+            <svg
+              className="w-5 h-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
+            </svg>
+            <span className="text-sm font-semibold">{dashboardError}</span>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid md:grid-cols-4 gap-4 mb-12">
-          {[
-            {
-              icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-              value: upcomingBookings.length,
-              label: "Upcoming",
-              accent: "#ef4444",
-              border: "border-red-500/20",
-              bg: "bg-red-500/10",
-              text: "text-red-400",
-            },
-            {
-              icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-              value: serviceHistory.length,
-              label: "Completed",
-              accent: "#10b981",
-              border: "border-emerald-500/20",
-              bg: "bg-emerald-500/10",
-              text: "text-emerald-400",
-            },
-            {
-              icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-              value: 0,
-              label: "Rewards Points",
-              accent: "#a855f7",
-              border: "border-purple-500/20",
-              bg: "bg-purple-500/10",
-              text: "text-purple-400",
-            },
-            {
-              icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
-              value: "5.0",
-              label: "Your Rating",
-              accent: "#f59e0b",
-              border: "border-amber-500/20",
-              bg: "bg-amber-500/10",
-              text: "text-amber-400",
-            },
-          ].map(({ icon, value, label, border, bg, text }) => (
+          {statCards.map(({ icon, value, label, border, bg, text }) => (
             <div
               key={label}
               className={`bg-gray-900/60 border ${border} rounded-2xl p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}
@@ -246,7 +305,13 @@ function CustomerDashboard() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-white">{value}</div>
+                  {isDashboardLoading ? (
+                    <div className="h-7 w-12 bg-white/10 rounded animate-pulse mb-1" />
+                  ) : (
+                    <div className="text-2xl font-black text-white">
+                      {value}
+                    </div>
+                  )}
                   <div className="text-sm text-gray-500">{label}</div>
                 </div>
               </div>
@@ -491,81 +556,102 @@ function CustomerDashboard() {
               View All →
             </a>
           </div>
-          <div className="space-y-4">
-            {upcomingBookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300"
-              >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-bold text-white">
-                        {booking.service}
-                      </h3>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                          booking.status === "confirmed"
-                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                            : "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                        }`}
-                      >
-                        {booking.status.charAt(0).toUpperCase() +
-                          booking.status.slice(1)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+
+          {isDashboardLoading ? (
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 animate-pulse"
+                >
+                  <div className="h-5 w-48 bg-white/10 rounded mb-3" />
+                  <div className="h-4 w-32 bg-white/5 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : upcomingBookings.length === 0 ? (
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-10 text-center">
+              <p className="text-gray-500 italic">No upcoming bookings.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {upcomingBookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-bold text-white">
+                          {booking.service}
+                        </h3>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                            booking.status === "confirmed"
+                              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                              : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                          }`}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                        <span>{booking.date}</span>
+                          {booking.status.charAt(0).toUpperCase() +
+                            booking.status.slice(1)}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <span>{booking.time}</span>
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <svg
+                            className="w-4 h-4 text-gray-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <span>{formatDate(booking.date)}</span>
+                        </div>
+                        {booking.time && (
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-gray-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <span>{booking.time}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-xl font-black text-white">
-                      {booking.price}
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold transition-colors border border-white/5">
-                        Reschedule
-                      </button>
-                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
-                        Cancel
-                      </button>
+                    <div className="flex items-center gap-4">
+                      <div className="text-xl font-black text-white">
+                        {booking.price}
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold transition-colors border border-white/5">
+                          Reschedule
+                        </button>
+                        <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Service History */}
@@ -581,56 +667,75 @@ function CustomerDashboard() {
               View All →
             </a>
           </div>
-          <div className="space-y-4">
-            {serviceHistory.map((service) => (
-              <div
-                key={service.id}
-                className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-white/10 transition-all duration-300"
-              >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-bold text-white">
-                        {service.service}
-                      </h3>
-                      <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                        Completed
-                      </span>
+
+          {isDashboardLoading ? (
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 animate-pulse"
+                >
+                  <div className="h-5 w-48 bg-white/10 rounded mb-3" />
+                  <div className="h-4 w-32 bg-white/5 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : serviceHistory.length === 0 ? (
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-10 text-center">
+              <p className="text-gray-500 italic">No service history yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {serviceHistory.map((service) => (
+                <div
+                  key={service.id}
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-white/10 transition-all duration-300"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-bold text-white">
+                          {service.service}
+                        </h3>
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                          Completed
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <svg
+                          className="w-4 h-4 text-gray-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span>{formatDate(service.date)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <svg
-                        className="w-4 h-4 text-gray-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                      <span>{service.date}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-xl font-black text-white">
-                      {service.price}
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
-                        Book Again
-                      </button>
-                      <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold transition-colors border border-white/5">
-                        Leave Review
-                      </button>
+                    <div className="flex items-center gap-4">
+                      <div className="text-xl font-black text-white">
+                        {service.price}
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
+                          Book Again
+                        </button>
+                        <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold transition-colors border border-white/5">
+                          Leave Review
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </CustomerLayout>

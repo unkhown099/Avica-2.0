@@ -196,7 +196,7 @@ function JobCard({
         }
       `}
     >
-      {/* Drag grip dots — visible on hover */}
+      {/* Drag grip dots */}
       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-25 transition-opacity flex flex-col gap-[3px] pointer-events-none">
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex gap-[3px]">
@@ -227,7 +227,6 @@ function JobCard({
 
       {/* Details */}
       <div className="space-y-2 mb-3">
-        {/* Service */}
         <div className="flex items-start gap-2">
           <svg
             className="w-3.5 h-3.5 text-gray-500 shrink-0 mt-0.5"
@@ -247,7 +246,6 @@ function JobCard({
           </span>
         </div>
 
-        {/* Vehicle */}
         <div className="flex items-center gap-2">
           <svg
             className="w-3.5 h-3.5 text-gray-500 shrink-0"
@@ -267,7 +265,6 @@ function JobCard({
           </span>
         </div>
 
-        {/* Plate */}
         {entry.plate_number && (
           <div className="flex items-center gap-2">
             <svg
@@ -300,7 +297,7 @@ function JobCard({
         </div>
       )}
 
-      {/* Footer: status + source */}
+      {/* Footer */}
       <div className="flex items-center justify-between gap-2">
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${col.statusBadge}`}
@@ -411,231 +408,230 @@ function KanbanColumn({
   );
 }
 
-// ─── Detail Side Panel ─────────────────────────────────────────────────────
+// ─── Detail Modal ──────────────────────────────────────────────────────────
 
-function DetailPanel({
-  entry,
-  onClose,
-  onAction,
-  actionLoading,
-  onActionClick,
-}) {
+function DetailPanel({ entry, onClose, actionLoading, onActionClick }) {
   if (!entry) return null;
   const col = COLUMNS.find((c) => c.id === entry.status) || COLUMNS[0];
   const isLoading = actionLoading === entry.id;
 
   return (
-    <div className="bg-gray-900/95 border border-white/10 rounded-2xl overflow-hidden sticky top-4">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
-        <p className="text-white font-black text-sm uppercase tracking-wider">
-          Job Details
-        </p>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
-
-      <div className="p-5 space-y-5">
-        {/* Customer */}
-        <div className="pb-4 border-b border-white/6">
-          <p className="text-white font-black text-2xl leading-tight">
-            {entry.customer_name}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-gray-900 border border-white/10 rounded-2xl overflow-hidden w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 sticky top-0 bg-gray-900 z-10">
+          <p className="text-white font-black text-sm uppercase tracking-wider">
+            Job Details
           </p>
-          {entry.phone && (
-            <p className="text-gray-500 text-sm mt-1">{entry.phone}</p>
-          )}
-        </div>
-
-        {/* Status */}
-        <div
-          className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold ${col.statusBadge}`}
-        >
-          <span
-            className={`w-2 h-2 rounded-full ${col.dotColor} ${col.dotPulse ? "animate-pulse" : ""}`}
-          />
-          {col.label}
-          {entry.status === "in_service" && entry.service_started_at && (
-            <span className="ml-1 font-mono text-xs opacity-70">
-              · <Ticker dateStr={entry.service_started_at} />
-            </span>
-          )}
-        </div>
-
-        {/* Info rows */}
-        <div className="rounded-xl overflow-hidden border border-white/8 divide-y divide-white/5">
-          {[
-            {
-              icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
-              label: "Service",
-              value: entry.service,
-            },
-            {
-              icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5",
-              label: "Vehicle",
-              value: entry.vehicle || "—",
-            },
-            {
-              icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
-              label: "Plate",
-              value: entry.plate_number || "—",
-            },
-            {
-              icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
-              label: "Branch",
-              value: entry.branch || "—",
-            },
-            {
-              icon: "M7 20l4-16m2 16l4-16M6 9h14M4 15h14",
-              label: "Queue #",
-              value: `#${entry.position}`,
-            },
-          ].map(({ icon, label, value }) => (
-            <div
-              key={label}
-              className="flex items-start justify-between gap-4 px-4 py-3 bg-white/2"
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <div className="flex items-center gap-2 shrink-0">
-                <svg
-                  className="w-3.5 h-3.5 text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={icon}
-                  />
-                </svg>
-                <span className="text-gray-500 text-xs">{label}</span>
-              </div>
-              <span className="text-gray-200 text-sm font-semibold text-right leading-snug">
-                {value}
-              </span>
-            </div>
-          ))}
-          {entry.assigned_employee && (
-            <div className="flex items-start justify-between gap-4 px-4 py-3 bg-white/2">
-              <div className="flex items-center gap-2 shrink-0">
-                <svg
-                  className="w-3.5 h-3.5 text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-                <span className="text-gray-500 text-xs">Mechanic</span>
-              </div>
-              <span className="text-gray-200 text-sm font-semibold">
-                {entry.assigned_employee.full_name}
-              </span>
-            </div>
-          )}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
 
-        {/* Notes */}
-        {entry.notes && (
-          <div className="bg-white/3 border border-white/8 rounded-xl px-4 py-3 text-gray-400 text-sm leading-relaxed">
-            📝 {entry.notes}
+        <div className="p-5 space-y-5">
+          {/* Customer */}
+          <div className="pb-4 border-b border-white/6">
+            <p className="text-white font-black text-2xl leading-tight">
+              {entry.customer_name}
+            </p>
+            {entry.phone && (
+              <p className="text-gray-500 text-sm mt-1">{entry.phone}</p>
+            )}
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="space-y-2.5">
-          {entry.status === "waiting" && (
-            <button
-              onClick={() =>
-                onActionClick(entry.id, "in_service", "Start Service")
-              }
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-400 hover:text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50"
-            >
-              {isLoading ? (
-                <Spinner />
-              ) : (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              )}
-              Start Service
-            </button>
+          {/* Status */}
+          <div
+            className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold ${col.statusBadge}`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${col.dotColor} ${col.dotPulse ? "animate-pulse" : ""}`}
+            />
+            {col.label}
+            {entry.status === "in_service" && entry.service_started_at && (
+              <span className="ml-1 font-mono text-xs opacity-70">
+                · <Ticker dateStr={entry.service_started_at} />
+              </span>
+            )}
+          </div>
+
+          {/* Info rows */}
+          <div className="rounded-xl overflow-hidden border border-white/8 divide-y divide-white/5">
+            {[
+              {
+                icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
+                label: "Service",
+                value: entry.service,
+              },
+              {
+                icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5",
+                label: "Vehicle",
+                value: entry.vehicle || "—",
+              },
+              {
+                icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+                label: "Plate",
+                value: entry.plate_number || "—",
+              },
+              {
+                icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                label: "Branch",
+                value: entry.branch || "—",
+              },
+              {
+                icon: "M7 20l4-16m2 16l4-16M6 9h14M4 15h14",
+                label: "Queue #",
+                value: `#${entry.position}`,
+              },
+            ].map(({ icon, label, value }) => (
+              <div
+                key={label}
+                className="flex items-start justify-between gap-4 px-4 py-3 bg-white/2"
+              >
+                <div className="flex items-center gap-2 shrink-0">
+                  <svg
+                    className="w-3.5 h-3.5 text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d={icon}
+                    />
+                  </svg>
+                  <span className="text-gray-500 text-xs">{label}</span>
+                </div>
+                <span className="text-gray-200 text-sm font-semibold text-right leading-snug">
+                  {value}
+                </span>
+              </div>
+            ))}
+            {entry.assigned_employee && (
+              <div className="flex items-start justify-between gap-4 px-4 py-3 bg-white/2">
+                <div className="flex items-center gap-2 shrink-0">
+                  <svg
+                    className="w-3.5 h-3.5 text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                  <span className="text-gray-500 text-xs">Mechanic</span>
+                </div>
+                <span className="text-gray-200 text-sm font-semibold">
+                  {entry.assigned_employee.full_name}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Notes */}
+          {entry.notes && (
+            <div className="bg-white/3 border border-white/8 rounded-xl px-4 py-3 text-gray-400 text-sm leading-relaxed">
+              📝 {entry.notes}
+            </div>
           )}
 
-          {entry.status === "in_service" && (
-            <button
-              onClick={() => onActionClick(entry.id, "done", "Mark as Done")}
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50 shadow-lg shadow-emerald-600/20"
-            >
-              {isLoading ? (
-                <Spinner />
-              ) : (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              )}
-              Mark as Done
-            </button>
-          )}
+          {/* Actions */}
+          <div className="space-y-2.5">
+            {entry.status === "waiting" && (
+              <button
+                onClick={() =>
+                  onActionClick(entry.id, "in_service", "Start Service")
+                }
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-400 hover:text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <Spinner />
+                ) : (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                )}
+                Start Service
+              </button>
+            )}
 
-          {(entry.status === "waiting" || entry.status === "in_service") && (
-            <button
-              onClick={() => onActionClick(entry.id, "skipped", "Skip Job")}
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 text-gray-500 hover:text-gray-300 font-semibold py-2.5 rounded-xl transition-all text-sm disabled:opacity-50"
-            >
-              Skip this job
-            </button>
-          )}
+            {entry.status === "in_service" && (
+              <button
+                onClick={() => onActionClick(entry.id, "done", "Mark as Done")}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50 shadow-lg shadow-emerald-600/20"
+              >
+                {isLoading ? (
+                  <Spinner />
+                ) : (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                )}
+                Mark as Done
+              </button>
+            )}
+
+            {(entry.status === "waiting" || entry.status === "in_service") && (
+              <button
+                onClick={() => onActionClick(entry.id, "skipped", "Skip Job")}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 text-gray-500 hover:text-gray-300 font-semibold py-2.5 rounded-xl transition-all text-sm disabled:opacity-50"
+              >
+                Skip this job
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -654,7 +650,6 @@ export default function MechanicActiveJobs() {
   const [overColumn, setOverColumn] = useState(null);
   const [staffId, setStaffId] = useState(null);
 
-  // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     entryId: null,
@@ -700,6 +695,7 @@ export default function MechanicActiveJobs() {
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
+
   useEffect(() => {
     const id = setInterval(fetchEntries, 30000);
     return () => clearInterval(id);
@@ -729,13 +725,11 @@ export default function MechanicActiveJobs() {
     if (!e.currentTarget.contains(e.relatedTarget)) setOverColumn(null);
   };
 
-  // Handle drop with confirmation
   const onDrop = (e, colId) => {
     e.preventDefault();
     setOverColumn(null);
     if (!draggingEntry || draggingEntry.status === colId) return;
 
-    // Show confirmation modal for drop
     const actionName =
       colId === "in_service"
         ? "Start Service"
@@ -749,21 +743,19 @@ export default function MechanicActiveJobs() {
       isOpen: true,
       entryId: draggingEntry.id,
       newStatus: colId,
-      actionName: actionName,
+      actionName,
     });
   };
 
-  // Handle action button click with confirmation
   const handleActionClick = (entryId, newStatus, actionName) => {
     setConfirmModal({
       isOpen: true,
-      entryId: entryId,
-      newStatus: newStatus,
-      actionName: actionName,
+      entryId,
+      newStatus,
+      actionName,
     });
   };
 
-  // Execute the actual action after confirmation
   const executeAction = async () => {
     const { entryId, newStatus } = confirmModal;
     setActionLoading(entryId);
@@ -809,7 +801,6 @@ export default function MechanicActiveJobs() {
   ).length;
   const totalDone = myEntries.filter((e) => e.status === "done").length;
 
-  // Get the entry being acted upon for the confirmation message
   const confirmEntry = confirmModal.entryId
     ? myEntries.find((e) => e.id === confirmModal.entryId)
     : null;
@@ -827,6 +818,18 @@ export default function MechanicActiveJobs() {
         cancelText="Cancel"
         isLoading={actionLoading === confirmModal.entryId}
       />
+
+      {/* Detail Modal */}
+      {selectedEntry && (
+        <DetailPanel
+          entry={
+            myEntries.find((e) => e.id === selectedEntry.id) ?? selectedEntry
+          }
+          onClose={() => setSelectedEntry(null)}
+          onActionClick={handleActionClick}
+          actionLoading={actionLoading}
+        />
+      )}
 
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         {/* Header */}
@@ -922,50 +925,27 @@ export default function MechanicActiveJobs() {
             </p>
           </div>
         ) : (
-          <div
-            className={`grid gap-6 ${selectedEntry ? "xl:grid-cols-4" : "grid-cols-1"}`}
-          >
-            {/* Kanban board */}
-            <div
-              className={`${selectedEntry ? "xl:col-span-3" : ""} grid grid-cols-1 md:grid-cols-3 gap-5`}
-            >
-              {COLUMNS.map((col) => (
-                <KanbanColumn
-                  key={col.id}
-                  col={col}
-                  entries={byCol(col.id)}
-                  draggingId={draggingEntry?.id}
-                  isOver={overColumn === col.id}
-                  selectedId={selectedEntry?.id}
-                  onDragOver={(e) => onDragOver(e, col.id)}
-                  onDrop={(e) => onDrop(e, col.id)}
-                  onDragLeave={onDragLeave}
-                  onCardDragStart={onDragStart}
-                  onCardDragEnd={onDragEnd}
-                  onCardClick={(entry) =>
-                    setSelectedEntry((prev) =>
-                      prev?.id === entry.id ? null : entry,
-                    )
-                  }
-                />
-              ))}
-            </div>
-
-            {/* Detail panel */}
-            {selectedEntry && (
-              <div className="xl:col-span-1">
-                <DetailPanel
-                  entry={
-                    myEntries.find((e) => e.id === selectedEntry.id) ??
-                    selectedEntry
-                  }
-                  onClose={() => setSelectedEntry(null)}
-                  onAction={handleAction}
-                  onActionClick={handleActionClick}
-                  actionLoading={actionLoading}
-                />
-              </div>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {COLUMNS.map((col) => (
+              <KanbanColumn
+                key={col.id}
+                col={col}
+                entries={byCol(col.id)}
+                draggingId={draggingEntry?.id}
+                isOver={overColumn === col.id}
+                selectedId={selectedEntry?.id}
+                onDragOver={(e) => onDragOver(e, col.id)}
+                onDrop={(e) => onDrop(e, col.id)}
+                onDragLeave={onDragLeave}
+                onCardDragStart={onDragStart}
+                onCardDragEnd={onDragEnd}
+                onCardClick={(entry) =>
+                  setSelectedEntry((prev) =>
+                    prev?.id === entry.id ? null : entry,
+                  )
+                }
+              />
+            ))}
           </div>
         )}
       </div>
