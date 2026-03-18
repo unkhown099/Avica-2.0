@@ -3,19 +3,19 @@ import { useLocation } from "react-router-dom";
 import UnifiedSidebar from "../../components/UnifiedSidebar.jsx";
 
 const PAGE_TITLES = {
-  "/mechanic/dashboard": "Dashboard",
-  "/mechanic/schedule": "Schedule",
-  "/mechanic/active-jobs": "Active Jobs",
-  "/mechanic/job-history": "Job History",
-  "/mechanic/inventory-requests": "Inventory Requests",
+  "/inventory/dashboard": "Dashboard",
+  "/inventory/stock": "Stock Overview",
+  "/inventory/alerts": "Reorder Alerts",
+  "/inventory/movement-log": "Movement Log",
+  "/inventory/branch-distribution": "Branch Distribution",
 };
 
-function MechanicLayout({ children }) {
+function InventoryLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
-    const title = PAGE_TITLES[location.pathname] ?? "Mechanic";
+    const title = PAGE_TITLES[location.pathname] ?? "Inventory";
     document.title = `${title} | Otokwikk`;
   }, [location.pathname]);
 
@@ -60,4 +60,4 @@ function MechanicLayout({ children }) {
   );
 }
 
-export default MechanicLayout;
+export default InventoryLayout;

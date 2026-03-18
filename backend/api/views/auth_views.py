@@ -133,6 +133,7 @@ def _get_profile_data(user):
         "Branch Manager": "branch_manager",
         "Staff":          "staff",
         "Employee":       "employee",
+        "Inventory":      "inventory",
     }
 
     # Check staff first

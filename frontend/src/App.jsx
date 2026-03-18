@@ -48,10 +48,18 @@ import ManagerAccountManagement from "./pages/manager/ManagerAccountManagement.j
 import ManagerHistory from "./pages/manager/ManagerHistory.jsx";
 import ManagerCustomerManagement from "./pages/manager/ManagerCustomerManagement.jsx";
 
+// Inventory Imports
+import InventoryDashboard from "./pages/inventory/InventoryDashboard.jsx";
+import InventoryAlerts from "./pages/inventory/InventoryAlerts.jsx";
+import InventoryBranchDistribution from "./pages/inventory/InventoryBranchDistribution.jsx";
+import InventoryMovementLog from "./pages/inventory/InventoryMovementLog.jsx";
+import InventoryStockOverview from "./pages/inventory/InventoryStockOverview.jsx";
+
 // Staff Imports
 import StaffPOS from "./pages/staff/StaffPOS.jsx";
 import StaffAppointment from "./pages/staff/StaffAppointment.jsx";
 import StaffVehicleRecognition from "./pages/staff/StaffVehicleRecognition.jsx";
+import StaffQueue from "./pages/staff/StaffQueue.jsx";
 
 // Mechanic Imports
 import MechanicDashboard from "./pages/employee/MechanicDashboard.jsx";
@@ -288,6 +296,48 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+        {/* Inventory Routes */}
+        <Route
+          path="/inventory/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["inventory"]}>
+              <InventoryDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory/alerts"
+          element={
+            <ProtectedRoute allowedRoles={["inventory"]}>
+              <InventoryAlerts />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory/branch-distribution"
+          element={
+            <ProtectedRoute allowedRoles={["inventory"]}>
+              <InventoryBranchDistribution />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory/movement-log"
+          element={
+            <ProtectedRoute allowedRoles={["inventory"]}>
+              <InventoryMovementLog />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory/stock"
+          element={
+            <ProtectedRoute allowedRoles={["inventory"]}>
+              <InventoryStockOverview />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Staff Routes */}
         <Route
           path="/staff/pos"
@@ -302,6 +352,14 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["staff"]}>
               <StaffAppointment />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff/queue"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffQueue />
             </ProtectedRoute>
           }
         />

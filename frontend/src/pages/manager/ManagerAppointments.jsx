@@ -1,107 +1,145 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ManagerLayout from "./ManagerLayout";
 
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(";").shift();
+  return null;
+}
+
+function authHeaders() {
+  const token =
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("access") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("access_token") ||
+    sessionStorage.getItem("access") ||
+    sessionStorage.getItem("token");
+
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function getDaysInMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+const statusStyle = {
+  confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+const statusLabel = {
+  confirmed: "Confirmed",
+  pending: "Pending",
+  cancelled: "Cancelled",
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 function ManagerAppointments() {
-  const [selectedDate, setSelectedDate] = useState(2);
-  const [currentMonth] = useState("February 2026");
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth()); // 0-indexed
+  const [selectedDate, setSelectedDate] = useState(now.getDate());
 
-  const calendarDays = Array.from({ length: 28 }, (_, i) => ({
-    day: i + 1,
-    appointments:
-      i === 1
-        ? ["confirmed", "pending"]
-        : i === 3
-          ? ["confirmed"]
-          : i === 6
-            ? ["pending"]
-            : i === 9
-              ? ["confirmed"]
-              : i === 14
-                ? ["confirmed", "pending"]
-                : [],
-  }));
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(null); // booking id being actioned
 
-  const allAppointments = [
-    {
-      date: 2,
-      customer: "John Doe",
-      status: "Confirmed",
-      vehicle: "Toyota Corolla 2020",
-      time: "09:00 AM",
-      service: "Oil Change",
-      mechanic: "Mike Johnson",
-    },
-    {
-      date: 2,
-      customer: "Jane Smith",
-      status: "Pending",
-      vehicle: "Honda Civic 2019",
-      time: "11:00 AM",
-      service: "Brake Inspection",
-      mechanic: "Unassigned",
-    },
-    {
-      date: 4,
-      customer: "Robert Wilson",
-      status: "Confirmed",
-      vehicle: "Ford Ranger 2021",
-      time: "10:00 AM",
-      service: "Engine Diagnostic",
-      mechanic: "Sarah Connor",
-    },
-    {
-      date: 7,
-      customer: "Emily Brown",
-      status: "Pending",
-      vehicle: "Nissan Altima 2022",
-      time: "02:00 PM",
-      service: "Tire Replacement",
-      mechanic: "Tom Hardy",
-    },
-    {
-      date: 10,
-      customer: "Michael Chen",
-      status: "Confirmed",
-      vehicle: "Mazda 3 2020",
-      time: "08:00 AM",
-      service: "Full Service",
-      mechanic: "Mike Johnson",
-    },
-    {
-      date: 15,
-      customer: "Sarah Johnson",
-      status: "Confirmed",
-      vehicle: "Hyundai Tucson 2021",
-      time: "01:00 PM",
-      service: "AC Service",
-      mechanic: "Lisa Davis",
-    },
-    {
-      date: 15,
-      customer: "David Martinez",
-      status: "Pending",
-      vehicle: "Kia Sportage 2022",
-      time: "03:00 PM",
-      service: "Battery Replacement",
-      mechanic: "Unassigned",
-    },
-  ];
+  const monthName = new Date(year, month).toLocaleString("en-PH", {
+    month: "long",
+    year: "numeric",
+  });
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0=Sun
 
-  const filteredAppointments = allAppointments.filter(
-    (a) => a.date === selectedDate,
-  );
+  // Fetch ALL bookings for this month
+  const fetchBookings = useCallback(() => {
+    setLoading(true);
+    setError("");
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/`, { headers: authHeaders() })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Error ${r.status}`);
+        return r.json();
+      })
+      .then((data) =>
+        setBookings(Array.isArray(data) ? data : (data.results ?? [])),
+      )
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const statusStyle = {
-    Confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    Pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  // Bookings for selected date
+  const selectedISO = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
+  const dayBookings = bookings.filter((b) => b.date === selectedISO);
+
+  // Dots per calendar day
+  const dotsForDay = (day) => {
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return bookings.filter((b) => b.date === iso).map((b) => b.status);
   };
 
-  const confirmedCount = allAppointments.filter(
-    (a) => a.status === "Confirmed",
-  ).length;
-  const pendingCount = allAppointments.filter(
-    (a) => a.status === "Pending",
-  ).length;
+  // Stats
+  const confirmed = bookings.filter((b) => b.status === "confirmed").length;
+  const pending = bookings.filter((b) => b.status === "pending").length;
+
+  // Approve / Reject
+  const handleAction = async (id, newStatus) => {
+    setActionLoading(id);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/${id}/action/`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setBookings((prev) =>
+        prev.map((b) => (b.id === updated.id ? updated : b)),
+      );
+    } catch {
+      alert("Action failed. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const prevMonth = () => {
+    if (month === 0) {
+      setMonth(11);
+      setYear((y) => y - 1);
+    } else setMonth((m) => m - 1);
+    setSelectedDate(1);
+  };
+  const nextMonth = () => {
+    if (month === 11) {
+      setMonth(0);
+      setYear((y) => y + 1);
+    } else setMonth((m) => m + 1);
+    setSelectedDate(1);
+  };
 
   return (
     <ManagerLayout title="" subtitle="">
@@ -111,30 +149,40 @@ function ManagerAppointments() {
             Appointments
           </h1>
           <p className="text-gray-400 mt-1">
-            Manage service appointments for San Mateo Rizal branch
+            Review and approve customer bookings
           </p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm">
-            <div className="text-2xl font-black text-white mb-1">
-              {allAppointments.length}
+          {[
+            {
+              label: "Total This Month",
+              value: bookings.length,
+              color: "text-white",
+              border: "border-white/5",
+            },
+            {
+              label: "Confirmed",
+              value: confirmed,
+              color: "text-emerald-400",
+              border: "border-emerald-500/20",
+            },
+            {
+              label: "Pending Approval",
+              value: pending,
+              color: "text-amber-400",
+              border: "border-amber-500/20",
+            },
+          ].map(({ label, value, color, border }) => (
+            <div
+              key={label}
+              className={`bg-gray-900/60 ${border} border rounded-2xl p-4 backdrop-blur-sm`}
+            >
+              <div className={`text-2xl font-black ${color} mb-1`}>{value}</div>
+              <div className="text-xs text-gray-400">{label}</div>
             </div>
-            <div className="text-xs text-gray-400">Total This Month</div>
-          </div>
-          <div className="bg-gray-900/60 border border-emerald-500/20 rounded-2xl p-4 backdrop-blur-sm">
-            <div className="text-2xl font-black text-emerald-400 mb-1">
-              {confirmedCount}
-            </div>
-            <div className="text-xs text-gray-400">Confirmed</div>
-          </div>
-          <div className="bg-gray-900/60 border border-amber-500/20 rounded-2xl p-4 backdrop-blur-sm">
-            <div className="text-2xl font-black text-amber-400 mb-1">
-              {pendingCount}
-            </div>
-            <div className="text-xs text-gray-400">Pending</div>
-          </div>
+          ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -143,7 +191,10 @@ function ManagerAppointments() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-black text-white">Calendar</h2>
               <div className="flex items-center gap-1">
-                <button className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                <button
+                  onClick={prevMonth}
+                  className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                >
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -159,9 +210,12 @@ function ManagerAppointments() {
                   </svg>
                 </button>
                 <span className="text-sm text-gray-300 font-semibold px-2">
-                  {currentMonth}
+                  {monthName}
                 </span>
-                <button className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                <button
+                  onClick={nextMonth}
+                  className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                >
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -191,32 +245,47 @@ function ManagerAppointments() {
             </div>
 
             <div className="grid grid-cols-7 gap-1">
-              {calendarDays.map((item) => {
-                const isSelected = selectedDate === item.day;
-                return (
-                  <button
-                    key={item.day}
-                    onClick={() => setSelectedDate(item.day)}
-                    className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                      isSelected
-                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                        : "hover:bg-white/5 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    <span>{item.day}</span>
-                    {item.appointments.length > 0 && (
-                      <div className="flex gap-0.5 mt-0.5">
-                        {item.appointments.map((apt, idx) => (
-                          <div
-                            key={idx}
-                            className={`w-1 h-1 rounded-full ${isSelected ? "bg-white/70" : apt === "confirmed" ? "bg-emerald-400" : "bg-amber-400"}`}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+              {/* Empty cells for first week offset */}
+              {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(
+                (day) => {
+                  const dots = dotsForDay(day);
+                  const isSelected = selectedDate === day;
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => setSelectedDate(day)}
+                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
+                        isSelected
+                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                          : "hover:bg-white/5 text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      <span>{day}</span>
+                      {dots.length > 0 && (
+                        <div className="flex gap-0.5 mt-0.5">
+                          {dots.slice(0, 3).map((s, idx) => (
+                            <div
+                              key={idx}
+                              className={`w-1 h-1 rounded-full ${
+                                isSelected
+                                  ? "bg-white/70"
+                                  : s === "confirmed"
+                                    ? "bg-emerald-400"
+                                    : s === "pending"
+                                      ? "bg-amber-400"
+                                      : "bg-red-400"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                },
+              )}
             </div>
 
             <div className="mt-6 pt-5 border-t border-white/5 space-y-2">
@@ -227,24 +296,73 @@ function ManagerAppointments() {
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
               </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-red-400" /> Cancelled
+              </div>
             </div>
           </div>
 
           {/* Appointments Panel */}
           <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-black text-white">
-                  February {selectedDate}, 2026
-                </h2>
-                <p className="text-gray-500 text-sm mt-0.5">
-                  {filteredAppointments.length} appointment
-                  {filteredAppointments.length !== 1 ? "s" : ""}
-                </p>
-              </div>
+            <div className="mb-6">
+              <h2 className="text-lg font-black text-white">
+                {formatDate(selectedISO)}
+              </h2>
+              <p className="text-gray-500 text-sm mt-0.5">
+                {loading
+                  ? "Loading..."
+                  : `${dayBookings.length} appointment${dayBookings.length !== 1 ? "s" : ""}`}
+              </p>
             </div>
 
-            {filteredAppointments.length === 0 ? (
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-4 py-3 text-red-400 text-sm mb-4">
+                <svg
+                  className="w-4 h-4 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {error}
+              </div>
+            )}
+
+            {/* Loading */}
+            {loading && (
+              <div className="flex items-center justify-center py-16 text-gray-500">
+                <svg
+                  className="w-5 h-5 animate-spin mr-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Loading appointments...
+              </div>
+            )}
+
+            {/* Empty */}
+            {!loading && !error && dayBookings.length === 0 && (
               <div className="py-16 text-center">
                 <svg
                   className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -261,73 +379,63 @@ function ManagerAppointments() {
                 </svg>
                 <p className="text-gray-500 text-lg">No appointments</p>
                 <p className="text-gray-600 text-sm mt-1">
-                  No appointments for this date
+                  No bookings for this date
                 </p>
               </div>
-            ) : (
+            )}
+
+            {/* Booking cards */}
+            {!loading && !error && dayBookings.length > 0 && (
               <div className="space-y-4">
-                {filteredAppointments.map((apt, i) => (
+                {dayBookings.map((b) => (
                   <div
-                    key={i}
+                    key={b.id}
                     className="bg-gray-800/60 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${apt.status === "Confirmed" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${
+                            b.status === "confirmed"
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : b.status === "pending"
+                                ? "bg-amber-500/20 text-amber-400"
+                                : "bg-red-500/20 text-red-400"
+                          }`}
                         >
-                          {apt.customer.charAt(0)}
+                          {(b.service || "?").charAt(0)}
                         </div>
                         <div>
                           <div className="text-white font-black text-base">
-                            {apt.customer}
+                            {b.service}
                           </div>
-                          <div className="text-gray-500 text-xs">
-                            {apt.time}
-                          </div>
+                          <div className="text-gray-500 text-xs">{b.time}</div>
                         </div>
                       </div>
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusStyle[apt.status]}`}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusStyle[b.status] || statusStyle.pending}`}
                       >
-                        {apt.status}
+                        {statusLabel[b.status] || b.status}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
                       {[
                         {
-                          icon: (
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                            />
-                          ),
-                          label: apt.vehicle,
+                          path: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+                          label: `Customer #${b.id}`,
                         },
                         {
-                          icon: (
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                          ),
-                          label: apt.service,
+                          path: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+                          label: b.vehicle || "No vehicle info",
                         },
                         {
-                          icon: (
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                            />
-                          ),
-                          label: `Mechanic: ${apt.mechanic}`,
+                          path: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
+                          label: b.service,
+                        },
+                        {
+                          path: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                          label: b.branch || "—",
                         },
                       ].map((row, j) => (
                         <div
@@ -340,7 +448,12 @@ function ManagerAppointments() {
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            {row.icon}
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d={row.path}
+                            />
                           </svg>
                           <span className="text-gray-400 truncate">
                             {row.label}
@@ -349,11 +462,117 @@ function ManagerAppointments() {
                       ))}
                     </div>
 
-                    <div className="pt-3 border-t border-white/5">
-                      <button className="text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-xl transition-all">
-                        View
-                      </button>
-                    </div>
+                    {b.notes && (
+                      <div className="mb-4 bg-white/3 rounded-lg px-3 py-2 text-gray-500 text-xs border border-white/5">
+                        📝 {b.notes}
+                      </div>
+                    )}
+
+                    {/* Action buttons — only show for pending */}
+                    {b.status === "pending" && (
+                      <div className="flex gap-2 pt-3 border-t border-white/5">
+                        <button
+                          onClick={() => handleAction(b.id, "confirmed")}
+                          disabled={actionLoading === b.id}
+                          className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                        >
+                          {actionLoading === b.id ? (
+                            <svg
+                              className="w-4 h-4 animate-spin"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          )}
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleAction(b.id, "cancelled")}
+                          disabled={actionLoading === b.id}
+                          className="flex-1 flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                          Reject
+                        </button>
+                      </div>
+                    )}
+
+                    {b.status === "confirmed" && (
+                      <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-emerald-400 text-sm">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        Approved
+                      </div>
+                    )}
+
+                    {b.status === "cancelled" && (
+                      <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-red-400 text-sm">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        Rejected / Cancelled
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

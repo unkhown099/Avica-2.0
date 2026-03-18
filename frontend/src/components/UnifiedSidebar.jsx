@@ -122,6 +122,11 @@ const MENU_ITEMS = {
       icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
     },
     {
+      name: "Queue Management",
+      path: "/staff/queue",
+      icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9",
+    },
+    {
       name: "Vehicle Recognition",
       path: "/staff/vehicle-recognition",
       icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9",
@@ -155,7 +160,39 @@ const MENU_ITEMS = {
       icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
     },
   ],
+
+  // ─── NEW: Inventory Manager ───────────────────────────────────────────────
+  inventory: [
+    {
+      name: "Dashboard",
+      path: "/inventory/dashboard",
+      icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
+    },
+    {
+      name: "Stock Overview",
+      path: "/inventory/stock",
+      icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+    },
+    {
+      name: "Reorder Alerts",
+      path: "/inventory/alerts",
+      icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+      badge: 5, // shows a red badge with alert count
+    },
+    {
+      name: "Movement Log",
+      path: "/inventory/movement-log",
+      icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+    },
+    {
+      name: "Branch Distribution",
+      path: "/inventory/branch-distribution",
+      icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z",
+    },
+  ],
 };
+
+// ─── Role Labels ──────────────────────────────────────────────────────────────
 
 const ROLE_LABELS = {
   admin: { title: "Admin User", subtitle: "System Administrator" },
@@ -163,6 +200,7 @@ const ROLE_LABELS = {
   branch_manager: { title: "Manager", subtitle: "Branch Manager" },
   staff: { title: "Staff", subtitle: "Cashier" },
   employee: { title: "Mechanic", subtitle: "Service Employee" },
+  inventory_manager: { title: "Inventory Manager", subtitle: "Stock & Supply" }, // NEW
 };
 
 // ─── Unified Sidebar ──────────────────────────────────────────────────────────
@@ -171,7 +209,6 @@ function UnifiedSidebar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Read user from either storage
   const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
   const user = raw ? JSON.parse(raw) : null;
   const role = user?.role;
@@ -288,7 +325,15 @@ function UnifiedSidebar({ isOpen, onClose }) {
                   d={item.icon}
                 />
               </svg>
-              <span className="font-medium">{item.name}</span>
+              <span className="font-medium flex-1">{item.name}</span>
+              {/* Badge for alert counts (e.g. Reorder Alerts) */}
+              {item.badge && (
+                <span
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${isActive(item.path) ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400"}`}
+                >
+                  {item.badge}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
@@ -313,10 +358,12 @@ function UnifiedSidebar({ isOpen, onClose }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-sm truncate">
-                {roleLabel.title}
+                {user?.first_name && user?.last_name
+                  ? `${user.first_name} ${user.last_name}`
+                  : roleLabel.title}
               </p>
               <p className="text-gray-400 text-xs truncate">
-                {roleLabel.subtitle}
+                {user?.email || roleLabel.subtitle}
               </p>
             </div>
           </div>

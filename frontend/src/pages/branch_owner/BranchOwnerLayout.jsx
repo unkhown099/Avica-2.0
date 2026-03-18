@@ -1,8 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import UnifiedSidebar from "../../components/UnifiedSidebar.jsx";
+
+const PAGE_TITLES = {
+  "/branch-owner/dashboard": "Dashboard",
+  "/branch-owner/appointments": "Appointments",
+  "/branch-owner/services": "Services",
+  "/branch-owner/inventory": "Inventory",
+  "/branch-owner/accounts": "Account Management",
+  "/branch-owner/branches": "Branches",
+};
 
 function BranchOwnerLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const title = PAGE_TITLES[location.pathname] ?? "Branch Owner";
+    document.title = `${title} | Otokwikk`;
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -12,7 +28,6 @@ function BranchOwnerLayout({ children }) {
       />
 
       <div className="lg:ml-60 min-h-screen flex flex-col">
-        {/* Mobile Top Bar */}
         <header className="lg:hidden flex items-center gap-4 px-4 py-3 bg-gray-900 sticky top-0 z-10 shadow-md border-b border-gray-800">
           <button
             onClick={() => setSidebarOpen(true)}

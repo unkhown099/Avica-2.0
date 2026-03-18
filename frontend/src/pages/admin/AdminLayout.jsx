@@ -1,16 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from "../../components/UnifiedSidebar.jsx";
+
+const PAGE_TITLES = {
+  "/admin/dashboard": "Dashboard",
+  "/admin/services": "Services",
+  "/admin/customers": "Customers",
+  "/admin/staff": "Staff",
+  "/admin/inventory": "Inventory",
+  "/admin/appointments": "Appointments",
+  "/admin/branches": "Branches",
+};
 
 function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const title = PAGE_TITLES[location.pathname] ?? "Admin";
+    document.title = `${title} | Otokwikk`;
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-950">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content Area */}
       <div className="lg:ml-60 min-h-screen flex flex-col">
-        {/* Mobile Top Bar */}
         <header className="lg:hidden flex items-center gap-4 px-4 py-3 bg-gray-900 sticky top-0 z-10 shadow-md border-b border-gray-800">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -38,7 +53,6 @@ function AdminLayout({ children }) {
           />
         </header>
 
-        {/* Page Content */}
         <main className="p-4 sm:p-6 lg:p-8 flex-1">{children}</main>
       </div>
     </div>

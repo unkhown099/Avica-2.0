@@ -1,8 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import UnifiedSidebar from "../../components/UnifiedSidebar.jsx";
+
+const PAGE_TITLES = {
+  "/staff/pos": "POS",
+  "/staff/appointments": "Appointments",
+  "/staff/queue": "Queue Management",
+  "/staff/vehicle-recognition": "Vehicle Recognition",
+};
 
 function StaffLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const title = PAGE_TITLES[location.pathname] ?? "Staff";
+    document.title = `${title} | Otokwikk`;
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-950">

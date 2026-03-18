@@ -86,6 +86,7 @@ function SignIn() {
         admin: "/admin/dashboard",
         business_owner: "/branch-owner/dashboard",
         branch_manager: "/manager/dashboard",
+        inventory: "/inventory/dashboard",
         staff: "/staff/pos",
         employee: "/mechanic/dashboard",
         customer: "/dashboard",
@@ -97,6 +98,8 @@ function SignIn() {
         icon: "success",
         title: "Login Successful",
         text: "Welcome back!",
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
         confirmButtonColor: "#dc2626",
       });
     } catch (err) {
@@ -104,6 +107,8 @@ function SignIn() {
         icon: "error",
         title: "Login Failed",
         text: err.message,
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
         confirmButtonColor: "#dc2626",
       });
     }
