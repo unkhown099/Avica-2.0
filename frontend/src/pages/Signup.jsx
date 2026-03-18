@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
 
@@ -8,6 +9,7 @@ function SignUpPage() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    suffix: "",
     email: "",
     countryCode: "+63",
     phone: "",
@@ -19,6 +21,8 @@ function SignUpPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [errors, setErrors] = useState({});
   const [passwordStrength, setPasswordStrength] = useState({
     score: 0,
@@ -144,6 +148,56 @@ function SignUpPage() {
     setErrors({});
   };
 
+  const navigate = useNavigate();
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/google-login/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: credentialResponse.credential }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        localStorage.setItem("access_token", data.tokens.access);
+        localStorage.setItem("refresh_token", data.tokens.refresh);
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        swal.fire({
+          title: "Sign up successful!",
+          text: `Welcome, ${data.user.first_name}!`,
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+          background: "linear-gradient(to bottom right, #1f2937, #111827)",
+          color: "#fff",
+        });
+
+        // Redirect based on role
+        setTimeout(() => {
+          if (data.user.role === "admin") navigate("/admin-dashboard");
+          else if (data.user.role === "business_owner") navigate("/owner-dashboard");
+          else navigate("/dashboard");
+        }, 2000);
+      } else {
+        throw new Error(data.message || "Google signup failed");
+      }
+    } catch (error) {
+      console.error("Google Signup Error:", error);
+      swal.fire({
+        title: "Error",
+        text: "Could not sign up with Google.",
+        icon: "error",
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
+        confirmButtonColor: "#dc2626",
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateStep(3)) return;
@@ -155,6 +209,7 @@ function SignUpPage() {
       password: formData.password,
       first_name: formData.firstName,
       last_name: formData.lastName,
+      suffix: formData.suffix,
       phone: cleanedPhone ? `${formData.countryCode}${cleanedPhone}` : null,
       role: formData.role,
     };
@@ -171,16 +226,17 @@ function SignUpPage() {
       if (response.ok) {
         swal.fire({
           title: data.title || "Account Created!",
-          text: data.message || "Your account has been successfully created.",
+          text: data.message || "Please check your email to verify your account before logging in.",
           icon: "success",
           background: "linear-gradient(to bottom right, #1f2937, #111827)",
           color: "#fff",
           confirmButtonColor: "#dc2626",
-          confirmButtonText: "Great!",
+          confirmButtonText: "Got it!",
         });
         setFormData({
           firstName: "",
           lastName: "",
+          suffix: "",
           email: "",
           countryCode: "+63",
           phone: "",
@@ -251,6 +307,67 @@ function SignUpPage() {
         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
       />
     </svg>
+  );
+
+  const Modal = ({ isOpen, onClose, title, children }) => {
+    if (!isOpen) return null;
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-10">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose} />
+        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-red-950/20 w-full max-w-2xl rounded-[32px] border border-white/10 shadow-3xl relative z-10 overflow-hidden flex flex-col max-h-[85vh]">
+          <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20">
+            <h3 className="text-2xl font-black text-white uppercase tracking-tighter">{title}</h3>
+            <button onClick={onClose} className="w-10 h-10 bg-white/5 hover:bg-red-600 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <div className="p-8 overflow-y-auto custom-scrollbar text-gray-400 space-y-6 text-lg leading-relaxed">
+            {children}
+          </div>
+          <div className="p-8 border-t border-white/5 bg-black/20 text-center">
+            <button onClick={onClose} className="px-10 py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl transition-all tracking-widest uppercase text-sm">Close</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const TermsContent = () => (
+    <div className="space-y-6">
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">1. SERVICE DESCRIPTION</h4>
+        <p>Otokwikk provides premium automotive detailing services, including exterior restoration, interior sterilization, and various protection packages. By booking a service, you agree to our quality standards and operational procedures.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">2. BOOKING & CANCELLATIONS</h4>
+        <p>Reservations must be made at least 24 hours in advance. Cancellations made less than 12 hours before the scheduled appointment may be subject to a rescheduling fee at the branch's discretion.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">3. CUSTOMER RESPONSIBILITIES</h4>
+        <p>Customers must remove all personal belongings from their vehicles before handing them over to Otokwikk staff. Otokwikk is not liable for any lost or damaged personal items left inside the vehicle.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">4. LIABILITY</h4>
+        <p>While we use aerospace-grade products and surgical precision, Otokwikk is not responsible for pre-existing paint defects, clear coat failure, or structural damage that may become prominent during the restoration process.</p>
+      </section>
+    </div>
+  );
+
+  const PrivacyContent = () => (
+    <div className="space-y-6">
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">1. DATA COLLECTION</h4>
+        <p>We collect personal information such as name, email, and phone number solely for account management, service scheduling, and quality assurance purposes.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">2. USAGE & SECURITY</h4>
+        <p>Your data is stored securely and is never shared with third parties for marketing purposes. We use industry-standard encryption to protect your account details.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">3. SERVICE TRACKING</h4>
+        <p>We maintain a history of your detailing services to provide personalized recommendations and exclusive discounts. You may request your data profile at any time.</p>
+      </section>
+    </div>
   );
 
   return (
@@ -398,53 +515,69 @@ function SignUpPage() {
                 {/* Step 1: Personal Information */}
                 {currentStep === 1 && (
                   <div className="space-y-5">
-                    <div className="grid md:grid-cols-2 gap-5">
-                      <div>
-                        <label
-                          htmlFor="firstName"
-                          className="block text-base font-semibold text-gray-300 mb-2"
-                        >
-                          First Name <span className="text-red-600">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          id="firstName"
-                          name="firstName"
-                          value={formData.firstName}
-                          onChange={handleChange}
-                          autoComplete="off"
-                          className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.firstName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
-                          placeholder="John"
-                        />
-                        {errors.firstName && (
-                          <p className="text-red-500 text-sm mt-1">
-                            {errors.firstName}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label
-                          htmlFor="lastName"
-                          className="block text-base font-semibold text-gray-300 mb-2"
-                        >
-                          Last Name <span className="text-red-600">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          id="lastName"
-                          name="lastName"
-                          value={formData.lastName}
-                          onChange={handleChange}
-                          autoComplete="off"
-                          className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.lastName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
-                          placeholder="Doe"
-                        />
-                        {errors.lastName && (
-                          <p className="text-red-500 text-sm mt-1">
-                            {errors.lastName}
-                          </p>
-                        )}
-                      </div>
+                    <div>
+                      <label
+                        htmlFor="firstName"
+                        className="block text-base font-semibold text-gray-300 mb-2"
+                      >
+                        First Name <span className="text-red-600">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        autoComplete="off"
+                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.firstName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                        placeholder="John"
+                      />
+                      {errors.firstName && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {errors.firstName}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="lastName"
+                        className="block text-base font-semibold text-gray-300 mb-2"
+                      >
+                        Last Name <span className="text-red-600">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        autoComplete="off"
+                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.lastName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                        placeholder="Doe"
+                      />
+                      {errors.lastName && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {errors.lastName}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="suffix"
+                        className="block text-base font-semibold text-gray-300 mb-2"
+                      >
+                        Suffix (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        id="suffix"
+                        name="suffix"
+                        value={formData.suffix}
+                        onChange={handleChange}
+                        autoComplete="off"
+                        className="w-full px-4 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300"
+                        placeholder="Jr., III, etc."
+                      />
                     </div>
                   </div>
                 )}
@@ -625,19 +758,21 @@ function SignUpPage() {
                           className="text-base text-gray-400 cursor-pointer"
                         >
                           I agree to the{" "}
-                          <a
-                            href="#"
+                          <button
+                            type="button"
+                            onClick={() => setShowTermsModal(true)}
                             className="text-red-600 hover:text-red-500 font-semibold"
                           >
                             Terms and Conditions
-                          </a>{" "}
+                          </button>{" "}
                           and{" "}
-                          <a
-                            href="#"
+                          <button
+                            type="button"
+                            onClick={() => setShowPrivacyModal(true)}
                             className="text-red-600 hover:text-red-500 font-semibold"
                           >
                             Privacy Policy
-                          </a>
+                          </button>
                         </label>
                       </div>
                       {errors.agreeToTerms && (
@@ -678,6 +813,32 @@ function SignUpPage() {
                   )}
                 </div>
 
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-700"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-gray-950 text-gray-400">Or continue with</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => swal.fire({
+                      icon: "error",
+                      title: "Google Signup Failed",
+                      background: "linear-gradient(to bottom right, #1f2937, #111827)",
+                      color: "#fff",
+                    })}
+                    useOneTap
+                    theme="filled_black"
+                    shape="pill"
+                    size="large"
+                    width="100%"
+                  />
+                </div>
+
                 {/* Sign In Link */}
                 <div className="text-center">
                   <p className="text-gray-400 text-lg">
@@ -696,7 +857,29 @@ function SignUpPage() {
         </div>
       </div>
 
+      <Modal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} title="Terms and Conditions">
+        <TermsContent />
+      </Modal>
+
+      <Modal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} title="Privacy Policy">
+        <PrivacyContent />
+      </Modal>
+
       <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(220, 38, 38, 0.3);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(220, 38, 38, 0.5);
+        }
         input[type="checkbox"]:checked {
           background-color: #dc2626;
           border-color: #dc2626;

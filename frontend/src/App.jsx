@@ -11,6 +11,8 @@ import LandingPage from "./pages/LandingPage.jsx";
 import Signup from "./pages/Signup.jsx";
 import SignIn from "./pages/SignIn.jsx";
 import LoadingScreen from "./components/LoadingScreen.jsx";
+import VerifyEmail from "./pages/VerifyEmail.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 
 // Customer Imports
 import CustomerDashboard from "./pages/customer/CustomerDashboard.jsx";
@@ -80,6 +82,8 @@ function Layout() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/signin" element={<SignIn />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         // Customer Routes
         <Route
           path="/dashboard"

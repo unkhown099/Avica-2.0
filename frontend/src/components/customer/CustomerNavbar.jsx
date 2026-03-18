@@ -43,7 +43,7 @@ function Navbar({ user: userProp, setUser }) {
         },
         body: JSON.stringify({ refresh }),
       });
-    } catch (_) {}
+    } catch (_) { }
 
     ["access_token", "refresh_token", "user"].forEach((key) => {
       localStorage.removeItem(key);
@@ -114,8 +114,12 @@ function Navbar({ user: userProp, setUser }) {
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center shrink-0">
-                <span className="text-white font-bold text-sm">{initials}</span>
+              <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-br from-red-600 to-red-700">
+                {user?.profilePicture ? (
+                  <img src={user.profilePicture} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white font-bold text-sm">{initials}</span>
+                )}
               </div>
 
               <div className="hidden md:block text-left">

@@ -66,8 +66,12 @@ function ProfilePage() {
         )}
         {/* Avatar Card */}
         <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-6 border border-white/5 mb-6 flex flex-col sm:flex-row items-center gap-5">
-          <div className="w-20 h-20 bg-gradient-to-br from-red-600 to-red-800 rounded-full flex items-center justify-center text-2xl font-black text-white shrink-0">
-            {initials}
+          <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-2xl font-black text-white shrink-0 bg-gradient-to-br from-red-600 to-red-800">
+            {sessionUser?.profilePicture ? (
+              <img src={sessionUser.profilePicture} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              initials
+            )}
           </div>
           <div className="text-center sm:text-left flex-1">
             <h2 className="text-2xl font-black text-white">
@@ -85,11 +89,10 @@ function ProfilePage() {
           </div>
           <button
             onClick={() => (editing ? handleSave() : setEditing(true))}
-            className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 hover:scale-105 text-sm ${
-              editing
+            className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 hover:scale-105 text-sm ${editing
                 ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/30"
                 : "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30"
-            }`}
+              }`}
           >
             {editing ? "Save Changes" : "Edit Profile"}
           </button>
