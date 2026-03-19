@@ -65,8 +65,10 @@ class Customer(models.Model):
     user           = models.OneToOneField(User, on_delete=models.CASCADE, related_name="customer_profile")
     first_name     = models.CharField(max_length=100)
     last_name      = models.CharField(max_length=100)
+    suffix = models.CharField(max_length=10, blank=True, null=True)
     phone          = models.CharField(max_length=20, blank=True, null=True)
     loyalty_points = models.IntegerField(default=0)
+    profile_picture = models.ImageField(upload_to="profile_pictures/", blank=True, null=True)
 
     class Meta:
         db_table = "customers"
@@ -249,6 +251,13 @@ class QueueEntry(models.Model):
     queued_at          = models.DateTimeField(default=timezone.now)
     service_started_at = models.DateTimeField(null=True, blank=True)
     completed_at       = models.DateTimeField(null=True, blank=True)
+    price          = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_status = models.CharField(
+        max_length=20,
+        choices=[("unpaid", "Unpaid"), ("paid", "Paid")],
+        default="unpaid",
+    )
+    payment_method = models.CharField(max_length=20, blank=True, default="")
 
     class Meta:
         db_table = "queue_entries"

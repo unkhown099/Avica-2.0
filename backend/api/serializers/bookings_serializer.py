@@ -27,7 +27,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "date", "time", "vehicle", "plate_number",
             "notes", "status", "staff", "created_at",
         ]
-        read_only_fields = ["id", "status", "staff", "created_at"]
+        read_only_fields = ["id", "staff", "created_at", "price"]
 
     def get_price(self, instance):
         try:

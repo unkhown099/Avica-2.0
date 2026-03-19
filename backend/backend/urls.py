@@ -33,6 +33,7 @@ from api.views.queue_views import (
     queue_employees,
     queue_remove,
     queue_history,
+    queue_mark_paid
 )
 
 urlpatterns = [
@@ -79,6 +80,7 @@ urlpatterns = [
     path('api/queue/<int:pk>/action/', queue_action,       name='queue-action'),
     path('api/queue/<int:pk>/assign/', queue_assign,       name='queue-assign'),
     path('api/queue/<int:pk>/',        queue_remove,       name='queue-remove'),
+    path('api/queue/<int:pk>/mark-paid/', queue_mark_paid, name='queue-mark-paid'),
 
     # ── Customer dashboard ────────────────────────────────────────────────────
     path('api/customer/dashboard/', CustomerDashboardAPIView.as_view(), name='customer-dashboard'),

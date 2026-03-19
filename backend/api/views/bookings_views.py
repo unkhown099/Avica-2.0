@@ -61,6 +61,14 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {"detail": "Cancelled bookings cannot be modified."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Only allow cancellation
+        if request.data.get("status") == "cancelled":
+            booking.status = "cancelled"
+            booking.save()
+            serializer = self.get_serializer(booking)
+            return Response(serializer.data)
+
         return super().partial_update(request, *args, **kwargs)
 
 

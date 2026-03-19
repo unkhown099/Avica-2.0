@@ -199,3 +199,18 @@ def queue_history(request):
         status__in=["done", "skipped"]
     ).select_related("assigned_employee").order_by("-completed_at")[:50]
     return Response(QueueEntrySerializer(entries, many=True).data)
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def queue_mark_paid(request, pk):
+    try:
+        entry = QueueEntry.objects.get(pk=pk)
+    except QueueEntry.DoesNotExist:
+        return Response({"detail": "Not found."}, status=404)
+
+    entry.payment_status = request.data.get("payment_status", "paid")
+    entry.payment_method = request.data.get("payment_method", "")
+    if "price" in request.data:
+        entry.price = request.data["price"]
+    entry.save()
+    return Response(QueueEntrySerializer(entry).data)

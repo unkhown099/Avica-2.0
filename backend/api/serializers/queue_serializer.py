@@ -37,6 +37,9 @@ class QueueEntrySerializer(serializers.ModelSerializer):
             "service_started_at",
             "completed_at",
             "wait_minutes",
+            "price",           # ← add
+            "payment_status",  # ← add
+            "payment_method",  # ← add
         ]
         read_only_fields = ["id", "queued_at", "service_started_at", "completed_at"]
 
