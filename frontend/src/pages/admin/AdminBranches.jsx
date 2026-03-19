@@ -1,29 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "./AdminLayout";
+import axios from "axios";
+import Swal from "sweetalert2";
 
-// ── API helper ────────────────────────────────────────────────────────────────
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+const API = import.meta.env.VITE_API_BASE_URL;
 
-async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem("access_token");
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail ?? `HTTP ${res.status}`);
-  }
-  return res.status === 204 ? null : res.json();
-}
+const getToken = () =>
+  localStorage.getItem("access_token") ??
+  sessionStorage.getItem("access_token");
+const authHeaders = () => ({ Authorization: `Bearer ${getToken()}` });
 
 const bayColor = (pct) =>
   pct >= 80 ? "#10b981" : pct >= 60 ? "#f59e0b" : "#ef4444";
 
-// ── Add Branch Modal ──────────────────────────────────────────────────────────
+// ── Input field ───────────────────────────────────────────────────────────────
+const inputCls =
+  "w-full bg-white/5 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50 transition-all";
+
+// ── Branch Modal (Create + Edit) ──────────────────────────────────────────────
 const EMPTY_FORM = {
   name: "",
   address: "",
@@ -32,9 +26,20 @@ const EMPTY_FORM = {
   is_active: true,
 };
 
-function AddBranchModal({ onClose, onCreated }) {
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [loading, setLoading] = useState(false);
+function BranchModal({ onClose, onSaved, editBranch }) {
+  const isEdit = !!editBranch;
+  const [form, setForm] = useState(
+    isEdit
+      ? {
+          name: editBranch.name,
+          address: editBranch.address,
+          hours: editBranch.hours,
+          slots: editBranch.slots,
+          is_active: editBranch.is_active,
+        }
+      : EMPTY_FORM,
+  );
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const handle = (e) => {
@@ -44,19 +49,38 @@ function AddBranchModal({ onClose, onCreated }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
     setError(null);
     try {
-      const created = await apiFetch("/branches/", {
-        method: "POST",
-        body: JSON.stringify({ ...form, slots: Number(form.slots) }),
-      });
-      onCreated(created);
+      const payload = { ...form, slots: Number(form.slots) };
+      if (isEdit) {
+        await axios.patch(`${API}/branches/${editBranch.id}/`, payload, {
+          headers: authHeaders(),
+        });
+      } else {
+        await axios.post(`${API}/branches/`, payload, {
+          headers: authHeaders(),
+        });
+      }
+      onSaved();
       onClose();
+      Swal.fire({
+        icon: "success",
+        title: isEdit ? "Branch updated" : "Branch created",
+        timer: 1500,
+        showConfirmButton: false,
+        timerProgressBar: true,
+        background: "#111827",
+        color: "#f9fafb",
+      });
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.response?.data?.detail ??
+          JSON.stringify(err.response?.data) ??
+          err.message,
+      );
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -70,10 +94,11 @@ function AddBranchModal({ onClose, onCreated }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-md bg-gray-900 border border-white/10 rounded-2xl shadow-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
-            <h2 className="text-lg font-black text-white">Create New Branch</h2>
+            <h2 className="text-lg font-black text-white">
+              {isEdit ? "Edit Branch" : "Create New Branch"}
+            </h2>
             <p className="text-xs text-gray-500 mt-0.5">
               Staff, managers &amp; stats populate automatically from records
             </p>
@@ -132,7 +157,7 @@ function AddBranchModal({ onClose, onCreated }) {
                 onChange={handle}
                 required
                 placeholder={placeholder}
-                className="w-full bg-white/5 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50 transition-all"
+                className={inputCls}
               />
             </div>
           ))}
@@ -149,7 +174,7 @@ function AddBranchModal({ onClose, onCreated }) {
                 value={form.slots}
                 onChange={handle}
                 required
-                className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50 transition-all"
+                className={inputCls}
               />
             </div>
             <div className="flex flex-col justify-end pb-0.5">
@@ -174,26 +199,28 @@ function AddBranchModal({ onClose, onCreated }) {
             </div>
           </div>
 
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 flex gap-2.5 items-start">
-            <svg
-              className="w-4 h-4 text-blue-400 mt-0.5 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <p className="text-xs text-blue-300 leading-relaxed">
-              Branch manager, staff counts, services completed, revenue &amp;
-              satisfaction are automatically computed from Staff, Booking and
-              Rating records.
-            </p>
-          </div>
+          {!isEdit && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 flex gap-2.5 items-start">
+              <svg
+                className="w-4 h-4 text-blue-400 mt-0.5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <p className="text-xs text-blue-300 leading-relaxed">
+                Branch manager, staff counts, services completed, revenue &amp;
+                satisfaction are automatically computed from Staff, Booking and
+                Rating records.
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-1">
             <button
@@ -205,10 +232,10 @@ function AddBranchModal({ onClose, onCreated }) {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={saving}
               className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-red-600/30"
             >
-              {loading ? "Creating…" : "Create Branch"}
+              {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Branch"}
             </button>
           </div>
         </form>
@@ -217,8 +244,34 @@ function AddBranchModal({ onClose, onCreated }) {
   );
 }
 
-// ── Branch Card — matches screenshot exactly ──────────────────────────────────
-function BranchCard({ branch }) {
+// ── Skeleton card ─────────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="bg-[#111827] border border-white/5 rounded-2xl p-5 flex flex-col gap-4 animate-pulse">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <div className="h-5 w-36 bg-gray-800 rounded" />
+          <div className="h-3 w-48 bg-gray-800 rounded" />
+        </div>
+        <div className="h-6 w-14 bg-gray-800 rounded-full" />
+      </div>
+      <div className="h-14 bg-gray-800 rounded-xl" />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="h-16 bg-gray-800 rounded-xl" />
+        <div className="h-16 bg-gray-800 rounded-xl" />
+      </div>
+      <div className="h-4 bg-gray-800 rounded-full" />
+      <div className="h-24 bg-gray-800 rounded-xl" />
+      <div className="flex gap-2">
+        <div className="flex-1 h-10 bg-gray-800 rounded-xl" />
+        <div className="w-20 h-10 bg-gray-800 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+// ── Branch Card ───────────────────────────────────────────────────────────────
+function BranchCard({ branch, onEdit, onDelete }) {
   const util = branch.bay_utilization ?? 0;
   const utilColor = bayColor(util);
   const hasSat =
@@ -226,7 +279,7 @@ function BranchCard({ branch }) {
 
   return (
     <div className="bg-[#111827] border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
-      {/* ── Row 1: name + badge ── */}
+      {/* Name + badge */}
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-lg font-black text-white leading-tight">
@@ -250,17 +303,13 @@ function BranchCard({ branch }) {
           </div>
         </div>
         <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold border shrink-0 ml-2 ${
-            branch.is_active
-              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-              : "bg-gray-500/20 text-gray-400 border-gray-500/30"
-          }`}
+          className={`px-3 py-1 rounded-full text-xs font-semibold border shrink-0 ml-2 ${branch.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
         >
           {branch.is_active ? "Active" : "Inactive"}
         </span>
       </div>
 
-      {/* ── Row 2: Branch Manager ── */}
+      {/* Manager */}
       <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center text-xs font-black shrink-0">
           {branch.manager_name && branch.manager_name !== "Unassigned"
@@ -277,7 +326,7 @@ function BranchCard({ branch }) {
         </div>
       </div>
 
-      {/* ── Row 3: Staff / Mechanics ── */}
+      {/* Staff / Mechanics */}
       <div className="grid grid-cols-2 gap-3">
         {[
           { label: "Staff", value: branch.staff_count ?? 0 },
@@ -295,7 +344,7 @@ function BranchCard({ branch }) {
         ))}
       </div>
 
-      {/* ── Row 4: Bay Utilization ── */}
+      {/* Bay Utilization */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-gray-400">
@@ -313,7 +362,7 @@ function BranchCard({ branch }) {
         </div>
       </div>
 
-      {/* ── Row 5: Metrics ── */}
+      {/* Metrics */}
       <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3 space-y-2.5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-500">Services Completed</span>
@@ -350,13 +399,19 @@ function BranchCard({ branch }) {
         </div>
       </div>
 
-      {/* ── Row 6: Actions ── */}
+      {/* Actions */}
       <div className="flex gap-2 mt-auto">
-        <button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20">
-          View Details
-        </button>
-        <button className="px-5 py-2.5 bg-white/[0.06] hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm rounded-xl transition-all">
+        <button
+          onClick={() => onEdit(branch)}
+          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20"
+        >
           Edit
+        </button>
+        <button
+          onClick={() => onDelete(branch)}
+          className="px-5 py-2.5 bg-white/[0.06] hover:bg-red-500/10 border border-white/10 hover:border-red-500/20 text-gray-300 hover:text-red-400 font-semibold text-sm rounded-xl transition-all"
+        >
+          Delete
         </button>
       </div>
     </div>
@@ -369,21 +424,63 @@ function AdminBranches() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [editBranch, setEditBranch] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await apiFetch("/branches/");
-        setBranches(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const fetchBranches = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await axios.get(`${API}/branches/`, {
+        headers: authHeaders(),
+      });
+      setBranches(res.data);
+    } catch (err) {
+      setError(err.response?.data?.detail ?? err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleCreated = (b) => setBranches((prev) => [...prev, b]);
+  useEffect(() => {
+    fetchBranches();
+  }, [fetchBranches]);
+
+  const openCreate = () => {
+    setEditBranch(null);
+    setShowModal(true);
+  };
+  const openEdit = (b) => {
+    setEditBranch(b);
+    setShowModal(true);
+  };
+
+  const deleteBranch = async (branch) => {
+    const result = await Swal.fire({
+      title: `Delete "${branch.name}"?`,
+      text: "This cannot be undone. All associated data may be affected.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      confirmButtonColor: "#ef4444",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await axios.delete(`${API}/branches/${branch.id}/`, {
+        headers: authHeaders(),
+      });
+      setBranches((prev) => prev.filter((b) => b.id !== branch.id));
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: "Could not delete branch.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    }
+  };
 
   const activeBranches = branches.filter((b) => b.is_active).length;
   const totalStaff = branches.reduce((s, b) => s + (b.staff_count ?? 0), 0);
@@ -397,62 +494,35 @@ function AdminBranches() {
       label: "Total Branches",
       value: loading ? "—" : branches.length,
       color: "#ef4444",
-      icon: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-        />
-      ),
+      d: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
     },
     {
       label: "Active Branches",
       value: loading ? "—" : activeBranches,
       color: "#10b981",
-      icon: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      ),
+      d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
     },
     {
       label: "Total Staff",
       value: loading ? "—" : totalStaff,
       color: "#a855f7",
-      icon: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-        />
-      ),
+      d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
     },
     {
       label: "Total Mechanics",
       value: loading ? "—" : totalMechanics,
       color: "#f59e0b",
-      icon: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
-        />
-      ),
+      d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
     },
   ];
 
   return (
     <AdminLayout title="" subtitle="">
       {showModal && (
-        <AddBranchModal
+        <BranchModal
           onClose={() => setShowModal(false)}
-          onCreated={handleCreated}
+          onSaved={fetchBranches}
+          editBranch={editBranch}
         />
       )}
 
@@ -468,7 +538,7 @@ function AdminBranches() {
             </p>
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={openCreate}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:scale-105 self-start md:self-auto"
           >
             <svg
@@ -506,47 +576,47 @@ function AdminBranches() {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  {s.icon}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d={s.d}
+                  />
                 </svg>
               </div>
               <div className="text-2xl font-black text-white mb-1">
-                {s.value}
+                {loading ? (
+                  <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
+                ) : (
+                  s.value
+                )}
               </div>
               <div className="text-sm text-gray-500">{s.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-24 flex-col gap-4">
-            <svg
-              className="w-8 h-8 text-red-500 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
+        {/* Error */}
+        {!loading && error && (
+          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
+            <span className="text-sm font-medium">
+              Failed to load branches: {error}
+            </span>
+            <button
+              onClick={fetchBranches}
+              className="ml-auto text-xs font-semibold underline"
             >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8H4z"
-              />
-            </svg>
-            <span className="text-gray-500 text-sm">Loading branches…</span>
+              Retry
+            </button>
           </div>
         )}
 
-        {/* Error */}
-        {!loading && error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl px-6 py-5 text-sm">
-            Failed to load branches: {error}
+        {/* Loading skeletons */}
+        {loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {[1, 2, 3].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
         )}
 
@@ -577,7 +647,12 @@ function AdminBranches() {
         {!loading && !error && branches.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {branches.map((branch) => (
-              <BranchCard key={branch.id} branch={branch} />
+              <BranchCard
+                key={branch.id}
+                branch={branch}
+                onEdit={openEdit}
+                onDelete={deleteBranch}
+              />
             ))}
           </div>
         )}

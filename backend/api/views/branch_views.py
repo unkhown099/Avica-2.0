@@ -2,14 +2,18 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from api.models import Branch
 from api.serializers.branch_serializer import BranchSerializer
 
 
 class BranchListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get(self, request):
         branches = Branch.objects.prefetch_related(
@@ -30,7 +34,11 @@ class BranchListCreateView(APIView):
 
 
 class BranchDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get_object(self, pk):
         try:
@@ -55,6 +63,9 @@ class BranchDetailView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        return self.put(request, pk)
 
     def delete(self, request, pk):
         branch = self.get_object(pk)
