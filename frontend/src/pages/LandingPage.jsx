@@ -151,7 +151,7 @@ function LandingPage() {
             </div>
           </div>
 
-          <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black text-white mb-6 leading-[0.85] tracking-tighter"
+          <h1 className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-black text-white mb-6 leading-[0.9] sm:leading-[0.85] tracking-tighter"
             style={{ animation: "slideUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) both" }}>
             PRECISION
             <br />
@@ -166,8 +166,8 @@ function LandingPage() {
           </p>
 
           <div style={{ animation: "slideUp 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s both" }}>
-            <button onClick={handleBooking} className="group relative bg-red-600 hover:bg-red-700 text-white font-black text-xl px-14 py-6 rounded-full transition-all duration-500 shadow-[0_0_50px_rgba(220,38,38,0.4)] hover:shadow-[0_0_80px_rgba(220,38,38,0.6)] transform hover:-translate-y-2 active:scale-95">
-              <span className="relative z-10 flex items-center gap-4">
+            <button onClick={handleBooking} className="group relative bg-red-600 hover:bg-red-700 text-white font-black text-lg sm:text-xl px-8 sm:px-14 py-4 sm:py-6 rounded-full transition-all duration-500 shadow-[0_0_50px_rgba(220,38,38,0.4)] hover:shadow-[0_0_80px_rgba(220,38,38,0.6)] transform hover:-translate-y-2 active:scale-95 w-full sm:w-auto">
+              <span className="relative z-10 flex items-center justify-center gap-4">
                 {isLoggedIn ? "GO TO DASHBOARD" : "BOOK YOUR EXPERIENCE"}
                 <svg className="w-5 h-5 transform group-hover:translate-x-3 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -184,12 +184,12 @@ function LandingPage() {
       </div>
 
       {/* Services Section */}
-      <section className="py-32 bg-black relative">
+      <section className="py-16 sm:py-32 bg-black relative">
         <div className="max-w-7xl mx-auto px-6 reveal">
-          <div className="text-center mb-20">
-            <h2 className="text-5xl md:text-6xl font-black text-white mb-4 uppercase tracking-tighter">OUR <span className="text-red-600">SERVICES</span></h2>
-            <div className="w-24 h-1.5 bg-red-600 mx-auto rounded-full mb-6" />
-            <p className="text-gray-500 text-lg font-medium max-w-2xl mx-auto">Precision-driven solutions for every automotive need. We bring out the best in every vehicle.</p>
+          <div className="text-center mb-12 sm:mb-20">
+            <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-white mb-4 uppercase tracking-tighter">OUR <span className="text-red-600">SERVICES</span></h2>
+            <div className="w-16 sm:w-24 h-1 sm:h-1.5 bg-red-600 mx-auto rounded-full mb-6" />
+            <p className="text-gray-500 text-base sm:text-lg font-medium max-w-2xl mx-auto">Precision-driven solutions for every automotive need. We bring out the best in every vehicle.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -198,19 +198,19 @@ function LandingPage() {
               { icon: "M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z", title: "INTERIOR", sub: "Pure Luxury", desc: "Steam cleaning, leather conditioning, and deep extraction for a sterile, fresh-from-factory interior." },
               { icon: "M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z", title: "PROTECTION", sub: "Ultima Guard", desc: "Grade-A Ceramic coatings and PPF applications providing 9H hardness and hydrophobic properties." }
             ].map((svc, i) => (
-              <div key={i} className="group relative bg-white/5 backdrop-blur-xl rounded-3xl p-10 border border-white/10 hover:border-red-600/50 transition-all duration-700 overflow-hidden shadow-2xl">
+              <div key={i} className="group relative bg-white/5 backdrop-blur-xl rounded-3xl p-6 sm:p-10 border border-white/10 hover:border-red-600/50 transition-all duration-700 overflow-hidden shadow-2xl">
                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-red-600/5 rounded-full blur-[60px] group-hover:bg-red-600/15 transition-all duration-700" />
                 <div className="relative z-10">
-                  <div className="w-16 h-16 bg-red-600/20 rounded-2xl flex items-center justify-center mb-8 border border-red-600/30 group-hover:rotate-[15deg] transition-all duration-500 scale-110">
-                    <svg className="w-9 h-9 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-600/20 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 border border-red-600/30 group-hover:rotate-[15deg] transition-all duration-500 scale-100 sm:scale-110">
+                    <svg className="w-6 h-6 sm:w-9 sm:h-9 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={svc.icon} />
                     </svg>
                   </div>
-                  <h3 className="text-3xl font-black text-white mb-3 tracking-tighter">
+                  <h3 className="text-2xl sm:text-3xl font-black text-white mb-3 tracking-tighter">
                     {svc.title}
-                    <span className="block text-red-600 text-lg font-bold mt-1">{svc.sub}</span>
+                    <span className="block text-red-600 text-base sm:text-lg font-bold mt-1">{svc.sub}</span>
                   </h3>
-                  <p className="text-gray-400 text-lg leading-relaxed font-medium">{svc.desc}</p>
+                  <p className="text-gray-400 text-sm sm:text-lg leading-relaxed font-medium">{svc.desc}</p>
                 </div>
               </div>
             ))}
@@ -218,23 +218,23 @@ function LandingPage() {
         </div>
       </section>
 
-      <section className="py-24 bg-neutral-900 relative">
+      <section className="py-16 sm:py-24 bg-neutral-900 relative">
         <div className="max-w-7xl mx-auto px-6 reveal">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter">
               VISIT OUR SHOP AT <span className="text-red-600">SARANAY</span>
             </h2>
-            <p className="text-gray-400 text-lg max-w-xl mx-auto font-medium">
+            <p className="text-gray-400 text-base sm:text-lg max-w-xl mx-auto font-medium">
               Experience the pinnacle of automotive care at our flagship North Caloocan location.
             </p>
 
             {/* Branch Selector */}
-            <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit mx-auto mt-8 backdrop-blur-xl">
+            <div className="flex flex-wrap justify-center bg-black/40 p-1.5 rounded-2xl border border-white/10 w-fit mx-auto mt-8 backdrop-blur-xl">
               {branches.map((b) => (
                 <button
                   key={b.id}
                   onClick={() => setActiveBranch(b)}
-                  className={`px-8 py-3 rounded-xl font-black text-sm transition-all duration-500 tracking-widest ${activeBranch.id === b.id
+                  className={`px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl font-black text-xs sm:text-sm transition-all duration-500 tracking-widest ${activeBranch.id === b.id
                     ? "bg-red-600 text-white shadow-lg"
                     : "text-gray-500 hover:text-white"
                     }`}
@@ -245,16 +245,16 @@ function LandingPage() {
             </div>
           </div>
 
-          <div className={`${isMapExpanded ? "flex-col" : "lg:flex-row"} flex gap-10 items-stretch transition-all duration-700`}>
-            <div className={`relative group rounded-[40px] overflow-hidden border border-white/10 shadow-3xl transition-all duration-700 flex-grow ${isMapExpanded ? "h-[70vh]" : "h-[500px] lg:w-2/3"}`}>
+          <div className={`${isMapExpanded ? "flex-col" : "lg:flex-row"} flex flex-col gap-10 items-stretch transition-all duration-700`}>
+            <div className={`relative group rounded-3xl sm:rounded-[40px] overflow-hidden border border-white/10 shadow-3xl transition-all duration-700 flex-grow ${isMapExpanded ? "h-[70vh]" : "h-[300px] sm:h-[500px] lg:w-2/3"}`}>
               <button
                 onClick={() => setIsMapExpanded(!isMapExpanded)}
-                className="absolute top-6 right-6 z-20 bg-black/80 hover:bg-red-600 text-white p-4 rounded-2xl border border-white/20 transition-all shadow-2xl backdrop-blur-md"
+                className="absolute top-4 sm:top-6 right-4 sm:right-6 z-20 bg-black/80 hover:bg-red-600 text-white p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/20 transition-all shadow-2xl backdrop-blur-md"
               >
                 {isMapExpanded ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                 ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                 )}
               </button>
               <iframe
@@ -269,10 +269,10 @@ function LandingPage() {
               />
             </div>
 
-            <div className={`lg:w-1/3 flex flex-col gap-6 transition-all duration-700 ${isMapExpanded ? "hidden" : "flex"}`}>
-              <div className="bg-white/5 backdrop-blur-xl rounded-[32px] p-8 border border-white/10 hover:border-red-600/30 transition-all flex-grow shadow-2xl">
-                <h3 className="text-2xl font-black text-white mb-8 flex items-center gap-4">
-                  <span className="w-1.5 h-8 bg-red-600 rounded-full" />
+            <div className={`lg:w-1/3 flex flex-col gap-4 sm:gap-6 transition-all duration-700 ${isMapExpanded ? "hidden" : "flex"}`}>
+              <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 sm:p-8 border border-white/10 hover:border-red-600/30 transition-all flex-grow shadow-2xl">
+                <h3 className="text-xl sm:text-2xl font-black text-white mb-6 sm:mb-8 flex items-center gap-4">
+                  <span className="w-1 h-6 sm:w-1.5 sm:h-8 bg-red-600 rounded-full" />
                   STATION INFO
                 </h3>
                 <div className="space-y-8">
@@ -282,22 +282,22 @@ function LandingPage() {
                     { icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z", label: "CONTACT LINE", value: activeBranch.phone }
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-red-600/10 rounded-2xl flex items-center justify-center flex-shrink-0 border border-red-600/20 shadow-inner">
-                        <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600/10 rounded-2xl flex items-center justify-center flex-shrink-0 border border-red-600/20 shadow-inner">
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={item.icon} />
                         </svg>
                       </div>
-                      <div>
-                        <p className="text-red-600 font-black text-xs tracking-widest mb-1">{item.label}</p>
-                        <p className="text-gray-300 text-lg font-bold leading-tight">{item.value}</p>
+                      <div className="min-w-0">
+                        <p className="text-red-600 font-black text-[10px] sm:text-xs tracking-widest mb-1">{item.label}</p>
+                        <p className="text-gray-300 text-base sm:text-lg font-bold leading-tight truncate sm:whitespace-normal">{item.value}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <a href={activeBranch.fb} target="_blank" rel="noopener noreferrer" className="w-full group bg-red-600 hover:bg-red-700 text-white font-black py-6 rounded-[24px] transition-all duration-500 flex items-center justify-center gap-4 text-lg shadow-[0_15px_30px_rgba(220,38,38,0.3)] hover:shadow-[0_20px_40px_rgba(220,38,38,0.5)] transform hover:-translate-y-2">
+              <a href={activeBranch.fb} target="_blank" rel="noopener noreferrer" className="w-full group bg-red-600 hover:bg-red-700 text-white font-black py-4 sm:py-6 rounded-2xl sm:rounded-[24px] transition-all duration-500 flex items-center justify-center gap-4 text-base sm:text-lg shadow-[0_15px_30px_rgba(220,38,38,0.3)] hover:shadow-[0_20px_40px_rgba(220,38,38,0.5)] transform hover:-translate-y-2">
                 FACEBOOK PAGE
-                <svg className="w-6 h-6 transform group-hover:translate-x-3 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 transform group-hover:translate-x-3 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
               </a>
             </div>
           </div>
@@ -309,8 +309,8 @@ function LandingPage() {
         <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none"
           style={{ backgroundImage: "repeating-linear-gradient(45deg, #000, #000 1px, transparent 1px, transparent 10px)" }} />
 
-        <div className="text-center mb-16 relative z-10 px-6">
-          <h2 className="text-5xl md:text-6xl font-black text-white uppercase tracking-tighter">CLIENT <span className="text-black">REVIEWS</span></h2>
+        <div className="text-center mb-12 sm:mb-16 relative z-10 px-6">
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-white uppercase tracking-tighter">CLIENT <span className="text-black">REVIEWS</span></h2>
           <div className="flex justify-center gap-1.5 mt-4">
             {[1, 2, 3, 4, 5].map(s => <svg key={s} className="w-5 h-5 text-black fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>)}
           </div>
@@ -319,8 +319,8 @@ function LandingPage() {
         <div className="relative">
           <div className="flex animate-marquee hover:[animation-play-state:paused] whitespace-nowrap">
             {[...feedbacks, ...feedbacks].map((f, i) => (
-              <div key={i} className="inline-block px-4">
-                <div className="w-[350px] md:w-[450px] bg-black text-white p-8 rounded-[32px] shadow-2xl border border-white/10 whitespace-normal">
+              <div key={i} className="inline-block px-2 sm:px-4">
+                <div className="w-[280px] sm:w-[350px] md:w-[450px] bg-black text-white p-6 sm:p-8 rounded-3xl sm:rounded-[32px] shadow-2xl border border-white/10 whitespace-normal">
                   <p className="text-xl italic font-bold leading-relaxed mb-6">"{f.text}"</p>
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center font-black text-lg">{f.name[0]}</div>
@@ -339,8 +339,8 @@ function LandingPage() {
       {/* Additional Branches List */}
       <section className="py-24 bg-black border-t border-white/5 reveal">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-white tracking-tighter uppercase">OFFICIAL <span className="text-red-600">FACEBOOK PAGES</span></h2>
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tighter uppercase">OFFICIAL <span className="text-red-600">FACEBOOK PAGES</span></h2>
 
             <div className="w-16 h-1 bg-red-600 mx-auto mt-6 rounded-full" />
           </div>
@@ -370,18 +370,18 @@ function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-black text-white py-24 border-t border-white/5 relative">
+      <footer className="bg-black text-white py-16 sm:py-24 border-t border-white/5 relative">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-16 mb-20">
-            <div className="md:col-span-2">
-              <img src={logo} alt="Otokwikk" className="h-16 mb-8 filter brightness-110" />
+          <div className="grid md:grid-cols-4 gap-10 sm:gap-16 mb-16 sm:mb-20">
+            <div className="md:col-span-2 text-center md:text-left">
+              <img src={logo} alt="Otokwikk" className="h-12 sm:h-16 mx-auto md:mx-0 mb-8 filter brightness-110" />
               <p className="text-gray-500 text-lg font-medium max-w-sm leading-relaxed">
                 The absolute standard in automotive luxury care. Precision in every pass, excellence in every detail.
               </p>
             </div>
-            <div>
+            <div className="text-center md:text-left">
               <h4 className="text-white font-black uppercase tracking-widest mb-8 opacity-50 text-sm">SOCIALS</h4>
-              <div className="flex gap-4">
+              <div className="flex justify-center md:justify-start gap-4">
                 <a href="#" className="w-14 h-14 bg-white/5 hover:bg-red-600 rounded-2xl flex items-center justify-center transition-all group border border-white/10 shadow-xl">
                   <svg className="w-6 h-6 transform group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
                 </a>
@@ -433,7 +433,7 @@ function LandingPage() {
           transform: translateY(0);
         }
       `}</style>
-    </div>
+    </div >
   );
 }
 

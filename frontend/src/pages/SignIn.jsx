@@ -254,7 +254,7 @@ function SignIn() {
 
           {/* Right Form */}
           <div className="w-full">
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-10 border border-white/5 shadow-2xl">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-6 sm:p-10 border border-white/5 shadow-2xl">
               <div className="lg:hidden mb-6 text-center">
                 <img
                   src={logo}
@@ -264,8 +264,8 @@ function SignIn() {
               </div>
 
               <div className="mb-7">
-                <h2 className="text-4xl font-black text-white mb-2">Sign In</h2>
-                <p className="text-gray-400 text-lg">
+                <h2 className="text-3xl sm:text-4xl font-black text-white mb-2">Sign In</h2>
+                <p className="text-gray-400 text-base sm:text-lg">
                   Enter your credentials to access your account
                 </p>
               </div>
@@ -364,7 +364,7 @@ function SignIn() {
                 {/* Submit */}
                 <button
                   type="submit"
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50 text-xl"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 sm:py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50 text-lg sm:text-xl"
                 >
                   Log In
                 </button>

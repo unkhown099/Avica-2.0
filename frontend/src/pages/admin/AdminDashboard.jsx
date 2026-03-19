@@ -303,13 +303,13 @@ function AdminDashboard() {
 
   return (
     <AdminLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Admin Dashboard
           </h1>
-          <p className="text-gray-400 mt-1">
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
             Welcome back — here's what's happening today.
           </p>
         </div>
@@ -360,7 +360,7 @@ function AdminDashboard() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
           {/* Line Chart */}
           <div className="xl:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
                 <h3 className="text-lg font-black text-white">
                   Revenue & Services Trend
@@ -369,7 +369,7 @@ function AdminDashboard() {
                   January – June 2025
                 </p>
               </div>
-              <div className="flex items-center gap-2 bg-gray-800/60 rounded-xl p-1">
+              <div className="flex items-center gap-2 bg-gray-800/60 rounded-xl p-1 self-start sm:self-auto">
                 {["6M", "1Y", "All"].map((t) => (
                   <button
                     key={t}
@@ -408,11 +408,11 @@ function AdminDashboard() {
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-sm text-gray-400 flex-1">
+                  <span className="text-sm text-gray-400 flex-1 truncate">
                     {item.label}
                   </span>
                   <div className="flex items-center gap-2">
-                    <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="hidden sm:block w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full"
                         style={{ width: item.pct, backgroundColor: item.color }}
@@ -444,8 +444,8 @@ function AdminDashboard() {
             </button>
           </div>
 
-          {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+          {/* Table Header (Desktop only) */}
+          <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
             <div className="col-span-4">Customer</div>
             <div className="col-span-3">Service</div>
             <div className="col-span-2">Amount</div>
@@ -454,53 +454,69 @@ function AdminDashboard() {
           </div>
 
           {/* Table Body */}
-          {recentActivity.map((row, i) => (
-            <div
-              key={i}
-              className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
-            >
-              <div className="col-span-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center text-sm font-bold shrink-0">
-                    {row.avatar}
+          <div className="divide-y divide-white/5">
+            {recentActivity.map((row, i) => (
+              <div
+                key={i}
+                className="flex flex-col md:grid md:grid-cols-12 gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors md:items-center group"
+              >
+                {/* Customer Column */}
+                <div className="md:col-span-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center text-sm font-bold shrink-0">
+                      {row.avatar}
+                    </div>
+                    <div>
+                      <div className="text-white font-semibold text-sm">
+                        {row.name}
+                      </div>
+                      <div className="md:hidden text-xs text-gray-500 mt-0.5">
+                        {row.service}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-white font-semibold text-sm">
-                    {row.name}
-                  </span>
+                </div>
+
+                {/* Service Column (Desktop only, hidden on mobile as it's under Name) */}
+                <div className="hidden md:block md:col-span-3 text-gray-400 text-sm">
+                  {row.service}
+                </div>
+
+                {/* Amount and Status Row (Mobile side-by-side) */}
+                <div className="flex items-center justify-between md:col-span-4">
+                  <div className="text-white font-bold text-sm md:w-1/2">
+                    {row.amount}
+                  </div>
+                  <div className="md:w-1/2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold border ${statusStyle[row.status]}`}
+                    >
+                      {row.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions Column */}
+                <div className="hidden md:flex md:col-span-1 justify-end">
+                  <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                      />
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <div className="col-span-3 text-gray-400 text-sm">
-                {row.service}
-              </div>
-              <div className="col-span-2 text-white font-bold text-sm">
-                {row.amount}
-              </div>
-              <div className="col-span-2">
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusStyle[row.status]}`}
-                >
-                  {row.status}
-                </span>
-              </div>
-              <div className="col-span-1 flex justify-end">
-                <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
           <div className="px-6 py-4">
             <p className="text-gray-500 text-sm">

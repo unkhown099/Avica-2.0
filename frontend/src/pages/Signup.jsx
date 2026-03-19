@@ -454,7 +454,7 @@ function SignUpPage() {
 
           {/* Right Side - Sign Up Form */}
           <div className="w-full">
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-10 border border-white/5 shadow-2xl">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-6 sm:p-10 border border-white/5 shadow-2xl">
               {/* Mobile Logo */}
               <div className="lg:hidden mb-6 text-center">
                 <img
@@ -465,10 +465,10 @@ function SignUpPage() {
               </div>
 
               <div className="mb-6">
-                <h2 className="text-4xl font-black text-white mb-1">
+                <h2 className="text-3xl sm:text-4xl font-black text-white mb-1">
                   Create Account
                 </h2>
-                <p className="text-gray-400 text-lg">
+                <p className="text-gray-400 text-base sm:text-lg">
                   {currentStep === 1 && "Step 1: Personal Information"}
                   {currentStep === 2 && "Step 2: Contact Information"}
                   {currentStep === 3 && "Step 3: Account Security"}
@@ -790,7 +790,7 @@ function SignUpPage() {
                     <button
                       type="button"
                       onClick={handlePrevious}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl transition-all duration-300 text-lg"
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3.5 sm:py-4 rounded-xl transition-all duration-300 text-base sm:text-lg"
                     >
                       Previous
                     </button>
