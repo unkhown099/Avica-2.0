@@ -241,6 +241,7 @@ class QueueEntry(models.Model):
         null=True,
         blank=True,
         related_name="queue_entries",
+        db_index=True,  # Add this temporarily
     )
 
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="walk_in")

@@ -1,212 +1,456 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ManagerLayout from "./ManagerLayout";
+import axios from "axios";
 
 function ManagerInventory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [statusFilter, setStatusFilter] = useState("All Status");
-  const [activeTab, setActiveTab] = useState("inventory"); // 'inventory' or 'services'
-  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
-  const [newService, setNewService] = useState({
-    name: "",
-    category: "",
-    duration: "",
-    price: "",
-    description: "",
-  });
+  const [activeTab, setActiveTab] = useState("inventory");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
-  const lowStockItems = [
-    { name: "Brake Pads Set", current: 12, minimum: 15, unit: "Sets" },
-    { name: "Air Filter", current: 8, minimum: 10, unit: "Pieces" },
-    { name: "Battery 12V 60Ah", current: 5, minimum: 8, unit: "Pieces" },
+  // State for API data - initialize as empty arrays
+  const [services, setServices] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [updatingServiceId, setUpdatingServiceId] = useState(null);
+
+  // Categories for services
+  const serviceCategories = [
+    "Maintenance",
+    "Brakes",
+    "AC",
+    "Engine",
+    "Tires",
+    "Electrical",
+    "Suspension",
+    "Transmission",
+    "Diagnostic",
   ];
 
-  const inventoryItems = [
-    {
-      id: "INV-001",
-      name: "Engine Oil 5W-30",
-      category: "Lubricants",
-      sku: "EO-5W30-001",
-      quantity: 45,
-      unit: "Liters",
-      price: "₱450",
-      supplier: "Shell Philippines",
-      status: "In Stock",
-    },
-    {
-      id: "INV-002",
-      name: "Brake Pads Set",
-      category: "Brakes",
-      sku: "BP-SET-002",
-      quantity: 12,
-      unit: "Sets",
-      price: "₱2,500",
-      supplier: "Brembo",
-      status: "Low Stock",
-    },
-    {
-      id: "INV-003",
-      name: "Air Filter",
-      category: "Filters",
-      sku: "AF-STD-003",
-      quantity: 8,
-      unit: "Pieces",
-      price: "₱350",
-      supplier: "Mann Filter",
-      status: "Low Stock",
-    },
-    {
-      id: "INV-004",
-      name: "Battery 12V 60Ah",
-      category: "Batteries",
-      sku: "BAT-12V-004",
-      quantity: 5,
-      unit: "Pieces",
-      price: "₱4,200",
-      supplier: "Motolite",
-      status: "Low Stock",
-    },
-    {
-      id: "INV-005",
-      name: "Tire 195/65R15",
-      category: "Tires",
-      sku: "TR-195-005",
-      quantity: 24,
-      unit: "Pieces",
-      price: "₱3,500",
-      supplier: "Bridgestone",
-      status: "In Stock",
-    },
-    {
-      id: "INV-006",
-      name: "Engine Oil 10W-40",
-      category: "Lubricants",
-      sku: "EO-10W40-006",
-      quantity: 32,
-      unit: "Liters",
-      price: "₱420",
-      supplier: "Castrol",
-      status: "In Stock",
-    },
-    {
-      id: "INV-007",
-      name: "Spark Plugs Set",
-      category: "Ignition",
-      sku: "SP-SET-007",
-      quantity: 18,
-      unit: "Sets",
-      price: "₱800",
-      supplier: "NGK",
-      status: "In Stock",
-    },
-    {
-      id: "INV-008",
-      name: "Coolant Fluid",
-      category: "Lubricants",
-      sku: "CF-STD-008",
-      quantity: 28,
-      unit: "Liters",
-      price: "₱350",
-      supplier: "Prestone",
-      status: "In Stock",
-    },
-  ];
+  // Debug function to check all storage on component mount
+  useEffect(() => {
+    debugStorage();
+  }, []);
 
-  const serviceItems = [
-    {
-      id: "SVC-001",
-      name: "Oil Change Service",
-      category: "Maintenance",
-      duration: "30 mins",
-      price: "₱1,500",
-      description: "Complete engine oil change with filter replacement",
-      status: "Available",
-    },
-    {
-      id: "SVC-002",
-      name: "Brake Pad Replacement",
-      category: "Brakes",
-      duration: "1 hour",
-      price: "₱2,800",
-      description: "Front or rear brake pad replacement service",
-      status: "Available",
-    },
-    {
-      id: "SVC-003",
-      name: "Air Conditioning Service",
-      category: "AC",
-      duration: "2 hours",
-      price: "₱3,500",
-      description: "AC cleaning, recharging, and performance check",
-      status: "Available",
-    },
-    {
-      id: "SVC-004",
-      name: "Engine Tune-up",
-      category: "Engine",
-      duration: "1.5 hours",
-      price: "₱2,200",
-      description: "Complete engine diagnostic and tune-up service",
-      status: "Available",
-    },
-    {
-      id: "SVC-005",
-      name: "Tire Rotation & Balance",
-      category: "Tires",
-      duration: "45 mins",
-      price: "₱800",
-      description: "Tire rotation and balancing for all 4 tires",
-      status: "Available",
-    },
-  ];
-
-  const getStatusBadge = (status) => (
-    <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-        status === "In Stock" || status === "Available"
-          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-          : "bg-red-500/20 text-red-400 border-red-500/30"
-      }`}
-    >
-      {status}
-    </span>
-  );
-
-  const handleAddService = (e) => {
-    e.preventDefault();
-    // Here you would typically make an API call to add the service
-    console.log("Adding service:", newService);
-    setShowAddServiceModal(false);
-    setNewService({
-      name: "",
-      category: "",
-      duration: "",
-      price: "",
-      description: "",
-    });
-    // Show success message or update state
+  const debugStorage = () => {
+    // Comment out or remove these console logs
+    // console.log("=== LOCALSTORAGE CONTENTS ===");
+    // for (let i = 0; i < localStorage.length; i++) {
+    //   const key = localStorage.key(i);
+    //   const value = localStorage.getItem(key);
+    //   console.log(`${key}:`, value ? value.substring(0, 20) + "..." : value);
+    // }
+    // console.log("=== SESSIONSTORAGE CONTENTS ===");
+    // for (let i = 0; i < sessionStorage.length; i++) {
+    //   const key = sessionStorage.key(i);
+    //   const value = sessionStorage.getItem(key);
+    //   console.log(`${key}:`, value ? value.substring(0, 20) + "..." : value);
+    // }
   };
 
-  const filteredInventory = inventoryItems.filter((item) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      (item.name.toLowerCase().includes(q) ||
-        item.sku.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q)) &&
-      (categoryFilter === "All Categories" ||
-        item.category === categoryFilter) &&
-      (statusFilter === "All Status" || item.status === statusFilter)
-    );
-  });
+  // Helper function to get JWT token from both localStorage and sessionStorage
+  const getAuthToken = () => {
+    // Common JWT token key names to check
+    const tokenKeys = [
+      "accessToken",
+      "access_token",
+      "token",
+      "jwt",
+      "access",
+      "authToken",
+      "Authorization",
+    ];
 
-  const filteredServices = serviceItems.filter((service) => {
-    const q = searchQuery.toLowerCase();
+    // Check localStorage first
+    for (const key of tokenKeys) {
+      const token = localStorage.getItem(key);
+      if (token) {
+        return token;
+      }
+    }
+
+    // Check sessionStorage
+    for (const key of tokenKeys) {
+      const token = sessionStorage.getItem(key);
+      if (token) {
+        return token;
+      }
+    }
+
+    // Check for user object that might contain token
+    try {
+      const userStr =
+        localStorage.getItem("user") || sessionStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        // Check common token properties in user object
+        const tokenProps = [
+          "accessToken",
+          "access_token",
+          "token",
+          "jwt",
+          "access",
+        ];
+        for (const prop of tokenProps) {
+          if (user[prop]) {
+            return user[prop];
+          }
+        }
+      }
+    } catch (e) {
+      // Silent fail
+    }
+
+    // Check for token in auth data
+    try {
+      const authStr =
+        localStorage.getItem("auth") || sessionStorage.getItem("auth");
+      if (authStr) {
+        const auth = JSON.parse(authStr);
+        const tokenProps = [
+          "accessToken",
+          "access_token",
+          "token",
+          "jwt",
+          "access",
+        ];
+        for (const prop of tokenProps) {
+          if (auth[prop]) {
+            return auth[prop];
+          }
+        }
+      }
+    } catch (e) {
+      // Silent fail
+    }
+
+    return null;
+  };
+
+  // Helper function to handle API errors
+  const handleApiError = (err, defaultMessage) => {
+    if (err.response?.status === 401) {
+      // Token expired or invalid - clear tokens and redirect to login
+      const tokenKeys = [
+        "accessToken",
+        "access_token",
+        "token",
+        "jwt",
+        "access",
+        "authToken",
+        "Authorization",
+        "user",
+        "auth",
+      ];
+
+      tokenKeys.forEach((key) => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+
+      // Redirect to login page
+      window.location.href = "/login";
+      return "Your session has expired. Please login again.";
+    }
+
     return (
-      service.name.toLowerCase().includes(q) ||
-      service.category.toLowerCase().includes(q) ||
-      service.description.toLowerCase().includes(q)
+      err.response?.data?.detail ||
+      err.response?.data?.message ||
+      defaultMessage
     );
-  });
+  };
+
+  // Create axios instance with default headers
+  const createApiClient = () => {
+    const token = getAuthToken();
+
+    const instance = axios.create({
+      baseURL: import.meta.env.VITE_API_BASE_URL.endsWith("/")
+        ? import.meta.env.VITE_API_BASE_URL
+        : `${import.meta.env.VITE_API_BASE_URL}/`,
+      headers: token
+        ? {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          }
+        : {
+            "Content-Type": "application/json",
+          },
+    });
+
+    // Add request interceptor to ensure token is always fresh
+    instance.interceptors.request.use(
+      (config) => {
+        const currentToken = getAuthToken();
+        if (currentToken) {
+          config.headers.Authorization = `Bearer ${currentToken}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      },
+    );
+
+    // Add response interceptor to handle token expiration
+    instance.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          // Token expired - clear and redirect
+          handleApiError(error, "Authentication failed");
+        }
+        return Promise.reject(error);
+      },
+    );
+
+    return instance;
+  };
+
+  // Fetch services on component mount and when tab changes
+  useEffect(() => {
+    if (activeTab === "services") {
+      fetchServices();
+    }
+  }, [activeTab, categoryFilter, searchQuery]);
+
+  // Fetch inventory when tab is inventory and filters change
+  useEffect(() => {
+    if (activeTab === "inventory") {
+      fetchInventory();
+    }
+  }, [activeTab, categoryFilter, statusFilter, searchQuery]);
+
+  const fetchServices = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        setError("Please login to continue");
+        setLoading(false);
+        return;
+      }
+
+      const apiClient = createApiClient();
+
+      // Build query params
+      const params = new URLSearchParams();
+      if (categoryFilter !== "All Categories") {
+        params.append("category", categoryFilter);
+      }
+      if (searchQuery) {
+        params.append("search", searchQuery);
+      }
+
+      const url = `services/${params.toString() ? `?${params.toString()}` : ""}`;
+
+      const response = await apiClient.get(url);
+
+      // Ensure response.data is an array
+      const servicesData = Array.isArray(response.data) ? response.data : [];
+
+      // Transform API data to match frontend format with is_active status
+      const transformedServices = servicesData.map((service) => ({
+        id: `SVC-${service.id?.toString().padStart(3, "0") || "000"}`,
+        originalId: service.id,
+        name: service.name || "",
+        category: service.category || "",
+        duration: service.duration || "1 hour",
+        price: service.price
+          ? `₱${Number(service.price).toLocaleString()}`
+          : "₱0",
+        description: service.description || "",
+        is_active: service.is_active !== undefined ? service.is_active : true,
+        branches: service.branches || [],
+      }));
+
+      setServices(transformedServices);
+    } catch (err) {
+      const errorMessage = handleApiError(
+        err,
+        "Failed to load services. Please try again.",
+      );
+      setError(errorMessage);
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchInventory = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        setError("Please login to continue");
+        setLoading(false);
+        return;
+      }
+
+      const apiClient = createApiClient();
+
+      // Build query params
+      const params = new URLSearchParams();
+      if (searchQuery) {
+        params.append("search", searchQuery);
+      }
+      if (categoryFilter !== "All Categories") {
+        params.append("category", categoryFilter);
+      }
+      if (statusFilter !== "All Status") {
+        params.append("status", statusFilter);
+      }
+
+      const url = `inventory/${params.toString() ? `?${params.toString()}` : ""}`;
+
+      const response = await apiClient.get(url);
+
+      // Ensure response.data is an array
+      const inventoryData = Array.isArray(response.data) ? response.data : [];
+
+      // If the API returns data in a different format, transform it
+      const transformedInventory = inventoryData.map((item) => ({
+        id: item.id || `INV-${Math.random().toString(36).substr(2, 9)}`,
+        name: item.name || "",
+        category: item.category || "",
+        sku: item.sku || "",
+        quantity: item.quantity || 0,
+        unit: item.unit || "Pieces",
+        price: item.price ? `₱${Number(item.price).toLocaleString()}` : "₱0",
+        supplier: item.supplier || "",
+        status:
+          item.status ||
+          (item.quantity && item.quantity < 10 ? "Low Stock" : "In Stock"),
+        minimum: item.minimum_stock || 10,
+      }));
+
+      setInventoryItems(transformedInventory);
+    } catch (err) {
+      const errorMessage = handleApiError(
+        err,
+        "Failed to load inventory. Please try again.",
+      );
+      setError(errorMessage);
+      setInventoryItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleServiceStatus = async (service) => {
+    setUpdatingServiceId(service.originalId);
+    setError(null);
+
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        setError("Please login to continue");
+        setUpdatingServiceId(null);
+        return;
+      }
+
+      const apiClient = createApiClient();
+      const newStatus = !service.is_active;
+
+      // Update the service status via API
+      await apiClient.patch(`services/${service.originalId}/`, {
+        is_active: newStatus,
+      });
+
+      // Update local state
+      setServices((prevServices) =>
+        prevServices.map((s) =>
+          s.originalId === service.originalId
+            ? { ...s, is_active: newStatus }
+            : s,
+        ),
+      );
+
+      setSuccessMessage(
+        `Service "${service.name}" ${newStatus ? "activated" : "deactivated"} successfully!`,
+      );
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      const errorMessage = handleApiError(
+        err,
+        "Failed to update service status. Please try again.",
+      );
+      setError(errorMessage);
+    } finally {
+      setUpdatingServiceId(null);
+    }
+  };
+
+  // Safely calculate low stock items - ensure inventoryItems is array
+  const lowStockItems = Array.isArray(inventoryItems)
+    ? inventoryItems
+        .filter(
+          (item) =>
+            item.status === "Low Stock" ||
+            (item.quantity && item.minimum && item.quantity < item.minimum),
+        )
+        .map((item) => ({
+          name: item.name,
+          current: item.quantity,
+          minimum: item.minimum || 10,
+          unit: item.unit || "Pieces",
+        }))
+    : [];
+
+  const getStatusBadge = (status, isActive = true) => {
+    if (status === "In Stock" || status === "Available") {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+          {status}
+        </span>
+      );
+    } else if (!isActive) {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-gray-500/20 text-gray-400 border-gray-500/30">
+          Inactive
+        </span>
+      );
+    } else {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-red-500/20 text-red-400 border-red-500/30">
+          {status}
+        </span>
+      );
+    }
+  };
+
+  // Safely filter inventory - ensure inventoryItems is array
+  const filteredInventory = Array.isArray(inventoryItems)
+    ? inventoryItems.filter((item) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          (item.name?.toLowerCase().includes(q) ||
+            item.sku?.toLowerCase().includes(q) ||
+            item.category?.toLowerCase().includes(q)) &&
+          (categoryFilter === "All Categories" ||
+            item.category === categoryFilter) &&
+          (statusFilter === "All Status" || item.status === statusFilter)
+        );
+      })
+    : [];
+
+  // Safely filter services - ensure services is array
+  const filteredServices = Array.isArray(services)
+    ? services.filter((service) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          service.name.toLowerCase().includes(q) ||
+          service.category.toLowerCase().includes(q) ||
+          service.description.toLowerCase().includes(q)
+        );
+      })
+    : [];
 
   // Helper function to render stats icons
   const renderStatIcon = (color, iconType) => {
@@ -261,20 +505,35 @@ function ManagerInventory() {
       ),
     };
 
-    return iconPaths[iconType];
+    return iconPaths[iconType] || iconPaths.inventory;
   };
 
+  // Calculate active services count
+  const activeServicesCount = Array.isArray(services)
+    ? services.filter((s) => s.is_active).length
+    : 0;
+
+  // Calculate inventory stats safely
   const inventoryStats = [
     {
       label: "Total Items",
-      value: "8",
+      value: (Array.isArray(inventoryItems)
+        ? inventoryItems.length
+        : 0
+      ).toString(),
       sub: "In this branch",
       color: "#ef4444",
       iconType: "inventory",
     },
     {
       label: "Inventory Value",
-      value: "₱161,550",
+      value: `₱${(Array.isArray(inventoryItems)
+        ? inventoryItems.reduce((sum, item) => {
+            const price = parseFloat(item.price?.replace(/[₱,]/g, "") || "0");
+            return sum + price * (item.quantity || 0);
+          }, 0)
+        : 0
+      ).toLocaleString()}`,
       sub: "Total stock value",
       color: "#3b82f6",
       iconType: "value",
@@ -291,30 +550,47 @@ function ManagerInventory() {
   const serviceStats = [
     {
       label: "Total Services",
-      value: "5",
-      sub: "Active services",
+      value: (Array.isArray(services) ? services.length : 0).toString(),
+      sub: "All services",
       color: "#10b981",
       iconType: "services",
     },
     {
+      label: "Active Services",
+      value: activeServicesCount.toString(),
+      sub: "Currently available",
+      color: "#3b82f6",
+      iconType: "services",
+    },
+    {
       label: "Service Categories",
-      value: "5",
+      value: (Array.isArray(services)
+        ? [...new Set(services.map((s) => s.category))].length
+        : 0
+      ).toString(),
       sub: "Different types",
       color: "#8b5cf6",
       iconType: "categories",
-    },
-    {
-      label: "Avg. Duration",
-      value: "1.2 hrs",
-      sub: "Per service",
-      color: "#ec4899",
-      iconType: "duration",
     },
   ];
 
   return (
     <ManagerLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-4 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl">
+            {successMessage}
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl">
+            {error}
+          </div>
+        )}
+
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tight">
@@ -324,27 +600,6 @@ function ManagerInventory() {
               Track and manage inventory and services for San Mateo Rizal branch
             </p>
           </div>
-          {activeTab === "services" && (
-            <button
-              onClick={() => setShowAddServiceModal(true)}
-              className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg shadow-red-500/25 flex items-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Add New Service
-            </button>
-          )}
         </div>
 
         {/* Tabs */}
@@ -406,7 +661,7 @@ function ManagerInventory() {
         </div>
 
         {/* Low Stock Alert - Only show for inventory */}
-        {activeTab === "inventory" && (
+        {activeTab === "inventory" && lowStockItems.length > 0 && (
           <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 mb-8 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-4">
               <svg
@@ -515,48 +770,110 @@ function ManagerInventory() {
               </select>
             </>
           ) : (
-            <select className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]">
-              {[
-                "All Categories",
-                "Maintenance",
-                "Brakes",
-                "AC",
-                "Engine",
-                "Tires",
-              ].map((o) => (
-                <option key={o}>{o}</option>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
+            >
+              <option value="All Categories">All Categories</option>
+              {serviceCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
               ))}
             </select>
           )}
         </div>
 
-        {/* Table */}
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-          <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            {activeTab === "inventory" ? (
-              <>
-                <div className="col-span-2">Name</div>
-                <div className="col-span-2">Category</div>
-                <div className="col-span-2">SKU</div>
-                <div className="col-span-2">Quantity</div>
-                <div className="col-span-1">Price</div>
-                <div className="col-span-2">Supplier</div>
-                <div className="col-span-1 text-right">Status</div>
-              </>
-            ) : (
-              <>
-                <div className="col-span-3">Service Name</div>
-                <div className="col-span-2">Category</div>
-                <div className="col-span-2">Duration</div>
-                <div className="col-span-2">Price</div>
-                <div className="col-span-2">Description</div>
-                <div className="col-span-1 text-right">Status</div>
-              </>
-            )}
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-red-500 border-t-transparent"></div>
+            <p className="text-gray-400 mt-2">Loading...</p>
           </div>
+        )}
 
-          {activeTab === "inventory" ? (
-            filteredInventory.length === 0 ? (
+        {/* Table */}
+        {!loading && (
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+            <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              {activeTab === "inventory" ? (
+                <>
+                  <div className="col-span-2">Name</div>
+                  <div className="col-span-2">Category</div>
+                  <div className="col-span-2">SKU</div>
+                  <div className="col-span-2">Quantity</div>
+                  <div className="col-span-1">Price</div>
+                  <div className="col-span-2">Supplier</div>
+                  <div className="col-span-1 text-right">Status</div>
+                </>
+              ) : (
+                <>
+                  <div className="col-span-3">Service Name</div>
+                  <div className="col-span-2">Category</div>
+                  <div className="col-span-2">Duration</div>
+                  <div className="col-span-2">Price</div>
+                  <div className="col-span-2">Description</div>
+                  <div className="col-span-1 text-center">Status</div>
+                </>
+              )}
+            </div>
+
+            {activeTab === "inventory" ? (
+              filteredInventory.length === 0 ? (
+                <div className="py-20 text-center">
+                  <svg
+                    className="w-12 h-12 text-gray-700 mx-auto mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                  <p className="text-gray-500 text-lg">No items found</p>
+                  <p className="text-gray-600 text-sm mt-1">
+                    Try adjusting your search or filters
+                  </p>
+                </div>
+              ) : (
+                filteredInventory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+                  >
+                    <div className="col-span-2 text-white font-semibold text-sm">
+                      {item.name}
+                    </div>
+                    <div className="col-span-2 text-gray-400 text-sm">
+                      {item.category}
+                    </div>
+                    <div className="col-span-2 text-gray-500 text-xs font-mono">
+                      {item.sku}
+                    </div>
+                    <div className="col-span-2 text-gray-300 text-sm font-semibold">
+                      {item.quantity}{" "}
+                      <span className="text-gray-600 font-normal text-xs">
+                        {item.unit}
+                      </span>
+                    </div>
+                    <div className="col-span-1 text-white font-bold text-sm">
+                      {item.price}
+                    </div>
+                    <div className="col-span-2 text-gray-400 text-sm">
+                      {item.supplier}
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      {getStatusBadge(item.status)}
+                    </div>
+                  </div>
+                ))
+              )
+            ) : filteredServices.length === 0 ? (
               <div className="py-20 text-center">
                 <svg
                   className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -568,232 +885,79 @@ function ManagerInventory() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={1.5}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                   />
                 </svg>
-                <p className="text-gray-500 text-lg">No items found</p>
+                <p className="text-gray-500 text-lg">No services found</p>
                 <p className="text-gray-600 text-sm mt-1">
                   Try adjusting your search or filters
                 </p>
               </div>
             ) : (
-              filteredInventory.map((item) => (
+              filteredServices.map((service) => (
                 <div
-                  key={item.id}
+                  key={service.id}
                   className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
                 >
-                  <div className="col-span-2 text-white font-semibold text-sm">
-                    {item.name}
+                  <div className="col-span-3 text-white font-semibold text-sm">
+                    {service.name}
                   </div>
                   <div className="col-span-2 text-gray-400 text-sm">
-                    {item.category}
-                  </div>
-                  <div className="col-span-2 text-gray-500 text-xs font-mono">
-                    {item.sku}
-                  </div>
-                  <div className="col-span-2 text-gray-300 text-sm font-semibold">
-                    {item.quantity}{" "}
-                    <span className="text-gray-600 font-normal text-xs">
-                      {item.unit}
-                    </span>
-                  </div>
-                  <div className="col-span-1 text-white font-bold text-sm">
-                    {item.price}
+                    {service.category}
                   </div>
                   <div className="col-span-2 text-gray-400 text-sm">
-                    {item.supplier}
+                    {service.duration}
                   </div>
-                  <div className="col-span-1 flex justify-end">
-                    {getStatusBadge(item.status)}
+                  <div className="col-span-2 text-white font-bold text-sm">
+                    {service.price}
+                  </div>
+                  <div className="col-span-2 text-gray-400 text-sm truncate">
+                    {service.description}
+                  </div>
+                  <div className="col-span-1 flex justify-center">
+                    <button
+                      onClick={() => toggleServiceStatus(service)}
+                      disabled={updatingServiceId === service.originalId}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+                        service.is_active ? "bg-emerald-500" : "bg-gray-600"
+                      } ${updatingServiceId === service.originalId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      title={
+                        service.is_active
+                          ? "Click to deactivate"
+                          : "Click to activate"
+                      }
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          service.is_active ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               ))
-            )
-          ) : (
-            filteredServices.map((service) => (
-              <div
-                key={service.id}
-                className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
-              >
-                <div className="col-span-3 text-white font-semibold text-sm">
-                  {service.name}
-                </div>
-                <div className="col-span-2 text-gray-400 text-sm">
-                  {service.category}
-                </div>
-                <div className="col-span-2 text-gray-400 text-sm">
-                  {service.duration}
-                </div>
-                <div className="col-span-2 text-white font-bold text-sm">
-                  {service.price}
-                </div>
-                <div className="col-span-2 text-gray-400 text-sm truncate">
-                  {service.description}
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  {getStatusBadge(service.status)}
-                </div>
+            )}
+
+            {((activeTab === "inventory" && filteredInventory.length > 0) ||
+              (activeTab === "services" && filteredServices.length > 0)) && (
+              <div className="px-6 py-4">
+                <p className="text-gray-500 text-sm">
+                  Showing{" "}
+                  <span className="text-white font-semibold">
+                    {activeTab === "inventory"
+                      ? filteredInventory.length
+                      : filteredServices.length}
+                  </span>{" "}
+                  of{" "}
+                  <span className="text-white font-semibold">
+                    {activeTab === "inventory"
+                      ? inventoryItems.length
+                      : services.length}
+                  </span>{" "}
+                  {activeTab === "inventory" ? "items" : "services"}
+                </p>
               </div>
-            ))
-          )}
-
-          {((activeTab === "inventory" && filteredInventory.length > 0) ||
-            (activeTab === "services" && filteredServices.length > 0)) && (
-            <div className="px-6 py-4">
-              <p className="text-gray-500 text-sm">
-                Showing{" "}
-                <span className="text-white font-semibold">
-                  {activeTab === "inventory"
-                    ? filteredInventory.length
-                    : filteredServices.length}
-                </span>{" "}
-                of{" "}
-                <span className="text-white font-semibold">
-                  {activeTab === "inventory"
-                    ? inventoryItems.length
-                    : serviceItems.length}
-                </span>{" "}
-                {activeTab === "inventory" ? "items" : "services"}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Add Service Modal */}
-        {showAddServiceModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-lg p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-black text-white">
-                  Add New Service
-                </h2>
-                <button
-                  onClick={() => setShowAddServiceModal(false)}
-                  className="text-gray-500 hover:text-white transition-colors"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <form onSubmit={handleAddService} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-2">
-                    Service Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newService.name}
-                    onChange={(e) =>
-                      setNewService({ ...newService, name: e.target.value })
-                    }
-                    className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30"
-                    placeholder="e.g., Oil Change Service"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-2">
-                    Category
-                  </label>
-                  <select
-                    required
-                    value={newService.category}
-                    onChange={(e) =>
-                      setNewService({ ...newService, category: e.target.value })
-                    }
-                    className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30"
-                  >
-                    <option value="">Select category</option>
-                    <option value="Maintenance">Maintenance</option>
-                    <option value="Brakes">Brakes</option>
-                    <option value="AC">AC</option>
-                    <option value="Engine">Engine</option>
-                    <option value="Tires">Tires</option>
-                    <option value="Electrical">Electrical</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-2">
-                    Duration
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newService.duration}
-                    onChange={(e) =>
-                      setNewService({ ...newService, duration: e.target.value })
-                    }
-                    className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30"
-                    placeholder="e.g., 1 hour"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-2">
-                    Price
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newService.price}
-                    onChange={(e) =>
-                      setNewService({ ...newService, price: e.target.value })
-                    }
-                    className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30"
-                    placeholder="e.g., ₱1,500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-400 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    required
-                    value={newService.description}
-                    onChange={(e) =>
-                      setNewService({
-                        ...newService,
-                        description: e.target.value,
-                      })
-                    }
-                    rows="3"
-                    className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30"
-                    placeholder="Describe the service..."
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all"
-                  >
-                    Add Service
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddServiceModal(false)}
-                    className="flex-1 bg-gray-800 text-white py-3 rounded-xl font-semibold hover:bg-gray-700 transition-all border border-white/10"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
+            )}
           </div>
         )}
       </div>

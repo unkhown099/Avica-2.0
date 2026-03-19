@@ -3,22 +3,28 @@ from api.models import QueueEntry, Staff
 
 
 class AssignedEmployeeSerializer(serializers.ModelSerializer):
-    full_name = serializers.SerializerMethodField()
+    full_name  = serializers.SerializerMethodField()
+    branch     = serializers.SerializerMethodField()   # ← return name string, not FK int
 
     class Meta:
-        model = Staff
+        model  = Staff
         fields = ["id", "full_name", "phone", "branch"]
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
 
+    def get_branch(self, obj):
+        # obj.branch is a FK — return the name string so frontend gets "Caloocan Branch"
+        return obj.branch.name if obj.branch else obj.branch_name or ""
+
 
 class QueueEntrySerializer(serializers.ModelSerializer):
     wait_minutes      = serializers.SerializerMethodField()
     assigned_employee = AssignedEmployeeSerializer(read_only=True)
+    branch            = serializers.SerializerMethodField()   # ← return name string, not FK int
 
     class Meta:
-        model = QueueEntry
+        model  = QueueEntry
         fields = [
             "id",
             "booking",
@@ -37,11 +43,17 @@ class QueueEntrySerializer(serializers.ModelSerializer):
             "service_started_at",
             "completed_at",
             "wait_minutes",
-            "price",           # ← add
-            "payment_status",  # ← add
-            "payment_method",  # ← add
+            "price",
+            "payment_status",
+            "payment_method",
         ]
         read_only_fields = ["id", "queued_at", "service_started_at", "completed_at"]
+
+    def get_branch(self, obj):
+        # Prefer FK name, fall back to legacy branch_name CharField
+        if obj.branch:
+            return obj.branch.name
+        return obj.branch_name or ""
 
     def get_wait_minutes(self, obj):
         if obj.status != "waiting":
@@ -56,7 +68,7 @@ class QueueEntryCreateSerializer(serializers.ModelSerializer):
     """Used when staff add a walk-in directly to the queue."""
 
     class Meta:
-        model = QueueEntry
+        model  = QueueEntry
         fields = [
             "customer_name",
             "phone",
@@ -67,6 +79,9 @@ class QueueEntryCreateSerializer(serializers.ModelSerializer):
             "notes",
             "source",
         ]
+        extra_kwargs = {
+            "branch": {"required": False, "allow_null": True},
+        }
 
     def create(self, validated_data):
         validated_data.setdefault("source", "walk_in")

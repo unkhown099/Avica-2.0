@@ -1,3 +1,4 @@
+import logging
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -12,43 +13,116 @@ from api.serializers.queue_serializer import (
     AssignEmployeeSerializer,
 )
 
+logger = logging.getLogger(__name__)
+
 
 # ─── Shared helper ────────────────────────────────────────────────────────────
 
 def _booking_to_queue_entry(booking):
-    if QueueEntry.objects.filter(booking=booking).exists():
-        return QueueEntry.objects.get(booking=booking)
+    """
+    Convert a confirmed Booking into a QueueEntry.
+    Safe to call multiple times — returns existing entry if already created.
+    """
+    import traceback
+    
+    print("\n" + "="*50)
+    print(f"DEBUG: _booking_to_queue_entry called for booking #{booking.id}")
+    print("="*50)
+    
+    # Guard: don't create duplicates
+    existing = QueueEntry.objects.filter(booking=booking).first()
+    if existing:
+        print(f"DEBUG: Found existing queue entry #{existing.id}")
+        return existing
 
+    # Resolve customer name + phone safely
+    customer_name = ""
+    phone = ""
     try:
         profile = booking.user.customer_profile
         customer_name = f"{profile.first_name} {profile.last_name}".strip()
         phone = profile.phone or ""
-    except Exception:
-        customer_name = booking.user.email
-        phone = ""
+        print(f"DEBUG: Customer profile found: {customer_name}, {phone}")
+    except Exception as e:
+        print(f"DEBUG: Could not get customer profile: {e}")
 
-    return QueueEntry.objects.create(
-        booking=booking,
-        customer_name=customer_name or booking.user.email,
-        phone=phone,
-        vehicle=booking.vehicle,
-        plate_number=booking.plate_number,
-        service=booking.service,
-        branch=booking.branch,        # ← pass the Branch FK object, not branch_name string
-        branch_name=booking.branch.name if booking.branch else "",  # ← keep legacy field too
-        notes=booking.notes,
-        source="booking",
-        status="waiting",
-    )
+    # Final fallback for name
+    if not customer_name:
+        customer_name = booking.user.email or "Unknown"
+        print(f"DEBUG: Using email as customer name: {customer_name}")
+
+    # Resolve branch safely
+    branch_obj = booking.branch
+    
+    # CRITICAL CHECK: Validate branch is not None
+    if branch_obj is None:
+        error_msg = f"Booking #{booking.id} has no branch associated! Cannot create queue entry."
+        print(f"ERROR: {error_msg}")
+        raise ValueError(error_msg)
+    
+    branch_id = branch_obj.id
+    branch_name = branch_obj.name
+    
+    print(f"DEBUG: Creating queue entry with branch_id={branch_id}, branch_name={branch_name}")
+
+    # Try to create the entry with explicit field validation
+    try:
+        # Create the entry data - IMPORTANT: branch field gets the Branch OBJECT, not a string
+        entry_data = {
+            'booking': booking,
+            'customer_name': customer_name,
+            'phone': phone,
+            'vehicle': booking.vehicle or "",
+            'plate_number': booking.plate_number or "",
+            'service': booking.service or "",
+            # CRITICAL: branch field must be a Branch object, not a string
+            'branch': branch_obj,  # This is a Branch object, not a string
+            # branch_name is the legacy string field
+            'branch_name': branch_name,
+            # DO NOT include 'branch_id' as a separate key - Django handles this automatically
+            'notes': booking.notes or "",
+            'source': "booking",
+            'status': "waiting",
+            # These fields need defaults
+            'payment_method': '',
+            'payment_status': 'unpaid',
+            'price': 0,
+        }
+        
+        print(f"DEBUG: Creating QueueEntry with data:")
+        for key, value in entry_data.items():
+            if key == 'booking':
+                print(f"  - {key}: {value.id} ({value})")
+            elif key == 'branch':
+                print(f"  - {key}: {value.name} (ID: {value.id}) - Branch OBJECT")
+            else:
+                print(f"  - {key}: {value}")
+        
+        # Remove 'branch_id' from entry_data if it exists - we don't want to set it directly
+        if 'branch_id' in entry_data:
+            del entry_data['branch_id']
+            print("DEBUG: Removed branch_id from entry_data to avoid conflict")
+        
+        entry = QueueEntry.objects.create(**entry_data)
+        print(f"DEBUG: Queue entry created successfully with ID: {entry.id}")
+        
+    except Exception as e:
+        print(f"ERROR: Failed to create queue entry: {e}")
+        print(f"ERROR type: {type(e)}")
+        print(f"ERROR details: {traceback.format_exc()}")
+        raise
+
+    print(f"✅ Queue entry #{entry.id} created at position #{entry.position}")
+    print("="*50 + "\n")
+    return entry
 
 # ── GET  /api/queue/ ──────────────────────────────────────────────────────────
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def queue_list(request):
-    """Return all active (waiting + in_service) queue entries."""
     entries = QueueEntry.objects.filter(
         status__in=["waiting", "in_service"]
-    ).select_related("assigned_employee").order_by("position", "queued_at")
+    ).select_related("assigned_employee", "branch").order_by("position", "queued_at")
     return Response(QueueEntrySerializer(entries, many=True).data)
 
 
@@ -56,7 +130,6 @@ def queue_list(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def queue_walk_in(request):
-    """Add a walk-in customer straight to the active queue."""
     serializer = QueueEntryCreateSerializer(data=request.data)
     if serializer.is_valid():
         entry = serializer.save(source="walk_in", status="waiting")
@@ -65,14 +138,9 @@ def queue_walk_in(request):
 
 
 # ── POST  /api/queue/from-booking/ ───────────────────────────────────────────
-# Kept for manual use, but auto-queue on approve is handled in bookings_views.py
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def queue_from_booking(request):
-    """
-    Manually promote a confirmed Booking into the queue.
-    Payload: { "booking_id": <int> }
-    """
     serializer = BookingToQueueSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -96,10 +164,6 @@ def queue_from_booking(request):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def queue_action(request, pk):
-    """
-    Update the status of a queue entry.
-    Payload: { "status": "in_service" | "done" | "skipped" | "waiting" }
-    """
     try:
         entry = QueueEntry.objects.get(pk=pk)
     except QueueEntry.DoesNotExist:
@@ -127,10 +191,6 @@ def queue_action(request, pk):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def queue_assign(request, pk):
-    """
-    Assign (or un-assign) an employee to a queue entry.
-    Payload: { "employee_id": <int> | null }
-    """
     try:
         entry = QueueEntry.objects.get(pk=pk)
     except QueueEntry.DoesNotExist:
@@ -141,7 +201,6 @@ def queue_assign(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     employee_id = serializer.validated_data["employee_id"]
-
     if employee_id is None:
         entry.assigned_employee = None
     else:
@@ -162,23 +221,22 @@ def queue_assign(request, pk):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def queue_employees(request):
-    """
-    Return all active Employee (Mechanic) staff members for the assign dropdown.
-    """
-    employees = Staff.objects.filter(role="Employee", status="Active").select_related("branch").order_by(
-        "first_name", "last_name"
-    )
+    employees = Staff.objects.filter(
+        role="Employee", status="Active"
+    ).select_related("branch").order_by("first_name", "last_name")
+
     data = [
         {
             "id": e.id,
             "full_name": f"{e.first_name} {e.last_name}".strip(),
-            "branch": e.branch.name if e.branch else "",  # ← was e.branch (Branch object)
+            "branch": e.branch.name if e.branch else e.branch_name or "",
         }
         for e in employees
     ]
     return Response(data)
 
-# ── DELETE  /api/queue/<id>/ ──────────────────────────────────────────────────
+
+# ── DELETE  /api/queue/<id>/ ─────────────────────────────────────────────────
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def queue_remove(request, pk):
@@ -194,12 +252,13 @@ def queue_remove(request, pk):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def queue_history(request):
-    """Last 50 completed or skipped entries."""
     entries = QueueEntry.objects.filter(
         status__in=["done", "skipped"]
     ).select_related("assigned_employee").order_by("-completed_at")[:50]
     return Response(QueueEntrySerializer(entries, many=True).data)
 
+
+# ── PATCH  /api/queue/<id>/paid/ ─────────────────────────────────────────────
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def queue_mark_paid(request, pk):

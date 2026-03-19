@@ -16,18 +16,30 @@ class BookingSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
     )
-    # ── Override price as CharField so DRF never tries Decimal conversion ──
+
+    # CharField — expose service name directly (service field IS the name)
+    service_name = serializers.CharField(source="service", read_only=True)
+
+    # Read price as float for clean JSON output
+    # NOT in read_only_fields so the frontend-sent price value is saved to DB
     price = serializers.SerializerMethodField()
+
+    # Writable price field — accepts the incoming price from the frontend
+    price_input = serializers.DecimalField(
+        max_digits=10, decimal_places=2,
+        write_only=True, required=False, source="price"
+    )
 
     class Meta:
         model  = Booking
         fields = [
-            "id", "service", "price",
+            "id", "service", "service_name",
+            "price", "price_input",
             "branch_id", "branch_detail",
             "date", "time", "vehicle", "plate_number",
             "notes", "status", "staff", "created_at",
         ]
-        read_only_fields = ["id", "staff", "created_at", "price"]
+        read_only_fields = ["id", "service_name", "staff", "created_at"]
 
     def get_price(self, instance):
         try:
@@ -37,31 +49,33 @@ class BookingSerializer(serializers.ModelSerializer):
         except (ValueError, TypeError):
             return 0.0
 
-    def validate_date(self, value):
-        from datetime import date
-        if value < date.today():
-            raise serializers.ValidationError("Booking date cannot be in the past.")
-        return value
-
     def validate(self, attrs):
         if not attrs.get("branch"):
-            raise serializers.ValidationError({"branch": "A valid branch is required."})
+            raise serializers.ValidationError({"branch_id": "A valid branch is required."})
         return attrs
 
     def to_internal_value(self, data):
         data = data.copy()
-        if "branch" in data and isinstance(data["branch"], str):
-            branch_name = data.pop("branch")
+        branch_val = data.get("branch")
+        if branch_val and isinstance(branch_val, str) and not branch_val.isdigit():
+            data.pop("branch")
             try:
-                branch = Branch.objects.get(name=branch_name, is_active=True)
+                branch = Branch.objects.get(name=branch_val, is_active=True)
                 data["branch_id"] = branch.pk
             except Branch.DoesNotExist:
                 raise serializers.ValidationError(
-                    {"branch": f"Branch '{branch_name}' not found or is inactive."}
+                    {"branch": f"Branch '{branch_val}' not found or is inactive."}
                 )
+
+        # Map frontend "price" key → "price_input" so our write field picks it up
+        if "price" in data and "price_input" not in data:
+            data["price_input"] = data["price"]
+
         return super().to_internal_value(data)
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["branch"] = instance.branch.name if instance.branch else ""
+        # Remove the write-only field from output (already excluded, just safety)
+        rep.pop("price_input", None)
         return rep

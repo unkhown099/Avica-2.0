@@ -69,6 +69,24 @@ function fmtPrice(service) {
   return fmt(min);
 }
 
+// Format time from "8:00 AM" to "08:00:00"
+function formatTimeForAPI(timeString) {
+  if (!timeString) return "";
+  const [time, modifier] = timeString.split(" ");
+  let [hours, minutes] = time.split(":");
+
+  // Convert to 24-hour format
+  if (modifier === "PM" && hours !== "12") {
+    hours = parseInt(hours, 10) + 12;
+  } else if (modifier === "AM" && hours === "12") {
+    hours = "00";
+  }
+
+  // Pad hours with leading zero if needed
+  const paddedHours = hours.toString().padStart(2, "0");
+  return `${paddedHours}:${minutes}:00`;
+}
+
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 
 function StepIndicator({ current }) {
@@ -565,7 +583,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
 
   useEffect(() => {
     setBranchLoading(true);
-    // ✅ Fixed: was /api/branches/, correct path is /branches/
     fetch(`${import.meta.env.VITE_API_BASE_URL}/branches/`, {
       headers: authHeaders(),
     })
@@ -582,10 +599,12 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const set = (key, value) => {
     setForm((p) => ({ ...p, [key]: value }));
     setError("");
+    setFieldErrors((prev) => ({ ...prev, [key]: null }));
   };
 
   const canAdvance = () => {
@@ -607,21 +626,44 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   const handleSubmit = async () => {
     setLoading(true);
     setError("");
+    setFieldErrors({});
+
     try {
-      // ✅ Fixed: send price as a raw decimal number, not a ₱ string
-      const priceValue = parseFloat(
-        form.service.price_min ?? form.service.price ?? 0,
-      );
+      // Validate required fields
+      if (!form.service?.id) {
+        throw new Error("Please select a service");
+      }
+      if (!form.branch?.id) {
+        throw new Error("Please select a branch");
+      }
+      if (!form.date || !form.time) {
+        throw new Error("Please select date and time");
+      }
+
+      // Trim and validate vehicle fields against current form state
+      const vehicle = (form.vehicle ?? "").trim();
+      const plateNumber = (form.plateNumber ?? "").trim();
+      if (!vehicle || !plateNumber) {
+        throw new Error("Please enter vehicle details");
+      }
+
+      // Format the time properly
+      const formattedTime = formatTimeForAPI(form.time);
+
+      // Cast IDs to integers — Django REST Framework rejects string PKs
       const payload = {
-        service: form.service.name,
-        price: priceValue,
-        branch: form.branch.id, // send FK id, not name string
+        service: form.service.name,          // CharField — send the name, not the ID
+        branch_id: parseInt(form.branch.id, 10),
         date: form.date,
-        time: form.time,
-        vehicle: form.vehicle,
-        plate_number: form.plateNumber,
-        notes: form.notes,
+        time: formattedTime,
+        vehicle: vehicle,
+        plate_number: plateNumber,
+        notes: form.notes || "",
+        price: parseFloat(form.service.price_min ?? form.service.price ?? 0),
       };
+
+      console.log("Sending payload:", payload);
+
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/bookings/`,
         {
@@ -630,14 +672,43 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
           body: JSON.stringify(payload),
         },
       );
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(
-          data?.detail || JSON.stringify(data) || "Failed to create booking.",
-        );
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Error response:", errorData);
+
+        // Handle validation errors (Django REST framework format)
+        if (errorData && typeof errorData === "object") {
+          const newFieldErrors = {};
+          let errorMessage = "";
+
+          Object.entries(errorData).forEach(([field, errors]) => {
+            if (field === "non_field_errors" || field === "detail") {
+              errorMessage = Array.isArray(errors) ? errors[0] : errors;
+            } else {
+              newFieldErrors[field] = Array.isArray(errors) ? errors[0] : errors;
+            }
+          });
+
+          if (Object.keys(newFieldErrors).length > 0) {
+            setFieldErrors(newFieldErrors);
+            const firstError = Object.values(newFieldErrors)[0];
+            throw new Error(firstError || "Please check the form for errors.");
+          } else if (errorMessage) {
+            throw new Error(errorMessage);
+          } else {
+            throw new Error(
+              "Failed to create booking. Please check your input.",
+            );
+          }
+        }
+        throw new Error(`Error ${res.status}: Failed to create booking.`);
       }
-      onSuccess(await res.json());
+
+      const data = await res.json();
+      onSuccess(data);
     } catch (err) {
+      console.error("Booking error:", err);
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -746,7 +817,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         >
                           {s.name}
                         </div>
-                        {/* ✅ Fixed: format decimal price correctly */}
                         <div className="text-red-400 font-black text-base">
                           {fmtPrice(s)}
                         </div>
@@ -1001,30 +1071,49 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   </p>
                 </div>
               )}
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Vehicle Type
+                  Vehicle Type <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   placeholder="e.g. Toyota Vios, Honda Civic..."
                   value={form.vehicle}
                   onChange={(e) => set("vehicle", e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
+                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${
+                    fieldErrors.vehicle ? "border-red-500" : "border-white/10"
+                  }`}
                 />
+                {fieldErrors.vehicle && (
+                  <p className="text-red-400 text-xs mt-1">
+                    {fieldErrors.vehicle}
+                  </p>
+                )}
               </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Plate Number
+                  Plate Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   placeholder="e.g. ABC 1234"
                   value={form.plateNumber}
                   onChange={(e) => set("plateNumber", e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors"
+                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${
+                    fieldErrors.plate_number
+                      ? "border-red-500"
+                      : "border-white/10"
+                  }`}
                 />
+                {fieldErrors.plate_number && (
+                  <p className="text-red-400 text-xs mt-1">
+                    {fieldErrors.plate_number}
+                  </p>
+                )}
               </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   Special Requests{" "}
@@ -1054,7 +1143,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                     { label: "Branch", value: form.branch?.name },
                     { label: "Date", value: form.date },
                     { label: "Time", value: form.time },
-                    // ✅ Fixed: format price from decimal, not raw ₱ string
                     {
                       label: "Price",
                       value: form.service ? fmtPrice(form.service) : "—",
@@ -1107,6 +1195,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                 ? () => {
                     setStep((s) => s - 1);
                     setError("");
+                    setFieldErrors({});
                   }
                 : onClose
             }
@@ -1615,10 +1704,41 @@ function BookingsPage() {
             !fetchError &&
             filtered.map((booking) => {
               const sc = statusConfig[booking.status] || statusConfig.pending;
-              // ✅ Fixed: price from API is a decimal string like "1200.00"
-              const priceDisplay = booking.price
-                ? `₱${parseFloat(booking.price).toLocaleString("en-PH")}`
-                : "—";
+
+              // Service name resolution — handles FK int, CharField string, or service_name
+              const rawSvc = booking.service;
+              const serviceName =
+                booking.service_name ||                          // serializer SerializerMethodField
+                booking.service_detail?.name ||                  // nested serializer
+                (typeof rawSvc === "string" && rawSvc.trim() !== "" && isNaN(rawSvc)
+                  ? rawSvc                                        // CharField already contains the name
+                  : typeof rawSvc === "number" || (typeof rawSvc === "string" && !isNaN(rawSvc))
+                    ? `Service #${rawSvc}`                       // only a numeric ID — backend fix needed
+                    : String(rawSvc || "Unknown Service"));
+
+              // Time: convert "08:00:00" → "8:00 AM"
+              const displayTime = (() => {
+                const t = booking.time;
+                if (!t) return "";
+                if (t.includes("AM") || t.includes("PM")) return t;
+                const [hStr, mStr] = t.split(":");
+                let h = parseInt(hStr, 10);
+                const m = mStr || "00";
+                const period = h >= 12 ? "PM" : "AM";
+                if (h > 12) h -= 12;
+                else if (h === 0) h = 12;
+                return `${h}:${m} ${period}`;
+              })();
+
+              // Price: show ₱0 as "—", only hide when null/undefined/NaN
+              const rawPrice = parseFloat(booking.price);
+              const priceDisplay =
+                !isNaN(rawPrice) && booking.price != null && booking.price !== ""
+                  ? rawPrice > 0
+                    ? `₱${rawPrice.toLocaleString("en-PH")}`
+                    : "To be assessed"
+                  : "—";
+
               return (
                 <div
                   key={booking.id}
@@ -1628,7 +1748,7 @@ function BookingsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3 flex-wrap">
                         <h3 className="text-xl font-black text-white">
-                          {booking.service}
+                          {serviceName}
                         </h3>
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-bold border ${sc.color}`}
@@ -1644,7 +1764,7 @@ function BookingsPage() {
                           },
                           {
                             icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-                            text: booking.time,
+                            text: displayTime,
                           },
                           booking.staff && {
                             icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
