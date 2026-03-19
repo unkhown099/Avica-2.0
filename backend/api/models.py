@@ -265,3 +265,28 @@ class QueueEntry(models.Model):
             ).order_by("-position").first()
             self.position = (last.position + 1) if last else 1
         super().save(*args, **kwargs)
+
+# ── Service ───────────────────────────────────────────────────────────────────
+class Service(models.Model):
+    CATEGORY_CHOICES = [
+        ("Maintenance", "Maintenance"),
+        ("Repair",      "Repair"),
+        ("Diagnostic",  "Diagnostic"),
+        ("Cosmetic",    "Cosmetic"),
+    ]
+
+    name        = models.CharField(max_length=100)
+    category    = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    description = models.TextField(blank=True, default="")
+    duration    = models.CharField(max_length=50, blank=True, default="")
+    price_min   = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    price_max   = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_active   = models.BooleanField(default=True)
+    branches    = models.ManyToManyField(Branch, related_name="services", blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "services"
+
+    def __str__(self):
+        return self.name

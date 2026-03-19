@@ -1,164 +1,438 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "./AdminLayout";
+import axios from "axios";
+import Swal from "sweetalert2";
 
+const API = import.meta.env.VITE_API_BASE_URL;
+
+const getToken = () =>
+  localStorage.getItem("access_token") ??
+  sessionStorage.getItem("access_token");
+
+const authHeaders = () => ({
+  Authorization: `Bearer ${getToken()}`,
+});
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const CATEGORIES = ["Maintenance", "Repair", "Diagnostic", "Cosmetic"];
+
+const CATEGORY_COLORS = {
+  Maintenance: {
+    badge: "bg-red-500/20 text-red-400 border-red-500/30",
+    accent: "#ef4444",
+  },
+  Repair: {
+    badge: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    accent: "#f59e0b",
+  },
+  Diagnostic: {
+    badge: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+    accent: "#a855f7",
+  },
+  Cosmetic: {
+    badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    accent: "#3b82f6",
+  },
+};
+
+// ── Badge helpers ────────────────────────────────────────────────────────────
+const CategoryBadge = ({ category }) => (
+  <span
+    className={`px-3 py-1 rounded-full text-xs font-semibold border ${CATEGORY_COLORS[category]?.badge ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+  >
+    {category}
+  </span>
+);
+
+const StatusBadge = ({ active }) => (
+  <span
+    className={`px-3 py-1 rounded-full text-xs font-semibold border ${active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+  >
+    {active ? "Active" : "Inactive"}
+  </span>
+);
+
+// ── Skeleton card ────────────────────────────────────────────────────────────
+const SkeletonCard = () => (
+  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 animate-pulse flex flex-col gap-3">
+    <div className="flex gap-2">
+      <div className="h-6 w-20 bg-gray-800 rounded-full" />
+      <div className="h-6 w-14 bg-gray-800 rounded-full" />
+    </div>
+    <div className="h-5 w-32 bg-gray-800 rounded" />
+    <div className="h-3 w-full bg-gray-800 rounded" />
+    <div className="h-3 w-3/4 bg-gray-800 rounded" />
+    <div className="flex gap-2 mt-auto pt-3 border-t border-white/5">
+      <div className="flex-1 h-9 bg-gray-800 rounded-xl" />
+      <div className="flex-1 h-9 bg-gray-800 rounded-xl" />
+    </div>
+  </div>
+);
+
+// ── Input field ──────────────────────────────────────────────────────────────
+const Field = ({ label, children }) => (
+  <div>
+    <label className="block text-sm font-semibold text-gray-400 mb-2">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+const inputCls =
+  "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all";
+
+// ── Create / Edit Modal ──────────────────────────────────────────────────────
+function ServiceModal({ onClose, onSaved, editService, branches }) {
+  const isEdit = !!editService;
+  const [form, setForm] = useState({
+    name: editService?.name ?? "",
+    category: editService?.category ?? CATEGORIES[0],
+    description: editService?.description ?? "",
+    duration: editService?.duration ?? "",
+    price_min: editService?.price_min ?? "",
+    price_max: editService?.price_max ?? "",
+    branch_ids: editService?.branches?.map((b) => b.id) ?? [],
+  });
+  const [saving, setSaving] = useState(false);
+
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const toggleBranch = (id) =>
+    set(
+      "branch_ids",
+      form.branch_ids.includes(id)
+        ? form.branch_ids.filter((b) => b !== id)
+        : [...form.branch_ids, id],
+    );
+
+  const submit = async () => {
+    if (!form.name || !form.category) {
+      Swal.fire({
+        icon: "warning",
+        title: "Missing fields",
+        text: "Name and category are required.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+      return;
+    }
+    try {
+      setSaving(true);
+      const payload = { ...form };
+      if (isEdit) {
+        await axios.patch(`${import.meta.env.VITE_API_BASE_URL}/services/${editService.id}/`, payload, {
+          headers: authHeaders(),
+        });
+      } else {
+        await axios.post(`${API}/services/`, payload, {
+          headers: authHeaders(),
+        });
+      }
+      onSaved();
+      onClose();
+      Swal.fire({
+        icon: "success",
+        title: isEdit ? "Service updated" : "Service created",
+        timer: 1500,
+        showConfirmButton: false,
+        timerProgressBar: true,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } catch (err) {
+      const msg =
+        err.response?.data?.detail ??
+        JSON.stringify(err.response?.data) ??
+        "Failed to save service";
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: msg,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <div>
+            <h2 className="text-xl font-black text-white">
+              {isEdit ? "Edit Service" : "Add New Service"}
+            </h2>
+            <p className="text-gray-500 text-sm mt-0.5">
+              {isEdit
+                ? "Update service details"
+                : "Fill in details to create a new service"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Name + Category */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Service Name">
+              <input
+                className={inputCls}
+                placeholder="e.g. Oil Change"
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+              />
+            </Field>
+            <Field label="Category">
+              <select
+                className={inputCls}
+                value={form.category}
+                onChange={(e) => set("category", e.target.value)}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          {/* Description */}
+          <Field label="Description">
+            <textarea
+              className={`${inputCls} resize-none`}
+              rows={3}
+              placeholder="Brief description of the service"
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+            />
+          </Field>
+
+          {/* Duration + Price */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Field label="Duration">
+              <input
+                className={inputCls}
+                placeholder="e.g. 30-45 mins"
+                value={form.duration}
+                onChange={(e) => set("duration", e.target.value)}
+              />
+            </Field>
+            <Field label="Min Price (₱)">
+              <input
+                type="number"
+                className={inputCls}
+                placeholder="1500"
+                value={form.price_min}
+                onChange={(e) => set("price_min", e.target.value)}
+              />
+            </Field>
+            <Field label="Max Price (₱)">
+              <input
+                type="number"
+                className={inputCls}
+                placeholder="2500"
+                value={form.price_max}
+                onChange={(e) => set("price_max", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          {/* Branches */}
+          <Field label="Available Branches">
+            <div className="flex flex-wrap gap-2 mt-1">
+              {branches.map((b) => {
+                const selected = form.branch_ids.includes(b.id);
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => toggleBranch(b.id)}
+                    className={`px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all ${selected ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-600/20" : "bg-white/5 border-white/10 text-gray-400 hover:border-white/20"}`}
+                  >
+                    {b.name}
+                  </button>
+                );
+              })}
+              {branches.length === 0 && (
+                <p className="text-gray-600 text-sm">No branches found.</p>
+              )}
+            </div>
+          </Field>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving}
+              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold shadow-lg shadow-red-600/30"
+            >
+              {saving
+                ? "Saving..."
+                : isEdit
+                  ? "Save Changes"
+                  : "Create Service"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
 function AdminServices() {
+  const [services, setServices] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [branchFilter, setBranchFilter] = useState("All Branches");
+  const [showModal, setShowModal] = useState(false);
+  const [editService, setEditService] = useState(null);
 
-  const [services] = useState([
-    {
-      id: "SRV-001",
-      name: "Oil Change",
-      category: "Maintenance",
-      description: "Complete engine oil and filter replacement",
-      duration: "30-45 mins",
-      price: "₱1,500 - ₱2,500",
-      status: "Active",
-      branches: [
-        "San Mateo Rizal",
-        "South Caloocan",
-        "North Caloocan",
-        "Quezon City",
-      ],
-    },
-    {
-      id: "SRV-002",
-      name: "Brake Repair",
-      category: "Repair",
-      description: "Brake pad replacement and system inspection",
-      duration: "1-2 hours",
-      price: "₱3,500 - ₱8,500",
-      status: "Active",
-      branches: ["San Mateo Rizal", "North Caloocan", "Quezon City"],
-    },
-    {
-      id: "SRV-003",
-      name: "Engine Diagnostic",
-      category: "Diagnostic",
-      description: "Complete engine system diagnostic check",
-      duration: "45-60 mins",
-      price: "₱2,000 - ₱3,500",
-      status: "Active",
-      branches: ["San Mateo Rizal", "South Caloocan", "Quezon City"],
-    },
-    {
-      id: "SRV-004",
-      name: "Tire Replacement",
-      category: "Maintenance",
-      description: "Tire installation, balancing, and alignment",
-      duration: "1-1.5 hours",
-      price: "₱8,000 - ₱15,000",
-      status: "Active",
-      branches: [
-        "San Mateo Rizal",
-        "South Caloocan",
-        "North Caloocan",
-        "Quezon City",
-      ],
-    },
-    {
-      id: "SRV-005",
-      name: "AC Service",
-      category: "Maintenance",
-      description: "Air conditioning system cleaning and recharge",
-      duration: "1-2 hours",
-      price: "₱2,500 - ₱5,000",
-      status: "Active",
-      branches: ["South Caloocan", "Quezon City"],
-    },
-    {
-      id: "SRV-006",
-      name: "Transmission Repair",
-      category: "Repair",
-      description: "Transmission system inspection and repair",
-      duration: "3-5 hours",
-      price: "₱15,000 - ₱35,000",
-      status: "Inactive",
-      branches: ["San Mateo Rizal"],
-    },
-    {
-      id: "SRV-007",
-      name: "Battery Replacement",
-      category: "Maintenance",
-      description: "Battery testing and replacement service",
-      duration: "20-30 mins",
-      price: "₱3,000 - ₱8,000",
-      status: "Active",
-      branches: [
-        "San Mateo Rizal",
-        "South Caloocan",
-        "North Caloocan",
-        "Quezon City",
-      ],
-    },
-    {
-      id: "SRV-008",
-      name: "Body Work & Paint",
-      category: "Cosmetic",
-      description: "Dent removal, painting, and detailing",
-      duration: "1-3 days",
-      price: "₱10,000 - ₱50,000",
-      status: "Active",
-      branches: ["San Mateo Rizal", "North Caloocan"],
-    },
-  ]);
+  // ── Fetch services ───────────────────────────────────────────────────────
+  const fetchServices = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [svcRes, branchRes] = await Promise.all([
+        axios.get(`${API}/services/`, { headers: authHeaders() }),
+        axios.get(`${API}/branches/`, { headers: authHeaders() }),
+      ]);
+      setServices(svcRes.data);
+      setBranches(branchRes.data);
+    } catch (err) {
+      setError("Failed to load services. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const categoryColors = {
-    Maintenance: {
-      badge: "bg-red-500/20 text-red-400 border-red-500/30",
-      accent: "#ef4444",
-    },
-    Repair: {
-      badge: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-      accent: "#f59e0b",
-    },
-    Diagnostic: {
-      badge: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-      accent: "#a855f7",
-    },
-    Cosmetic: {
-      badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-      accent: "#3b82f6",
-    },
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices]);
+
+  // ── Deactivate / reactivate ──────────────────────────────────────────────
+  const toggleActive = async (service) => {
+    const action = service.is_active ? "deactivate" : "activate";
+    const result = await Swal.fire({
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} "${service.name}"?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: action.charAt(0).toUpperCase() + action.slice(1),
+      confirmButtonColor: service.is_active ? "#ef4444" : "#10b981",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await axios.patch(
+        `${API}/services/${service.id}/`,
+        { is_active: !service.is_active },
+        { headers: authHeaders() },
+      );
+      setServices((prev) =>
+        prev.map((s) =>
+          s.id === service.id ? { ...s, is_active: !s.is_active } : s,
+        ),
+      );
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: "Could not update service status.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    }
   };
 
-  const getStatusBadge = (status) => (
-    <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold border ${status === "Active" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
-    >
-      {status}
-    </span>
-  );
+  // ── Delete ───────────────────────────────────────────────────────────────
+  const deleteService = async (service) => {
+    const result = await Swal.fire({
+      title: `Delete "${service.name}"?`,
+      text: "This cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      confirmButtonColor: "#ef4444",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await axios.delete(`${API}/services/${service.id}/`, {
+        headers: authHeaders(),
+      });
+      setServices((prev) => prev.filter((s) => s.id !== service.id));
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: "Could not delete service.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    }
+  };
 
-  const getCategoryBadge = (category) => (
-    <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold border ${categoryColors[category]?.badge || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
-    >
-      {category}
-    </span>
-  );
-
-  const filteredServices = services.filter((s) => {
+  // ── Filtering ────────────────────────────────────────────────────────────
+  const filtered = services.filter((s) => {
     const q = searchQuery.toLowerCase();
-    return (
-      (s.id.toLowerCase().includes(q) ||
-        s.name.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q)) &&
-      (categoryFilter === "All Categories" || s.category === categoryFilter) &&
-      (branchFilter === "All Branches" || s.branches.includes(branchFilter))
-    );
+    const matchSearch =
+      String(s.id).includes(q) ||
+      s.name.toLowerCase().includes(q) ||
+      s.description?.toLowerCase().includes(q);
+    const matchCat =
+      categoryFilter === "All Categories" || s.category === categoryFilter;
+    const matchBranch =
+      branchFilter === "All Branches" ||
+      s.branches?.some((b) => b.name === branchFilter);
+    return matchSearch && matchCat && matchBranch;
   });
 
-  const categoryCounts = [
-    "Maintenance",
-    "Repair",
-    "Diagnostic",
-    "Cosmetic",
-  ].reduce((acc, c) => {
+  const categoryCounts = CATEGORIES.reduce((acc, c) => {
     acc[c] = services.filter((s) => s.category === c).length;
     return acc;
   }, {});
+
+  const openCreate = () => {
+    setEditService(null);
+    setShowModal(true);
+  };
+  const openEdit = (s) => {
+    setEditService(s);
+    setShowModal(true);
+  };
 
   return (
     <AdminLayout title="" subtitle="">
@@ -173,7 +447,10 @@ function AdminServices() {
               Manage services available at your shop
             </p>
           </div>
-          <button className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto">
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto"
+          >
             <svg
               className="w-5 h-5"
               fill="none"
@@ -191,30 +468,55 @@ function AdminServices() {
           </button>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
+            <svg
+              className="w-5 h-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
+            </svg>
+            <span className="text-sm font-medium">{error}</span>
+            <button
+              onClick={fetchServices}
+              className="ml-auto text-xs font-semibold underline hover:no-underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: "Maintenance", color: "#ef4444" },
-            { label: "Repair", color: "#f59e0b" },
-            { label: "Diagnostic", color: "#a855f7" },
-            { label: "Cosmetic", color: "#3b82f6" },
-          ].map(({ label, color }) => (
+          {CATEGORIES.map((label) => (
             <div
               key={label}
               className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all"
             >
               <div className="text-2xl font-black text-white mb-1">
-                {categoryCounts[label] || 0}
+                {loading ? (
+                  <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
+                ) : (
+                  (categoryCounts[label] ?? 0)
+                )}
               </div>
               <div className="text-xs text-gray-400 font-medium">{label}</div>
               <div className="mt-2 h-1 rounded-full bg-gray-800">
                 <div
-                  className="h-1 rounded-full transition-all duration-500"
+                  className="h-1 rounded-full transition-all duration-700"
                   style={{
                     width: services.length
-                      ? `${((categoryCounts[label] || 0) / services.length) * 100}%`
+                      ? `${((categoryCounts[label] ?? 0) / services.length) * 100}%`
                       : "0%",
-                    backgroundColor: color,
+                    backgroundColor: CATEGORY_COLORS[label]?.accent,
                   }}
                 />
               </div>
@@ -240,7 +542,7 @@ function AdminServices() {
             </svg>
             <input
               type="text"
-              placeholder="Search services..."
+              placeholder="Search by name or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
@@ -252,7 +554,7 @@ function AdminServices() {
             className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[160px]"
           >
             <option value="All Categories">All Categories</option>
-            {["Maintenance", "Repair", "Diagnostic", "Cosmetic"].map((c) => (
+            {CATEGORIES.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
@@ -262,19 +564,20 @@ function AdminServices() {
             className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[160px]"
           >
             <option value="All Branches">All Branches</option>
-            {[
-              "San Mateo Rizal",
-              "South Caloocan",
-              "North Caloocan",
-              "Quezon City",
-            ].map((b) => (
-              <option key={b}>{b}</option>
+            {branches.map((b) => (
+              <option key={b.id}>{b.name}</option>
             ))}
           </select>
         </div>
 
-        {/* Services Grid */}
-        {filteredServices.length === 0 ? (
+        {/* Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="bg-gray-900/60 border border-white/5 rounded-2xl py-20 text-center backdrop-blur-sm">
             <svg
               className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -296,9 +599,9 @@ function AdminServices() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredServices.map((service) => {
+            {filtered.map((service) => {
               const accent =
-                categoryColors[service.category]?.accent || "#6b7280";
+                CATEGORY_COLORS[service.category]?.accent ?? "#6b7280";
               return (
                 <div
                   key={service.id}
@@ -307,24 +610,50 @@ function AdminServices() {
                   {/* Card Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {getCategoryBadge(service.category)}
-                      {getStatusBadge(service.status)}
+                      <CategoryBadge category={service.category} />
+                      <StatusBadge active={service.is_active} />
                     </div>
-                    <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    {/* Actions dropdown */}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={() => openEdit(service)}
+                        className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                        title="Edit"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => deleteService(service)}
+                        className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Delete"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Title */}
@@ -344,37 +673,43 @@ function AdminServices() {
                       </h3>
                     </div>
                     <p className="text-xs text-gray-600 font-mono ml-11">
-                      {service.id}
+                      ID: {service.id}
                     </p>
                   </div>
 
-                  <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-                    {service.description}
+                  <p className="text-gray-400 text-sm mb-4 leading-relaxed flex-1">
+                    {service.description || (
+                      <span className="italic text-gray-600">
+                        No description
+                      </span>
+                    )}
                   </p>
 
                   {/* Details */}
                   <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <svg
-                        className="w-4 h-4 text-gray-600 shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span className="text-gray-500">
-                        Duration:{" "}
-                        <span className="text-gray-300 font-semibold">
-                          {service.duration}
+                    {service.duration && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <svg
+                          className="w-4 h-4 text-gray-600 shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span className="text-gray-500">
+                          Duration:{" "}
+                          <span className="text-gray-300 font-semibold">
+                            {service.duration}
+                          </span>
                         </span>
-                      </span>
-                    </div>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 text-sm">
                       <svg
                         className="w-4 h-4 text-gray-600 shrink-0"
@@ -392,30 +727,37 @@ function AdminServices() {
                       <span className="text-gray-500">
                         Price:{" "}
                         <span className="text-white font-bold">
-                          {service.price}
+                          {service.price_display}
                         </span>
                       </span>
                     </div>
                   </div>
 
                   {/* Branches */}
-                  <div className="mb-5">
-                    <p className="text-xs text-gray-600 mb-2">Available at:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {service.branches.map((b, i) => (
-                        <span
-                          key={i}
-                          className="px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 text-xs rounded-lg"
-                        >
-                          {b}
-                        </span>
-                      ))}
+                  {service.branches?.length > 0 && (
+                    <div className="mb-5">
+                      <p className="text-xs text-gray-600 mb-2">
+                        Available at:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {service.branches.map((b) => (
+                          <span
+                            key={b.id}
+                            className="px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 text-xs rounded-lg"
+                          >
+                            {b.name}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Actions */}
                   <div className="flex gap-2 mt-auto pt-4 border-t border-white/5">
-                    <button className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all">
+                    <button
+                      onClick={() => openEdit(service)}
+                      className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all"
+                    >
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -431,8 +773,15 @@ function AdminServices() {
                       </svg>
                       Edit
                     </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all">
-                      Deactivate
+                    <button
+                      onClick={() => toggleActive(service)}
+                      className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all border ${
+                        service.is_active
+                          ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400"
+                          : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"
+                      }`}
+                    >
+                      {service.is_active ? "Deactivate" : "Activate"}
                     </button>
                   </div>
                 </div>
@@ -441,18 +790,27 @@ function AdminServices() {
           </div>
         )}
 
-        {filteredServices.length > 0 && (
+        {/* Footer count */}
+        {!loading && filtered.length > 0 && (
           <div className="mt-6 text-sm text-gray-500">
             Showing{" "}
-            <span className="text-white font-semibold">
-              {filteredServices.length}
-            </span>{" "}
+            <span className="text-white font-semibold">{filtered.length}</span>{" "}
             of{" "}
             <span className="text-white font-semibold">{services.length}</span>{" "}
             services
           </div>
         )}
       </div>
+
+      {/* Modal */}
+      {showModal && (
+        <ServiceModal
+          onClose={() => setShowModal(false)}
+          onSaved={fetchServices}
+          editService={editService}
+          branches={branches}
+        />
+      )}
     </AdminLayout>
   );
 }

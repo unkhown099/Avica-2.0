@@ -15,6 +15,7 @@ from api.views.chatbot_views import chat_with_groq
 from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
 from api.views.dashboard_views import AdminDashboardView
+from api.views.service_views import ServiceListCreateView, ServiceDetailView
 from api.views.bookings_views import (
     BranchListView,
     BookingListCreateView,
@@ -85,6 +86,8 @@ urlpatterns = [
     path("api/customer/dashboard/", CustomerDashboardAPIView.as_view()),
     # admin endpoints
     path("dashboard/", AdminDashboardView.as_view(), name="admin-dashboard"),
+    path("services/",     ServiceListCreateView.as_view(), name="service-list"),
+    path("services/<int:pk>/", ServiceDetailView.as_view(),   name="service-detail"),    
 
     # Redirect root
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
