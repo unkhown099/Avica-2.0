@@ -16,24 +16,16 @@ from api.serializers.queue_serializer import (
 # ─── Shared helper ────────────────────────────────────────────────────────────
 
 def _booking_to_queue_entry(booking):
-    """
-    Create a QueueEntry from a confirmed Booking.
-    Resolves customer name + phone from the linked Customer profile.
-    Safe to call directly from StaffBookingActionView.
-    """
-    # Avoid duplicates (idempotent)
     if QueueEntry.objects.filter(booking=booking).exists():
         return QueueEntry.objects.get(booking=booking)
 
     try:
-        profile = booking.user.customer_profile  # api.Customer
+        profile = booking.user.customer_profile
         customer_name = f"{profile.first_name} {profile.last_name}".strip()
         phone = profile.phone or ""
     except Exception:
         customer_name = booking.user.email
         phone = ""
-
-    branch_name = booking.branch.name if booking.branch else ""
 
     return QueueEntry.objects.create(
         booking=booking,
@@ -42,12 +34,12 @@ def _booking_to_queue_entry(booking):
         vehicle=booking.vehicle,
         plate_number=booking.plate_number,
         service=booking.service,
-        branch=branch_name,
+        branch=booking.branch,        # ← pass the Branch FK object, not branch_name string
+        branch_name=booking.branch.name if booking.branch else "",  # ← keep legacy field too
         notes=booking.notes,
         source="booking",
         status="waiting",
     )
-
 
 # ── GET  /api/queue/ ──────────────────────────────────────────────────────────
 @api_view(["GET"])
@@ -173,19 +165,18 @@ def queue_employees(request):
     """
     Return all active Employee (Mechanic) staff members for the assign dropdown.
     """
-    employees = Staff.objects.filter(role="Employee", status="Active").order_by(
+    employees = Staff.objects.filter(role="Employee", status="Active").select_related("branch").order_by(
         "first_name", "last_name"
     )
     data = [
         {
             "id": e.id,
             "full_name": f"{e.first_name} {e.last_name}".strip(),
-            "branch": e.branch,
+            "branch": e.branch.name if e.branch else "",  # ← was e.branch (Branch object)
         }
         for e in employees
     ]
     return Response(data)
-
 
 # ── DELETE  /api/queue/<id>/ ──────────────────────────────────────────────────
 @api_view(["DELETE"])

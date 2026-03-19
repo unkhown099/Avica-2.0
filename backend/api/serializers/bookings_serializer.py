@@ -9,16 +9,15 @@ class BranchSerializer(serializers.ModelSerializer):
 
 
 class BookingSerializer(serializers.ModelSerializer):
-    # Read: return branch as nested object
     branch_detail = BranchSerializer(source="branch", read_only=True)
-
-    # Write: accept branch by PK (resolved from name string in to_internal_value)
     branch_id = serializers.PrimaryKeyRelatedField(
         queryset=Branch.objects.filter(is_active=True),
         source="branch",
         write_only=True,
         required=False,
     )
+    # ── Override price as CharField so DRF never tries Decimal conversion ──
+    price = serializers.SerializerMethodField()
 
     class Meta:
         model  = Booking
@@ -29,6 +28,14 @@ class BookingSerializer(serializers.ModelSerializer):
             "notes", "status", "staff", "created_at",
         ]
         read_only_fields = ["id", "status", "staff", "created_at"]
+
+    def get_price(self, instance):
+        try:
+            return float(
+                str(instance.price).replace("₱", "").replace(",", "").strip()
+            )
+        except (ValueError, TypeError):
+            return 0.0
 
     def validate_date(self, value):
         from datetime import date
@@ -42,12 +49,7 @@ class BookingSerializer(serializers.ModelSerializer):
         return attrs
 
     def to_internal_value(self, data):
-        """
-        Frontend sends { "branch": "Caloocan Branch", ... }
-        We resolve the name → Branch PK so DRF validates normally.
-        """
         data = data.copy()
-
         if "branch" in data and isinstance(data["branch"], str):
             branch_name = data.pop("branch")
             try:
@@ -57,11 +59,9 @@ class BookingSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"branch": f"Branch '{branch_name}' not found or is inactive."}
                 )
-
         return super().to_internal_value(data)
 
     def to_representation(self, instance):
-        """Flatten branch back to name string for the frontend."""
         rep = super().to_representation(instance)
         rep["branch"] = instance.branch.name if instance.branch else ""
         return rep

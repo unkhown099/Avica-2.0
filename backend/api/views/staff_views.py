@@ -6,11 +6,18 @@ from ..serializers.staff_serializer import StaffSerializer
 from ..models import Staff
 
 
+def _branch_name(staff):
+    """Return branch as a plain string — handles FK or legacy branch_name."""
+    if staff.branch:
+        return staff.branch.name
+    return staff.branch_name or ""
+
+
 class StaffView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        staff = Staff.objects.select_related("user").all()
+        staff = Staff.objects.select_related("user", "branch").all()
 
         data = [
             {
@@ -19,7 +26,7 @@ class StaffView(APIView):
                 "email": s.user.email,
                 "phone": s.phone,
                 "role": s.role,
-                "branch": s.branch,
+                "branch": _branch_name(s),
                 "status": s.status,
                 "lastLogin": s.user.last_login,
             }
@@ -39,7 +46,7 @@ class StaffView(APIView):
                     "email": staff.user.email,
                     "phone": staff.phone,
                     "role": staff.role,
-                    "branch": staff.branch,
+                    "branch": _branch_name(staff),
                     "status": staff.status,
                     "lastLogin": staff.user.last_login,
                 },
