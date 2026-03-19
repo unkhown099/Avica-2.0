@@ -62,14 +62,11 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 # ── Customer ──────────────────────────────────────────────────────────────────
 class Customer(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="customer_profile")
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    suffix = models.CharField(max_length=20, blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
+    user           = models.OneToOneField(User, on_delete=models.CASCADE, related_name="customer_profile")
+    first_name     = models.CharField(max_length=100)
+    last_name      = models.CharField(max_length=100)
+    phone          = models.CharField(max_length=20, blank=True, null=True)
     loyalty_points = models.IntegerField(default=0)
-    profile_picture = models.URLField(max_length=500, blank=True, null=True)
-    birthdate = models.DateField(blank=True, null=True)
 
     class Meta:
         db_table = "customers"
@@ -106,14 +103,152 @@ class Staff(models.Model):
 
     user       = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_profile")
     first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    suffix = models.CharField(max_length=20, blank=True, null=True)
-    phone = models.CharField(max_length=20)
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
-    branch = models.CharField(max_length=100)
-    status = models.CharField(max_length=20, default="Active")
-    profile_picture = models.URLField(max_length=500, blank=True, null=True)
-    birthdate = models.DateField(blank=True, null=True)
+    last_name  = models.CharField(max_length=100)
+    phone      = models.CharField(max_length=20)
+    role       = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    status     = models.CharField(max_length=20, default="Active")
+
+    # ── OLD field kept and renamed so no data is lost ─────────────────────────
+    # This preserves whatever branch name string was stored before the migration.
+    branch_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Legacy plain-text branch name. Kept for reference; use `branch` FK instead.",
+    )
+
+    # ── NEW FK to Branch ──────────────────────────────────────────────────────
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staff_members",
+    )
+
+    class Meta:
+        db_table = "staffs"
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} ({self.role})"
+
+
+# ── Booking ───────────────────────────────────────────────────────────────────
+class Booking(models.Model):
+    STATUS_CHOICES = [
+        ("pending",   "Pending"),
+        ("confirmed", "Confirmed"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bookings")
+    service      = models.CharField(max_length=100)
+
+    # ── CHANGED: CharField → DecimalField for clean revenue arithmetic ────────
+    # Migration will use a default of 0 for existing rows.
+    price        = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    branch       = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, related_name="bookings")
+    date         = models.DateField()
+    time         = models.CharField(max_length=20)
+    vehicle      = models.CharField(max_length=100, blank=True, default="")
+    plate_number = models.CharField(max_length=20,  blank=True, default="")
+    notes        = models.TextField(blank=True, default="")
+    status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    staff        = models.CharField(max_length=100, blank=True, default="TBA")
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table  = "bookings"
+        ordering  = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} — {self.service} @ {self.branch} on {self.date}"
+
+
+# ── Rating ────────────────────────────────────────────────────────────────────
+# Stores customer satisfaction ratings per completed booking.
+# One rating per booking (OneToOne).
+class Rating(models.Model):
+    SCORE_CHOICES = [(i, str(i)) for i in range(1, 6)]   # 1–5 stars
+
+    booking  = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name="rating")
+    customer = models.ForeignKey(Customer,  on_delete=models.CASCADE, related_name="ratings")
+    branch   = models.ForeignKey(Branch,    on_delete=models.CASCADE, related_name="ratings")
+    score    = models.PositiveSmallIntegerField(choices=SCORE_CHOICES)
+    comment  = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "ratings"
+
+    def __str__(self):
+        return f"Rating {self.score}/5 — {self.booking}"
+
+
+# ── QueueEntry ────────────────────────────────────────────────────────────────
+class QueueEntry(models.Model):
+    STATUS_CHOICES = [
+        ("waiting",    "Waiting"),
+        ("in_service", "In Service"),
+        ("done",       "Done"),
+        ("skipped",    "Skipped"),
+    ]
+
+    SOURCE_CHOICES = [
+        ("booking", "Booking"),
+        ("walk_in", "Walk-in"),
+    ]
+
+    booking = models.OneToOneField(
+        Booking,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="queue_entry",
+    )
+
+    assigned_employee = models.ForeignKey(
+        Staff,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="queue_assignments",
+        limit_choices_to={"role": "Employee"},
+    )
+
+    customer_name = models.CharField(max_length=200)
+    phone         = models.CharField(max_length=50,  blank=True, default="")
+    vehicle       = models.CharField(max_length=200, blank=True, default="")
+    plate_number  = models.CharField(max_length=50,  blank=True, default="")
+    service       = models.CharField(max_length=200)
+    notes         = models.TextField(blank=True, default="")
+
+    # ── OLD CharField kept as branch_name so no data is lost ─────────────────
+    branch_name = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="Legacy plain-text branch name. Use `branch` FK instead.",
+    )
+
+    # ── NEW FK to Branch ──────────────────────────────────────────────────────
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="queue_entries",
+    )
+
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="walk_in")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="waiting")
+
+    position = models.PositiveIntegerField(default=0)
+
+    queued_at          = models.DateTimeField(default=timezone.now)
+    service_started_at = models.DateTimeField(null=True, blank=True)
+    completed_at       = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "queue_entries"
