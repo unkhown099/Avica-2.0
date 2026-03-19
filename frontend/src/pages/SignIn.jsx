@@ -102,6 +102,7 @@ function SignIn() {
         color: "#fff",
         confirmButtonColor: "#dc2626",
       });
+      console.log("USER DATA:", data.user);
     } catch (err) {
       swal.fire({
         icon: "error",
@@ -181,6 +182,7 @@ function SignIn() {
 
       navigate(roleRoutes[data.user.role] || "/");
       swal.fire({ icon: "success", title: "Login Successful", text: "Welcome!" });
+      console.log("USER DATA:", data.user);
 
     } catch (err) {
       swal.fire({ icon: "error", title: "Google Login Failed", text: err.message });
