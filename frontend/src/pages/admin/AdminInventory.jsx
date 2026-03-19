@@ -1,168 +1,392 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "./AdminLayout";
+import axios from "axios";
+import Swal from "sweetalert2";
 
-function AdminInventory() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [branchFilter, setBranchFilter] = useState("All Branches");
-  const [statusFilter, setStatusFilter] = useState("All Status");
+const API = import.meta.env.VITE_API_BASE_URL;
 
-  const lowStockItems = [
-    {
-      name: "Brake Pads Set",
-      current: 12,
-      minimum: 15,
-      unit: "Sets",
-      branch: "San Mateo Rizal",
-    },
-    {
-      name: "Air Filter",
-      current: 8,
-      minimum: 10,
-      unit: "Pieces",
-      branch: "North Caloocan",
-    },
-    {
-      name: "Battery 12V 60Ah",
-      current: 5,
-      minimum: 8,
-      unit: "Pieces",
-      branch: "Quezon City",
-    },
-  ];
+const getToken = () =>
+  localStorage.getItem("access_token") ??
+  sessionStorage.getItem("access_token");
 
-  const [inventoryItems] = useState([
-    {
-      id: "INV-001",
-      name: "Engine Oil 5W-30",
-      category: "Lubricants",
-      sku: "EO-5W30-001",
-      quantity: 45,
-      unit: "Liters",
-      price: "₱450",
-      supplier: "Shell Philippines",
-      status: "In Stock",
-      branch: "San Mateo Rizal",
-    },
-    {
-      id: "INV-002",
-      name: "Brake Pads Set",
-      category: "Brakes",
-      sku: "BP-SET-002",
-      quantity: 12,
-      unit: "Sets",
-      price: "₱2,500",
-      supplier: "Brembo",
-      status: "Low Stock",
-      branch: "San Mateo Rizal",
-    },
-    {
-      id: "INV-003",
-      name: "Air Filter",
-      category: "Filters",
-      sku: "AF-STD-003",
-      quantity: 8,
-      unit: "Pieces",
-      price: "₱350",
-      supplier: "Mann Filter",
-      status: "Low Stock",
-      branch: "North Caloocan",
-    },
-    {
-      id: "INV-004",
-      name: "Battery 12V 60Ah",
-      category: "Batteries",
-      sku: "BAT-12V-004",
-      quantity: 5,
-      unit: "Pieces",
-      price: "₱4,200",
-      supplier: "Motolite",
-      status: "Low Stock",
-      branch: "Quezon City",
-    },
-    {
-      id: "INV-005",
-      name: "Tire 195/65R15",
-      category: "Tires",
-      sku: "TR-195-005",
-      quantity: 24,
-      unit: "Pieces",
-      price: "₱3,500",
-      supplier: "Bridgestone",
-      status: "In Stock",
-      branch: "South Caloocan",
-    },
-    {
-      id: "INV-006",
-      name: "Engine Oil 10W-40",
-      category: "Lubricants",
-      sku: "EO-10W40-006",
-      quantity: 32,
-      unit: "Liters",
-      price: "₱420",
-      supplier: "Castrol",
-      status: "In Stock",
-      branch: "North Caloocan",
-    },
-    {
-      id: "INV-007",
-      name: "Spark Plugs Set",
-      category: "Ignition",
-      sku: "SP-SET-007",
-      quantity: 18,
-      unit: "Sets",
-      price: "₱800",
-      supplier: "NGK",
-      status: "In Stock",
-      branch: "Quezon City",
-    },
-    {
-      id: "INV-008",
-      name: "Coolant Fluid",
-      category: "Lubricants",
-      sku: "CF-STD-008",
-      quantity: 28,
-      unit: "Liters",
-      price: "₱350",
-      supplier: "Prestone",
-      status: "In Stock",
-      branch: "San Mateo Rizal",
-    },
-  ]);
+const authHeaders = () => ({ Authorization: `Bearer ${getToken()}` });
 
-  const getStatusBadge = (status) => (
+// ── Constants ────────────────────────────────────────────────────────────────
+const CATEGORIES = [
+  "Lubricants",
+  "Brakes",
+  "Filters",
+  "Batteries",
+  "Tires",
+  "Ignition",
+  "Other",
+];
+
+const inputCls =
+  "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all";
+
+// ── Status badge ─────────────────────────────────────────────────────────────
+const StatusBadge = ({ status }) => {
+  const styles = {
+    "In Stock": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    "Low Stock": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    "Out of Stock": "bg-red-500/20 text-red-400 border-red-500/30",
+  };
+  return (
     <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-        status === "In Stock"
-          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-          : "bg-red-500/20 text-red-400 border-red-500/30"
-      }`}
+      className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
     >
       {status}
     </span>
   );
+};
 
-  const filteredItems = inventoryItems.filter((item) => {
+// ── Skeleton row ─────────────────────────────────────────────────────────────
+const SkeletonRow = () => (
+  <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 animate-pulse items-center">
+    <div className="col-span-1 h-3 w-10 bg-gray-800 rounded" />
+    <div className="col-span-2 h-3.5 w-28 bg-gray-800 rounded" />
+    <div className="col-span-1 h-3 w-16 bg-gray-800 rounded" />
+    <div className="col-span-1 h-3 w-20 bg-gray-800 rounded font-mono" />
+    <div className="col-span-1 h-3 w-12 bg-gray-800 rounded" />
+    <div className="col-span-1 h-3 w-14 bg-gray-800 rounded" />
+    <div className="col-span-2 h-3 w-24 bg-gray-800 rounded" />
+    <div className="col-span-2 h-3 w-24 bg-gray-800 rounded" />
+    <div className="col-span-1 h-6 w-16 bg-gray-800 rounded-full ml-auto" />
+  </div>
+);
+
+// ── Field wrapper ─────────────────────────────────────────────────────────────
+const Field = ({ label, children }) => (
+  <div>
+    <label className="block text-sm font-semibold text-gray-400 mb-2">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+// ── Add / Edit Modal ──────────────────────────────────────────────────────────
+function ItemModal({ onClose, onSaved, editItem, branches }) {
+  const isEdit = !!editItem;
+  const [form, setForm] = useState({
+    name: editItem?.name ?? "",
+    category: editItem?.category ?? CATEGORIES[0],
+    sku: editItem?.sku ?? "",
+    quantity: editItem?.quantity ?? "",
+    minimum_qty: editItem?.minimum_qty ?? "",
+    unit: editItem?.unit ?? "Pieces",
+    price: editItem?.price ?? "",
+    supplier: editItem?.supplier ?? "",
+    branch: editItem?.branch ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const submit = async () => {
+    if (!form.name || !form.sku) {
+      Swal.fire({
+        icon: "warning",
+        title: "Missing fields",
+        text: "Name and SKU are required.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+      return;
+    }
+    try {
+      setSaving(true);
+      const payload = { ...form, branch: form.branch || null };
+      if (isEdit) {
+        await axios.patch(`${import.meta.env.VITE_API_BASE_URL}/inventory/${editItem.id}/`, payload, {
+          headers: authHeaders(),
+        });
+      } else {
+        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/inventory/`, payload, {
+          headers: authHeaders(),
+        });
+      }
+      onSaved();
+      onClose();
+      Swal.fire({
+        icon: "success",
+        title: isEdit ? "Item updated" : "Item added",
+        timer: 1500,
+        showConfirmButton: false,
+        timerProgressBar: true,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } catch (err) {
+      const msg =
+        err.response?.data?.sku?.[0] ??
+        err.response?.data?.detail ??
+        JSON.stringify(err.response?.data) ??
+        "Failed to save";
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: msg,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <div>
+            <h2 className="text-xl font-black text-white">
+              {isEdit ? "Edit Item" : "Add Inventory Item"}
+            </h2>
+            <p className="text-gray-500 text-sm mt-0.5">
+              {isEdit ? "Update item details" : "Add a new item to inventory"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Item Name">
+              <input
+                className={inputCls}
+                placeholder="e.g. Engine Oil 5W-30"
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+              />
+            </Field>
+            <Field label="Category">
+              <select
+                className={inputCls}
+                value={form.category}
+                onChange={(e) => set("category", e.target.value)}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="SKU">
+              <input
+                className={inputCls}
+                placeholder="e.g. EO-5W30-001"
+                value={form.sku}
+                onChange={(e) => set("sku", e.target.value)}
+              />
+            </Field>
+            <Field label="Unit">
+              <input
+                className={inputCls}
+                placeholder="e.g. Liters, Pieces, Sets"
+                value={form.unit}
+                onChange={(e) => set("unit", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Field label="Quantity">
+              <input
+                type="number"
+                className={inputCls}
+                placeholder="0"
+                value={form.quantity}
+                onChange={(e) => set("quantity", e.target.value)}
+              />
+            </Field>
+            <Field label="Min Qty (Alert)">
+              <input
+                type="number"
+                className={inputCls}
+                placeholder="0"
+                value={form.minimum_qty}
+                onChange={(e) => set("minimum_qty", e.target.value)}
+              />
+            </Field>
+            <Field label="Price (₱)">
+              <input
+                type="number"
+                className={inputCls}
+                placeholder="0.00"
+                value={form.price}
+                onChange={(e) => set("price", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Supplier">
+              <input
+                className={inputCls}
+                placeholder="e.g. Shell Philippines"
+                value={form.supplier}
+                onChange={(e) => set("supplier", e.target.value)}
+              />
+            </Field>
+            <Field label="Branch">
+              <select
+                className={inputCls}
+                value={form.branch}
+                onChange={(e) => set("branch", e.target.value)}
+              >
+                <option value="">— No Branch —</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving}
+              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold shadow-lg shadow-red-600/30"
+            >
+              {saving ? "Saving..." : isEdit ? "Save Changes" : "Add Item"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
+function AdminInventory() {
+  const [items, setItems] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [branchFilter, setBranchFilter] = useState("All Branches");
+  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [showModal, setShowModal] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [invRes, branchRes] = await Promise.all([
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/inventory/`, { headers: authHeaders() }),
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/branches/`, { headers: authHeaders() }),
+      ]);
+      setItems(invRes.data);
+      setBranches(branchRes.data);
+    } catch (err) {
+      setError("Failed to load inventory. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // ── Delete ───────────────────────────────────────────────────────────────
+  const deleteItem = async (item) => {
+    const result = await Swal.fire({
+      title: `Delete "${item.name}"?`,
+      text: "This cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      confirmButtonColor: "#ef4444",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/inventory/${item.id}/`, {
+        headers: authHeaders(),
+      });
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: "Could not delete item.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    }
+  };
+
+  // ── Filtering ────────────────────────────────────────────────────────────
+  const filtered = items.filter((item) => {
     const q = searchQuery.toLowerCase();
-    return (
-      (item.name.toLowerCase().includes(q) ||
-        item.sku.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q)) &&
-      (categoryFilter === "All Categories" ||
-        item.category === categoryFilter) &&
-      (branchFilter === "All Branches" || item.branch === branchFilter) &&
-      (statusFilter === "All Status" || item.status === statusFilter)
-    );
+    const matchSearch =
+      item.name.toLowerCase().includes(q) ||
+      item.sku.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q);
+    const matchCat =
+      categoryFilter === "All Categories" || item.category === categoryFilter;
+    const matchBranch =
+      branchFilter === "All Branches" || item.branch_name === branchFilter;
+    const matchStatus =
+      statusFilter === "All Status" || item.status === statusFilter;
+    return matchSearch && matchCat && matchBranch && matchStatus;
   });
 
-  const filteredLowStock = lowStockItems.filter(
-    (i) => branchFilter === "All Branches" || i.branch === branchFilter,
+  const lowStock = items.filter(
+    (i) => i.status === "Low Stock" || i.status === "Out of Stock",
+  );
+  const filteredLowStock = lowStock.filter(
+    (i) => branchFilter === "All Branches" || i.branch_name === branchFilter,
   );
 
-  const totalValue = inventoryItems.reduce((sum, i) => {
-    const price = parseInt(i.price.replace(/[₱,]/g, ""));
-    return sum + price * i.quantity;
-  }, 0);
+  const totalValue = items.reduce(
+    (sum, i) => sum + (parseFloat(i.price) || 0) * (i.quantity || 0),
+    0,
+  );
+
+  const openCreate = () => {
+    setEditItem(null);
+    setShowModal(true);
+  };
+  const openEdit = (i) => {
+    setEditItem(i);
+    setShowModal(true);
+  };
 
   return (
     <AdminLayout title="" subtitle="">
@@ -177,7 +401,10 @@ function AdminInventory() {
               Track and manage parts and supplies inventory
             </p>
           </div>
-          <button className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto">
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto"
+          >
             <svg
               className="w-5 h-5"
               fill="none"
@@ -195,13 +422,39 @@ function AdminInventory() {
           </button>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
+            <svg
+              className="w-5 h-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
+            </svg>
+            <span className="text-sm font-medium">{error}</span>
+            <button
+              onClick={fetchData}
+              className="ml-auto text-xs font-semibold underline hover:no-underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
             {
               label: "Total Items",
-              value: inventoryItems.length,
               sub: "Across all branches",
+              value: loading ? null : items.length,
               color: "#ef4444",
               icon: (
                 <path
@@ -214,8 +467,8 @@ function AdminInventory() {
             },
             {
               label: "Inventory Value",
-              value: `₱${totalValue.toLocaleString()}`,
               sub: "Total stock value",
+              value: loading ? null : `₱${totalValue.toLocaleString()}`,
               color: "#a855f7",
               icon: (
                 <path
@@ -228,8 +481,8 @@ function AdminInventory() {
             },
             {
               label: "Low Stock Alert",
-              value: filteredLowStock.length,
               sub: "Items need reordering",
+              value: loading ? null : filteredLowStock.length,
               color: "#f59e0b",
               icon: (
                 <path
@@ -262,7 +515,11 @@ function AdminInventory() {
                 </div>
               </div>
               <div className="text-2xl font-black text-white mb-1">
-                {stat.value}
+                {loading ? (
+                  <div className="h-7 w-16 bg-gray-800 rounded animate-pulse" />
+                ) : (
+                  stat.value
+                )}
               </div>
               <div className="text-sm text-gray-500">{stat.label}</div>
               <div className="text-xs text-gray-600 mt-0.5">{stat.sub}</div>
@@ -271,7 +528,7 @@ function AdminInventory() {
         </div>
 
         {/* Low Stock Alert */}
-        {filteredLowStock.length > 0 && (
+        {!loading && filteredLowStock.length > 0 && (
           <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 mb-8 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-4">
               <svg
@@ -295,9 +552,9 @@ function AdminInventory() {
               </span>
             </div>
             <div className="space-y-2.5">
-              {filteredLowStock.map((item, i) => (
+              {filteredLowStock.map((item) => (
                 <div
-                  key={i}
+                  key={item.id}
                   className="bg-gray-900/60 border border-white/5 rounded-xl p-4 flex items-center justify-between"
                 >
                   <div>
@@ -307,19 +564,22 @@ function AdminInventory() {
                     <div className="text-xs text-gray-500 mt-0.5">
                       Current:{" "}
                       <span className="text-red-400 font-bold">
-                        {item.current} {item.unit}
+                        {item.quantity} {item.unit}
                       </span>
                       <span className="mx-2 text-gray-700">·</span>
                       Min:{" "}
                       <span className="text-gray-300">
-                        {item.minimum} {item.unit}
+                        {item.minimum_qty} {item.unit}
                       </span>
                       <span className="mx-2 text-gray-700">·</span>
-                      {item.branch}
+                      {item.branch_name ?? "No branch"}
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-all shadow-lg shadow-red-600/20">
-                    Reorder
+                  <button
+                    onClick={() => openEdit(item)}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-all shadow-lg shadow-red-600/20"
+                  >
+                    Update Stock
                   </button>
                 </div>
               ))}
@@ -355,34 +615,17 @@ function AdminInventory() {
             {
               value: categoryFilter,
               onChange: setCategoryFilter,
-              options: [
-                "All Categories",
-                "Lubricants",
-                "Brakes",
-                "Filters",
-                "Batteries",
-                "Tires",
-                "Ignition",
-              ],
-              placeholder: "All Categories",
+              options: ["All Categories", ...CATEGORIES],
             },
             {
               value: branchFilter,
               onChange: setBranchFilter,
-              options: [
-                "All Branches",
-                "San Mateo Rizal",
-                "South Caloocan",
-                "North Caloocan",
-                "Quezon City",
-              ],
-              placeholder: "All Branches",
+              options: ["All Branches", ...branches.map((b) => b.name)],
             },
             {
               value: statusFilter,
               onChange: setStatusFilter,
-              options: ["All Status", "In Stock", "Low Stock"],
-              placeholder: "All Status",
+              options: ["All Status", "In Stock", "Low Stock", "Out of Stock"],
             },
           ].map((sel, i) => (
             <select
@@ -412,7 +655,9 @@ function AdminInventory() {
             <div className="col-span-1 text-right">Status</div>
           </div>
 
-          {filteredItems.length === 0 ? (
+          {loading ? (
+            Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+          ) : filtered.length === 0 ? (
             <div className="py-20 text-center">
               <svg
                 className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -433,7 +678,7 @@ function AdminInventory() {
               </p>
             </div>
           ) : (
-            filteredItems.map((item) => (
+            filtered.map((item) => (
               <div
                 key={item.id}
                 className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
@@ -459,38 +704,83 @@ function AdminInventory() {
                   </span>
                 </div>
                 <div className="col-span-1 text-white font-bold text-sm">
-                  {item.price}
+                  ₱{Number(item.price).toLocaleString()}
                 </div>
                 <div className="col-span-2 text-gray-400 text-sm">
-                  {item.branch}
+                  {item.branch_name ?? <span className="text-gray-700">—</span>}
                 </div>
                 <div className="col-span-2 text-gray-400 text-sm">
-                  {item.supplier}
+                  {item.supplier || <span className="text-gray-700">—</span>}
                 </div>
-                <div className="col-span-1 flex justify-end">
-                  {getStatusBadge(item.status)}
+                <div className="col-span-1 flex items-center justify-end gap-2">
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={() => openEdit(item)}
+                      className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => deleteItem(item)}
+                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                  <StatusBadge status={item.status} />
                 </div>
               </div>
             ))
           )}
 
-          {filteredItems.length > 0 && (
+          {!loading && filtered.length > 0 && (
             <div className="px-6 py-4">
               <p className="text-gray-500 text-sm">
                 Showing{" "}
                 <span className="text-white font-semibold">
-                  {filteredItems.length}
+                  {filtered.length}
                 </span>{" "}
                 of{" "}
-                <span className="text-white font-semibold">
-                  {inventoryItems.length}
-                </span>{" "}
+                <span className="text-white font-semibold">{items.length}</span>{" "}
                 items
               </p>
             </div>
           )}
         </div>
       </div>
+
+      {showModal && (
+        <ItemModal
+          onClose={() => setShowModal(false)}
+          onSaved={fetchData}
+          editItem={editItem}
+          branches={branches}
+        />
+      )}
     </AdminLayout>
   );
 }

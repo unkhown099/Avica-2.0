@@ -17,6 +17,7 @@ from api.views.branch_views import BranchListCreateView, BranchDetailView
 from api.views.dashboard_views import AdminDashboardView
 from api.views.service_views import ServiceListCreateView, ServiceDetailView
 from api.views.customer_views import AdminCustomerListView
+from api.views.inventory_views import InventoryListCreateView, InventoryDetailView
 from api.views.bookings_views import (
     BranchListView,
     BookingListCreateView,
@@ -90,6 +91,8 @@ urlpatterns = [
     path("services/",     ServiceListCreateView.as_view(), name="service-list"),
     path("services/<int:pk>/", ServiceDetailView.as_view(),   name="service-detail"),
     path("customers/", AdminCustomerListView.as_view(), name="admin-customers"),
+    path("inventory/",          InventoryListCreateView.as_view(), name="inventory-list"),
+    path("inventory/<int:pk>/", InventoryDetailView.as_view(),     name="inventory-detail"),
 
     # Redirect root
     path('', RedirectView.as_view(url='/signup/', permanent=False)),

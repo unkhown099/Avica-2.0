@@ -290,3 +290,47 @@ class Service(models.Model):
 
     def __str__(self):
         return self.name
+
+# ── InventoryItem ─────────────────────────────────────────────────────────────
+class InventoryItem(models.Model):
+    CATEGORY_CHOICES = [
+        ("Lubricants", "Lubricants"),
+        ("Brakes",     "Brakes"),
+        ("Filters",    "Filters"),
+        ("Batteries",  "Batteries"),
+        ("Tires",      "Tires"),
+        ("Ignition",   "Ignition"),
+        ("Other",      "Other"),
+    ]
+
+    name         = models.CharField(max_length=100)
+    category     = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    sku          = models.CharField(max_length=100, unique=True)
+    quantity     = models.PositiveIntegerField(default=0)
+    minimum_qty  = models.PositiveIntegerField(default=0, help_text="Threshold for low stock alert")
+    unit         = models.CharField(max_length=50, default="Pieces")
+    price        = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    supplier     = models.CharField(max_length=100, blank=True, default="")
+    branch       = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inventory_items",
+    )
+    created_at   = models.DateTimeField(auto_now_add=True)
+    updated_at   = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "inventory_items"
+
+    def __str__(self):
+        return f"{self.name} ({self.branch})"
+
+    @property
+    def status(self):
+        if self.quantity <= 0:
+            return "Out of Stock"
+        elif self.quantity <= self.minimum_qty:
+            return "Low Stock"
+        return "In Stock"
