@@ -86,7 +86,8 @@ def _booking_to_queue_entry(booking):
             # These fields need defaults
             'payment_method': '',
             'payment_status': 'unpaid',
-            'price': 0,
+            # FIX: Use the booking price instead of 0
+            'price': booking.price if booking.price else 0,
         }
         
         print(f"DEBUG: Creating QueueEntry with data:")
@@ -120,10 +121,31 @@ def _booking_to_queue_entry(booking):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def queue_list(request):
-    entries = QueueEntry.objects.filter(
-        status__in=["waiting", "in_service"]
-    ).select_related("assigned_employee", "branch").order_by("position", "queued_at")
-    return Response(QueueEntrySerializer(entries, many=True).data)
+    # Get query parameters
+    status_param = request.query_params.get('status')
+    payment_status = request.query_params.get('payment_status')
+    
+    # Start with base queryset
+    queryset = QueueEntry.objects.all().select_related(
+        "assigned_employee", "branch"
+    )
+    
+    # Apply filters based on parameters
+    if status_param:
+        # If specific status is requested, filter by that status
+        queryset = queryset.filter(status=status_param)
+    else:
+        # Default behavior (for other pages): only waiting and in_service
+        queryset = queryset.filter(status__in=["waiting", "in_service"])
+    
+    # Apply payment_status filter if provided
+    if payment_status:
+        queryset = queryset.filter(payment_status=payment_status)
+    
+    # Order by position and queued_at
+    queryset = queryset.order_by("position", "queued_at")
+    
+    return Response(QueueEntrySerializer(queryset, many=True).data)
 
 
 # ── POST  /api/queue/walk-in/ ─────────────────────────────────────────────────
@@ -132,7 +154,14 @@ def queue_list(request):
 def queue_walk_in(request):
     serializer = QueueEntryCreateSerializer(data=request.data)
     if serializer.is_valid():
-        entry = serializer.save(source="walk_in", status="waiting")
+        # Get price from request if provided, otherwise use 0
+        price = request.data.get('price', 0)
+        entry = serializer.save(
+            source="walk_in", 
+            status="waiting",
+            price=price,
+            payment_status='unpaid'
+        )
         return Response(QueueEntrySerializer(entry).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

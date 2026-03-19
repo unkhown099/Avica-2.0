@@ -650,15 +650,16 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       // Format the time properly
       const formattedTime = formatTimeForAPI(form.time);
 
-      // Cast IDs to integers — Django REST Framework rejects string PKs
+      // In handleSubmit function, update the price in payload:
       const payload = {
-        service: form.service.name,          // CharField — send the name, not the ID
+        service: form.service.name,
         branch_id: parseInt(form.branch.id, 10),
         date: form.date,
         time: formattedTime,
         vehicle: vehicle,
         plate_number: plateNumber,
         notes: form.notes || "",
+        // FIXED: Use price_min as the base price for the booking
         price: parseFloat(form.service.price_min ?? form.service.price ?? 0),
       };
 
@@ -686,7 +687,9 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             if (field === "non_field_errors" || field === "detail") {
               errorMessage = Array.isArray(errors) ? errors[0] : errors;
             } else {
-              newFieldErrors[field] = Array.isArray(errors) ? errors[0] : errors;
+              newFieldErrors[field] = Array.isArray(errors)
+                ? errors[0]
+                : errors;
             }
           });
 
@@ -817,8 +820,18 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         >
                           {s.name}
                         </div>
+                        {/* FIXED: Show price range here */}
                         <div className="text-red-400 font-black text-base">
-                          {fmtPrice(s)}
+                          {s.price_min &&
+                          s.price_max &&
+                          s.price_min !== s.price_max ? (
+                            <>
+                              ₱{parseFloat(s.price_min).toLocaleString()} – ₱
+                              {parseFloat(s.price_max).toLocaleString()}
+                            </>
+                          ) : (
+                            `₱${parseFloat(s.price_min || s.price || 0).toLocaleString()}`
+                          )}
                         </div>
                         {s.duration && (
                           <div className="text-gray-600 text-xs mt-1">
@@ -1144,8 +1157,28 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                     { label: "Date", value: form.date },
                     { label: "Time", value: form.time },
                     {
-                      label: "Price",
-                      value: form.service ? fmtPrice(form.service) : "—",
+                      label: "Price Range",
+                      // FIXED: Show price range in summary
+                      value: form.service ? (
+                        form.service.price_min &&
+                        form.service.price_max &&
+                        form.service.price_min !== form.service.price_max ? (
+                          <>
+                            ₱
+                            {parseFloat(
+                              form.service.price_min,
+                            ).toLocaleString()}{" "}
+                            – ₱
+                            {parseFloat(
+                              form.service.price_max,
+                            ).toLocaleString()}
+                          </>
+                        ) : (
+                          `₱${parseFloat(form.service.price_min || form.service.price || 0).toLocaleString()}`
+                        )
+                      ) : (
+                        "—"
+                      ),
                       highlight: true,
                     },
                   ].map(({ label, value, highlight }) => (
@@ -1708,12 +1741,15 @@ function BookingsPage() {
               // Service name resolution — handles FK int, CharField string, or service_name
               const rawSvc = booking.service;
               const serviceName =
-                booking.service_name ||                          // serializer SerializerMethodField
-                booking.service_detail?.name ||                  // nested serializer
-                (typeof rawSvc === "string" && rawSvc.trim() !== "" && isNaN(rawSvc)
-                  ? rawSvc                                        // CharField already contains the name
-                  : typeof rawSvc === "number" || (typeof rawSvc === "string" && !isNaN(rawSvc))
-                    ? `Service #${rawSvc}`                       // only a numeric ID — backend fix needed
+                booking.service_name || // serializer SerializerMethodField
+                booking.service_detail?.name || // nested serializer
+                (typeof rawSvc === "string" &&
+                rawSvc.trim() !== "" &&
+                isNaN(rawSvc)
+                  ? rawSvc // CharField already contains the name
+                  : typeof rawSvc === "number" ||
+                      (typeof rawSvc === "string" && !isNaN(rawSvc))
+                    ? `Service #${rawSvc}` // only a numeric ID — backend fix needed
                     : String(rawSvc || "Unknown Service"));
 
               // Time: convert "08:00:00" → "8:00 AM"
@@ -1733,7 +1769,9 @@ function BookingsPage() {
               // Price: show ₱0 as "—", only hide when null/undefined/NaN
               const rawPrice = parseFloat(booking.price);
               const priceDisplay =
-                !isNaN(rawPrice) && booking.price != null && booking.price !== ""
+                !isNaN(rawPrice) &&
+                booking.price != null &&
+                booking.price !== ""
                   ? rawPrice > 0
                     ? `₱${rawPrice.toLocaleString("en-PH")}`
                     : "To be assessed"
