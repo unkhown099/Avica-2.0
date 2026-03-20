@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import CustomerLayout from "./CustomerLayout";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -30,15 +30,20 @@ const statusConfig = {
     label: "Cancelled",
     color: "bg-red-600/20 text-red-400 border-red-600/30",
   },
+  done: {
+    label: "Completed",
+    color: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+  },
 };
 
-// Category → emoji mapping for service icons
 const CATEGORY_ICON = {
   Maintenance: "🔧",
   Repair: "🔩",
   Diagnostic: "🔍",
   Cosmetic: "✨",
 };
+
+const PAGE_SIZE = 5; // bookings per page
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -60,31 +65,111 @@ function authHeaders() {
   };
 }
 
-// Format a raw decimal price from the API → "₱1,200" or "₱1,200 – ₱2,500"
-function fmtPrice(service) {
-  const min = parseFloat(service.price_min ?? service.price ?? 0);
-  const max = parseFloat(service.price_max ?? 0);
-  const fmt = (n) => `₱${n.toLocaleString("en-PH")}`;
-  if (max && max !== min) return `${fmt(min)} – ${fmt(max)}`;
-  return fmt(min);
-}
-
-// Format time from "8:00 AM" to "08:00:00"
 function formatTimeForAPI(timeString) {
   if (!timeString) return "";
   const [time, modifier] = timeString.split(" ");
   let [hours, minutes] = time.split(":");
+  if (modifier === "PM" && hours !== "12") hours = parseInt(hours, 10) + 12;
+  else if (modifier === "AM" && hours === "12") hours = "00";
+  return `${hours.toString().padStart(2, "0")}:${minutes}:00`;
+}
 
-  // Convert to 24-hour format
-  if (modifier === "PM" && hours !== "12") {
-    hours = parseInt(hours, 10) + 12;
-  } else if (modifier === "AM" && hours === "12") {
-    hours = "00";
-  }
+function toDisplayTime(t) {
+  if (!t) return "";
+  if (t.includes("AM") || t.includes("PM")) return t;
+  const [hStr, mStr] = t.split(":");
+  let h = parseInt(hStr, 10);
+  const m = mStr || "00";
+  const period = h >= 12 ? "PM" : "AM";
+  if (h > 12) h -= 12;
+  else if (h === 0) h = 12;
+  return `${h}:${m} ${period}`;
+}
 
-  // Pad hours with leading zero if needed
-  const paddedHours = hours.toString().padStart(2, "0");
-  return `${paddedHours}:${minutes}:00`;
+// ─── Pagination Controls ──────────────────────────────────────────────────────
+
+function Pagination({ current, total, onChange }) {
+  if (total <= 1) return null;
+
+  const pages = [];
+  for (let i = 1; i <= total; i++) pages.push(i);
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-8">
+      <button
+        onClick={() => onChange(current - 1)}
+        disabled={current === 1}
+        className="w-9 h-9 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </button>
+
+      {pages.map((p) => {
+        // Show first, last, current, and neighbours; collapse others with ellipsis
+        const show = p === 1 || p === total || Math.abs(p - current) <= 1;
+        const ellipsisBefore = p === current - 2 && current > 3;
+        const ellipsisAfter = p === current + 2 && current < total - 2;
+
+        if (ellipsisBefore || ellipsisAfter) {
+          return (
+            <span
+              key={`dots-${p}`}
+              className="w-9 h-9 flex items-center justify-center text-gray-600 text-sm"
+            >
+              …
+            </span>
+          );
+        }
+        if (!show) return null;
+
+        return (
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
+              p === current
+                ? "bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-500"
+                : "border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50"
+            }`}
+          >
+            {p}
+          </button>
+        );
+      })}
+
+      <button
+        onClick={() => onChange(current + 1)}
+        disabled={current === total}
+        className="w-9 h-9 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
+    </div>
+  );
 }
 
 // ─── Step Indicator ───────────────────────────────────────────────────────────
@@ -551,7 +636,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     damageData: initialDamageData,
   });
 
-  // ── Services from API ─────────────────────────────────────────────────────
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState("");
@@ -576,7 +660,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       .finally(() => setServicesLoading(false));
   }, []);
 
-  // ── Branches from API ─────────────────────────────────────────────────────
   const [branches, setBranches] = useState([]);
   const [branchLoading, setBranchLoading] = useState(true);
   const [branchError, setBranchError] = useState("");
@@ -627,43 +710,26 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     setLoading(true);
     setError("");
     setFieldErrors({});
-
     try {
-      // Validate required fields
-      if (!form.service?.id) {
-        throw new Error("Please select a service");
-      }
-      if (!form.branch?.id) {
-        throw new Error("Please select a branch");
-      }
-      if (!form.date || !form.time) {
+      if (!form.service?.id) throw new Error("Please select a service");
+      if (!form.branch?.id) throw new Error("Please select a branch");
+      if (!form.date || !form.time)
         throw new Error("Please select date and time");
-      }
-
-      // Trim and validate vehicle fields against current form state
       const vehicle = (form.vehicle ?? "").trim();
       const plateNumber = (form.plateNumber ?? "").trim();
-      if (!vehicle || !plateNumber) {
+      if (!vehicle || !plateNumber)
         throw new Error("Please enter vehicle details");
-      }
 
-      // Format the time properly
-      const formattedTime = formatTimeForAPI(form.time);
-
-      // In handleSubmit function, update the price in payload:
       const payload = {
         service: form.service.name,
         branch_id: parseInt(form.branch.id, 10),
         date: form.date,
-        time: formattedTime,
-        vehicle: vehicle,
+        time: formatTimeForAPI(form.time),
+        vehicle,
         plate_number: plateNumber,
         notes: form.notes || "",
-        // FIXED: Use price_min as the base price for the booking
         price: parseFloat(form.service.price_min ?? form.service.price ?? 0),
       };
-
-      console.log("Sending payload:", payload);
 
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/bookings/`,
@@ -676,42 +742,34 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        console.error("Error response:", errorData);
-
-        // Handle validation errors (Django REST framework format)
         if (errorData && typeof errorData === "object") {
           const newFieldErrors = {};
           let errorMessage = "";
-
           Object.entries(errorData).forEach(([field, errors]) => {
-            if (field === "non_field_errors" || field === "detail") {
+            if (field === "non_field_errors" || field === "detail")
               errorMessage = Array.isArray(errors) ? errors[0] : errors;
-            } else {
+            else
               newFieldErrors[field] = Array.isArray(errors)
                 ? errors[0]
                 : errors;
-            }
           });
-
           if (Object.keys(newFieldErrors).length > 0) {
             setFieldErrors(newFieldErrors);
-            const firstError = Object.values(newFieldErrors)[0];
-            throw new Error(firstError || "Please check the form for errors.");
-          } else if (errorMessage) {
-            throw new Error(errorMessage);
-          } else {
+            throw new Error(
+              Object.values(newFieldErrors)[0] ||
+                "Please check the form for errors.",
+            );
+          } else if (errorMessage) throw new Error(errorMessage);
+          else
             throw new Error(
               "Failed to create booking. Please check your input.",
             );
-          }
         }
         throw new Error(`Error ${res.status}: Failed to create booking.`);
       }
 
-      const data = await res.json();
-      onSuccess(data);
+      onSuccess(await res.json());
     } catch (err) {
-      console.error("Booking error:", err);
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -728,7 +786,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         className="fixed inset-y-0 right-0 z-50 w-full max-w-lg flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden"
         style={{ animation: "drawerIn 0.32s cubic-bezier(0.16,1,0.3,1)" }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 flex-shrink-0">
           <div>
             <h2 className="text-xl font-black text-white tracking-tight">
@@ -761,7 +818,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         <StepIndicator current={step} />
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {/* STEP 0 — Service (from API) */}
+          {/* STEP 0 — Service */}
           {step === 0 && (
             <div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
@@ -808,11 +865,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         key={s.id}
                         type="button"
                         onClick={() => set("service", s)}
-                        className={`p-4 rounded-2xl border text-left transition-all duration-200 relative ${
-                          active
-                            ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10"
-                            : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"
-                        }`}
+                        className={`p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
                       >
                         <div className="text-2xl mb-2">{icon}</div>
                         <div
@@ -820,18 +873,12 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         >
                           {s.name}
                         </div>
-                        {/* FIXED: Show price range here */}
                         <div className="text-red-400 font-black text-base">
                           {s.price_min &&
                           s.price_max &&
-                          s.price_min !== s.price_max ? (
-                            <>
-                              ₱{parseFloat(s.price_min).toLocaleString()} – ₱
-                              {parseFloat(s.price_max).toLocaleString()}
-                            </>
-                          ) : (
-                            `₱${parseFloat(s.price_min || s.price || 0).toLocaleString()}`
-                          )}
+                          s.price_min !== s.price_max
+                            ? `₱${parseFloat(s.price_min).toLocaleString()} – ₱${parseFloat(s.price_max).toLocaleString()}`
+                            : `₱${parseFloat(s.price_min || s.price || 0).toLocaleString()}`}
                         </div>
                         {s.duration && (
                           <div className="text-gray-600 text-xs mt-1">
@@ -914,11 +961,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         key={b.id}
                         type="button"
                         onClick={() => set("branch", b)}
-                        className={`w-full p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-4 ${
-                          active
-                            ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10"
-                            : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"
-                        }`}
+                        className={`w-full p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-4 ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
                       >
                         <div
                           className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${active ? "bg-red-600" : "bg-white/8"}`}
@@ -1013,11 +1056,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         key={t}
                         type="button"
                         onClick={() => set("time", t)}
-                        className={`py-3 rounded-xl border text-sm font-bold transition-all duration-200 ${
-                          active
-                            ? "border-red-500 bg-red-600/15 text-white shadow-md shadow-red-600/10"
-                            : "border-white/8 bg-white/3 text-gray-400 hover:border-white/20 hover:text-white"
-                        }`}
+                        className={`py-3 rounded-xl border text-sm font-bold transition-all duration-200 ${active ? "border-red-500 bg-red-600/15 text-white shadow-md shadow-red-600/10" : "border-white/8 bg-white/3 text-gray-400 hover:border-white/20 hover:text-white"}`}
                       >
                         {t}
                       </button>
@@ -1084,7 +1123,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   </p>
                 </div>
               )}
-
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   Vehicle Type <span className="text-red-500">*</span>
@@ -1094,9 +1132,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   placeholder="e.g. Toyota Vios, Honda Civic..."
                   value={form.vehicle}
                   onChange={(e) => set("vehicle", e.target.value)}
-                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${
-                    fieldErrors.vehicle ? "border-red-500" : "border-white/10"
-                  }`}
+                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${fieldErrors.vehicle ? "border-red-500" : "border-white/10"}`}
                 />
                 {fieldErrors.vehicle && (
                   <p className="text-red-400 text-xs mt-1">
@@ -1104,7 +1140,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   </p>
                 )}
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   Plate Number <span className="text-red-500">*</span>
@@ -1114,11 +1149,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   placeholder="e.g. ABC 1234"
                   value={form.plateNumber}
                   onChange={(e) => set("plateNumber", e.target.value)}
-                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${
-                    fieldErrors.plate_number
-                      ? "border-red-500"
-                      : "border-white/10"
-                  }`}
+                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${fieldErrors.plate_number ? "border-red-500" : "border-white/10"}`}
                 />
                 {fieldErrors.plate_number && (
                   <p className="text-red-400 text-xs mt-1">
@@ -1126,7 +1157,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   </p>
                 )}
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   Special Requests{" "}
@@ -1142,8 +1172,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors resize-none"
                 />
               </div>
-
-              {/* Summary */}
               <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
                 <div className="px-4 py-3 border-b border-white/8">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -1158,27 +1186,13 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                     { label: "Time", value: form.time },
                     {
                       label: "Price Range",
-                      // FIXED: Show price range in summary
-                      value: form.service ? (
-                        form.service.price_min &&
-                        form.service.price_max &&
-                        form.service.price_min !== form.service.price_max ? (
-                          <>
-                            ₱
-                            {parseFloat(
-                              form.service.price_min,
-                            ).toLocaleString()}{" "}
-                            – ₱
-                            {parseFloat(
-                              form.service.price_max,
-                            ).toLocaleString()}
-                          </>
-                        ) : (
-                          `₱${parseFloat(form.service.price_min || form.service.price || 0).toLocaleString()}`
-                        )
-                      ) : (
-                        "—"
-                      ),
+                      value: form.service
+                        ? form.service.price_min &&
+                          form.service.price_max &&
+                          form.service.price_min !== form.service.price_max
+                          ? `₱${parseFloat(form.service.price_min).toLocaleString()} – ₱${parseFloat(form.service.price_max).toLocaleString()}`
+                          : `₱${parseFloat(form.service.price_min || form.service.price || 0).toLocaleString()}`
+                        : "—",
                       highlight: true,
                     },
                   ].map(({ label, value, highlight }) => (
@@ -1219,7 +1233,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex gap-3 px-6 py-5 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
           <button
             type="button"
@@ -1309,13 +1322,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
           )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes drawerIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to   { transform: translateX(0);    opacity: 1; }
-        }
-      `}</style>
+      <style>{`@keyframes drawerIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
     </>
   );
 }
@@ -1363,120 +1370,74 @@ function OptionSelectorModal({ onClose, onSelectOption }) {
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-8">
           <div className="space-y-4">
-            <button
-              onClick={() => onSelectOption("booking")}
-              className="w-full p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-red-950/10 hover:border-red-500 hover:bg-red-600/5 transition-all duration-300 text-left group"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-xl bg-red-600/20 flex items-center justify-center group-hover:bg-red-600/30 transition-colors">
-                  <svg
-                    className="w-7 h-7 text-red-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white mb-2">
-                    Book an Appointment
-                  </h3>
-                  <p className="text-gray-400 text-sm mb-3">
-                    Schedule a service for your vehicle
-                  </p>
-                  <div className="flex items-center gap-2 text-red-400 text-sm font-semibold">
-                    Get started
-                    <svg
-                      className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </button>
-            <button
-              onClick={() => onSelectOption("damage")}
-              className="w-full p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-blue-950/10 hover:border-blue-500 hover:bg-blue-600/5 transition-all duration-300 text-left group"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-xl bg-blue-600/20 flex items-center justify-center group-hover:bg-blue-600/30 transition-colors">
-                  <svg
-                    className="w-7 h-7 text-blue-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white mb-2">
-                    Damage Detection
-                  </h3>
-                  <p className="text-gray-400 text-sm mb-3">
-                    Use AI to analyze vehicle damage before booking
-                  </p>
-                  <div className="flex items-center gap-2 text-blue-400 text-sm font-semibold">
-                    Upload photos
-                    <svg
-                      className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </button>
-          </div>
-          <div className="mt-8 p-4 bg-white/4 rounded-xl border border-white/8">
-            <div className="flex items-start gap-3">
-              <svg
-                className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {[
+              {
+                key: "booking",
+                title: "Book an Appointment",
+                desc: "Schedule a service for your vehicle",
+                accent: "red",
+                icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+                cta: "Get started",
+              },
+              {
+                key: "damage",
+                title: "Damage Detection",
+                desc: "Use AI to analyze vehicle damage before booking",
+                accent: "blue",
+                icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z",
+                cta: "Upload photos",
+              },
+            ].map(({ key, title, desc, accent, icon, cta }) => (
+              <button
+                key={key}
+                onClick={() => onSelectOption(key)}
+                className={`w-full p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-${accent}-950/10 hover:border-${accent}-500 hover:bg-${accent}-600/5 transition-all duration-300 text-left group`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <p className="text-sm text-gray-400">
-                <span className="text-white font-semibold">Coming soon:</span>{" "}
-                AI damage detection will automatically identify and assess
-                vehicle damage from your photos.
-              </p>
-            </div>
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`w-14 h-14 rounded-xl bg-${accent}-600/20 flex items-center justify-center group-hover:bg-${accent}-600/30 transition-colors`}
+                  >
+                    <svg
+                      className={`w-7 h-7 text-${accent}-500`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d={icon}
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-white mb-2">
+                      {title}
+                    </h3>
+                    <p className="text-gray-400 text-sm mb-3">{desc}</p>
+                    <div
+                      className={`flex items-center gap-2 text-${accent}-400 text-sm font-semibold`}
+                    >
+                      {cta}
+                      <svg
+                        className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -1538,6 +1499,8 @@ function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [page, setPage] = useState(1);
+
   const [showOptionModal, setShowOptionModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showDamageModal, setShowDamageModal] = useState(false);
@@ -1561,8 +1524,19 @@ function BookingsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered =
-    filter === "all" ? bookings : bookings.filter((b) => b.status === filter);
+  // Reset to page 1 whenever filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [filter]);
+
+  const filtered = useMemo(
+    () =>
+      filter === "all" ? bookings : bookings.filter((b) => b.status === filter),
+    [bookings, filter],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleCancel = async (id) => {
     try {
@@ -1589,6 +1563,7 @@ function BookingsPage() {
     setShowBookingModal(false);
     setShowDamageModal(false);
     setDamageData(null);
+    setPage(1);
     setToast("Your booking was submitted successfully!");
     setTimeout(() => setToast(null), 4500);
   };
@@ -1655,6 +1630,11 @@ function BookingsPage() {
               color: "text-yellow-400",
             },
             {
+              label: "Completed",
+              value: bookings.filter((b) => b.status === "done").length,
+              color: "text-blue-400",
+            },
+            {
               label: "Cancelled",
               value: bookings.filter((b) => b.status === "cancelled").length,
               color: "text-red-400",
@@ -1672,7 +1652,7 @@ function BookingsPage() {
 
         {/* Filter Tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
-          {["all", "confirmed", "pending", "cancelled"].map((f) => (
+          {["all", "confirmed", "pending", "done", "cancelled"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -1686,6 +1666,27 @@ function BookingsPage() {
             </button>
           ))}
         </div>
+
+        {/* Results meta */}
+        {!loading && !fetchError && filtered.length > 0 && (
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-gray-500">
+              Showing{" "}
+              <span className="text-white font-semibold">
+                {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filtered.length)}
+              </span>{" "}
+              of{" "}
+              <span className="text-white font-semibold">
+                {filtered.length}
+              </span>{" "}
+              bookings
+            </p>
+            <p className="text-sm text-gray-600">
+              Page {page} of {totalPages}
+            </p>
+          </div>
+        )}
 
         {/* Bookings List */}
         <div className="space-y-4">
@@ -1735,38 +1736,24 @@ function BookingsPage() {
 
           {!loading &&
             !fetchError &&
-            filtered.map((booking) => {
+            paginated.map((booking) => {
               const sc = statusConfig[booking.status] || statusConfig.pending;
 
-              // Service name resolution — handles FK int, CharField string, or service_name
               const rawSvc = booking.service;
               const serviceName =
-                booking.service_name || // serializer SerializerMethodField
-                booking.service_detail?.name || // nested serializer
+                booking.service_name ||
+                booking.service_detail?.name ||
                 (typeof rawSvc === "string" &&
                 rawSvc.trim() !== "" &&
                 isNaN(rawSvc)
-                  ? rawSvc // CharField already contains the name
+                  ? rawSvc
                   : typeof rawSvc === "number" ||
                       (typeof rawSvc === "string" && !isNaN(rawSvc))
-                    ? `Service #${rawSvc}` // only a numeric ID — backend fix needed
+                    ? `Service #${rawSvc}`
                     : String(rawSvc || "Unknown Service"));
 
-              // Time: convert "08:00:00" → "8:00 AM"
-              const displayTime = (() => {
-                const t = booking.time;
-                if (!t) return "";
-                if (t.includes("AM") || t.includes("PM")) return t;
-                const [hStr, mStr] = t.split(":");
-                let h = parseInt(hStr, 10);
-                const m = mStr || "00";
-                const period = h >= 12 ? "PM" : "AM";
-                if (h > 12) h -= 12;
-                else if (h === 0) h = 12;
-                return `${h}:${m} ${period}`;
-              })();
+              const displayTime = toDisplayTime(booking.time);
 
-              // Price: show ₱0 as "—", only hide when null/undefined/NaN
               const rawPrice = parseFloat(booking.price);
               const priceDisplay =
                 !isNaN(rawPrice) &&
@@ -1847,19 +1834,20 @@ function BookingsPage() {
                       <div className="text-2xl font-black text-white">
                         {priceDisplay}
                       </div>
-                      {booking.status !== "cancelled" && (
-                        <div className="flex gap-2">
-                          <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-sm font-semibold transition-colors">
-                            Reschedule
-                          </button>
-                          <button
-                            onClick={() => handleCancel(booking.id)}
-                            className="px-4 py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-xl text-sm font-semibold transition-all duration-200"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
+                      {booking.status !== "cancelled" &&
+                        booking.status !== "done" && (
+                          <div className="flex gap-2">
+                            <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-sm font-semibold transition-colors">
+                              Reschedule
+                            </button>
+                            <button
+                              onClick={() => handleCancel(booking.id)}
+                              className="px-4 py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-xl text-sm font-semibold transition-all duration-200"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -1885,6 +1873,9 @@ function BookingsPage() {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        <Pagination current={page} total={totalPages} onChange={setPage} />
       </div>
 
       {showOptionModal && (

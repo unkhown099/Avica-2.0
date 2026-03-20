@@ -46,48 +46,38 @@ def _booking_to_queue_entry(booking):
     except Exception as e:
         print(f"DEBUG: Could not get customer profile: {e}")
 
-    # Final fallback for name
     if not customer_name:
         customer_name = booking.user.email or "Unknown"
         print(f"DEBUG: Using email as customer name: {customer_name}")
 
-    # Resolve branch safely
     branch_obj = booking.branch
     
-    # CRITICAL CHECK: Validate branch is not None
     if branch_obj is None:
         error_msg = f"Booking #{booking.id} has no branch associated! Cannot create queue entry."
         print(f"ERROR: {error_msg}")
         raise ValueError(error_msg)
     
-    branch_id = branch_obj.id
+    branch_id   = branch_obj.id
     branch_name = branch_obj.name
     
     print(f"DEBUG: Creating queue entry with branch_id={branch_id}, branch_name={branch_name}")
 
-    # Try to create the entry with explicit field validation
     try:
-        # Create the entry data - IMPORTANT: branch field gets the Branch OBJECT, not a string
         entry_data = {
-            'booking': booking,
-            'customer_name': customer_name,
-            'phone': phone,
-            'vehicle': booking.vehicle or "",
-            'plate_number': booking.plate_number or "",
-            'service': booking.service or "",
-            # CRITICAL: branch field must be a Branch object, not a string
-            'branch': branch_obj,  # This is a Branch object, not a string
-            # branch_name is the legacy string field
-            'branch_name': branch_name,
-            # DO NOT include 'branch_id' as a separate key - Django handles this automatically
-            'notes': booking.notes or "",
-            'source': "booking",
-            'status': "waiting",
-            # These fields need defaults
+            'booking':        booking,
+            'customer_name':  customer_name,
+            'phone':          phone,
+            'vehicle':        booking.vehicle or "",
+            'plate_number':   booking.plate_number or "",
+            'service':        booking.service or "",
+            'branch':         branch_obj,
+            'branch_name':    branch_name,
+            'notes':          booking.notes or "",
+            'source':         "booking",
+            'status':         "waiting",
             'payment_method': '',
             'payment_status': 'unpaid',
-            # FIX: Use the booking price instead of 0
-            'price': booking.price if booking.price else 0,
+            'price':          booking.price if booking.price else 0,
         }
         
         print(f"DEBUG: Creating QueueEntry with data:")
@@ -98,11 +88,6 @@ def _booking_to_queue_entry(booking):
                 print(f"  - {key}: {value.name} (ID: {value.id}) - Branch OBJECT")
             else:
                 print(f"  - {key}: {value}")
-        
-        # Remove 'branch_id' from entry_data if it exists - we don't want to set it directly
-        if 'branch_id' in entry_data:
-            del entry_data['branch_id']
-            print("DEBUG: Removed branch_id from entry_data to avoid conflict")
         
         entry = QueueEntry.objects.create(**entry_data)
         print(f"DEBUG: Queue entry created successfully with ID: {entry.id}")
@@ -117,34 +102,25 @@ def _booking_to_queue_entry(booking):
     print("="*50 + "\n")
     return entry
 
+
 # ── GET  /api/queue/ ──────────────────────────────────────────────────────────
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def queue_list(request):
-    # Get query parameters
-    status_param = request.query_params.get('status')
+    status_param   = request.query_params.get('status')
     payment_status = request.query_params.get('payment_status')
     
-    # Start with base queryset
-    queryset = QueueEntry.objects.all().select_related(
-        "assigned_employee", "branch"
-    )
+    queryset = QueueEntry.objects.all().select_related("assigned_employee", "branch")
     
-    # Apply filters based on parameters
     if status_param:
-        # If specific status is requested, filter by that status
         queryset = queryset.filter(status=status_param)
     else:
-        # Default behavior (for other pages): only waiting and in_service
         queryset = queryset.filter(status__in=["waiting", "in_service"])
     
-    # Apply payment_status filter if provided
     if payment_status:
         queryset = queryset.filter(payment_status=payment_status)
     
-    # Order by position and queued_at
     queryset = queryset.order_by("position", "queued_at")
-    
     return Response(QueueEntrySerializer(queryset, many=True).data)
 
 
@@ -154,13 +130,12 @@ def queue_list(request):
 def queue_walk_in(request):
     serializer = QueueEntryCreateSerializer(data=request.data)
     if serializer.is_valid():
-        # Get price from request if provided, otherwise use 0
         price = request.data.get('price', 0)
         entry = serializer.save(
-            source="walk_in", 
+            source="walk_in",
             status="waiting",
             price=price,
-            payment_status='unpaid'
+            payment_status='unpaid',
         )
         return Response(QueueEntrySerializer(entry).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -194,12 +169,12 @@ def queue_from_booking(request):
 @permission_classes([IsAuthenticated])
 def queue_action(request, pk):
     try:
-        entry = QueueEntry.objects.get(pk=pk)
+        entry = QueueEntry.objects.select_related("booking").get(pk=pk)
     except QueueEntry.DoesNotExist:
         return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    allowed = [s[0] for s in QueueEntry.STATUS_CHOICES]
-    new_status = request.data.get("status")
+    allowed     = [s[0] for s in QueueEntry.STATUS_CHOICES]
+    new_status  = request.data.get("status")
     if new_status not in allowed:
         return Response(
             {"detail": f"Invalid status. Allowed: {allowed}"},
@@ -207,11 +182,20 @@ def queue_action(request, pk):
         )
 
     entry.status = new_status
+
     if new_status == "in_service" and not entry.service_started_at:
         entry.service_started_at = timezone.now()
+
     if new_status in ("done", "skipped"):
         entry.completed_at = timezone.now()
+
     entry.save()
+
+    # FIX: When a queue entry is marked "done", sync the linked Booking status.
+    # This is what makes "Completed" show up on the customer dashboard instead
+    # of staying stuck on "Confirmed" forever.
+    if new_status == "done" and entry.booking_id:
+        Booking.objects.filter(pk=entry.booking_id).update(status="done")
 
     return Response(QueueEntrySerializer(entry).data)
 
@@ -236,10 +220,7 @@ def queue_assign(request, pk):
         try:
             employee = Staff.objects.get(pk=employee_id, role="Employee")
         except Staff.DoesNotExist:
-            return Response(
-                {"detail": "Employee not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"detail": "Employee not found."}, status=status.HTTP_404_NOT_FOUND)
         entry.assigned_employee = employee
 
     entry.save()
@@ -256,9 +237,9 @@ def queue_employees(request):
 
     data = [
         {
-            "id": e.id,
+            "id":        e.id,
             "full_name": f"{e.first_name} {e.last_name}".strip(),
-            "branch": e.branch.name if e.branch else e.branch_name or "",
+            "branch":    e.branch.name if e.branch else e.branch_name or "",
         }
         for e in employees
     ]
@@ -287,7 +268,7 @@ def queue_history(request):
     return Response(QueueEntrySerializer(entries, many=True).data)
 
 
-# ── PATCH  /api/queue/<id>/paid/ ─────────────────────────────────────────────
+# ── PATCH  /api/queue/<id>/mark-paid/ ────────────────────────────────────────
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def queue_mark_paid(request, pk):

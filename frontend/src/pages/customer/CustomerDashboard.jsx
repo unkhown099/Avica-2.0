@@ -17,8 +17,6 @@ function CustomerDashboard() {
   });
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [serviceHistory, setServiceHistory] = useState([]);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(null);
@@ -54,19 +52,29 @@ function CustomerDashboard() {
 
         const data = await response.json();
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // FIX 1: Filter by full datetime, not just date
+        // This correctly removes bookings where the date+time has already passed
+        const now = new Date();
 
         const trueUpcoming = (data.upcoming_bookings || []).filter((b) => {
-          const bookingDate = new Date(b.date);
-          bookingDate.setHours(0, 0, 0, 0);
-          return bookingDate >= today;
+          // Combine date and time fields if separate, or parse ISO datetime directly
+          let bookingDateTime;
+          if (b.time) {
+            // e.g. date = "2026-03-20", time = "08:00:00"
+            bookingDateTime = new Date(`${b.date}T${b.time}`);
+          } else {
+            // Fallback: treat as all-day, use end of that day
+            bookingDateTime = new Date(b.date);
+            bookingDateTime.setHours(23, 59, 59, 999);
+          }
+          return bookingDateTime > now;
         });
 
         setStats(
           data.stats || { upcoming: 0, completed: 0, points: 0, rating: 5.0 },
         );
         setUpcomingBookings(trueUpcoming);
+        // FIX 2: Use all service history — no "this week" filter
         setServiceHistory(data.service_history || []);
       } catch (error) {
         console.error("Dashboard fetch error:", error);
@@ -178,9 +186,13 @@ function CustomerDashboard() {
     return recs;
   };
 
+  // FIX 3: Format date cleanly — no time component shown
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
-    const date = new Date(dateStr);
+    // Parse only the date portion to avoid timezone issues showing wrong date
+    const [year, month, day] = String(dateStr).split("T")[0].split("-");
+    if (!year || !month || !day) return dateStr;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
     if (isNaN(date)) return dateStr;
     return date.toLocaleDateString("en-PH", {
       year: "numeric",
@@ -319,20 +331,20 @@ function CustomerDashboard() {
           ))}
         </div>
 
-        {/* Quick Actions */}
+        {/* FIX 4: Compact Quick Actions — smaller padding, horizontal layout */}
         <div className="mb-12">
-          <h2 className="text-2xl font-black text-white mb-6">Quick Actions</h2>
-          <div className="grid md:grid-cols-3 gap-4">
+          <h2 className="text-2xl font-black text-white mb-4">Quick Actions</h2>
+          <div className="grid md:grid-cols-3 gap-3">
             {[
               {
                 title: "Book a Service",
-                desc: "Schedule your next auto detailing appointment",
+                desc: "Schedule your next appointment",
                 icon: "M12 4v16m8-8H4",
                 accent: "#ef4444",
               },
               {
                 title: "Manage Bookings",
-                desc: "View and modify your appointments",
+                desc: "View and modify appointments",
                 icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
                 accent: "#3b82f6",
               },
@@ -345,14 +357,14 @@ function CustomerDashboard() {
             ].map(({ title, desc, icon, accent }) => (
               <button
                 key={title}
-                className="group bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300 hover:scale-105 text-left"
+                className="group bg-gray-900/60 border border-white/5 rounded-xl p-4 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300 hover:scale-[1.02] text-left flex items-center gap-4"
               >
                 <div
-                  className="w-12 h-12 bg-red-500/10 text-red-400 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300"
+                  className="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300"
                   style={{ color: accent }}
                 >
                   <svg
-                    className="w-6 h-6"
+                    className="w-5 h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -365,8 +377,10 @@ function CustomerDashboard() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
-                <p className="text-sm text-gray-400">{desc}</p>
+                <div>
+                  <h3 className="text-sm font-bold text-white">{title}</h3>
+                  <p className="text-xs text-gray-400">{desc}</p>
+                </div>
               </button>
             ))}
           </div>
@@ -612,6 +626,7 @@ function CustomerDashboard() {
                               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                             />
                           </svg>
+                          {/* FIX 3 applied: clean date display */}
                           <span>{formatDate(booking.date)}</span>
                         </div>
                         {booking.time && (
@@ -629,7 +644,12 @@ function CustomerDashboard() {
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                               />
                             </svg>
-                            <span>{booking.time}</span>
+                            {/* Show time cleanly, strip seconds if present */}
+                            <span>
+                              {booking.time.length > 5
+                                ? booking.time.slice(0, 5)
+                                : booking.time}
+                            </span>
                           </div>
                         )}
                       </div>

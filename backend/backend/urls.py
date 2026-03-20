@@ -15,7 +15,7 @@ from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
 from api.views.dashboard_views import AdminDashboardView
 from api.views.service_views import ServiceListCreateView, ServiceDetailView
-from api.views.customer_views import AdminCustomerListView
+from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView
 from api.views.inventory_views import InventoryListCreateView, InventoryDetailView
 from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
 from api.views.bookings_views import (
@@ -35,6 +35,8 @@ from api.views.queue_views import (
     queue_history,
     queue_mark_paid
 )
+from api.views.customer_history import CustomerHistoryAPIView
+from api.views.ratings_views import RatingCreateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -59,7 +61,7 @@ urlpatterns = [
     # ── Chatbot ───────────────────────────────────────────────────────────────
     path('api/chat/', chat_with_groq, name='chat_with_groq'),
 
-    # ── Branches (single source of truth — replaces both old branch routes) ──
+    # ── Branches ──────────────────────────────────────────────────────────────
     path('branches/',          BranchListCreateView.as_view(), name='branch-list'),
     path('branches/<int:pk>/', BranchDetailView.as_view(),     name='branch-detail'),
 
@@ -72,27 +74,33 @@ urlpatterns = [
     path('api/staff/bookings/<int:pk>/action/', StaffBookingActionView.as_view(), name='staff-booking-action'),
 
     # ── Queue endpoints ───────────────────────────────────────────────────────
-    path('api/queue/',                 queue_list,         name='queue-list'),
-    path('api/queue/walk-in/',         queue_walk_in,      name='queue-walk-in'),
-    path('api/queue/from-booking/',    queue_from_booking, name='queue-from-booking'),
-    path('api/queue/history/',         queue_history,      name='queue-history'),
-    path('api/queue/employees/',       queue_employees,    name='queue-employees'),
-    path('api/queue/<int:pk>/action/', queue_action,       name='queue-action'),
-    path('api/queue/<int:pk>/assign/', queue_assign,       name='queue-assign'),
-    path('api/queue/<int:pk>/',        queue_remove,       name='queue-remove'),
-    path('api/queue/<int:pk>/mark-paid/', queue_mark_paid, name='queue-mark-paid'),
+    path('api/queue/',                    queue_list,         name='queue-list'),
+    path('api/queue/walk-in/',            queue_walk_in,      name='queue-walk-in'),
+    path('api/queue/from-booking/',       queue_from_booking, name='queue-from-booking'),
+    path('api/queue/history/',            queue_history,      name='queue-history'),
+    path('api/queue/employees/',          queue_employees,    name='queue-employees'),
+    path('api/queue/<int:pk>/action/',    queue_action,       name='queue-action'),
+    path('api/queue/<int:pk>/assign/',    queue_assign,       name='queue-assign'),
+    path('api/queue/<int:pk>/',           queue_remove,       name='queue-remove'),
+    path('api/queue/<int:pk>/mark-paid/', queue_mark_paid,    name='queue-mark-paid'),
 
-    # ── Customer dashboard ────────────────────────────────────────────────────
+    # ── Customer dashboard & history ──────────────────────────────────────────
     path('api/customer/dashboard/', CustomerDashboardAPIView.as_view(), name='customer-dashboard'),
+    path('api/customer/history/',   CustomerHistoryAPIView.as_view(),   name='customer-history'),
+    path('api/customers/me/', CurrentCustomerProfileView.as_view(), name='current-customer-profile'),
+
+
+    # ── Ratings ───────────────────────────────────────────────────────────────
+    path('api/ratings/', RatingCreateView.as_view(), name='rating-create'),
 
     # ── Admin endpoints ───────────────────────────────────────────────────────
-    path('dashboard/',             AdminDashboardView.as_view(),        name='admin-dashboard'),
-    path('services/',              ServiceListCreateView.as_view(),     name='service-list'),
-    path('services/<int:pk>/',     ServiceDetailView.as_view(),         name='service-detail'),
-    path('customers/',             AdminCustomerListView.as_view(),     name='admin-customers'),
-    path('inventory/',             InventoryListCreateView.as_view(),   name='inventory-list'),
-    path('inventory/<int:pk>/',    InventoryDetailView.as_view(),       name='inventory-detail'),
-    path('appointments/',          AdminAppointmentListView.as_view(),  name='admin-appointments'),
+    path('dashboard/',             AdminDashboardView.as_view(),         name='admin-dashboard'),
+    path('services/',              ServiceListCreateView.as_view(),      name='service-list'),
+    path('services/<int:pk>/',     ServiceDetailView.as_view(),          name='service-detail'),
+    path('customers/',             AdminCustomerListView.as_view(),      name='admin-customers'),
+    path('inventory/',             InventoryListCreateView.as_view(),    name='inventory-list'),
+    path('inventory/<int:pk>/',    InventoryDetailView.as_view(),        name='inventory-detail'),
+    path('appointments/',          AdminAppointmentListView.as_view(),   name='admin-appointments'),
     path('appointments/<int:pk>/', AdminAppointmentDetailView.as_view(), name='admin-appointment-detail'),
 
     # ── Redirect root ─────────────────────────────────────────────────────────

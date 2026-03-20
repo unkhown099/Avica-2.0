@@ -283,7 +283,48 @@ class MeView(APIView):
             "phone":      phone,
             "profile_picture": profile_picture,
         })
-
+    
+    # Add this PUT method for updating profile
+    def put(self, request):
+        user = request.user
+        user_role, first_name, last_name, suffix, phone, profile_picture = _get_profile_data(user)
+        
+        # Update the profile (Customer or Staff)
+        try:
+            if user_role == "customer":
+                customer = Customer.objects.get(user=user)
+                if 'first_name' in request.data:
+                    customer.first_name = request.data['first_name']
+                if 'last_name' in request.data:
+                    customer.last_name = request.data['last_name']
+                if 'phone' in request.data:
+                    customer.phone = request.data['phone']
+                customer.save()
+            else:
+                staff = Staff.objects.get(user=user)
+                if 'first_name' in request.data:
+                    staff.first_name = request.data['first_name']
+                if 'last_name' in request.data:
+                    staff.last_name = request.data['last_name']
+                if 'phone' in request.data:
+                    staff.phone = request.data['phone']
+                staff.save()
+        except (Customer.DoesNotExist, Staff.DoesNotExist):
+            pass
+        
+        # Return updated data
+        user_role, first_name, last_name, suffix, phone, profile_picture = _get_profile_data(user)
+        
+        return Response({
+            "id":         user.id,
+            "email":      user.email,
+            "role":       user_role,
+            "first_name": first_name,
+            "last_name":  last_name,
+            "suffix":     suffix,
+            "phone":      phone,
+            "profile_picture": profile_picture,
+        })
 
 class GoogleLoginView(APIView):
     permission_classes = []

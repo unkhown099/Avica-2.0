@@ -3,13 +3,6 @@ import StaffLayout from "./StaffLayout";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-}
-
 function authHeaders() {
   const token =
     localStorage.getItem("access_token") ||
@@ -18,7 +11,6 @@ function authHeaders() {
     sessionStorage.getItem("access_token") ||
     sessionStorage.getItem("access") ||
     sessionStorage.getItem("token");
-
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -39,15 +31,18 @@ function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 
+// FIX 1: Added "done" to statusStyle and statusLabel
 const statusStyle = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+  done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
 };
 const statusLabel = {
   confirmed: "Confirmed",
   pending: "Pending",
   cancelled: "Cancelled",
+  done: "Done",
 };
 
 const SERVICES = [
@@ -96,7 +91,9 @@ function StaffAppointments() {
   const fetchBookings = useCallback(() => {
     setLoading(true);
     setError("");
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/`, { headers: authHeaders() })
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/`, {
+      headers: authHeaders(),
+    })
       .then((r) => {
         if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
@@ -120,19 +117,50 @@ function StaffAppointments() {
     return bookings.filter((b) => b.date === iso).map((b) => b.status);
   };
 
-  const confirmed = bookings.filter((b) => b.status === "confirmed").length;
-  const walkins = bookings.filter((b) =>
-    b.notes?.toLowerCase().includes("walk-in"),
-  ).length;
+  // FIX 2: Stats now include "done" count and correctly count all statuses
+  const totalThisMonth = bookings.filter((b) => {
+    const d = new Date(b.date + "T00:00:00");
+    return d.getFullYear() === year && d.getMonth() === month;
+  }).length;
+
+  const stats = [
+    {
+      label: "Total This Month",
+      value: totalThisMonth,
+      color: "text-white",
+      border: "border-white/5",
+    },
+    {
+      label: "Confirmed",
+      value: bookings.filter((b) => b.status === "confirmed").length,
+      color: "text-emerald-400",
+      border: "border-emerald-500/20",
+    },
+    {
+      label: "Pending Approval",
+      value: bookings.filter((b) => b.status === "pending").length,
+      color: "text-amber-400",
+      border: "border-amber-500/20",
+    },
+    {
+      label: "Completed",
+      value: bookings.filter((b) => b.status === "done").length,
+      color: "text-blue-400",
+      border: "border-blue-500/20",
+    },
+  ];
 
   const handleAction = async (id, newStatus) => {
     setActionLoading(id);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/${id}/action/`, {
-        method: "PATCH",
-        headers: authHeaders(),
-        body: JSON.stringify({ status: newStatus }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/${id}/action/`,
+        {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ status: newStatus }),
+        },
+      );
       if (!res.ok) throw new Error();
       const updated = await res.json();
       setBookings((prev) =>
@@ -145,16 +173,15 @@ function StaffAppointments() {
     }
   };
 
-  // Walk-in: POST directly to /api/bookings/ as a staff-created booking
   const handleWalkInSubmit = async (e) => {
     e.preventDefault();
     setWalkInLoading(true);
     setWalkInError("");
     try {
-      // Walk-ins need a branch — use the first available branch
-      const branchRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/branches/`, {
-        headers: authHeaders(),
-      });
+      const branchRes = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/branches/`,
+        { headers: authHeaders() },
+      );
       const branches = await branchRes.json();
       const branch = Array.isArray(branches)
         ? branches[0]
@@ -162,28 +189,31 @@ function StaffAppointments() {
       if (!branch) throw new Error("No branch found.");
 
       const today = new Date().toISOString().split("T")[0];
-      const now = new Date().toLocaleTimeString("en-PH", {
+      const nowTime = new Date().toLocaleTimeString("en-PH", {
         hour: "2-digit",
         minute: "2-digit",
       });
 
       const payload = {
         service: walkInForm.service,
-        price: "To be assessed",
+        price: 0,
         branch: branch.name,
         date: today,
-        time: now,
+        time: nowTime,
         vehicle: walkInForm.vehicle,
         plate_number: walkInForm.plateNumber,
         notes: `[Walk-in] ${walkInForm.customerName} | ${walkInForm.phone}${walkInForm.email ? ` | ${walkInForm.email}` : ""}${walkInForm.notes ? ` | ${walkInForm.notes}` : ""}`,
-        status: "confirmed", // walk-ins are auto-confirmed
+        status: "confirmed",
       };
 
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/`,
+        {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        },
+      );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.detail || "Failed to add walk-in.");
@@ -222,6 +252,15 @@ function StaffAppointments() {
     setSelectedDate(1);
   };
 
+  // FIX 3: Calendar dot color now handles "done" status
+  const dotColor = (s, isSelected) => {
+    if (isSelected) return "bg-white/70";
+    if (s === "confirmed") return "bg-emerald-400";
+    if (s === "pending") return "bg-amber-400";
+    if (s === "done") return "bg-blue-400";
+    return "bg-red-400"; // cancelled
+  };
+
   return (
     <StaffLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
@@ -256,28 +295,9 @@ function StaffAppointments() {
           </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          {[
-            {
-              label: "Total This Month",
-              value: bookings.length,
-              color: "text-white",
-              border: "border-white/5",
-            },
-            {
-              label: "Confirmed",
-              value: confirmed,
-              color: "text-emerald-400",
-              border: "border-emerald-500/20",
-            },
-            {
-              label: "Pending Approval",
-              value: bookings.filter((b) => b.status === "pending").length,
-              color: "text-amber-400",
-              border: "border-amber-500/20",
-            },
-          ].map(({ label, value, color, border }) => (
+        {/* FIX 2: Stats grid now 4 columns including "Completed" */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {stats.map(({ label, value, color, border }) => (
             <div
               key={label}
               className={`bg-gray-900/60 ${border} border rounded-2xl p-4 backdrop-blur-sm`}
@@ -371,15 +391,7 @@ function StaffAppointments() {
                           {dots.slice(0, 3).map((s, idx) => (
                             <div
                               key={idx}
-                              className={`w-1 h-1 rounded-full ${
-                                isSelected
-                                  ? "bg-white/70"
-                                  : s === "confirmed"
-                                    ? "bg-emerald-400"
-                                    : s === "pending"
-                                      ? "bg-amber-400"
-                                      : "bg-red-400"
-                              }`}
+                              className={`w-1 h-1 rounded-full ${dotColor(s, isSelected)}`}
                             />
                           ))}
                         </div>
@@ -390,17 +402,21 @@ function StaffAppointments() {
               )}
             </div>
 
+            {/* FIX 3: Legend now includes "done" */}
             <div className="mt-6 pt-5 border-t border-white/5 space-y-2">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <div className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
-                Confirmed
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <div className="w-2 h-2 rounded-full bg-red-400" /> Cancelled
-              </div>
+              {[
+                { color: "bg-emerald-400", label: "Confirmed" },
+                { color: "bg-amber-400", label: "Pending" },
+                { color: "bg-blue-400", label: "Done" },
+                { color: "bg-red-400", label: "Cancelled" },
+              ].map(({ color, label }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-2 text-xs text-gray-500"
+                >
+                  <div className={`w-2 h-2 rounded-full ${color}`} /> {label}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -487,6 +503,15 @@ function StaffAppointments() {
               <div className="space-y-4">
                 {dayBookings.map((b) => {
                   const isWalkIn = b.notes?.toLowerCase().includes("walk-in");
+                  // FIX 1: icon bg also handles "done"
+                  const iconBg =
+                    b.status === "confirmed"
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : b.status === "pending"
+                        ? "bg-amber-500/20 text-amber-400"
+                        : b.status === "done"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : "bg-red-500/20 text-red-400";
                   return (
                     <div
                       key={b.id}
@@ -495,13 +520,7 @@ function StaffAppointments() {
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${
-                              b.status === "confirmed"
-                                ? "bg-emerald-500/20 text-emerald-400"
-                                : b.status === "pending"
-                                  ? "bg-amber-500/20 text-amber-400"
-                                  : "bg-red-500/20 text-red-400"
-                            }`}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${iconBg}`}
                           >
                             {(b.service || "?").charAt(0)}
                           </div>
@@ -579,6 +598,7 @@ function StaffAppointments() {
                         </div>
                       )}
 
+                      {/* FIX 1: Status action footer handles all 4 statuses */}
                       {b.status === "pending" && (
                         <div className="flex gap-2 pt-3 border-t border-white/5">
                           <button
@@ -663,6 +683,25 @@ function StaffAppointments() {
                           Approved
                         </div>
                       )}
+                      {/* FIX 1: "done" status footer */}
+                      {b.status === "done" && (
+                        <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-blue-400 text-sm">
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                            />
+                          </svg>
+                          Service Completed
+                        </div>
+                      )}
                       {b.status === "cancelled" && (
                         <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-red-400 text-sm">
                           <svg
@@ -728,7 +767,6 @@ function StaffAppointments() {
                 </div>
 
                 <div className="p-6 space-y-6">
-                  {/* Customer Info */}
                   <div>
                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
                       Customer Information
@@ -786,7 +824,6 @@ function StaffAppointments() {
                     </div>
                   </div>
 
-                  {/* Vehicle Info */}
                   <div>
                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
                       Vehicle Information
@@ -829,7 +866,6 @@ function StaffAppointments() {
                     </div>
                   </div>
 
-                  {/* Service */}
                   <div>
                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
                       Service Information
