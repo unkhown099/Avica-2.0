@@ -281,9 +281,19 @@ def queue_remove(request, pk):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def queue_history(request):
+    requester_staff = getattr(request.user, "staff_profile", None)
     entries = QueueEntry.objects.filter(
         status__in=["done", "skipped"]
-    ).select_related("assigned_employee").order_by("-completed_at")[:50]
+    ).select_related("assigned_employee", "branch")
+
+    # Non-admin staff can only view queue history from their own branch.
+    if requester_staff and requester_staff.role != "Admin":
+        if requester_staff.branch_id:
+            entries = entries.filter(branch_id=requester_staff.branch_id)
+        else:
+            entries = entries.none()
+
+    entries = entries.order_by("-completed_at")[:50]
     return Response(QueueEntrySerializer(entries, many=True).data)
 
 

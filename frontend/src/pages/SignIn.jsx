@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
-import { GoogleLogin } from "@react-oauth/google";
 
 function SignIn() {
   const navigate = useNavigate();
@@ -149,43 +148,6 @@ function SignIn() {
       swal.fire({ icon: "error", title: "Error", text: err.message });
     } finally {
       setIsSubmittingForgot(false);
-    }
-  };
-
-  const handleGoogleSuccess = async (credentialResponse) => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/google-login/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: credentialResponse.credential }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Google Login failed");
-      }
-
-      // Store tokens and navigate (simplified for brevity, should follow existing logic)
-      const { access, refresh } = data.tokens;
-      sessionStorage.setItem("access_token", access);
-      sessionStorage.setItem("refresh_token", refresh);
-      sessionStorage.setItem("user", JSON.stringify(data.user));
-
-      const roleRoutes = {
-        admin: "/admin/dashboard",
-        business_owner: "/branch-owner/dashboard",
-        branch_manager: "/manager/dashboard",
-        staff: "/staff/pos",
-        employee: "/mechanic/dashboard",
-        customer: "/dashboard",
-      };
-
-      navigate(roleRoutes[data.user.role] || "/");
-      swal.fire({ icon: "success", title: "Login Successful", text: "Welcome!" });
-      console.log("USER DATA:", data.user);
-
-    } catch (err) {
-      swal.fire({ icon: "error", title: "Google Login Failed", text: err.message });
     }
   };
 
@@ -376,26 +338,6 @@ function SignIn() {
                   Log In
                 </button>
 
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-700"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-gray-900 text-gray-400">Or continue with</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-center">
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => swal.fire({ icon: "error", title: "Google Login Failed" })}
-                    useOneTap
-                    theme="filled_black"
-                    shape="pill"
-                    size="large"
-                    width="100%"
-                  />
-                </div>
               </form>
             </div>
           </div>

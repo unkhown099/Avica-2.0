@@ -262,7 +262,7 @@ function MovementLog() {
 
   return (
     <InventoryLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/20">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>

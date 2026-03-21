@@ -379,7 +379,7 @@ function CustomerDashboard() {
             <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 rounded-full border border-red-500/30">
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               <span className="text-xs font-bold text-red-400 uppercase tracking-widest">
-                Powered by Gemini AI
+                Powered by AI
               </span>
             </div>
           </div>

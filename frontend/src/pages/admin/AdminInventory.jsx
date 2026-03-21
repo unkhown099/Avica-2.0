@@ -5,9 +5,46 @@ import Swal from "sweetalert2";
 
 const API = import.meta.env.VITE_API_BASE_URL;
 
-const getToken = () =>
-  localStorage.getItem("access_token") ??
-  sessionStorage.getItem("access_token");
+const getToken = () => {
+  const tokenKeys = [
+    "access_token",
+    "accessToken",
+    "token",
+    "jwt",
+    "access",
+    "authToken",
+    "Authorization",
+  ];
+
+  for (const key of tokenKeys) {
+    const local = localStorage.getItem(key);
+    if (local) return local;
+    const session = sessionStorage.getItem(key);
+    if (session) return session;
+  }
+
+  try {
+    const userRaw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (userRaw) {
+      const user = JSON.parse(userRaw);
+      for (const key of ["access_token", "accessToken", "token", "jwt", "access"]) {
+        if (user?.[key]) return user[key];
+      }
+    }
+  } catch {}
+
+  try {
+    const authRaw = localStorage.getItem("auth") || sessionStorage.getItem("auth");
+    if (authRaw) {
+      const auth = JSON.parse(authRaw);
+      for (const key of ["access_token", "accessToken", "token", "jwt", "access"]) {
+        if (auth?.[key]) return auth[key];
+      }
+    }
+  } catch {}
+
+  return null;
+};
 
 const authHeaders = () => ({ Authorization: `Bearer ${getToken()}` });
 
@@ -22,21 +59,62 @@ const CATEGORIES = [
   "Other",
 ];
 
+const SKU_PREFIX = {
+  Lubricants: "LUB",
+  Brakes: "BRK",
+  Filters: "FIL",
+  Batteries: "BAT",
+  Tires: "TIR",
+  Ignition: "IGN",
+  Other: "OTH",
+};
+
 const inputCls =
   "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all";
 
 // ── Status badge ─────────────────────────────────────────────────────────────
-const StatusBadge = ({ status }) => {
-  const styles = {
-    "In Stock": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    "Low Stock": "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    "Out of Stock": "bg-red-500/20 text-red-400 border-red-500/30",
-  };
+const getInventoryStatusKey = (item) => {
+  const quantity = Number(item?.quantity ?? 0);
+  const minimum = Number(item?.minimum_qty ?? item?.minimum ?? 0);
+  const raw = String(item?.status ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (quantity <= 0 || raw.includes("out of stock")) return "out_of_stock";
+  if (minimum > 0 && quantity <= minimum) return "reorder_now";
+  if (minimum > 0 && quantity <= Math.ceil(minimum * 1.5)) return "running_low";
+  if (raw.includes("critical") || raw.includes("reorder")) return "reorder_now";
+  if (raw.includes("low")) return "running_low";
+  return "available";
+};
+
+const STATUS_UI = {
+  available: {
+    label: "Available 🟢",
+    className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  },
+  running_low: {
+    label: "Running Low 🟡",
+    className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  },
+  reorder_now: {
+    label: "Reorder Now 🔴",
+    className: "bg-red-500/20 text-red-400 border-red-500/30",
+  },
+  out_of_stock: {
+    label: "Out of Stock ⚫",
+    className: "bg-gray-500/20 text-gray-300 border-gray-500/30",
+  },
+};
+
+const StatusBadge = ({ item }) => {
+  const key = getInventoryStatusKey(item);
+  const ui = STATUS_UI[key] ?? STATUS_UI.available;
   return (
     <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+      className={`px-3 py-1 rounded-full text-xs font-semibold border ${ui.className}`}
     >
-      {status}
+      {ui.label}
     </span>
   );
 };
@@ -69,6 +147,7 @@ const Field = ({ label, children }) => (
 // ── Add / Edit Modal ──────────────────────────────────────────────────────────
 function ItemModal({ onClose, onSaved, editItem, branches }) {
   const isEdit = !!editItem;
+  const [itemsSnapshot, setItemsSnapshot] = useState([]);
   const [form, setForm] = useState({
     name: editItem?.name ?? "",
     category: editItem?.category ?? CATEGORIES[0],
@@ -84,12 +163,39 @@ function ItemModal({ onClose, onSaved, editItem, branches }) {
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
+  useEffect(() => {
+    if (isEdit) return;
+    const loadItems = async () => {
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/inventory/`, {
+          headers: authHeaders(),
+        });
+        setItemsSnapshot(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        setItemsSnapshot([]);
+      }
+    };
+    loadItems();
+  }, [isEdit]);
+
+  const generatedSku = React.useMemo(() => {
+    if (isEdit) return form.sku;
+    const prefix = SKU_PREFIX[form.category] ?? "ITM";
+    const categoryItems = itemsSnapshot.filter((i) => i.category === form.category);
+    const existing = new Set(categoryItems.map((i) => i.sku));
+    let next = categoryItems.length + 1;
+    while (existing.has(`${prefix}-${String(next).padStart(4, "0")}`)) {
+      next += 1;
+    }
+    return `${prefix}-${String(next).padStart(4, "0")}`;
+  }, [form.category, form.sku, isEdit, itemsSnapshot]);
+
   const submit = async () => {
-    if (!form.name || !form.sku) {
+    if (!form.name) {
       Swal.fire({
         icon: "warning",
         title: "Missing fields",
-        text: "Name and SKU are required.",
+        text: "Name is required.",
         background: "#111827",
         color: "#f9fafb",
       });
@@ -97,7 +203,13 @@ function ItemModal({ onClose, onSaved, editItem, branches }) {
     }
     try {
       setSaving(true);
-      const payload = { ...form, branch: form.branch || null };
+      const payload = { ...form };
+      if (!isEdit) {
+        payload.sku = generatedSku;
+      }
+      if (!isEdit) {
+        delete payload.branch;
+      }
       if (isEdit) {
         await axios.patch(`${import.meta.env.VITE_API_BASE_URL}/inventory/${editItem.id}/`, payload, {
           headers: authHeaders(),
@@ -192,14 +304,20 @@ function ItemModal({ onClose, onSaved, editItem, branches }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="SKU">
-              <input
-                className={inputCls}
-                placeholder="e.g. EO-5W30-001"
-                value={form.sku}
-                onChange={(e) => set("sku", e.target.value)}
-              />
-            </Field>
+            {!isEdit && (
+              <Field label="SKU (Auto-generated)">
+                <input
+                  className={inputCls}
+                  value={generatedSku}
+                  disabled
+                />
+              </Field>
+            )}
+            {isEdit && (
+              <Field label="SKU">
+                <input className={inputCls} value={form.sku} disabled />
+              </Field>
+            )}
             <Field label="Unit">
               <input
                 className={inputCls}
@@ -240,7 +358,7 @@ function ItemModal({ onClose, onSaved, editItem, branches }) {
             </Field>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Field label="Supplier">
               <input
                 className={inputCls}
@@ -248,20 +366,6 @@ function ItemModal({ onClose, onSaved, editItem, branches }) {
                 value={form.supplier}
                 onChange={(e) => set("supplier", e.target.value)}
               />
-            </Field>
-            <Field label="Branch">
-              <select
-                className={inputCls}
-                value={form.branch}
-                onChange={(e) => set("branch", e.target.value)}
-              >
-                <option value="">— No Branch —</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
             </Field>
           </div>
 
@@ -292,63 +396,110 @@ function ItemModal({ onClose, onSaved, editItem, branches }) {
 function AdminInventory() {
   const [items, setItems] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [restockRequests, setRestockRequests] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [branchFilter, setBranchFilter] = useState("All Branches");
-  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("inventory");
+  const [archiveFilter, setArchiveFilter] = useState("active");
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [invRes, branchRes] = await Promise.all([
-        axios.get(`${import.meta.env.VITE_API_BASE_URL}/inventory/`, { headers: authHeaders() }),
+        const [invRes, branchRes] = await Promise.all([
+          axios.get(
+            `${import.meta.env.VITE_API_BASE_URL}/inventory/?archived=${archiveFilter === "archived" ? "true" : "false"}`,
+            { headers: authHeaders() },
+          ),
         axios.get(`${import.meta.env.VITE_API_BASE_URL}/branches/`, { headers: authHeaders() }),
       ]);
-      setItems(invRes.data);
+      const [rrRes, txRes] = await Promise.all([
+        axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/inventory/restock-requests/`,
+          { headers: authHeaders() },
+        ),
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/inventory/transactions/?limit=20`, {
+          headers: authHeaders(),
+        }),
+      ]);
+      const centralOnlyItems = Array.isArray(invRes.data)
+        ? invRes.data.filter((item) => item.branch == null && item.branch_name == null)
+        : [];
+      setItems(centralOnlyItems);
       setBranches(branchRes.data);
+      setRestockRequests(rrRes.data);
+      setTransactions(Array.isArray(txRes.data) ? txRes.data : []);
     } catch (err) {
       setError("Failed to load inventory. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [archiveFilter]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // ── Delete ───────────────────────────────────────────────────────────────
-  const deleteItem = async (item) => {
+  const toggleItemActive = async (item, nextActive) => {
     const result = await Swal.fire({
-      title: `Delete "${item.name}"?`,
-      text: "This cannot be undone.",
+      title: nextActive ? `Restore "${item.name}"?` : `Archive "${item.name}"?`,
+      text: nextActive
+        ? "This item will return to active inventory."
+        : "This item will be moved to Archived.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Delete",
-      confirmButtonColor: "#ef4444",
+      confirmButtonText: nextActive ? "Restore" : "Archive",
+      confirmButtonColor: nextActive ? "#10b981" : "#ef4444",
       background: "#111827",
       color: "#f9fafb",
     });
     if (!result.isConfirmed) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/inventory/${item.id}/`, {
-        headers: authHeaders(),
+      await axios.patch(
+        `${import.meta.env.VITE_API_BASE_URL}/inventory/${item.id}/`,
+        { is_active: nextActive },
+        { headers: authHeaders() },
+      );
+      await fetchData();
+      Swal.fire({
+        icon: "success",
+        title: nextActive ? "Item restored" : "Item archived",
+        timer: 1200,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#f9fafb",
       });
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
     } catch {
       Swal.fire({
         icon: "error",
         title: "Failed",
-        text: "Could not delete item.",
+        text: "Could not update item status.",
         background: "#111827",
         color: "#f9fafb",
       });
     }
+  };
+
+  // ── Delete (disabled) ──────────────────────────────────────────────────────
+  const deleteItem = async (item) => {
+    const result = await Swal.fire({
+      title: `Delete "${item.name}"?`,
+      text: "Delete is disabled. Use Archive instead.",
+      icon: "warning",
+      showCancelButton: false,
+      confirmButtonText: "OK",
+      confirmButtonColor: "#ef4444",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+    if (!result.isConfirmed) return;
   };
 
   // ── Filtering ────────────────────────────────────────────────────────────
@@ -360,19 +511,16 @@ function AdminInventory() {
       item.category.toLowerCase().includes(q);
     const matchCat =
       categoryFilter === "All Categories" || item.category === categoryFilter;
-    const matchBranch =
-      branchFilter === "All Branches" || item.branch_name === branchFilter;
     const matchStatus =
-      statusFilter === "All Status" || item.status === statusFilter;
-    return matchSearch && matchCat && matchBranch && matchStatus;
+      statusFilter === "all" || getInventoryStatusKey(item) === statusFilter;
+    return matchSearch && matchCat && matchStatus;
   });
 
-  const lowStock = items.filter(
-    (i) => i.status === "Low Stock" || i.status === "Out of Stock",
-  );
-  const filteredLowStock = lowStock.filter(
-    (i) => branchFilter === "All Branches" || i.branch_name === branchFilter,
-  );
+  const lowStock = items.filter((i) => {
+    const key = getInventoryStatusKey(i);
+    return key === "running_low" || key === "reorder_now" || key === "out_of_stock";
+  });
+  const filteredLowStock = lowStock;
 
   const totalValue = items.reduce(
     (sum, i) => sum + (parseFloat(i.price) || 0) * (i.quantity || 0),
@@ -388,6 +536,53 @@ function AdminInventory() {
     setShowModal(true);
   };
 
+  const centralItems = items.filter((i) => i.branch_name == null);
+
+  const reviewRestock = async (requestItem, action) => {
+    const confirm = await Swal.fire({
+      title: `${action === "approve" ? "Approve" : "Reject"} request?`,
+      text: `${requestItem.inventory_item_name} • Qty ${requestItem.quantity_requested}`,
+      input: "text",
+      inputPlaceholder: "Reviewer note (optional)",
+      showCancelButton: true,
+      confirmButtonText: action === "approve" ? "Approve" : "Reject",
+      confirmButtonColor: action === "approve" ? "#10b981" : "#ef4444",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      await axios.patch(
+        `${import.meta.env.VITE_API_BASE_URL}/inventory/restock-requests/${requestItem.id}/action/`,
+        {
+          action,
+          reviewer_note: confirm.value || "",
+        },
+        { headers: authHeaders() },
+      );
+      await fetchData();
+      Swal.fire({
+        icon: "success",
+        title: action === "approve" ? "Request approved" : "Request rejected",
+        timer: 1200,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: err.response?.data?.detail || "Could not update request.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    }
+  };
+
+  const pendingRestock = restockRequests.filter((r) => r.status === "pending");
+
   return (
     <AdminLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
@@ -401,24 +596,57 @@ function AdminInventory() {
               Track and manage parts and supplies inventory
             </p>
           </div>
+          {activeTab === "inventory" && (
+            <div className="flex gap-2 self-start md:self-auto">
+              <button
+                onClick={() => setShowTransferModal(true)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50"
+              >
+                Send Stock
+              </button>
+              <button
+                onClick={openCreate}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Add Item
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 mb-6 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-fit">
           <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto"
+            onClick={() => setActiveTab("inventory")}
+            className={`px-5 py-2.5 rounded-lg font-semibold transition-all ${
+              activeTab === "inventory"
+                ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
+                : "text-gray-400 hover:text-white hover:bg-white/5"
+            }`}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add Item
+            Inventory
+          </button>
+          <button
+            onClick={() => setActiveTab("transactions")}
+            className={`px-5 py-2.5 rounded-lg font-semibold transition-all ${
+              activeTab === "transactions"
+                ? "bg-gray-700 text-white shadow-lg shadow-gray-700/25"
+                : "text-gray-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            Transaction History
           </button>
         </div>
 
@@ -448,12 +676,14 @@ function AdminInventory() {
           </div>
         )}
 
+        {activeTab === "inventory" && (
+          <>
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
             {
               label: "Total Items",
-              sub: "Across all branches",
+              sub: "Central inventory",
               value: loading ? null : items.length,
               color: "#ef4444",
               icon: (
@@ -587,6 +817,53 @@ function AdminInventory() {
           </div>
         )}
 
+        {!loading && pendingRestock.length > 0 && (
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 mb-8 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-black text-white uppercase tracking-wider">
+                Pending Restock Requests
+              </h2>
+              <span className="text-xs text-gray-500">{pendingRestock.length} pending</span>
+            </div>
+            <div className="space-y-2.5">
+              {pendingRestock.map((req) => (
+                <div
+                  key={req.id}
+                  className="bg-gray-950/60 border border-white/5 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-3 justify-between"
+                >
+                  <div>
+                    <div className="text-white font-semibold text-sm">
+                      {req.inventory_item_name}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      Branch: {req.branch_name} · Qty:{" "}
+                      <span className="text-gray-200">{req.quantity_requested}</span> · By{" "}
+                      {req.requested_by_name || "Unknown"}
+                    </div>
+                    {req.notes && (
+                      <p className="text-xs text-gray-400 mt-1">Note: {req.notes}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => reviewRestock(req, "approve")}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => reviewRestock(req, "reject")}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-all"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
@@ -618,14 +895,23 @@ function AdminInventory() {
               options: ["All Categories", ...CATEGORIES],
             },
             {
-              value: branchFilter,
-              onChange: setBranchFilter,
-              options: ["All Branches", ...branches.map((b) => b.name)],
-            },
-            {
               value: statusFilter,
               onChange: setStatusFilter,
-              options: ["All Status", "In Stock", "Low Stock", "Out of Stock"],
+              options: [
+                { value: "all", label: "All Status" },
+                { value: "available", label: "Available 🟢" },
+                { value: "running_low", label: "Running Low 🟡" },
+                { value: "reorder_now", label: "Reorder Now 🔴" },
+                { value: "out_of_stock", label: "Out of Stock ⚫" },
+              ],
+            },
+            {
+              value: archiveFilter,
+              onChange: setArchiveFilter,
+              options: [
+                { value: "active", label: "Active" },
+                { value: "archived", label: "Archived" },
+              ],
             },
           ].map((sel, i) => (
             <select
@@ -635,7 +921,9 @@ function AdminInventory() {
               className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
             >
               {sel.options.map((o) => (
-                <option key={o}>{o}</option>
+                <option key={typeof o === "string" ? o : o.value} value={typeof o === "string" ? o : o.value}>
+                  {typeof o === "string" ? o : o.label}
+                </option>
               ))}
             </select>
           ))}
@@ -644,15 +932,15 @@ function AdminInventory() {
         {/* Table */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
           <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            <div className="col-span-1">#</div>
-            <div className="col-span-2">Name</div>
+            <div className="col-span-3">Name</div>
             <div className="col-span-1">Category</div>
             <div className="col-span-1">SKU</div>
             <div className="col-span-1">Qty</div>
             <div className="col-span-1">Price</div>
             <div className="col-span-2">Branch</div>
-            <div className="col-span-2">Supplier</div>
+            <div className="col-span-1">Supplier</div>
             <div className="col-span-1 text-right">Status</div>
+            <div className="col-span-1 text-right">Actions</div>
           </div>
 
           {loading ? (
@@ -683,10 +971,7 @@ function AdminInventory() {
                 key={item.id}
                 className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
               >
-                <div className="col-span-1 text-gray-600 text-xs font-mono">
-                  {item.id}
-                </div>
-                <div className="col-span-2">
+                <div className="col-span-3">
                   <div className="text-white font-semibold text-sm">
                     {item.name}
                   </div>
@@ -709,11 +994,14 @@ function AdminInventory() {
                 <div className="col-span-2 text-gray-400 text-sm">
                   {item.branch_name ?? <span className="text-gray-700">—</span>}
                 </div>
-                <div className="col-span-2 text-gray-400 text-sm">
+                <div className="col-span-1 text-gray-400 text-sm">
                   {item.supplier || <span className="text-gray-700">—</span>}
                 </div>
-                <div className="col-span-1 flex items-center justify-end gap-2">
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="col-span-1 flex justify-end">
+                  <StatusBadge item={item} />
+                </div>
+                <div className="col-span-1 flex items-center justify-end">
+                  <div className="flex gap-1">
                     <button
                       onClick={() => openEdit(item)}
                       className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
@@ -733,8 +1021,15 @@ function AdminInventory() {
                       </svg>
                     </button>
                     <button
-                      onClick={() => deleteItem(item)}
-                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                      onClick={() =>
+                        toggleItemActive(item, archiveFilter === "archived")
+                      }
+                      className={`p-1.5 rounded-lg transition-all ${
+                        archiveFilter === "archived"
+                          ? "text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                          : "text-gray-500 hover:text-amber-400 hover:bg-amber-500/10"
+                      }`}
+                      title={archiveFilter === "archived" ? "Restore" : "Archive"}
                     >
                       <svg
                         className="w-3.5 h-3.5"
@@ -742,16 +1037,24 @@ function AdminInventory() {
                         stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
+                        {archiveFilter === "archived" ? (
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          />
+                        ) : (
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 13h6m2 7H7a2 2 0 01-2-2V7h14v11a2 2 0 01-2 2zM9 4h6l1 3H8l1-3z"
+                          />
+                        )}
                       </svg>
                     </button>
                   </div>
-                  <StatusBadge status={item.status} />
                 </div>
               </div>
             ))
@@ -771,6 +1074,50 @@ function AdminInventory() {
             </div>
           )}
         </div>
+          </>
+        )}
+
+        {activeTab === "transactions" && (
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 mb-8 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-black text-white uppercase tracking-wider">
+              Inventory Transaction History
+            </h2>
+            <span className="text-xs text-gray-500">Latest {transactions.length} records</span>
+          </div>
+          {transactions.length === 0 ? (
+            <p className="text-sm text-gray-500">No transactions yet.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {transactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="bg-gray-950/60 border border-white/5 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-3 justify-between"
+                >
+                  <div>
+                    <div className="text-white font-semibold text-sm">
+                      {tx.item_name} {tx.item_sku ? `(${tx.item_sku})` : ""}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {tx.action_type.replaceAll("_", " ")} · Qty:{" "}
+                      <span className="text-gray-200">{tx.quantity_changed}</span> ·{" "}
+                      {tx.branch_name || "Central"}
+                      {tx.target_branch_name ? ` → ${tx.target_branch_name}` : ""}
+                    </div>
+                    {tx.notes && <p className="text-xs text-gray-400 mt-1">Note: {tx.notes}</p>}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-300">{tx.performed_by_name || "System"}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(tx.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        )}
       </div>
 
       {showModal && (
@@ -781,7 +1128,155 @@ function AdminInventory() {
           branches={branches}
         />
       )}
+
+      {showTransferModal && (
+        <StockTransferModal
+          onClose={() => setShowTransferModal(false)}
+          onTransferred={fetchData}
+          items={centralItems}
+          branches={branches}
+        />
+      )}
     </AdminLayout>
+  );
+}
+
+function StockTransferModal({ onClose, onTransferred, items, branches }) {
+  const [form, setForm] = useState({
+    source_item_id: "",
+    target_branch_id: "",
+    quantity: "",
+    note: "",
+  });
+  const [sending, setSending] = useState(false);
+
+  const selectedItem = items.find((i) => String(i.id) === String(form.source_item_id));
+
+  const submit = async () => {
+    if (!form.source_item_id || !form.target_branch_id || !form.quantity) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Missing fields",
+        text: "Please select item, branch, and quantity.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+      return;
+    }
+
+    try {
+      setSending(true);
+      await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/inventory/transfer/`,
+        {
+          source_item_id: Number(form.source_item_id),
+          target_branch_id: Number(form.target_branch_id),
+          quantity: Number(form.quantity),
+          note: form.note,
+        },
+        { headers: authHeaders() },
+      );
+      await Swal.fire({
+        icon: "success",
+        title: "Stock sent",
+        timer: 1200,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+      onTransferred();
+      onClose();
+    } catch (err) {
+      await Swal.fire({
+        icon: "error",
+        title: "Transfer failed",
+        text:
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          JSON.stringify(err.response?.data) ||
+          "Could not send stock.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-xl shadow-2xl p-6 space-y-4">
+        <h2 className="text-xl font-black text-white">Send Stock to Branch</h2>
+        <div className="space-y-4">
+          <Field label="Central Item (SKU)">
+            <select
+              className={inputCls}
+              value={form.source_item_id}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, source_item_id: e.target.value }))
+              }
+            >
+              <option value="">Select item</option>
+              {items.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.name} · {i.sku} · available {i.quantity}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Target Branch">
+            <select
+              className={inputCls}
+              value={form.target_branch_id}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, target_branch_id: e.target.value }))
+              }
+            >
+              <option value="">Select branch</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Quantity">
+            <input
+              type="number"
+              className={inputCls}
+              min={1}
+              max={selectedItem?.quantity ?? undefined}
+              value={form.quantity}
+              onChange={(e) => setForm((p) => ({ ...p, quantity: e.target.value }))}
+            />
+          </Field>
+          <Field label="Note (Optional)">
+            <input
+              className={inputCls}
+              value={form.note}
+              onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
+            />
+          </Field>
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={sending}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold"
+          >
+            {sending ? "Sending..." : "Send Stock"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

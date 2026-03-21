@@ -147,80 +147,13 @@ const VIEWS = [
   },
 ];
 
-// ── Mock extra data for non-overview views ────────────────────────────────────
-const MOCK_CUSTOMERS = [
-  {
-    name: "Maria Santos",
-    visits: 12,
-    spent: 28500,
-    last_visit: "Mar 18, 2026",
-    tier: "Gold",
-  },
-  {
-    name: "Jose Reyes",
-    visits: 8,
-    spent: 14200,
-    last_visit: "Mar 17, 2026",
-    tier: "Silver",
-  },
-  {
-    name: "Ana Cruz",
-    visits: 5,
-    spent: 9800,
-    last_visit: "Mar 15, 2026",
-    tier: "Silver",
-  },
-  {
-    name: "Pedro Lim",
-    visits: 20,
-    spent: 52000,
-    last_visit: "Mar 19, 2026",
-    tier: "Platinum",
-  },
-  {
-    name: "Rosa Dela Cruz",
-    visits: 3,
-    spent: 4500,
-    last_visit: "Mar 10, 2026",
-    tier: "Bronze",
-  },
-];
-
-const MOCK_INVENTORY = [
-  {
-    item: "Engine Oil (10W-30)",
-    stock: 48,
-    unit: "liters",
-    status: "ok",
-    reorder: 20,
-  },
-  { item: "Oil Filter", stock: 12, unit: "pcs", status: "low", reorder: 15 },
-  { item: "Air Filter", stock: 30, unit: "pcs", status: "ok", reorder: 10 },
-  {
-    item: "Brake Pads (Front)",
-    stock: 6,
-    unit: "sets",
-    status: "critical",
-    reorder: 8,
-  },
-  { item: "Wiper Blades", stock: 24, unit: "pcs", status: "ok", reorder: 10 },
-  { item: "Coolant", stock: 9, unit: "liters", status: "low", reorder: 12 },
-  { item: "Spark Plugs", stock: 40, unit: "pcs", status: "ok", reorder: 16 },
-];
-
-const MOCK_REVENUE_BREAKDOWN = [
-  { month: "Jan", revenue: 82000, expenses: 34000, profit: 48000 },
-  { month: "Feb", revenue: 95000, expenses: 38000, profit: 57000 },
-  { month: "Mar", revenue: 110000, expenses: 41000, profit: 69000 },
-];
-
-const MOCK_SERVICES = [
-  { service: "Oil Change", count: 87, revenue: 43500, avg_time: "45 min" },
-  { service: "Tire Service", count: 62, revenue: 74400, avg_time: "1.5 hrs" },
-  { service: "Engine Repair", count: 29, revenue: 145000, avg_time: "4 hrs" },
-  { service: "Body Work", count: 18, revenue: 126000, avg_time: "8 hrs" },
-  { service: "Brake Service", count: 41, revenue: 61500, avg_time: "2 hrs" },
-  { service: "AC Service", count: 33, revenue: 49500, avg_time: "1.5 hrs" },
+const SERVICE_COLORS = [
+  "#ef4444",
+  "#a855f7",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#06b6d4",
 ];
 
 // ── Shared chart theme helpers ────────────────────────────────────────────────
@@ -281,12 +214,12 @@ function SkeletonRow() {
   );
 }
 
-// ── TIER badge ────────────────────────────────────────────────────────────────
-const TIER_STYLE = {
-  Platinum: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-  Gold: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  Silver: "bg-gray-400/20 text-gray-300 border-gray-400/30",
-  Bronze: "bg-orange-700/20 text-orange-400 border-orange-700/30",
+// ── CUSTOMER segment badge ────────────────────────────────────────────────────
+const SEGMENT_STYLE = {
+  "High Value": "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+  Regular: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  "At Risk": "bg-orange-700/20 text-orange-400 border-orange-700/30",
+  New: "bg-gray-400/20 text-gray-300 border-gray-400/30",
 };
 
 // ── INVENTORY status badge ────────────────────────────────────────────────────
@@ -294,7 +227,25 @@ const INV_STYLE = {
   ok: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   low: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   critical: "bg-red-500/20 text-red-400 border-red-500/30",
+  out: "bg-gray-500/20 text-gray-300 border-gray-500/30",
 };
+
+function normalizeInventoryStatus(status) {
+  const s = String(status ?? "")
+    .trim()
+    .toLowerCase();
+  if (s === "low" || s.includes("low")) return "low";
+  if (s.includes("out of stock") || s.includes("out_of_stock")) return "out";
+  if (
+    s === "critical" ||
+    s.includes("critical") ||
+    s.includes("reorder")
+  ) {
+    return "critical";
+  }
+  if (s === "ok" || s.includes("in stock")) return "ok";
+  return "ok";
+}
 
 // ── Export helpers ────────────────────────────────────────────────────────────
 function exportToCSV(rows, headers, filename) {
@@ -321,6 +272,10 @@ function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [chart, setChart] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [inventoryBranchFilter, setInventoryBranchFilter] = useState("All Branches");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const printRef = useRef(null);
@@ -333,21 +288,34 @@ function AdminDashboard() {
         const token =
           localStorage.getItem("access_token") ??
           sessionStorage.getItem("access_token");
-        const res = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/dashboard/`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            credentials: "include",
-          },
-        );
-        if (!res.ok) throw new Error(`Server returned ${res.status}`);
-        const data = await res.json();
-        setStats(data.stats);
-        setTransactions(data.recent_transactions ?? []);
-        setChart(data.chart ?? null);
+        const baseUrl = import.meta.env.VITE_API_BASE_URL;
+        const headers = {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+
+        const [dashboardRes, customersRes, inventoryRes] = await Promise.all([
+          fetch(`${baseUrl}/dashboard/`, { headers, credentials: "include" }),
+          fetch(`${baseUrl}/customers/`, { headers, credentials: "include" }),
+          fetch(`${baseUrl}/inventory/`, { headers, credentials: "include" }),
+        ]);
+
+        if (!dashboardRes.ok) throw new Error(`Dashboard: ${dashboardRes.status}`);
+        if (!customersRes.ok) throw new Error(`Customers: ${customersRes.status}`);
+        if (!inventoryRes.ok) throw new Error(`Inventory: ${inventoryRes.status}`);
+
+        const [dashboardData, customersData, inventoryData] = await Promise.all([
+          dashboardRes.json(),
+          customersRes.json(),
+          inventoryRes.json(),
+        ]);
+
+        setStats(dashboardData.stats);
+        setTransactions(dashboardData.recent_transactions ?? []);
+        setChart(dashboardData.chart ?? null);
+        setAnalytics(dashboardData.analytics ?? null);
+        setCustomers(customersData ?? []);
+        setInventoryItems(inventoryData ?? []);
       } catch (err) {
         setError(err.message || "Failed to load dashboard data.");
       } finally {
@@ -529,24 +497,43 @@ function AdminDashboard() {
     },
   };
 
+  const serviceDistribution = analytics?.service_distribution ?? [];
+  const topServicesData = analytics?.top_services ?? [];
+  const revenueByBranch = analytics?.revenue_by_branch ?? [];
+  const topServiceCards = topServicesData;
+  const topCustomer =
+    customers.length > 0
+      ? [...customers].sort(
+          (a, b) => Number(b.total_spent ?? 0) - Number(a.total_spent ?? 0),
+        )[0]
+      : null;
+  const inventoryBranchOptions = [
+    "All Branches",
+    ...Array.from(
+      new Set(inventoryItems.map((i) => i.branch_name || "Central")),
+    ),
+  ];
+  const filteredInventoryItems = inventoryItems.filter((i) =>
+    inventoryBranchFilter === "All Branches"
+      ? true
+      : (i.branch_name || "Central") === inventoryBranchFilter,
+  );
+  const lowStockCount = filteredInventoryItems.filter(
+    (i) => normalizeInventoryStatus(i.status) === "low",
+  ).length;
+  const criticalStockCount = filteredInventoryItems.filter(
+    (i) => {
+      const status = normalizeInventoryStatus(i.status);
+      return status === "critical" || status === "out";
+    },
+  ).length;
+
   const doughnutChartData = {
-    labels: [
-      "Oil Change",
-      "Tire Service",
-      "Engine Repair",
-      "Body Work",
-      "Other",
-    ],
+    labels: serviceDistribution.map((item) => item.label),
     datasets: [
       {
-        data: [35, 25, 20, 12, 8],
-        backgroundColor: [
-          "#ef4444",
-          "#a855f7",
-          "#3b82f6",
-          "#10b981",
-          "#f59e0b",
-        ],
+        data: serviceDistribution.map((item) => item.count),
+        backgroundColor: SERVICE_COLORS.slice(0, serviceDistribution.length),
         borderWidth: 2,
         borderColor: "#111827",
         hoverBorderColor: "#1f2937",
@@ -559,34 +546,20 @@ function AdminDashboard() {
     cutout: "72%",
     plugins: { legend: { display: false }, tooltip: CHART_BASE.tooltip },
   };
-  const serviceBreakdown = [
-    { label: "Oil Change", color: "#ef4444", pct: "35%" },
-    { label: "Tire Service", color: "#a855f7", pct: "25%" },
-    { label: "Engine Repair", color: "#3b82f6", pct: "20%" },
-    { label: "Body Work", color: "#10b981", pct: "12%" },
-    { label: "Other", color: "#f59e0b", pct: "8%" },
-  ];
+  const serviceBreakdown = serviceDistribution.map((item, idx) => ({
+    label: item.label,
+    color: SERVICE_COLORS[idx % SERVICE_COLORS.length],
+    pct: `${Number(item.pct ?? 0).toFixed(1)}%`,
+  }));
 
   // Revenue view bar chart
   const revenueBarData = {
-    labels: MOCK_REVENUE_BREAKDOWN.map((r) => r.month),
+    labels: revenueByBranch.map((r) => r.branch),
     datasets: [
       {
         label: "Revenue",
-        data: MOCK_REVENUE_BREAKDOWN.map((r) => r.revenue),
+        data: revenueByBranch.map((r) => r.revenue),
         backgroundColor: "rgba(239,68,68,0.7)",
-        borderRadius: 6,
-      },
-      {
-        label: "Expenses",
-        data: MOCK_REVENUE_BREAKDOWN.map((r) => r.expenses),
-        backgroundColor: "rgba(107,114,128,0.5)",
-        borderRadius: 6,
-      },
-      {
-        label: "Profit",
-        data: MOCK_REVENUE_BREAKDOWN.map((r) => r.profit),
-        backgroundColor: "rgba(16,185,129,0.6)",
         borderRadius: 6,
       },
     ],
@@ -622,11 +595,11 @@ function AdminDashboard() {
 
   // Customer spend bar chart
   const customerBarData = {
-    labels: MOCK_CUSTOMERS.map((c) => c.name.split(" ")[0]),
+    labels: customers.map((c) => (c.first_name || "N/A").split(" ")[0]),
     datasets: [
       {
         label: "Total Spent (₱)",
-        data: MOCK_CUSTOMERS.map((c) => c.spent),
+        data: customers.map((c) => Number(c.total_spent ?? 0)),
         backgroundColor: [
           "#a855f7",
           "#7c3aed",
@@ -655,10 +628,21 @@ function AdminDashboard() {
       y: { grid: { display: false }, ticks: CHART_BASE.ticks },
     },
   };
+  const tierDistribution = customers.reduce((acc, c) => {
+    const segment = c.segment || "New";
+    acc[segment] = (acc[segment] ?? 0) + 1;
+    return acc;
+  }, {});
+  const tierRows = [
+    { tier: "High Value", color: "#06b6d4" },
+    { tier: "Regular", color: "#eab308" },
+    { tier: "At Risk", color: "#ea580c" },
+    { tier: "New", color: "#9ca3af" },
+  ].map((row) => ({ ...row, count: tierDistribution[row.tier] ?? 0 }));
 
   // ── Export handlers ──────────────────────────────────────────────────────
   const handleExportExcel = () => {
-    if (activeView === "overview" || activeView === "revenue") {
+    if (activeView === "overview") {
       exportToCSV(
         transactions.map((r) => [
           r.customer_name,
@@ -667,35 +651,42 @@ function AdminDashboard() {
           r.status,
         ]),
         ["Customer", "Service", "Amount", "Status"],
-        `transactions_${activeView}.csv`,
+        "transactions_overview.csv",
+      );
+    } else if (activeView === "revenue") {
+      exportToCSV(
+        revenueByBranch.map((r) => [r.branch, r.revenue]),
+        ["Branch", "Revenue"],
+        "revenue_by_branch.csv",
       );
     } else if (activeView === "customers") {
       exportToCSV(
-        MOCK_CUSTOMERS.map((c) => [
-          c.name,
-          c.visits,
-          c.spent,
-          c.last_visit,
-          c.tier,
+        customers.map((c) => [
+          `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim(),
+          c.visits ?? 0,
+          c.total_spent ?? 0,
+          c.avg_rating ?? "—",
+          c.segment ?? "—",
         ]),
-        ["Name", "Visits", "Total Spent", "Last Visit", "Tier"],
+        ["Name", "Visits", "Total Spent", "Avg Rating", "Segment"],
         "customers.csv",
       );
     } else if (activeView === "inventory") {
       exportToCSV(
-        MOCK_INVENTORY.map((i) => [
-          i.item,
-          i.stock,
+        filteredInventoryItems.map((i) => [
+          i.name,
+          i.branch_name ?? "Central",
+          i.quantity,
           i.unit,
           i.status,
-          i.reorder,
+          i.minimum_qty,
         ]),
-        ["Item", "Stock", "Unit", "Status", "Reorder At"],
+        ["Item", "Branch", "Stock", "Unit", "Status", "Reorder At"],
         "inventory.csv",
       );
     } else if (activeView === "services") {
       exportToCSV(
-        MOCK_SERVICES.map((s) => [s.service, s.count, s.revenue, s.avg_time]),
+        topServiceCards.map((s) => [s.service, s.count, s.revenue, s.avg_time ?? "—"]),
         ["Service", "Count", "Revenue", "Avg Time"],
         "services.csv",
       );
@@ -869,10 +860,16 @@ function AdminDashboard() {
                   </p>
                 </div>
                 <div className="h-44 flex items-center justify-center mb-6">
-                  <Doughnut
-                    data={doughnutChartData}
-                    options={doughnutChartOptions}
-                  />
+                  {!serviceDistribution.length ? (
+                    <div className="text-gray-600 text-sm text-center">
+                      No service distribution data this month.
+                    </div>
+                  ) : (
+                    <Doughnut
+                      data={doughnutChartData}
+                      options={doughnutChartOptions}
+                    />
+                  )}
                 </div>
                 <div className="space-y-3">
                   {serviceBreakdown.map((item) => (
@@ -1025,7 +1022,9 @@ function AdminDashboard() {
               {[
                 {
                   title: "Total Revenue (Q1)",
-                  value: "₱287,000",
+                  value: stats
+                    ? `₱${Number(stats.total_revenue ?? 0).toLocaleString()}`
+                    : "—",
                   accentBg: "bg-red-500/10",
                   accentText: "text-red-400",
                   border: "border-red-500/20",
@@ -1046,8 +1045,11 @@ function AdminDashboard() {
                   ),
                 },
                 {
-                  title: "Total Expenses (Q1)",
-                  value: "₱113,000",
+                  title: "Bookings Today",
+                  value:
+                    analytics?.bookings_today != null
+                      ? Number(analytics.bookings_today).toLocaleString()
+                      : "—",
                   accentBg: "bg-gray-500/10",
                   accentText: "text-gray-400",
                   border: "border-gray-500/20",
@@ -1068,12 +1070,18 @@ function AdminDashboard() {
                   ),
                 },
                 {
-                  title: "Net Profit (Q1)",
-                  value: "₱174,000",
+                  title: "Completion Rate",
+                  value:
+                    analytics?.completion_rate != null
+                      ? `${Number(analytics.completion_rate).toFixed(1)}%`
+                      : "—",
                   accentBg: "bg-emerald-500/10",
                   accentText: "text-emerald-400",
                   border: "border-emerald-500/20",
-                  sub: "+12.4% vs last quarter",
+                  sub:
+                    analytics?.payment_rate != null
+                      ? `Paid rate: ${Number(analytics.payment_rate).toFixed(1)}%`
+                      : undefined,
                   icon: (
                     <svg
                       className="w-6 h-6"
@@ -1097,10 +1105,10 @@ function AdminDashboard() {
 
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm mb-6">
               <h3 className="text-lg font-black text-white mb-1">
-                Monthly Revenue Breakdown
+                Revenue by Branch
               </h3>
               <p className="text-gray-500 text-sm mb-6">
-                Revenue, Expenses & Profit — Q1 {currentYear}
+                Live totals from all bookings
               </p>
               <div className="h-72">
                 <Bar data={revenueBarData} options={revenueBarOptions} />
@@ -1111,31 +1119,23 @@ function AdminDashboard() {
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
               <div className="px-6 py-4 border-b border-white/5">
                 <h3 className="text-lg font-black text-white">
-                  Monthly Detail
+                  Branch Revenue Detail
                 </h3>
               </div>
-              <div className="grid grid-cols-4 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
-                <div>Month</div>
+              <div className="grid grid-cols-2 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                <div>Branch</div>
                 <div>Revenue</div>
-                <div>Expenses</div>
-                <div>Profit</div>
               </div>
-              {MOCK_REVENUE_BREAKDOWN.map((r) => (
+              {revenueByBranch.map((row, idx) => (
                 <div
-                  key={r.month}
-                  className="grid grid-cols-4 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                  key={`${row.branch}-${idx}`}
+                  className="grid grid-cols-2 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
                 >
                   <div className="text-white font-semibold">
-                    {r.month} {currentYear}
+                    {row.branch}
                   </div>
                   <div className="text-red-400 font-bold">
-                    ₱{r.revenue.toLocaleString()}
-                  </div>
-                  <div className="text-gray-400">
-                    ₱{r.expenses.toLocaleString()}
-                  </div>
-                  <div className="text-emerald-400 font-bold">
-                    ₱{r.profit.toLocaleString()}
+                    ₱{Number(row.revenue ?? 0).toLocaleString()}
                   </div>
                 </div>
               ))}
@@ -1175,8 +1175,11 @@ function AdminDashboard() {
                   ),
                 },
                 {
-                  title: "Avg. Visits/Customer",
-                  value: "8.4",
+                  title: "New Customers (30d)",
+                  value:
+                    analytics?.new_customers_30d != null
+                      ? Number(analytics.new_customers_30d).toLocaleString()
+                      : "—",
                   accentBg: "bg-blue-500/10",
                   accentText: "text-blue-400",
                   border: "border-blue-500/20",
@@ -1198,8 +1201,12 @@ function AdminDashboard() {
                 },
                 {
                   title: "Top Spender",
-                  value: "Pedro Lim",
-                  sub: "₱52,000 total",
+                  value: topCustomer
+                    ? `${topCustomer.first_name} ${topCustomer.last_name}`.trim()
+                    : "—",
+                  sub: topCustomer
+                    ? `₱${Number(topCustomer.total_spent ?? 0).toLocaleString()} total`
+                    : undefined,
                   accentBg: "bg-yellow-500/10",
                   accentText: "text-yellow-400",
                   border: "border-yellow-500/20",
@@ -1247,12 +1254,7 @@ function AdminDashboard() {
                   Customer loyalty tiers
                 </p>
                 <div className="space-y-4 mt-4">
-                  {[
-                    { tier: "Platinum", count: 1, color: "#06b6d4" },
-                    { tier: "Gold", count: 1, color: "#eab308" },
-                    { tier: "Silver", count: 2, color: "#9ca3af" },
-                    { tier: "Bronze", count: 1, color: "#ea580c" },
-                  ].map((t) => (
+                  {tierRows.map((t) => (
                     <div key={t.tier} className="flex items-center gap-4">
                       <span className="text-sm text-gray-400 w-20">
                         {t.tier}
@@ -1261,7 +1263,7 @@ function AdminDashboard() {
                         <div
                           className="h-full rounded-full transition-all"
                           style={{
-                            width: `${(t.count / 5) * 100}%`,
+                            width: `${customers.length ? (t.count / customers.length) * 100 : 0}%`,
                             backgroundColor: t.color,
                           }}
                         />
@@ -1287,36 +1289,36 @@ function AdminDashboard() {
                 <div className="col-span-4">Name</div>
                 <div className="col-span-2">Visits</div>
                 <div className="col-span-3">Total Spent</div>
-                <div className="col-span-2">Last Visit</div>
-                <div className="col-span-1">Tier</div>
+                <div className="col-span-2">Avg Rating</div>
+                <div className="col-span-1">Segment</div>
               </div>
-              {MOCK_CUSTOMERS.map((c, i) => (
+              {customers.map((c, i) => (
                 <div
                   key={i}
                   className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
                 >
                   <div className="col-span-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-sm font-bold shrink-0">
-                      {getInitial(c.name)}
+                      {getInitial(c.first_name)}
                     </div>
                     <span className="text-white font-semibold text-sm">
-                      {c.name}
+                      {`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim()}
                     </span>
                   </div>
                   <div className="col-span-2 text-gray-400 text-sm font-semibold">
-                    {c.visits}x
+                    {Number(c.visits ?? 0)}x
                   </div>
                   <div className="col-span-3 text-white font-bold text-sm">
-                    ₱{c.spent.toLocaleString()}
+                    ₱{Number(c.total_spent ?? 0).toLocaleString()}
                   </div>
                   <div className="col-span-2 text-gray-500 text-xs">
-                    {c.last_visit}
+                    {c.avg_rating != null ? `${Number(c.avg_rating).toFixed(1)} / 5` : "—"}
                   </div>
                   <div className="col-span-1">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-semibold border ${TIER_STYLE[c.tier] ?? ""}`}
+                      className={`px-2 py-1 rounded-full text-xs font-semibold border ${SEGMENT_STYLE[c.segment] ?? SEGMENT_STYLE.New}`}
                     >
-                      {c.tier}
+                      {c.segment ?? "New"}
                     </span>
                   </div>
                 </div>
@@ -1334,7 +1336,7 @@ function AdminDashboard() {
               {[
                 {
                   title: "Total SKUs",
-                  value: String(MOCK_INVENTORY.length),
+                  value: String(inventoryItems.length),
                   accentBg: "bg-blue-500/10",
                   accentText: "text-blue-400",
                   border: "border-blue-500/20",
@@ -1355,10 +1357,8 @@ function AdminDashboard() {
                   ),
                 },
                 {
-                  title: "Low Stock Items",
-                  value: String(
-                    MOCK_INVENTORY.filter((i) => i.status === "low").length,
-                  ),
+                  title: "Below Reorder Level",
+                  value: String(lowStockCount),
                   accentBg: "bg-amber-500/10",
                   accentText: "text-amber-400",
                   border: "border-amber-500/20",
@@ -1379,11 +1379,8 @@ function AdminDashboard() {
                   ),
                 },
                 {
-                  title: "Critical Items",
-                  value: String(
-                    MOCK_INVENTORY.filter((i) => i.status === "critical")
-                      .length,
-                  ),
+                  title: "Urgent Replenishment",
+                  value: String(criticalStockCount),
                   sub: "Needs immediate reorder",
                   accentBg: "bg-red-500/10",
                   accentText: "text-red-400",
@@ -1411,68 +1408,68 @@ function AdminDashboard() {
 
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
               <div className="px-6 py-4 border-b border-white/5">
-                <h3 className="text-lg font-black text-white">
-                  Parts & Supplies Inventory
-                </h3>
-                <p className="text-gray-500 text-sm mt-0.5">
-                  Current stock levels
-                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-white">
+                      Parts & Supplies Inventory
+                    </h3>
+                    <p className="text-gray-500 text-sm mt-0.5">
+                      Current stock levels
+                    </p>
+                  </div>
+                  <select
+                    value={inventoryBranchFilter}
+                    onChange={(e) => setInventoryBranchFilter(e.target.value)}
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[180px]"
+                  >
+                    {inventoryBranchOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
-                <div className="col-span-5">Item</div>
+                <div className="col-span-4">Item</div>
+                <div className="col-span-2">Branch</div>
                 <div className="col-span-2">Stock</div>
                 <div className="col-span-2">Reorder At</div>
-                <div className="col-span-2">Level</div>
-                <div className="col-span-1">Status</div>
+                <div className="col-span-2">Status</div>
               </div>
-              {MOCK_INVENTORY.map((item, i) => {
-                const pct = Math.min(
-                  100,
-                  Math.round((item.stock / (item.reorder * 3)) * 100),
-                );
-                const barColor =
-                  item.status === "ok"
-                    ? "#10b981"
-                    : item.status === "low"
-                      ? "#f59e0b"
-                      : "#ef4444";
+              {filteredInventoryItems.map((item, i) => {
+                const invStatus = normalizeInventoryStatus(item.status);
                 return (
                   <div
                     key={i}
                     className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
                   >
-                    <div className="col-span-5 text-white font-semibold text-sm">
-                      {item.item}
+                    <div className="col-span-4 text-white font-semibold text-sm">
+                      {item.name}
+                    </div>
+                    <div className="col-span-2 text-gray-400 text-sm">
+                      {item.branch_name ?? "Central"}
                     </div>
                     <div className="col-span-2 text-gray-300 text-sm font-bold">
-                      {item.stock}{" "}
+                      {Number(item.quantity ?? 0)}{" "}
                       <span className="text-gray-600 font-normal">
                         {item.unit}
                       </span>
                     </div>
                     <div className="col-span-2 text-gray-500 text-sm">
-                      {item.reorder} {item.unit}
+                      {Number(item.minimum_qty ?? 0)} {item.unit}
                     </div>
                     <div className="col-span-2">
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor: barColor,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="col-span-1">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-semibold border ${INV_STYLE[item.status]}`}
+                        className={`px-2 py-1 rounded-full text-xs font-semibold border ${INV_STYLE[invStatus]}`}
                       >
-                        {item.status === "ok"
-                          ? "OK"
-                          : item.status === "low"
-                            ? "Low"
-                            : "Critical"}
+                        {invStatus === "ok"
+                          ? "Available 🟢"
+                          : invStatus === "low"
+                            ? "Running Low 🟡"
+                            : invStatus === "critical"
+                              ? "Reorder Now 🔴"
+                              : "Out of Stock ⚫"}
                       </span>
                     </div>
                   </div>
@@ -1491,7 +1488,7 @@ function AdminDashboard() {
               {[
                 {
                   title: "Total Services",
-                  value: String(MOCK_SERVICES.reduce((a, s) => a + s.count, 0)),
+                  value: String(topServiceCards.reduce((a, s) => a + Number(s.count ?? 0), 0)),
                   accentBg: "bg-blue-500/10",
                   accentText: "text-blue-400",
                   border: "border-blue-500/20",
@@ -1519,7 +1516,7 @@ function AdminDashboard() {
                 },
                 {
                   title: "Top Service",
-                  value: "Engine Repair",
+                  value: topServiceCards.length ? topServiceCards[0].service : "—",
                   sub: "Highest revenue generator",
                   accentBg: "bg-red-500/10",
                   accentText: "text-red-400",
@@ -1542,7 +1539,9 @@ function AdminDashboard() {
                 },
                 {
                   title: "Total Service Revenue",
-                  value: `₱${MOCK_SERVICES.reduce((a, s) => a + s.revenue, 0).toLocaleString()}`,
+                  value: `₱${topServiceCards
+                    .reduce((a, s) => a + Number(s.revenue ?? 0), 0)
+                    .toLocaleString()}`,
                   accentBg: "bg-emerald-500/10",
                   accentText: "text-emerald-400",
                   border: "border-emerald-500/20",
@@ -1583,56 +1582,54 @@ function AdminDashboard() {
                 <div className="col-span-2">Avg Time</div>
                 <div className="col-span-1">Share</div>
               </div>
-              {[...MOCK_SERVICES]
-                .sort((a, b) => b.revenue - a.revenue)
-                .map((s, i) => {
-                  const totalRev = MOCK_SERVICES.reduce(
-                    (a, x) => a + x.revenue,
-                    0,
-                  );
-                  const pct = ((s.revenue / totalRev) * 100).toFixed(1);
-                  const colors = [
-                    "#ef4444",
-                    "#a855f7",
-                    "#3b82f6",
-                    "#10b981",
-                    "#f59e0b",
-                    "#06b6d4",
-                  ];
-                  return (
-                    <div
-                      key={i}
-                      className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
-                    >
-                      <div className="col-span-4 flex items-center gap-3">
-                        <div
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: colors[i] }}
-                        />
-                        <span className="text-white font-semibold text-sm">
-                          {s.service}
-                        </span>
+              {topServiceCards.length === 0 ? (
+                <div className="px-6 py-12 text-center text-gray-500 text-sm">
+                  No service performance data available.
+                </div>
+              ) : (
+                [...topServiceCards]
+                  .sort((a, b) => b.revenue - a.revenue)
+                  .map((s, i) => {
+                    const totalRev = topServiceCards.reduce(
+                      (a, x) => a + Number(x.revenue ?? 0),
+                      0,
+                    );
+                    const pct = totalRev ? ((Number(s.revenue ?? 0) / totalRev) * 100).toFixed(1) : "0.0";
+                    return (
+                      <div
+                        key={i}
+                        className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                      >
+                        <div className="col-span-4 flex items-center gap-3">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
+                          />
+                          <span className="text-white font-semibold text-sm">
+                            {s.service}
+                          </span>
+                        </div>
+                        <div className="col-span-2 text-gray-400 text-sm">
+                          {s.count}
+                        </div>
+                        <div className="col-span-3 text-white font-bold text-sm">
+                          ₱{Number(s.revenue ?? 0).toLocaleString()}
+                        </div>
+                        <div className="col-span-2 text-gray-500 text-xs">
+                          {s.avg_time ?? "—"}
+                        </div>
+                        <div className="col-span-1">
+                          <span
+                            className="text-xs font-bold"
+                            style={{ color: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
+                          >
+                            {pct}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="col-span-2 text-gray-400 text-sm">
-                        {s.count}
-                      </div>
-                      <div className="col-span-3 text-white font-bold text-sm">
-                        ₱{s.revenue.toLocaleString()}
-                      </div>
-                      <div className="col-span-2 text-gray-500 text-xs">
-                        {s.avg_time}
-                      </div>
-                      <div className="col-span-1">
-                        <span
-                          className="text-xs font-bold"
-                          style={{ color: colors[i] }}
-                        >
-                          {pct}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+              )}
             </div>
           </>
         )}

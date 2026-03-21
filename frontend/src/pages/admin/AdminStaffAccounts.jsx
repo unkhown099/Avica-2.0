@@ -7,7 +7,9 @@ function AdminStaffAccounts() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editStaff, setEditStaff] = useState(null);
   const [staffAccounts, setStaffAccounts] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const roles = [
@@ -36,13 +38,16 @@ function AdminStaffAccounts() {
       }
 
       try {
-        const res = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL}/staff/`,
-          {
+        const [staffRes, branchRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/staff/`, {
             headers: { Authorization: `Bearer ${accessToken}` },
-          },
-        );
-        setStaffAccounts(res.data);
+          }),
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/branches/`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }),
+        ]);
+        setStaffAccounts(staffRes.data);
+        setBranches(branchRes.data);
       } catch (err) {
         console.error("Failed to load staff:", err);
         if (err.response?.status === 401) {
@@ -71,7 +76,7 @@ function AdminStaffAccounts() {
     };
     return (
       <span
-        className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[role] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+        className={`inline-flex items-center whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold border ${styles[role] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
       >
         {role}
       </span>
@@ -114,6 +119,81 @@ function AdminStaffAccounts() {
     return acc;
   }, {});
 
+  const verifyAccessPassword = async () => {
+    const accessToken =
+      localStorage.getItem("access_token") ||
+      sessionStorage.getItem("access_token");
+
+    if (!accessToken) {
+      await Swal.fire({
+        icon: "error",
+        title: "Unauthorized",
+        text: "Please login first",
+      });
+      return false;
+    }
+
+    const { value: password } = await Swal.fire({
+      title: "Verify Password",
+      input: "password",
+      inputLabel: "Enter your password to continue",
+      inputPlaceholder: "Current password",
+      inputAttributes: {
+        autocapitalize: "off",
+        autocorrect: "off",
+      },
+      showCancelButton: true,
+      confirmButtonText: "Verify",
+      confirmButtonColor: "#dc2626",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+
+    if (!password) return false;
+
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/staff/verify-password/`,
+        { password },
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      return true;
+    } catch {
+      await Swal.fire({
+        icon: "error",
+        title: "Verification failed",
+        text: "Invalid password.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+      return false;
+    }
+  };
+
+  const openCreateModal = async () => {
+    const verified = await verifyAccessPassword();
+    if (!verified) return;
+    setEditStaff(null);
+    setShowCreateModal(true);
+  };
+
+  const openEditModal = async (staff) => {
+    if (staff.role === "Admin") {
+      await Swal.fire({
+        icon: "info",
+        title: "Not editable",
+        text: "Admin account cannot be edited here.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+      return;
+    }
+    const verified = await verifyAccessPassword();
+    if (!verified) return;
+    setEditStaff(staff);
+    setShowCreateModal(true);
+  };
+
   if (loading) {
     return (
       <AdminLayout title="" subtitle="">
@@ -141,7 +221,7 @@ function AdminStaffAccounts() {
             </p>
           </div>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={openCreateModal}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto"
           >
             <svg
@@ -227,10 +307,10 @@ function AdminStaffAccounts() {
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
           {/* Table Header */}
           <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            <div className="col-span-1">#</div>
-            <div className="col-span-3">Name</div>
-            <div className="col-span-3">Email</div>
-            <div className="col-span-1">Phone</div>
+            <div className="col-span-2">Name</div>
+            <div className="col-span-2">Email</div>
+            <div className="col-span-2">Phone</div>
+            <div className="col-span-2">Branch</div>
             <div className="col-span-2">Role</div>
             <div className="col-span-1">Status</div>
             <div className="col-span-1 text-right">Actions</div>
@@ -261,12 +341,10 @@ function AdminStaffAccounts() {
             filteredStaff.map((staff, index) => (
               <div
                 key={staff.id}
-                className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/3 transition-colors items-center group"
+                className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/3 transition-colors items-center"
               >
-                <div className="col-span-1 text-gray-500 text-sm font-mono">
-                  {staff.id}
-                </div>
-                <div className="col-span-3">
+              
+                <div className="col-span-2">
                   <div className="flex items-center gap-3">
                     <div
                       className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
@@ -281,37 +359,30 @@ function AdminStaffAccounts() {
                       <div className="text-white font-semibold text-sm">
                         {staff.name}
                       </div>
-                      <div className="text-gray-500 text-xs">
-                        {staff.branch}
-                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="col-span-3 text-gray-400 text-sm truncate">
-                  {staff.email}
-                </div>
-                <div className="col-span-1 text-gray-400 text-sm">
-                  {staff.phone}
-                </div>
-                <div className="col-span-2">{getRoleBadge(staff.role)}</div>
-                <div className="col-span-1">{getStatusBadge(staff.status)}</div>
-                <div className="col-span-1 flex justify-end">
-                  <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                 <div className="col-span-2 text-gray-400 text-sm truncate">
+                   {staff.email}
+                 </div>
+                  <div className="col-span-2 text-gray-400 text-sm">
+                    {staff.phone}
+                  </div>
+                  <div className="col-span-2 text-gray-400 text-sm truncate">
+                    {staff.branch || "—"}
+                  </div>
+                  <div className="col-span-2">{getRoleBadge(staff.role)}</div>
+                  <div className="col-span-1">{getStatusBadge(staff.status)}</div>
+                  <div className="col-span-1 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(staff)}
+                      disabled={staff.role === "Admin"}
+                      className="px-3 py-1.5 text-xs font-semibold text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                      />
-                    </svg>
-                  </button>
-                </div>
+                      Edit
+                    </button>
+                 </div>
               </div>
             ))
           )}
@@ -337,10 +408,22 @@ function AdminStaffAccounts() {
 
       {showCreateModal && (
         <CreateStaffModal
-          roles={roles}
-          onClose={() => setShowCreateModal(false)}
+          mode={editStaff ? "edit" : "create"}
+          initialStaff={editStaff}
+          roles={roles.filter((role) => role !== "Admin")}
+          branches={branches}
+          staffAccounts={staffAccounts}
+          onClose={() => {
+            setShowCreateModal(false);
+            setEditStaff(null);
+          }}
           onCreated={(newStaff) =>
             setStaffAccounts((prev) => [...prev, newStaff])
+          }
+          onUpdated={(updatedStaff) =>
+            setStaffAccounts((prev) =>
+              prev.map((staff) => (staff.id === updatedStaff.id ? updatedStaff : staff)),
+            )
           }
         />
       )}
@@ -348,25 +431,71 @@ function AdminStaffAccounts() {
   );
 }
 
-function CreateStaffModal({ onClose, roles, onCreated }) {
+function CreateStaffModal({
+  mode,
+  initialStaff,
+  onClose,
+  roles,
+  branches,
+  staffAccounts,
+  onCreated,
+  onUpdated,
+}) {
+  const isEdit = mode === "edit";
+  const [initialName] = useState((initialStaff?.name || "").trim());
+  const parsedFirstName =
+    initialStaff?.first_name || initialName.split(" ").slice(0, -1).join(" ") || initialName;
+  const parsedLastName =
+    initialStaff?.last_name || initialName.split(" ").slice(-1).join(" ") || "";
   const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
+    firstName: parsedFirstName || "",
+    lastName: parsedLastName || "",
+    email: initialStaff?.email || "",
+    phone: initialStaff?.phone || "",
     role: roles[0],
     branch: "",
+    status: initialStaff?.status || "Active",
     password: "",
     confirmPassword: "",
   });
 
+  useEffect(() => {
+    if (!isEdit || !initialStaff) return;
+    const branchMatch = branches.find(
+      (branch) =>
+        String(branch.id) === String(initialStaff.branch_id) ||
+        branch.name === initialStaff.branch,
+    );
+    setForm((prev) => ({
+      ...prev,
+      role: initialStaff.role || prev.role,
+      branch: branchMatch ? String(branchMatch.id) : "",
+    }));
+  }, [isEdit, initialStaff, branches]);
+
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
+
+  const managerBranchNames = new Set(
+    staffAccounts
+      .filter(
+        (staff) =>
+          staff.role === "Branch Manager" &&
+          (!isEdit || staff.id !== initialStaff?.id),
+      )
+      .map((staff) => staff.branch?.trim())
+      .filter(Boolean),
+  );
+
+  const availableBranches =
+    form.role === "Branch Manager"
+      ? branches.filter((branch) => !managerBranchNames.has(branch.name))
+      : branches;
 
   const submit = async (e) => {
     e.preventDefault();
 
-    if (form.password !== form.confirmPassword) {
+    if (!isEdit && form.password !== form.confirmPassword) {
       await Swal.fire({
         icon: "error",
         title: "Password mismatch",
@@ -375,34 +504,72 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
       return;
     }
 
+    if (form.role === "Branch Manager") {
+      const selectedBranch = branches.find(
+        (branch) => String(branch.id) === String(form.branch),
+      );
+      if (!selectedBranch) {
+        await Swal.fire({
+          icon: "error",
+          title: "Branch required",
+          text: "Please select a valid branch for Branch Manager role.",
+        });
+        return;
+      }
+      if (managerBranchNames.has(selectedBranch.name)) {
+        await Swal.fire({
+          icon: "error",
+          title: "Branch unavailable",
+          text: "This branch already has a Branch Manager.",
+        });
+        return;
+      }
+    }
+
     try {
       const accessToken =
         localStorage.getItem("access_token") ||
         sessionStorage.getItem("access_token");
 
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/staff/`,
-        {
-          email: form.email,
-          password: form.password,
-          first_name: form.firstName,
-          last_name: form.lastName,
-          phone: form.phone,
-          role: form.role,
-          branch: form.branch,
-        },
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      );
+      const payload = {
+        email: form.email,
+        first_name: form.firstName,
+        last_name: form.lastName,
+        phone: form.phone,
+        role: form.role,
+        branch: form.branch,
+      };
+      if (isEdit) {
+        payload.status = form.status;
+      } else {
+        payload.password = form.password;
+      }
 
-      onCreated(res.data);
+      const res = isEdit
+        ? await axios.patch(
+            `${import.meta.env.VITE_API_BASE_URL}/staff/${initialStaff.id}/`,
+            payload,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            },
+          )
+        : await axios.post(`${import.meta.env.VITE_API_BASE_URL}/staff/`, payload, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+
+      if (isEdit) {
+        onUpdated(res.data);
+      } else {
+        onCreated(res.data);
+      }
       onClose();
 
       await Swal.fire({
         icon: "success",
-        title: "Staff created",
-        text: "The staff account was created successfully",
+        title: isEdit ? "Staff updated" : "Staff created",
+        text: isEdit
+          ? "The staff account was updated successfully"
+          : "The staff account was created successfully",
         timer: 1800,
         showConfirmButton: false,
         timerProgressBar: true,
@@ -410,9 +577,15 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
     } catch (err) {
       const msg =
         err.response?.data?.email?.[0] ||
+        err.response?.data?.role?.[0] ||
+        err.response?.data?.branch?.[0] ||
         err.response?.data?.detail ||
-        "Failed to create staff";
-      await Swal.fire({ icon: "error", title: "Creation failed", text: msg });
+        (isEdit ? "Failed to update staff" : "Failed to create staff");
+      await Swal.fire({
+        icon: "error",
+        title: isEdit ? "Update failed" : "Creation failed",
+        text: msg,
+      });
     }
   };
 
@@ -422,10 +595,12 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
         <div className="flex items-center justify-between p-6 border-b border-white/10">
           <div>
             <h2 className="text-xl font-black text-white">
-              Create Staff Account
+              {isEdit ? "Edit Staff Account" : "Create Staff Account"}
             </h2>
             <p className="text-gray-500 text-sm mt-0.5">
-              Fill in the details to add a new team member
+              {isEdit
+                ? "Update team member information"
+                : "Fill in the details to add a new team member"}
             </p>
           </div>
           <button
@@ -470,6 +645,7 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
                 <input
                   name={name}
                   placeholder={placeholder}
+                  value={form[name]}
                   onChange={handleChange}
                   required
                   className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
@@ -486,6 +662,7 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
               name="email"
               type="email"
               placeholder="Enter email address"
+              value={form.email}
               onChange={handleChange}
               required
               className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
@@ -499,6 +676,7 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
             <input
               name="phone"
               placeholder="Enter phone number"
+              value={form.phone}
               onChange={handleChange}
               required
               className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
@@ -512,7 +690,23 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
               </label>
               <select
                 name="role"
-                onChange={handleChange}
+                value={form.role}
+                onChange={(e) => {
+                  const nextRole = e.target.value;
+                  if (nextRole === "Branch Manager") {
+                    const selectedBranch = branches.find(
+                      (branch) => String(branch.id) === String(form.branch),
+                    );
+                    if (
+                      selectedBranch &&
+                      managerBranchNames.has(selectedBranch.name)
+                    ) {
+                      setForm((prev) => ({ ...prev, role: nextRole, branch: "" }));
+                      return;
+                    }
+                  }
+                  setForm((prev) => ({ ...prev, role: nextRole }));
+                }}
                 className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer"
               >
                 {roles.map((r) => (
@@ -524,17 +718,43 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
               <label className="block text-sm font-semibold text-gray-400 mb-2">
                 Branch
               </label>
-              <input
+              <select
                 name="branch"
-                placeholder="Enter branch name"
+                value={form.branch}
                 onChange={handleChange}
                 required
-                className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
-              />
+                className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer"
+              >
+                <option value="" disabled>
+                  Select branch
+                </option>
+                {availableBranches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {isEdit && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">
+                Status
+              </label>
+              <select
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          )}
+
+          {!isEdit && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
               {
                 label: "Password",
@@ -555,13 +775,14 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
                   type="password"
                   name={name}
                   placeholder={placeholder}
+                  value={form[name]}
                   onChange={handleChange}
                   required
                   className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
                 />
               </div>
             ))}
-          </div>
+          </div>}
 
           <div className="flex gap-3 pt-2">
             <button
@@ -575,7 +796,7 @@ function CreateStaffModal({ onClose, roles, onCreated }) {
               type="submit"
               className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl transition-all font-semibold shadow-lg shadow-red-600/30"
             >
-              Create Staff Account
+              {isEdit ? "Save Changes" : "Create Staff Account"}
             </button>
           </div>
         </form>

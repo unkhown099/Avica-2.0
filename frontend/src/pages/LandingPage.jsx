@@ -222,7 +222,7 @@ function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 reveal">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter">
-              VISIT OUR SHOP AT <span className="text-red-600">SARANAY</span>
+              VISIT OUR SHOP AT <span className="text-red-600">ANY BRANCHES</span>
             </h2>
             <p className="text-gray-400 text-lg max-w-xl mx-auto font-medium">
               Experience the pinnacle of automotive care at our flagship North Caloocan location.

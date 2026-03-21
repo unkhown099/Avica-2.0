@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import BranchOwnerLayout from "./BranchOwnerLayout";
 
 function BranchOwnerAccountManagement() {
@@ -6,144 +7,8 @@ function BranchOwnerAccountManagement() {
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [branchFilter, setBranchFilter] = useState("All Branches");
   const [statusFilter, setStatusFilter] = useState("All Status");
-
-  const staffAccounts = [
-    {
-      id: 1,
-      name: "Carl Roy Gamilla",
-      email: "carl@otokwikk.com",
-      phone: "0917-123-4567",
-      role: "Branch Manager",
-      branch: "San Mateo Rizal",
-      status: "Active",
-    },
-    {
-      id: 2,
-      name: "Shawn Cabutin",
-      email: "shawn@otokwikk.com",
-      phone: "0918-234-5678",
-      role: "Branch Manager",
-      branch: "South Caloocan",
-      status: "Active",
-    },
-    {
-      id: 3,
-      name: "John Charles Aguilar",
-      email: "john@otokwikk.com",
-      phone: "0919-345-6789",
-      role: "Branch Manager",
-      branch: "Quezon City",
-      status: "Active",
-    },
-    {
-      id: 4,
-      name: "Jerald Galdiano",
-      email: "jerald@otokwikk.com",
-      phone: "0920-456-7890",
-      role: "Branch Manager",
-      branch: "North Caloocan",
-      status: "Active",
-    },
-    {
-      id: 5,
-      name: "Maria Santos",
-      email: "maria@otokwikk.com",
-      phone: "0921-567-8901",
-      role: "Branch Manager",
-      branch: "Camarin",
-      status: "Active",
-    },
-    {
-      id: 6,
-      name: "Mike Johnson",
-      email: "mike.j@otokwikk.com",
-      phone: "0922-678-9012",
-      role: "Mechanic",
-      branch: "San Mateo Rizal",
-      status: "Active",
-    },
-    {
-      id: 7,
-      name: "Sarah Connor",
-      email: "sarah.c@otokwikk.com",
-      phone: "0923-789-0123",
-      role: "Mechanic",
-      branch: "North Caloocan",
-      status: "Active",
-    },
-    {
-      id: 8,
-      name: "Tom Hardy",
-      email: "tom.h@otokwikk.com",
-      phone: "0924-890-1234",
-      role: "Mechanic",
-      branch: "Quezon City",
-      status: "Active",
-    },
-    {
-      id: 9,
-      name: "Lisa Davis",
-      email: "lisa.d@otokwikk.com",
-      phone: "0925-901-2345",
-      role: "Mechanic",
-      branch: "South Caloocan",
-      status: "Active",
-    },
-    {
-      id: 10,
-      name: "Robert Lee",
-      email: "robert.l@otokwikk.com",
-      phone: "0926-012-3456",
-      role: "Service Advisor",
-      branch: "San Mateo Rizal",
-      status: "Active",
-    },
-    {
-      id: 11,
-      name: "Jennifer White",
-      email: "jen.w@otokwikk.com",
-      phone: "0927-123-4567",
-      role: "Service Advisor",
-      branch: "South Caloocan",
-      status: "Active",
-    },
-    {
-      id: 12,
-      name: "David Brown",
-      email: "david.b@otokwikk.com",
-      phone: "0928-234-5678",
-      role: "Receptionist",
-      branch: "Quezon City",
-      status: "Active",
-    },
-    {
-      id: 13,
-      name: "Emily Garcia",
-      email: "emily.g@otokwikk.com",
-      phone: "0929-345-6789",
-      role: "Receptionist",
-      branch: "North Caloocan",
-      status: "Active",
-    },
-    {
-      id: 14,
-      name: "James Wilson",
-      email: "james.w@otokwikk.com",
-      phone: "0930-456-7890",
-      role: "Parts Manager",
-      branch: "San Mateo Rizal",
-      status: "Active",
-    },
-    {
-      id: 15,
-      name: "Patricia Martinez",
-      email: "patricia.m@otokwikk.com",
-      phone: "0931-567-8901",
-      role: "Parts Manager",
-      branch: "South Caloocan",
-      status: "Active",
-    },
-  ];
+  const [staffAccounts, setStaffAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const roleBadge = {
     "Branch Manager": "bg-purple-500/20 text-purple-400 border-purple-500/30",
@@ -169,6 +34,30 @@ function BranchOwnerAccountManagement() {
     "Receptionist",
     "Parts Manager",
   ];
+  const branches = Array.from(
+    new Set(staffAccounts.map((s) => s.branch).filter(Boolean)),
+  ).sort();
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const accessToken =
+          localStorage.getItem("access_token") ||
+          sessionStorage.getItem("access_token");
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/staff/`, {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        });
+        setStaffAccounts(Array.isArray(res.data) ? res.data : []);
+      } catch (error) {
+        console.error("Failed to load staff accounts:", error);
+        setStaffAccounts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStaff();
+  }, []);
+
   const roleCounts = roles.reduce((acc, r) => {
     acc[r] = staffAccounts.filter((s) => s.role === r).length;
     return acc;
@@ -182,6 +71,16 @@ function BranchOwnerAccountManagement() {
       (branchFilter === "All Branches" || s.branch === branchFilter) &&
       (statusFilter === "All Status" || s.status === statusFilter),
   );
+
+  if (loading) {
+    return (
+      <BranchOwnerLayout title="" subtitle="">
+        <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </BranchOwnerLayout>
+    );
+  }
 
   return (
     <BranchOwnerLayout title="" subtitle="">
@@ -210,7 +109,9 @@ function BranchOwnerAccountManagement() {
                 <div
                   className="h-1 rounded-full"
                   style={{
-                    width: `${((roleCounts[role] || 0) / staffAccounts.length) * 100}%`,
+                    width: staffAccounts.length
+                      ? `${((roleCounts[role] || 0) / staffAccounts.length) * 100}%`
+                      : "0%",
                     backgroundColor: roleColors[role],
                   }}
                 />
@@ -252,14 +153,7 @@ function BranchOwnerAccountManagement() {
             {
               value: branchFilter,
               onChange: setBranchFilter,
-              options: [
-                "All Branches",
-                "San Mateo Rizal",
-                "South Caloocan",
-                "North Caloocan",
-                "Quezon City",
-                "Camarin",
-              ],
+              options: ["All Branches", ...branches],
             },
             {
               value: statusFilter,
@@ -327,7 +221,7 @@ function BranchOwnerAccountManagement() {
                         color: roleColors[staff.role] || "#6b7280",
                       }}
                     >
-                      {staff.name.charAt(0)}
+                      {(staff.name || "?").charAt(0)}
                     </div>
                     <div>
                       <div className="text-white font-semibold text-sm">

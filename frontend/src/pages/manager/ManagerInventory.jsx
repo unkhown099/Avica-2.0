@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import ManagerLayout from "./ManagerLayout";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 function ManagerInventory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("inventory");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -15,6 +16,7 @@ function ManagerInventory() {
   const [services, setServices] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [updatingServiceId, setUpdatingServiceId] = useState(null);
+  const [requestingRestockId, setRequestingRestockId] = useState(null);
 
   // Categories for services
   const serviceCategories = [
@@ -127,6 +129,29 @@ function ManagerInventory() {
     }
 
     return null;
+  };
+
+  const getInventoryStatusKey = (item) => {
+    const quantity = Number(item?.quantity ?? item?.current ?? 0);
+    const minimum = Number(item?.minimum ?? item?.minimum_qty ?? 0);
+    const raw = String(item?.status ?? "")
+      .trim()
+      .toLowerCase();
+
+    if (quantity <= 0 || raw.includes("out of stock")) return "out_of_stock";
+    if (minimum > 0 && quantity <= minimum) return "reorder_now";
+    if (minimum > 0 && quantity <= Math.ceil(minimum * 1.5)) return "running_low";
+    if (raw.includes("critical") || raw.includes("reorder")) return "reorder_now";
+    if (raw.includes("low")) return "running_low";
+    return "available";
+  };
+
+  const getInventoryStatusLabel = (item) => {
+    const key = getInventoryStatusKey(item);
+    if (key === "available") return "Available 🟢";
+    if (key === "running_low") return "Running Low 🟡";
+    if (key === "reorder_now") return "Reorder Now 🔴";
+    return "Out of Stock ⚫";
   };
 
   // Helper function to handle API errors
@@ -301,10 +326,6 @@ function ManagerInventory() {
       if (categoryFilter !== "All Categories") {
         params.append("category", categoryFilter);
       }
-      if (statusFilter !== "All Status") {
-        params.append("status", statusFilter);
-      }
-
       const url = `inventory/${params.toString() ? `?${params.toString()}` : ""}`;
 
       const response = await apiClient.get(url);
@@ -315,6 +336,7 @@ function ManagerInventory() {
       // If the API returns data in a different format, transform it
       const transformedInventory = inventoryData.map((item) => ({
         id: item.id || `INV-${Math.random().toString(36).substr(2, 9)}`,
+        originalId: item.id,
         name: item.name || "",
         category: item.category || "",
         sku: item.sku || "",
@@ -322,9 +344,7 @@ function ManagerInventory() {
         unit: item.unit || "Pieces",
         price: item.price ? `₱${Number(item.price).toLocaleString()}` : "₱0",
         supplier: item.supplier || "",
-        status:
-          item.status ||
-          (item.quantity && item.quantity < 10 ? "Low Stock" : "In Stock"),
+        status: item.status || (item.quantity && item.quantity < 10 ? "Low Stock" : "In Stock"),
         minimum: item.minimum_stock || 10,
       }));
 
@@ -338,6 +358,68 @@ function ManagerInventory() {
       setInventoryItems([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const requestRestock = async (item) => {
+    if (!item?.originalId) {
+      setError("Unable to request restock for this item.");
+      return;
+    }
+
+    const defaultQty = Math.max((item.minimum || 10) - (item.current || 0), 1);
+    const qtyPrompt = await Swal.fire({
+      title: "Request Restock",
+      text: `${item.name} (${item.sku})`,
+      input: "number",
+      inputValue: defaultQty,
+      inputLabel: "Quantity to request",
+      inputAttributes: { min: 1, step: 1 },
+      showCancelButton: true,
+      confirmButtonText: "Next",
+      confirmButtonColor: "#dc2626",
+      background: "#111827",
+      color: "#f9fafb",
+      inputValidator: (value) => {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) return "Enter a valid quantity.";
+        return undefined;
+      },
+    });
+
+    if (!qtyPrompt.isConfirmed) return;
+
+    const notePrompt = await Swal.fire({
+      title: "Add Note (Optional)",
+      input: "text",
+      inputPlaceholder: "e.g. urgent demand this week",
+      showCancelButton: true,
+      confirmButtonText: "Submit Request",
+      confirmButtonColor: "#dc2626",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+
+    if (!notePrompt.isConfirmed) return;
+
+    try {
+      setRequestingRestockId(item.originalId);
+      const apiClient = createApiClient();
+      await apiClient.post("inventory/restock-requests/", {
+        inventory_item: item.originalId,
+        quantity_requested: Number(qtyPrompt.value),
+        notes: notePrompt.value || "",
+      });
+      setSuccessMessage(`Restock request submitted for "${item.name}".`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      const errorMessage = handleApiError(
+        err,
+        "Failed to submit restock request. Please try again.",
+      );
+      setError(errorMessage);
+    } finally {
+      setRequestingRestockId(null);
     }
   };
 
@@ -391,11 +473,14 @@ function ManagerInventory() {
   const lowStockItems = Array.isArray(inventoryItems)
     ? inventoryItems
         .filter(
-          (item) =>
-            item.status === "Low Stock" ||
-            (item.quantity && item.minimum && item.quantity < item.minimum),
+          (item) => {
+            const key = getInventoryStatusKey(item);
+            return key === "running_low" || key === "reorder_now" || key === "out_of_stock";
+          },
         )
         .map((item) => ({
+          originalId: item.originalId,
+          sku: item.sku,
           name: item.name,
           current: item.quantity,
           minimum: item.minimum || 10,
@@ -403,26 +488,47 @@ function ManagerInventory() {
         }))
     : [];
 
-  const getStatusBadge = (status, isActive = true) => {
-    if (status === "In Stock" || status === "Available") {
-      return (
-        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-          {status}
-        </span>
-      );
-    } else if (!isActive) {
+  const getStatusBadge = (item, isActive = true) => {
+    if (!isActive) {
       return (
         <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-gray-500/20 text-gray-400 border-gray-500/30">
           Inactive
         </span>
       );
-    } else {
+    }
+
+    const key = getInventoryStatusKey(item);
+    const label = getInventoryStatusLabel(item);
+
+    if (key === "available") {
       return (
-        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-red-500/20 text-red-400 border-red-500/30">
-          {status}
+        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+          {label}
         </span>
       );
     }
+
+    if (key === "running_low") {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-amber-500/20 text-amber-400 border-amber-500/30">
+          {label}
+        </span>
+      );
+    }
+
+    if (key === "out_of_stock") {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-gray-500/20 text-gray-300 border-gray-500/30">
+          {label}
+        </span>
+      );
+    }
+
+    return (
+      <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-red-500/20 text-red-400 border-red-500/30">
+        {label}
+      </span>
+    );
   };
 
   // Safely filter inventory - ensure inventoryItems is array
@@ -435,7 +541,8 @@ function ManagerInventory() {
             item.category?.toLowerCase().includes(q)) &&
           (categoryFilter === "All Categories" ||
             item.category === categoryFilter) &&
-          (statusFilter === "All Status" || item.status === statusFilter)
+          (statusFilter === "all" ||
+            getInventoryStatusKey(item) === statusFilter)
         );
       })
     : [];
@@ -706,6 +813,16 @@ function ManagerInventory() {
                       </span>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => requestRestock(item)}
+                    disabled={requestingRestockId === item.originalId}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all"
+                  >
+                    {requestingRestockId === item.originalId
+                      ? "Requesting..."
+                      : "Request Restock"}
+                  </button>
                 </div>
               ))}
             </div>
@@ -764,8 +881,16 @@ function ManagerInventory() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
               >
-                {["All Status", "In Stock", "Low Stock"].map((o) => (
-                  <option key={o}>{o}</option>
+                {[
+                  { value: "all", label: "All Status" },
+                  { value: "available", label: "Available 🟢" },
+                  { value: "running_low", label: "Running Low 🟡" },
+                  { value: "reorder_now", label: "Reorder Now 🔴" },
+                  { value: "out_of_stock", label: "Out of Stock ⚫" },
+                ].map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
                 ))}
               </select>
             </>
@@ -868,7 +993,7 @@ function ManagerInventory() {
                       {item.supplier}
                     </div>
                     <div className="col-span-1 flex justify-end">
-                      {getStatusBadge(item.status)}
+                      {getStatusBadge(item)}
                     </div>
                   </div>
                 ))
