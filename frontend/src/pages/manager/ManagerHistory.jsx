@@ -1,35 +1,67 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import ManagerLayout from './ManagerLayout';
 
 function ManagerHistory() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [serviceFilter, setServiceFilter] = useState('All Services');
-  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("All Services");
+  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [serviceHistory, setServiceHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const serviceHistory = [
-    { id: 'SH-001', date: '2026-02-20', customer: 'John Doe',      vehicle: 'Toyota Corolla 2020', service: 'Oil Change',          mechanic: 'Mike Johnson',  duration: '45 mins',   amount: '₱1,200', status: 'Completed' },
-    { id: 'SH-002', date: '2026-02-20', customer: 'Jane Smith',     vehicle: 'Honda Civic 2019',   service: 'Brake Inspection',    mechanic: 'Sarah Connor',  duration: '1.5 hours', amount: '₱2,500', status: 'Completed' },
-    { id: 'SH-003', date: '2026-02-19', customer: 'Robert Wilson',  vehicle: 'Ford Ranger 2021',   service: 'Engine Diagnostic',   mechanic: 'Mike Johnson',  duration: '1 hour',    amount: '₱1,800', status: 'Completed' },
-    { id: 'SH-004', date: '2026-02-19', customer: 'Emily Brown',    vehicle: 'Nissan Altima 2022', service: 'Tire Replacement',    mechanic: 'Lisa Davis',    duration: '1 hour',    amount: '₱4,500', status: 'Completed' },
-    { id: 'SH-005', date: '2026-02-18', customer: 'Michael Chen',   vehicle: 'Mazda 3 2020',       service: 'Full Service',        mechanic: 'Mike Johnson',  duration: '2 hours',   amount: '₱3,800', status: 'Completed' },
-    { id: 'SH-006', date: '2026-02-18', customer: 'Sarah Johnson',  vehicle: 'Hyundai Tucson 2021',service: 'AC Service',          mechanic: 'Sarah Connor',  duration: '1.5 hours', amount: '₱2,200', status: 'Completed' },
-    { id: 'SH-007', date: '2026-02-17', customer: 'David Martinez', vehicle: 'Kia Sportage 2022',  service: 'Battery Replacement', mechanic: 'Lisa Davis',    duration: '30 mins',   amount: '₱4,800', status: 'Completed' },
-    { id: 'SH-008', date: '2026-02-17', customer: 'Patricia Lee',   vehicle: 'Toyota Vios 2021',   service: 'Brake Repair',        mechanic: 'Mike Johnson',  duration: '2 hours',   amount: '₱3,200', status: 'Completed' },
-    { id: 'SH-009', date: '2026-02-16', customer: 'James Wilson',   vehicle: 'Honda CR-V 2020',    service: 'Oil Change',          mechanic: 'Sarah Connor',  duration: '40 mins',   amount: '₱1,100', status: 'Completed' },
-    { id: 'SH-010', date: '2026-02-16', customer: 'Linda Garcia',   vehicle: 'Nissan Navara 2022', service: 'Engine Repair',       mechanic: 'Mike Johnson',  duration: '3 hours',   amount: '₱8,500', status: 'Completed' },
-    { id: 'SH-011', date: '2026-02-15', customer: 'Kevin Moore',    vehicle: 'Mazda CX-5 2021',    service: 'Transmission Service',mechanic: 'Lisa Davis',    duration: '2.5 hours', amount: '₱5,200', status: 'Completed' },
-    { id: 'SH-012', date: '2026-02-15', customer: 'Susan Taylor',   vehicle: 'Ford Everest 2020',  service: 'Tire Rotation',       mechanic: 'Sarah Connor',  duration: '45 mins',   amount: '₱800',   status: 'Completed' },
-  ];
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const token =
+          localStorage.getItem("access_token") ||
+          sessionStorage.getItem("access_token");
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/queue/history/`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const mapped = (Array.isArray(res.data) ? res.data : []).map((row) => ({
+          id: `SH-${String(row.id).padStart(3, "0")}`,
+          date: row.completed_at || row.queued_at || "",
+          customer: row.customer_name || "Unknown",
+          vehicle: row.vehicle || "—",
+          service: row.service || "—",
+          mechanic: row.assigned_employee?.full_name || "Unassigned",
+          duration: "—",
+          amount: Number(row.price || 0),
+          status: row.status === "done" ? "Completed" : "Skipped",
+        }));
+        setServiceHistory(mapped);
+      } catch (error) {
+        console.error("Failed to load manager history:", error);
+        setServiceHistory([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
 
-  const totalRevenue = serviceHistory.reduce((s, r) => s + parseInt(r.amount.replace(/[₱,]/g, '')), 0);
+  const totalRevenue = serviceHistory.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const serviceOptions = Array.from(
+    new Set(serviceHistory.map((r) => r.service).filter(Boolean)),
+  ).sort();
 
-  const filteredHistory = serviceHistory.filter(r =>
+  const filteredHistory = serviceHistory.filter((r) =>
     (r.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     r.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     r.id.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (serviceFilter === 'All Services' || r.service === serviceFilter) &&
-    (statusFilter === 'All Status' || r.status === statusFilter)
+      r.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.id.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (serviceFilter === "All Services" || r.service === serviceFilter) &&
+    (statusFilter === "All Status" || r.status === statusFilter),
   );
+
+  if (loading) {
+    return (
+      <ManagerLayout title="" subtitle="">
+        <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </ManagerLayout>
+    );
+  }
 
   return (
     <ManagerLayout title="" subtitle="">
@@ -43,9 +75,9 @@ function ManagerHistory() {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
-            { label: 'Total Services', value: serviceHistory.length,                                         color: '#ef4444', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /> },
-            { label: 'Total Revenue',  value: `₱${totalRevenue.toLocaleString()}`,                           color: '#3b82f6', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
-            { label: 'Completed',      value: serviceHistory.filter(s => s.status === 'Completed').length,   color: '#10b981', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> },
+             { label: 'Total Services', value: serviceHistory.length, color: '#ef4444', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /> },
+             { label: 'Total Revenue',  value: `₱${totalRevenue.toLocaleString()}`, color: '#3b82f6', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
+             { label: 'Completed', value: serviceHistory.filter(s => s.status === 'Completed').length, color: '#10b981', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> },
           ].map(stat => (
             <div key={stat.label} className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all">
               <div className="flex items-start justify-between mb-3">
@@ -69,8 +101,8 @@ function ManagerHistory() {
               className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all" />
           </div>
           {[
-            { value: serviceFilter, onChange: setServiceFilter, options: ['All Services','Oil Change','Brake Inspection','Engine Diagnostic','Tire Replacement','Full Service','AC Service','Battery Replacement','Brake Repair'] },
-            { value: statusFilter,  onChange: setStatusFilter,  options: ['All Status','Completed','Pending'] },
+             { value: serviceFilter, onChange: setServiceFilter, options: ['All Services', ...serviceOptions] },
+             { value: statusFilter,  onChange: setStatusFilter,  options: ['All Status','Completed','Skipped'] },
           ].map((sel, i) => (
             <select key={i} value={sel.value} onChange={e => sel.onChange(e.target.value)}
               className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]">
@@ -103,15 +135,15 @@ function ManagerHistory() {
             </div>
           ) : filteredHistory.map(record => (
             <div key={record.id} className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group">
-              <div className="col-span-1 text-gray-500 text-xs">{record.date.slice(5)}</div>
+               <div className="col-span-1 text-gray-500 text-xs">{record.date ? String(record.date).slice(5, 10) : "—"}</div>
               <div className="col-span-2 text-white font-semibold text-sm">{record.customer}</div>
               <div className="col-span-2 text-gray-400 text-sm truncate">{record.vehicle}</div>
               <div className="col-span-2 text-gray-400 text-sm">{record.service}</div>
               <div className="col-span-1 text-gray-500 text-xs">{record.mechanic.split(' ')[0]}</div>
               <div className="col-span-1 text-gray-500 text-xs">{record.duration}</div>
-              <div className="col-span-1 text-white font-bold text-sm">{record.amount}</div>
+               <div className="col-span-1 text-white font-bold text-sm">₱{Number(record.amount || 0).toLocaleString()}</div>
               <div className="col-span-1">
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{record.status}</span>
+                 <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${record.status === "Completed" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}>{record.status}</span>
               </div>
               <div className="col-span-1 flex justify-end">
                 <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
@@ -123,10 +155,10 @@ function ManagerHistory() {
             </div>
           ))}
 
-          {filteredHistory.length > 0 && (
-            <div className="px-6 py-4">
-              <p className="text-gray-500 text-sm">
-                Showing <span className="text-white font-semibold">{filteredHistory.length}</span> of <span className="text-white font-semibold">{serviceHistory.length}</span> records
+           {filteredHistory.length > 0 && (
+             <div className="px-6 py-4">
+               <p className="text-gray-500 text-sm">
+                 Showing <span className="text-white font-semibold">{filteredHistory.length}</span> of <span className="text-white font-semibold">{serviceHistory.length}</span> records
               </p>
             </div>
           )}

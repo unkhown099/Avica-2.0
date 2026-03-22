@@ -230,12 +230,16 @@ function ServiceModal({ onClose, onSaved, editService, branches }) {
           {/* Duration + Price */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Field label="Duration">
-              <input
+              <select
                 className={inputCls}
-                placeholder="e.g. 30-45 mins"
                 value={form.duration}
                 onChange={(e) => set("duration", e.target.value)}
-              />
+              >
+                <option value="">Select duration</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+                <option value="1 hour">1 hour</option>
+              </select>
             </Field>
             <Field label="Min Price (₱)">
               <input
@@ -672,9 +676,7 @@ function AdminServices() {
                         {service.name}
                       </h3>
                     </div>
-                    <p className="text-xs text-gray-600 font-mono ml-11">
-                      ID: {service.id}
-                    </p>
+              
                   </div>
 
                   <p className="text-gray-400 text-sm mb-4 leading-relaxed flex-1">

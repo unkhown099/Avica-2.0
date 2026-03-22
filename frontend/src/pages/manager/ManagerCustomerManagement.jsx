@@ -1,144 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import ManagerLayout from "./ManagerLayout";
 
 function ManagerCustomerManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [segmentFilter, setSegmentFilter] = useState("All Segments");
-
-  const customers = [
-    {
-      id: 1,
-      name: "John Doe",
-      email: "john.doe@email.com",
-      phone: "0917-111-2222",
-      vehicles: 2,
-      totalSpent: "₱45,200",
-      visits: 12,
-      segment: "High Value",
-      satisfaction: 95,
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      email: "jane.smith@email.com",
-      phone: "0918-222-3333",
-      vehicles: 1,
-      totalSpent: "₱32,500",
-      visits: 8,
-      segment: "Regular",
-      satisfaction: 92,
-    },
-    {
-      id: 3,
-      name: "Robert Wilson",
-      email: "robert.w@email.com",
-      phone: "0919-333-4444",
-      vehicles: 3,
-      totalSpent: "₱68,900",
-      visits: 15,
-      segment: "High Value",
-      satisfaction: 98,
-    },
-    {
-      id: 4,
-      name: "Emily Brown",
-      email: "emily.b@email.com",
-      phone: "0920-444-5555",
-      vehicles: 1,
-      totalSpent: "₱12,300",
-      visits: 3,
-      segment: "New",
-      satisfaction: 88,
-    },
-    {
-      id: 5,
-      name: "Michael Chen",
-      email: "michael.c@email.com",
-      phone: "0921-555-6666",
-      vehicles: 2,
-      totalSpent: "₱38,700",
-      visits: 10,
-      segment: "Regular",
-      satisfaction: 94,
-    },
-    {
-      id: 6,
-      name: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      phone: "0922-666-7777",
-      vehicles: 1,
-      totalSpent: "₱15,800",
-      visits: 5,
-      segment: "Regular",
-      satisfaction: 90,
-    },
-    {
-      id: 7,
-      name: "David Martinez",
-      email: "david.m@email.com",
-      phone: "0923-777-8888",
-      vehicles: 2,
-      totalSpent: "₱28,400",
-      visits: 7,
-      segment: "Regular",
-      satisfaction: 86,
-    },
-    {
-      id: 8,
-      name: "Patricia Lee",
-      email: "patricia.l@email.com",
-      phone: "0924-888-9999",
-      vehicles: 1,
-      totalSpent: "₱8,500",
-      visits: 2,
-      segment: "New",
-      satisfaction: 85,
-    },
-    {
-      id: 9,
-      name: "James Wilson",
-      email: "james.w@email.com",
-      phone: "0925-999-0000",
-      vehicles: 2,
-      totalSpent: "₱52,300",
-      visits: 14,
-      segment: "High Value",
-      satisfaction: 96,
-    },
-    {
-      id: 10,
-      name: "Linda Garcia",
-      email: "linda.g@email.com",
-      phone: "0926-000-1111",
-      vehicles: 1,
-      totalSpent: "₱24,600",
-      visits: 6,
-      segment: "Regular",
-      satisfaction: 89,
-    },
-    {
-      id: 11,
-      name: "Kevin Moore",
-      email: "kevin.m@email.com",
-      phone: "0927-111-2222",
-      vehicles: 1,
-      totalSpent: "₱18,200",
-      visits: 4,
-      segment: "Regular",
-      satisfaction: 91,
-    },
-    {
-      id: 12,
-      name: "Susan Taylor",
-      email: "susan.t@email.com",
-      phone: "0928-222-3333",
-      vehicles: 3,
-      totalSpent: "₱72,500",
-      visits: 18,
-      segment: "High Value",
-      satisfaction: 97,
-    },
-  ];
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const segmentBadge = {
     "High Value": "bg-red-500/20 text-red-400 border-red-500/30",
@@ -153,14 +21,42 @@ function ManagerCustomerManagement() {
     "At Risk": "#f59e0b",
   };
 
-  const totalRevenue = customers.reduce(
-    (s, c) => s + parseInt(c.totalSpent.replace(/[₱,]/g, "")),
-    0,
-  );
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const token =
+          localStorage.getItem("access_token") ||
+          sessionStorage.getItem("access_token");
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/customers/`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const mapped = (Array.isArray(res.data) ? res.data : []).map((c) => ({
+          id: c.id,
+          name: `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim(),
+          email: c.email ?? "",
+          phone: c.phone ?? "—",
+          vehicles: 0,
+          totalSpent: Number(c.total_spent ?? 0),
+          visits: Number(c.visits ?? 0),
+          segment: c.segment ?? "New",
+          satisfaction: c.avg_rating != null ? Number(c.avg_rating) * 20 : 0,
+        }));
+        setCustomers(mapped);
+      } catch (error) {
+        console.error("Failed to load manager customers:", error);
+        setCustomers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCustomers();
+  }, []);
+
+  const totalRevenue = customers.reduce((s, c) => s + Number(c.totalSpent || 0), 0);
   const highValue = customers.filter((c) => c.segment === "High Value").length;
-  const avgSat = Math.round(
-    customers.reduce((s, c) => s + c.satisfaction, 0) / customers.length,
-  );
+  const avgSat = customers.length
+    ? Math.round(customers.reduce((s, c) => s + c.satisfaction, 0) / customers.length)
+    : 0;
 
   const filteredCustomers = customers.filter(
     (c) =>
@@ -169,6 +65,16 @@ function ManagerCustomerManagement() {
         c.phone.includes(searchQuery)) &&
       (segmentFilter === "All Segments" || c.segment === segmentFilter),
   );
+
+  if (loading) {
+    return (
+      <ManagerLayout title="" subtitle="">
+        <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </ManagerLayout>
+    );
+  }
 
   return (
     <ManagerLayout title="" subtitle="">
@@ -352,7 +258,7 @@ function ManagerCustomerManagement() {
                         color: segmentColors[customer.segment] || "#6b7280",
                       }}
                     >
-                      {customer.name.charAt(0)}
+                      {(customer.name || "?").charAt(0)}
                     </div>
                     <div>
                       <div className="text-white font-semibold text-sm">
@@ -371,7 +277,7 @@ function ManagerCustomerManagement() {
                   {customer.vehicles}
                 </div>
                 <div className="col-span-2 text-white font-bold text-sm">
-                  {customer.totalSpent}
+                  ₱{Number(customer.totalSpent || 0).toLocaleString()}
                 </div>
                 <div className="col-span-1 text-center text-gray-400 text-sm">
                   {customer.visits}

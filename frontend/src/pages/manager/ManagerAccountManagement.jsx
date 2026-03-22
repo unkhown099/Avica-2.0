@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import ManagerLayout from "./ManagerLayout";
 
 function ManagerAccountManagement() {
@@ -6,128 +7,8 @@ function ManagerAccountManagement() {
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [statusFilter, setStatusFilter] = useState("All Status");
 
-  const staffAccounts = [
-    {
-      id: 1,
-      name: "Carl Roy Gamilla",
-      email: "carl@otokwikk.com",
-      phone: "0917-123-4567",
-      role: "Branch Manager",
-      status: "Active",
-    },
-    {
-      id: 2,
-      name: "Mike Johnson",
-      email: "mike.j@otokwikk.com",
-      phone: "0922-678-9012",
-      role: "Mechanic",
-      status: "Active",
-    },
-    {
-      id: 3,
-      name: "Sarah Connor",
-      email: "sarah.c@otokwikk.com",
-      phone: "0923-789-0123",
-      role: "Mechanic",
-      status: "Active",
-    },
-    {
-      id: 4,
-      name: "Lisa Davis",
-      email: "lisa.d@otokwikk.com",
-      phone: "0925-901-2345",
-      role: "Mechanic",
-      status: "Active",
-    },
-    {
-      id: 5,
-      name: "Robert Lee",
-      email: "robert.l@otokwikk.com",
-      phone: "0926-012-3456",
-      role: "Service Advisor",
-      status: "Active",
-    },
-    {
-      id: 6,
-      name: "Jennifer White",
-      email: "jen.w@otokwikk.com",
-      phone: "0927-123-4567",
-      role: "Service Advisor",
-      status: "Active",
-    },
-    {
-      id: 7,
-      name: "David Brown",
-      email: "david.b@otokwikk.com",
-      phone: "0928-234-5678",
-      role: "Receptionist",
-      status: "Active",
-    },
-    {
-      id: 8,
-      name: "Emily Garcia",
-      email: "emily.g@otokwikk.com",
-      phone: "0929-345-6789",
-      role: "Receptionist",
-      status: "Active",
-    },
-    {
-      id: 9,
-      name: "James Wilson",
-      email: "james.w@otokwikk.com",
-      phone: "0930-456-7890",
-      role: "Parts Manager",
-      status: "Active",
-    },
-    {
-      id: 10,
-      name: "Patricia Martinez",
-      email: "patricia.m@otokwikk.com",
-      phone: "0931-567-8901",
-      role: "Parts Manager",
-      status: "Active",
-    },
-    {
-      id: 11,
-      name: "Michael Anderson",
-      email: "michael.a@otokwikk.com",
-      phone: "0932-678-9012",
-      role: "Mechanic",
-      status: "Active",
-    },
-    {
-      id: 12,
-      name: "Susan Taylor",
-      email: "susan.t@otokwikk.com",
-      phone: "0933-789-0123",
-      role: "Service Advisor",
-      status: "Active",
-    },
-    {
-      id: 13,
-      name: "Kevin Moore",
-      email: "kevin.m@otokwikk.com",
-      phone: "0934-890-1234",
-      role: "Mechanic",
-      status: "Active",
-    },
-    {
-      id: 14,
-      name: "Linda Jackson",
-      email: "linda.j@otokwikk.com",
-      phone: "0935-901-2345",
-      role: "Receptionist",
-      status: "Active",
-    },
-    {
-      id: 15,
-      name: "Thomas White",
-      email: "thomas.w@otokwikk.com",
-      phone: "0936-012-3456",
-      role: "Mechanic",
-      status: "Active",
-    },
-  ];
+  const [staffAccounts, setStaffAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const roleBadge = {
     "Branch Manager": "bg-purple-500/20 text-purple-400 border-purple-500/30",
@@ -152,6 +33,25 @@ function ManagerAccountManagement() {
     "Receptionist",
     "Parts Manager",
   ];
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const accessToken =
+          localStorage.getItem("access_token") ||
+          sessionStorage.getItem("access_token");
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/staff/`, {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        });
+        setStaffAccounts(Array.isArray(res.data) ? res.data : []);
+      } catch (error) {
+        console.error("Failed to load staff accounts:", error);
+        setStaffAccounts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStaff();
+  }, []);
   const roleCounts = roles.reduce((acc, r) => {
     acc[r] = staffAccounts.filter((s) => s.role === r).length;
     return acc;
@@ -164,6 +64,16 @@ function ManagerAccountManagement() {
       (roleFilter === "All Roles" || s.role === roleFilter) &&
       (statusFilter === "All Status" || s.status === statusFilter),
   );
+
+  if (loading) {
+    return (
+      <ManagerLayout title="" subtitle="">
+        <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </ManagerLayout>
+    );
+  }
 
   return (
     <ManagerLayout title="" subtitle="">
@@ -192,7 +102,9 @@ function ManagerAccountManagement() {
                 <div
                   className="h-1 rounded-full"
                   style={{
-                    width: `${((roleCounts[role] || 0) / staffAccounts.length) * 100}%`,
+                    width: staffAccounts.length
+                      ? `${((roleCounts[role] || 0) / staffAccounts.length) * 100}%`
+                      : "0%",
                     backgroundColor: roleColors[role],
                   }}
                 />
@@ -296,7 +208,7 @@ function ManagerAccountManagement() {
                         color: roleColors[staff.role] || "#6b7280",
                       }}
                     >
-                      {staff.name.charAt(0)}
+                      {(staff.name || "?").charAt(0)}
                     </div>
                     <div>
                       <div className="text-white font-semibold text-sm">

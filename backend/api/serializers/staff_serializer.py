@@ -21,6 +21,34 @@ class StaffSerializer(serializers.ModelSerializer):
             "branch",
             "status",
         ]
+        extra_kwargs = {
+            "email": {"required": False},
+            "password": {"required": False},
+        }
+
+    def validate(self, attrs):
+        role = attrs.get("role")
+        branch = attrs.get("branch")
+        if self.instance is not None:
+            role = role if role is not None else self.instance.role
+            branch = branch if branch is not None else self.instance.branch
+
+        if role == "Admin" and (self.instance is None or self.instance.role != "Admin"):
+            raise serializers.ValidationError(
+                {"role": "Creating Admin accounts from staff management is not allowed."}
+            )
+
+        if role == "Branch Manager":
+            if not branch:
+                raise serializers.ValidationError(
+                    {"branch": "Branch is required when role is Branch Manager."}
+                )
+            if Staff.objects.filter(role="Branch Manager", branch=branch).exists():
+                raise serializers.ValidationError(
+                    {"branch": "This branch already has a Branch Manager."}
+                )
+
+        return attrs
 
     def create(self, validated_data):
         email = validated_data.pop("email")
@@ -34,3 +62,20 @@ class StaffSerializer(serializers.ModelSerializer):
             staff = Staff.objects.create(user=user, **validated_data)
 
         return staff
+
+    def update(self, instance, validated_data):
+        email = validated_data.pop("email", None)
+        password = validated_data.pop("password", None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if email:
+            instance.user.email = email
+            instance.user.save(update_fields=["email"])
+        if password:
+            instance.user.set_password(password)
+            instance.user.save(update_fields=["password"])
+
+        return instance

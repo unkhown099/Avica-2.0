@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { GoogleLogin } from "@react-oauth/google";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
 
@@ -149,54 +148,6 @@ function SignUpPage() {
   };
 
   const navigate = useNavigate();
-
-  const handleGoogleSuccess = async (credentialResponse) => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/google-login/`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: credentialResponse.credential }),
-        }
-      );
-      const data = await response.json();
-      if (data.success) {
-        localStorage.setItem("access_token", data.tokens.access);
-        localStorage.setItem("refresh_token", data.tokens.refresh);
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        swal.fire({
-          title: "Sign up successful!",
-          text: `Welcome, ${data.user.first_name}!`,
-          icon: "success",
-          timer: 2000,
-          showConfirmButton: false,
-          background: "linear-gradient(to bottom right, #1f2937, #111827)",
-          color: "#fff",
-        });
-
-        // Redirect based on role
-        setTimeout(() => {
-          if (data.user.role === "admin") navigate("/admin-dashboard");
-          else if (data.user.role === "business_owner") navigate("/owner-dashboard");
-          else navigate("/dashboard");
-        }, 2000);
-      } else {
-        throw new Error(data.message || "Google signup failed");
-      }
-    } catch (error) {
-      console.error("Google Signup Error:", error);
-      swal.fire({
-        title: "Error",
-        text: "Could not sign up with Google.",
-        icon: "error",
-        background: "linear-gradient(to bottom right, #1f2937, #111827)",
-        color: "#fff",
-        confirmButtonColor: "#dc2626",
-      });
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -568,16 +519,20 @@ function SignUpPage() {
                       >
                         Suffix (Optional)
                       </label>
-                      <input
-                        type="text"
+                      <select
                         id="suffix"
                         name="suffix"
                         value={formData.suffix}
                         onChange={handleChange}
-                        autoComplete="off"
-                        className="w-full px-4 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300"
-                        placeholder="Jr., III, etc."
-                      />
+                        className="w-full px-4 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-base focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300"
+                      >
+                        <option value="">Select suffix (optional)</option>
+                        <option value="Jr.">Jr.</option>
+                        <option value="Sr.">Sr.</option>
+                        <option value="II">II</option>
+                        <option value="III">III</option>
+                        <option value="IV">IV</option>
+                      </select>
                     </div>
                   </div>
                 )}
@@ -811,32 +766,6 @@ function SignUpPage() {
                       Create Account
                     </button>
                   )}
-                </div>
-
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-700"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-gray-950 text-gray-400">Or continue with</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-center">
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => swal.fire({
-                      icon: "error",
-                      title: "Google Signup Failed",
-                      background: "linear-gradient(to bottom right, #1f2937, #111827)",
-                      color: "#fff",
-                    })}
-                    useOneTap
-                    theme="filled_black"
-                    shape="pill"
-                    size="large"
-                    width="100%"
-                  />
                 </div>
 
                 {/* Sign In Link */}

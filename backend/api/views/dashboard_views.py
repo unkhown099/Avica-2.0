@@ -4,9 +4,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 from ..models import Booking, Customer, QueueEntry, Rating
 from ..serializers.dashboard_serializer import DashboardStatsSerializer, RecentTransactionSerializer
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Sum, Value, DecimalField
 from django.utils import timezone
+from django.db.models.functions import Coalesce
 from collections import defaultdict
+from datetime import timedelta
 
 MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -23,7 +25,8 @@ class AdminDashboardView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        current_year = timezone.now().year
+        now = timezone.now()
+        current_year = now.year
 
         # ── Stats ────────────────────────────────────────────────────────────
         total_revenue = sum(
@@ -64,6 +67,91 @@ class AdminDashboardView(APIView):
         chart_revenue  = [round(monthly_revenue.get(m, 0), 2) for m in range(1, current_month + 1)]
         chart_services = [monthly_services.get(m, 0) for m in range(1, current_month + 1)]
 
+        # ── Analytics ─────────────────────────────────────────────────────────
+        today = now.date()
+        thirty_days_ago = now - timedelta(days=30)
+
+        bookings_today = Booking.objects.filter(created_at__date=today).count()
+        new_customers_30d = Customer.objects.filter(
+            user__created_at__gte=thirty_days_ago
+        ).count()
+
+        total_queue_entries = QueueEntry.objects.count()
+        done_queue_entries = QueueEntry.objects.filter(status="done").count()
+        completion_rate = (
+            round((done_queue_entries / total_queue_entries) * 100, 1)
+            if total_queue_entries > 0
+            else 0.0
+        )
+
+        paid_queue_entries = QueueEntry.objects.filter(payment_status="paid").count()
+        payment_rate = (
+            round((paid_queue_entries / total_queue_entries) * 100, 1)
+            if total_queue_entries > 0
+            else 0.0
+        )
+
+        service_counts = list(
+            QueueEntry.objects.filter(
+                status="done",
+                completed_at__year=current_year,
+                completed_at__month=now.month,
+            )
+            .values("service")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+        total_service_count = sum(item["count"] for item in service_counts)
+        service_distribution = [
+            {
+                "label": item["service"] or "Other",
+                "count": item["count"],
+                "pct": round(
+                    (item["count"] / total_service_count) * 100, 1
+                ) if total_service_count else 0.0,
+            }
+            for item in service_counts[:6]
+        ]
+
+        top_services_qs = (
+            QueueEntry.objects.filter(status="done")
+            .values("service")
+            .annotate(
+                count=Count("id"),
+                revenue=Coalesce(
+                    Sum("price"),
+                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                ),
+            )
+            .order_by("-revenue", "-count")
+        )
+        top_services = [
+            {
+                "service": row["service"] or "Other",
+                "count": row["count"],
+                "revenue": round(float(row["revenue"] or 0), 2),
+            }
+            for row in top_services_qs[:6]
+        ]
+
+        revenue_by_branch_qs = (
+            Booking.objects.values("branch__name")
+            .annotate(
+                revenue=Coalesce(
+                    Sum("price"),
+                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                )
+            )
+            .order_by("-revenue")
+        )
+        revenue_by_branch = [
+            {
+                "branch": row["branch__name"] or "Unassigned",
+                "revenue": round(float(row["revenue"] or 0), 2),
+            }
+            for row in revenue_by_branch_qs[:8]
+        ]
+
         # ── Recent Transactions ───────────────────────────────────────────────
         recent_bookings = Booking.objects.select_related(
             "user", "user__customer_profile", "user__staff_profile"
@@ -97,5 +185,14 @@ class AdminDashboardView(APIView):
                 "labels": chart_labels,
                 "revenue": chart_revenue,
                 "services": chart_services,
-            }
+            },
+            "analytics": {
+                "bookings_today": bookings_today,
+                "new_customers_30d": new_customers_30d,
+                "completion_rate": completion_rate,
+                "payment_rate": payment_rate,
+                "service_distribution": service_distribution,
+                "top_services": top_services,
+                "revenue_by_branch": revenue_by_branch,
+            },
         })

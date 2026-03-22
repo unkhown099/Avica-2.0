@@ -322,6 +322,7 @@ class InventoryItem(models.Model):
     unit         = models.CharField(max_length=50, default="Pieces")
     price        = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     supplier     = models.CharField(max_length=100, blank=True, default="")
+    is_active    = models.BooleanField(default=True)
     branch       = models.ForeignKey(
         Branch,
         on_delete=models.SET_NULL,
@@ -345,3 +346,94 @@ class InventoryItem(models.Model):
         elif self.quantity <= self.minimum_qty:
             return "Low Stock"
         return "In Stock"
+
+
+class RestockRequest(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    inventory_item = models.ForeignKey(
+        InventoryItem,
+        on_delete=models.CASCADE,
+        related_name="restock_requests",
+    )
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.CASCADE,
+        related_name="restock_requests",
+    )
+    requested_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="restock_requests_created",
+    )
+    quantity_requested = models.PositiveIntegerField(default=1)
+    notes = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    reviewed_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="restock_requests_reviewed",
+    )
+    reviewer_note = models.TextField(blank=True, default="")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "restock_requests"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.inventory_item.name} ({self.branch.name}) - {self.status}"
+
+
+class InventoryTransaction(models.Model):
+    ACTION_CHOICES = [
+        ("create", "Create"),
+        ("update", "Update"),
+        ("archive", "Archive"),
+        ("restore", "Restore"),
+        ("transfer_out", "Transfer Out"),
+        ("transfer_in", "Transfer In"),
+        ("restock_request", "Restock Request"),
+        ("restock_rejected", "Restock Rejected"),
+    ]
+
+    inventory_item = models.ForeignKey(
+        InventoryItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transactions",
+    )
+    action_type = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    quantity_before = models.IntegerField(null=True, blank=True)
+    quantity_after = models.IntegerField(null=True, blank=True)
+    quantity_changed = models.IntegerField(default=0)
+    branch_name = models.CharField(max_length=100, blank=True, default="")
+    target_branch_name = models.CharField(max_length=100, blank=True, default="")
+    performed_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inventory_transactions",
+    )
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "inventory_transactions"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        item_name = self.inventory_item.name if self.inventory_item else "Unknown Item"
+        return f"{item_name} - {self.action_type}"

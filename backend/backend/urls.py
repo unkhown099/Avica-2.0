@@ -8,13 +8,22 @@ from api.views.auth_views import (
     SignupView, LogoutView, MeView, LoginView,
     GoogleLoginView, VerifyEmailView, ForgotPasswordView, ResetPasswordView
 )
-from api.views.staff_views import StaffView
+from api.views.staff_views import StaffView, StaffDetailView, VerifyPasswordView
 from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
 from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
 from api.views.dashboard_views import AdminDashboardView
 from api.views.service_views import ServiceListCreateView, ServiceDetailView
+from api.views.customer_views import AdminCustomerListView
+from api.views.inventory_views import (
+    InventoryListCreateView,
+    InventoryDetailView,
+    RestockRequestListCreateView,
+    RestockRequestActionView,
+    DirectStockTransferView,
+    InventoryTransactionHistoryView,
+)
 from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView
 from api.views.inventory_views import InventoryListCreateView, InventoryDetailView
 from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
@@ -54,6 +63,8 @@ urlpatterns = [
 
     # ── Staff management ──────────────────────────────────────────────────────
     path('staff/', StaffView.as_view(), name='staff'),
+    path('staff/<int:pk>/', StaffDetailView.as_view(), name='staff-detail'),
+    path('staff/verify-password/', VerifyPasswordView.as_view(), name='staff-verify-password'),
 
     # ── Vehicle AI ────────────────────────────────────────────────────────────
     path('api/analyze-vehicle/', AnalyzeVehicleView.as_view(), name='analyze_vehicle'),
@@ -94,6 +105,17 @@ urlpatterns = [
     path('api/ratings/', RatingCreateView.as_view(), name='rating-create'),
 
     # ── Admin endpoints ───────────────────────────────────────────────────────
+    path('dashboard/',             AdminDashboardView.as_view(),        name='admin-dashboard'),
+    path('services/',              ServiceListCreateView.as_view(),     name='service-list'),
+    path('services/<int:pk>/',     ServiceDetailView.as_view(),         name='service-detail'),
+    path('customers/',             AdminCustomerListView.as_view(),     name='admin-customers'),
+    path('inventory/',             InventoryListCreateView.as_view(),   name='inventory-list'),
+    path('inventory/<int:pk>/',    InventoryDetailView.as_view(),       name='inventory-detail'),
+    path('inventory/restock-requests/', RestockRequestListCreateView.as_view(), name='restock-request-list'),
+    path('inventory/restock-requests/<int:pk>/action/', RestockRequestActionView.as_view(), name='restock-request-action'),
+    path('inventory/transfer/', DirectStockTransferView.as_view(), name='inventory-transfer'),
+    path('inventory/transactions/', InventoryTransactionHistoryView.as_view(), name='inventory-transactions'),
+    path('appointments/',          AdminAppointmentListView.as_view(),  name='admin-appointments'),
     path('dashboard/',             AdminDashboardView.as_view(),         name='admin-dashboard'),
     path('services/',              ServiceListCreateView.as_view(),      name='service-list'),
     path('services/<int:pk>/',     ServiceDetailView.as_view(),          name='service-detail'),
