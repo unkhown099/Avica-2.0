@@ -168,6 +168,8 @@ AUTH_USER_MODEL = "api.User"
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "TOKEN_OBTAIN_SERIALIZER": "api.serializers.token_serializer.CustomTokenObtainPairSerializer",
+
 }
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")

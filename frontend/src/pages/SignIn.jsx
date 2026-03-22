@@ -2,7 +2,23 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
-import { GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin } from "@react-oauth/google";
+
+const DARK_SWAL = {
+  background: "linear-gradient(to bottom right, #1f2937, #111827)",
+  color: "#fff",
+  confirmButtonColor: "#dc2626",
+};
+
+const ROLE_ROUTES = {
+  admin: "/admin/dashboard",
+  business_owner: "/branch-owner/dashboard",
+  branch_manager: "/manager/dashboard",
+  inventory: "/inventory/dashboard",
+  staff: "/staff/pos",
+  employee: "/mechanic/dashboard",
+  customer: "/dashboard",
+};
 
 function SignIn() {
   const navigate = useNavigate();
@@ -25,9 +41,7 @@ function SignIn() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const validateForm = () => {
@@ -37,13 +51,19 @@ function SignIn() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address";
     }
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    }
+    if (!formData.password) newErrors.password = "Password is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const storeSession = (tokens, user, remember) => {
+    const store = remember ? localStorage : sessionStorage;
+    store.setItem("access_token", tokens.access);
+    store.setItem("refresh_token", tokens.refresh);
+    store.setItem("user", JSON.stringify(user));
+  };
+
+  // ── Regular login ───────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -59,62 +79,39 @@ function SignIn() {
       });
 
       const data = await res.json();
-
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Invalid email or password");
       }
 
-      // Store tokens
-      const { access, refresh } = data.tokens;
-      if (formData.rememberMe) {
-        localStorage.setItem("access_token", access);
-        localStorage.setItem("refresh_token", refresh);
-      } else {
-        sessionStorage.setItem("access_token", access);
-        sessionStorage.setItem("refresh_token", refresh);
-      }
+      storeSession(data.tokens, data.user, formData.rememberMe);
 
-      // Store user info if you want immediate access
-      if (formData.rememberMe) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      } else {
-        sessionStorage.setItem("user", JSON.stringify(data.user));
-      }
+      const destination = ROLE_ROUTES[data.user.role] ?? "/";
 
-      // Navigate based on role
-      const roleRoutes = {
-        admin: "/admin/dashboard",
-        business_owner: "/branch-owner/dashboard",
-        branch_manager: "/manager/dashboard",
-        inventory: "/inventory/dashboard",
-        staff: "/staff/pos",
-        employee: "/mechanic/dashboard",
-        customer: "/dashboard",
-      };
-
-      navigate(roleRoutes[data.user.role] || "/");
-
+      // Fire the alert FIRST, navigate only after it's dismissed.
+      // This prevents SweetAlert2's backdrop from mounting on the destination
+      // page and blocking all interaction.
       await swal.fire({
         icon: "success",
         title: "Login Successful",
-        text: "Welcome back!",
-        background: "linear-gradient(to bottom right, #1f2937, #111827)",
-        color: "#fff",
-        confirmButtonColor: "#dc2626",
+        text: `Welcome back, ${data.user.first_name ?? ""}!`.trim(),
+        timer: 1500, // auto-close so user doesn't have to click
+        timerProgressBar: true,
+        showConfirmButton: false,
+        ...DARK_SWAL,
       });
-      console.log("USER DATA:", data.user);
+
+      navigate(destination);
     } catch (err) {
       swal.fire({
         icon: "error",
         title: "Login Failed",
         text: err.message,
-        background: "linear-gradient(to bottom right, #1f2937, #111827)",
-        color: "#fff",
-        confirmButtonColor: "#dc2626",
+        ...DARK_SWAL,
       });
     }
   };
 
+  // ── Forgot password ─────────────────────────────────────────────────────────
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     if (!forgotEmail) {
@@ -122,6 +119,7 @@ function SignIn() {
         icon: "error",
         title: "Error",
         text: "Please enter your email address",
+        ...DARK_SWAL,
       });
       return;
     }
@@ -137,28 +135,29 @@ function SignIn() {
         },
       );
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
 
-      if (res.ok) {
-        swal.fire({
-          icon: "success",
-          title: "Email Sent",
-          text: data.message,
-          background: "linear-gradient(to bottom right, #1f2937, #111827)",
-          color: "#fff",
-          confirmButtonColor: "#dc2626",
-        });
-        setShowForgotModal(false);
-        setForgotEmail("");
-      } else {
-        throw new Error(data.message);
-      }
+      swal.fire({
+        icon: "success",
+        title: "Email Sent",
+        text: data.message,
+        ...DARK_SWAL,
+      });
+      setShowForgotModal(false);
+      setForgotEmail("");
     } catch (err) {
-      swal.fire({ icon: "error", title: "Error", text: err.message });
+      swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message,
+        ...DARK_SWAL,
+      });
     } finally {
       setIsSubmittingForgot(false);
     }
   };
 
+  // ── Google login ────────────────────────────────────────────────────────────
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       const res = await fetch(
@@ -175,37 +174,34 @@ function SignIn() {
         throw new Error(data.message || "Google Login failed");
       }
 
-      // Store tokens and navigate (simplified for brevity, should follow existing logic)
-      const { access, refresh } = data.tokens;
-      sessionStorage.setItem("access_token", access);
-      sessionStorage.setItem("refresh_token", refresh);
-      sessionStorage.setItem("user", JSON.stringify(data.user));
+      // Google login always uses sessionStorage (no "remember me" checkbox)
+      storeSession(data.tokens, data.user, false);
 
-      const roleRoutes = {
-        admin: "/admin/dashboard",
-        business_owner: "/branch-owner/dashboard",
-        branch_manager: "/manager/dashboard",
-        staff: "/staff/pos",
-        employee: "/mechanic/dashboard",
-        customer: "/dashboard",
-      };
+      const destination = ROLE_ROUTES[data.user.role] ?? "/";
 
-      navigate(roleRoutes[data.user.role] || "/");
-      swal.fire({
+      // Same fix: alert before navigate
+      await swal.fire({
         icon: "success",
         title: "Login Successful",
         text: "Welcome!",
+        timer: 1500,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        ...DARK_SWAL,
       });
-      console.log("USER DATA:", data.user);
+
+      navigate(destination);
     } catch (err) {
       swal.fire({
         icon: "error",
         title: "Google Login Failed",
         text: err.message,
+        ...DARK_SWAL,
       });
     }
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="h-screen bg-black flex items-center justify-center px-6 relative overflow-hidden">
       {/* Back arrow */}
@@ -228,7 +224,7 @@ function SignIn() {
         </svg>
       </Link>
 
-      {/* Background */}
+      {/* Background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse" />
         <div
@@ -237,10 +233,10 @@ function SignIn() {
         />
       </div>
 
-      {/* Main */}
+      {/* Main grid */}
       <div className="w-full max-w-6xl relative z-10">
         <div className="grid lg:grid-cols-2 gap-14 items-center">
-          {/* Left Branding */}
+          {/* Left branding */}
           <div className="hidden lg:block">
             <div className="space-y-8">
               <img
@@ -276,7 +272,7 @@ function SignIn() {
             </div>
           </div>
 
-          {/* Right Form */}
+          {/* Right form */}
           <div className="w-full">
             <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-10 border border-white/5 shadow-2xl">
               <div className="lg:hidden mb-6 text-center">
@@ -315,7 +311,9 @@ function SignIn() {
                     onChange={handleChange}
                     autoComplete="off"
                     placeholder="john.doe@example.com"
-                    className={`w-full px-5 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                    className={`w-full px-5 py-3.5 bg-gray-900 border ${
+                      errors.email ? "border-red-600" : "border-gray-700"
+                    } rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                   />
                   {errors.email && (
                     <p className="text-red-500 text-base mt-1">
@@ -341,12 +339,14 @@ function SignIn() {
                       onChange={handleChange}
                       autoComplete="off"
                       placeholder="••••••••"
-                      className={`w-full px-5 py-3.5 bg-gray-900 border ${errors.password ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-14`}
+                      className={`w-full px-5 py-3.5 bg-gray-900 border ${
+                        errors.password ? "border-red-600" : "border-gray-700"
+                      } rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-14`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                     >
                       {showPassword ? "Hide" : "Show"}
                     </button>
@@ -358,7 +358,7 @@ function SignIn() {
                   )}
                 </div>
 
-                {/* Remember Me & Forgot */}
+                {/* Remember me & Forgot */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <input
@@ -395,7 +395,7 @@ function SignIn() {
 
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-700"></div>
+                    <div className="w-full border-t border-gray-700" />
                   </div>
                   <div className="relative flex justify-center text-sm">
                     <span className="px-2 bg-gray-900 text-gray-400">
@@ -408,7 +408,11 @@ function SignIn() {
                   <GoogleLogin
                     onSuccess={handleGoogleSuccess}
                     onError={() =>
-                      swal.fire({ icon: "error", title: "Google Login Failed" })
+                      swal.fire({
+                        icon: "error",
+                        title: "Google Login Failed",
+                        ...DARK_SWAL,
+                      })
                     }
                     useOneTap
                     theme="filled_black"
@@ -417,7 +421,7 @@ function SignIn() {
                     width="100%"
                   />
                 </div>
-                {/* Sign In Link */}
+
                 <div className="text-center">
                   <p className="text-gray-400 text-lg">
                     Create an Account{" "}

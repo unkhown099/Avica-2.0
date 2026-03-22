@@ -1,95 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import InventoryLayout from "./InventoryLayout";
+import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 
-const ALERTS = [
-  {
-    id: 1,
-    item: "Oil Filter",
-    category: "Parts",
-    branch: "Makati",
-    current: 5,
-    reorder: 15,
-    lastRestocked: "Jun 01",
-    supplier: "AutoParts PH",
-    severity: "critical",
-  },
-  {
-    id: 2,
-    item: "Coolant (Pre-mixed)",
-    category: "Consumables",
-    branch: "Makati",
-    current: 2,
-    reorder: 10,
-    lastRestocked: "May 28",
-    supplier: "ChemTech Supply",
-    severity: "critical",
-  },
-  {
-    id: 3,
-    item: "Power Steering Fluid",
-    category: "Consumables",
-    branch: "Makati",
-    current: 1,
-    reorder: 8,
-    lastRestocked: "May 20",
-    supplier: "ChemTech Supply",
-    severity: "critical",
-  },
-  {
-    id: 4,
-    item: "Brake Pads (Front)",
-    category: "Parts",
-    branch: "Quezon City",
-    current: 6,
-    reorder: 8,
-    lastRestocked: "Jun 05",
-    supplier: "BrakePro Inc",
-    severity: "warning",
-  },
-  {
-    id: 5,
-    item: "Brake Pads (Front)",
-    category: "Parts",
-    branch: "Mandaluyong",
-    current: 4,
-    reorder: 8,
-    lastRestocked: "May 30",
-    supplier: "BrakePro Inc",
-    severity: "warning",
-  },
-  {
-    id: 6,
-    item: "Windshield Wiper (21in)",
-    category: "Accessories",
-    branch: "Makati",
-    current: 7,
-    reorder: 10,
-    lastRestocked: "Jun 08",
-    supplier: "AutoParts PH",
-    severity: "warning",
-  },
-  {
-    id: 7,
-    item: "Engine Oil (5W-30)",
-    category: "Consumables",
-    branch: "Quezon City",
-    current: 18,
-    reorder: 20,
-    lastRestocked: "Jun 10",
-    supplier: "OilEx Corp",
-    severity: "warning",
-  },
-];
+// ── Severity helpers ──────────────────────────────────────────────────────────
+function deriveSeverity(item) {
+  const s = String(item.status ?? "").toLowerCase();
+  if (s.includes("out") || item.quantity === 0) return "critical";
+  if (s.includes("low") || item.quantity <= item.minimum_qty) return "critical";
+  // quantity within 150% of minimum = warning
+  if (item.minimum_qty && item.quantity <= item.minimum_qty * 1.5)
+    return "warning";
+  return "warning"; // anything surfaced by the API is at least a warning
+}
 
 const SEVERITY_STYLES = {
   critical: {
     badge: "bg-red-500/15 text-red-400 border-red-500/25",
     dot: "bg-red-500",
+    bar: "#ef4444",
     label: "Critical",
   },
   warning: {
     badge: "bg-amber-500/15 text-amber-400 border-amber-500/25",
     dot: "bg-amber-500",
+    bar: "#f59e0b",
     label: "Warning",
   },
 };
@@ -110,9 +44,65 @@ const CATEGORY_STYLES = {
     text: "text-amber-400",
     border: "border-amber-500/20",
   },
+  Default: {
+    bg: "bg-gray-500/10",
+    text: "text-gray-400",
+    border: "border-gray-500/20",
+  },
 };
 
-function RestockModal({ alert, onClose }) {
+function categoryStyle(cat) {
+  return CATEGORY_STYLES[cat] ?? CATEGORY_STYLES.Default;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+// ── Restock Modal ─────────────────────────────────────────────────────────────
+function RestockModal({ alert, headers, onClose, onSuccess }) {
+  const [qty, setQty] = useState(
+    Math.max((alert.minimum_qty ?? 10) * 2 - alert.quantity, 1),
+  );
+  const [supplier, setSupplier] = useState(alert.supplier_name ?? "");
+  const [priority, setPriority] = useState("urgent");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/inventory/restock-requests/`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          inventory_item: alert.id,
+          quantity_requested: Number(qty),
+          priority,
+          notes: supplier ? `Supplier: ${supplier}` : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail ?? `Error ${res.status}`);
+      }
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sev = SEVERITY_STYLES[alert.severity];
+
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
@@ -139,55 +129,74 @@ function RestockModal({ alert, onClose }) {
             </svg>
           </button>
         </div>
+
         <div className="p-6 space-y-4">
+          {/* Alert summary */}
           <div
             className={`rounded-xl p-3 border ${alert.severity === "critical" ? "bg-red-500/5 border-red-500/20" : "bg-amber-500/5 border-amber-500/20"}`}
           >
             <div className="flex items-center gap-2 mb-1">
-              <div
-                className={`w-2 h-2 rounded-full ${SEVERITY_STYLES[alert.severity].dot}`}
-              />
+              <div className={`w-2 h-2 rounded-full ${sev.dot}`} />
               <span
                 className={`text-xs font-bold uppercase ${alert.severity === "critical" ? "text-red-400" : "text-amber-400"}`}
               >
-                {SEVERITY_STYLES[alert.severity].label}
+                {sev.label}
               </span>
             </div>
-            <p className="text-white font-bold text-sm">{alert.item}</p>
+            <p className="text-white font-bold text-sm">{alert.name}</p>
             <p className="text-gray-500 text-xs">
-              {alert.branch} · Current: {alert.current} / Min: {alert.reorder}
+              {alert.branch_name ?? "—"} · Current: {alert.quantity} / Min:{" "}
+              {alert.minimum_qty ?? "—"}
             </p>
           </div>
+
+          {error && (
+            <p className="text-red-400 text-xs font-semibold bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5">
+              {error}
+            </p>
+          )}
+
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
-              Suggested Quantity
+              Quantity to Request
             </label>
             <input
               type="number"
-              defaultValue={alert.reorder * 2 - alert.current}
+              min={1}
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
               className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors"
             />
           </div>
+
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
-              Supplier
+              Supplier (optional note)
             </label>
             <input
               type="text"
-              defaultValue={alert.supplier}
+              value={supplier}
+              onChange={(e) => setSupplier(e.target.value)}
+              placeholder="e.g. AutoParts PH"
               className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors"
             />
           </div>
+
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
               Priority
             </label>
-            <select className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors">
-              <option>Urgent (1–2 days)</option>
-              <option>Standard (3–5 days)</option>
-              <option>Economy (1–2 weeks)</option>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors"
+            >
+              <option value="urgent">Urgent (1–2 days)</option>
+              <option value="standard">Standard (3–5 days)</option>
+              <option value="economy">Economy (1–2 weeks)</option>
             </select>
           </div>
+
           <div className="flex gap-3 pt-2">
             <button
               onClick={onClose}
@@ -195,8 +204,12 @@ function RestockModal({ alert, onClose }) {
             >
               Cancel
             </button>
-            <button className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-red-600/20">
-              Create Order
+            <button
+              onClick={submit}
+              disabled={loading}
+              className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-red-600/20"
+            >
+              {loading ? "Submitting…" : "Create Order"}
             </button>
           </div>
         </div>
@@ -205,28 +218,164 @@ function RestockModal({ alert, onClose }) {
   );
 }
 
-function ReorderAlerts() {
+// ── Main Component ────────────────────────────────────────────────────────────
+export default function ReorderAlerts() {
+  const { isAuthenticated, isAdmin, headers } = useAuth();
+
+  const [alerts, setAlerts] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filterSeverity, setFilterSeverity] = useState("All");
   const [filterBranch, setFilterBranch] = useState("All Branches");
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [dismissed, setDismissed] = useState([]);
+  const [orderingAll, setOrderingAll] = useState(false);
+  const [orderAllError, setOrderAllError] = useState(null);
+  const [orderAllSuccess, setOrderAllSuccess] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  const critical = ALERTS.filter(
-    (a) => a.severity === "critical" && !dismissed.includes(a.id),
-  );
-  const warning = ALERTS.filter(
-    (a) => a.severity === "warning" && !dismissed.includes(a.id),
-  );
+  // ── Fetch low-stock items ─────────────────────────────────────────────────
+  const fetchAlerts = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      setLoading(true);
+      setError(null);
 
-  const filtered = ALERTS.filter((a) => {
-    if (dismissed.includes(a.id)) return false;
+      // The backend returns only items at/below minimum_qty, already branch-scoped for non-admins.
+      // Pass status filter so we only pull items that need attention.
+      const params = new URLSearchParams({ status: "low,out" });
+      const res = await fetch(`${API_BASE}/inventory/?${params}`, {
+        headers,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Failed to load alerts: ${res.status}`);
+      const data = await res.json();
+
+      const mapped = (data ?? []).map((item) => ({
+        ...item,
+        severity: deriveSeverity(item),
+      }));
+      setAlerts(mapped);
+
+      // Build unique branch list for the filter dropdown (admin only)
+      if (isAdmin) {
+        const unique = [
+          ...new Set(mapped.map((i) => i.branch_name).filter(Boolean)),
+        ].sort();
+        setBranches(unique);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, isAdmin, headers]);
+
+  useEffect(() => {
+    fetchAlerts();
+  }, [fetchAlerts]);
+
+  // ── Derived lists ─────────────────────────────────────────────────────────
+  const active = alerts.filter((a) => !dismissed.includes(a.id));
+
+  const filtered = active.filter((a) => {
     if (filterSeverity !== "All" && a.severity !== filterSeverity.toLowerCase())
       return false;
-    if (filterBranch !== "All Branches" && a.branch !== filterBranch)
+    if (filterBranch !== "All Branches" && a.branch_name !== filterBranch)
       return false;
     return true;
   });
 
+  const criticalActive = active.filter((a) => a.severity === "critical");
+  const warningActive = active.filter((a) => a.severity === "warning");
+
+  // ── Order All Critical ────────────────────────────────────────────────────
+  const handleOrderAllCritical = async () => {
+    try {
+      setOrderingAll(true);
+      setOrderAllError(null);
+      setOrderAllSuccess(false);
+
+      await Promise.all(
+        criticalActive.map((item) =>
+          fetch(`${API_BASE}/inventory/restock-requests/`, {
+            method: "POST",
+            headers,
+            credentials: "include",
+            body: JSON.stringify({
+              inventory_item: item.id,
+              quantity_requested: Math.max(
+                (item.minimum_qty ?? 10) * 2 - item.quantity,
+                1,
+              ),
+              priority: "urgent",
+            }),
+          }),
+        ),
+      );
+      setOrderAllSuccess(true);
+      await fetchAlerts();
+    } catch (err) {
+      setOrderAllError(err.message);
+    } finally {
+      setOrderingAll(false);
+    }
+  };
+
+  // ── Export CSV ────────────────────────────────────────────────────────────
+  const handleExport = () => {
+    setExporting(true);
+    try {
+      const rows = [
+        [
+          "Item",
+          "Category",
+          "Branch",
+          "Severity",
+          "Current Qty",
+          "Min Qty",
+          "Last Updated",
+        ],
+        ...filtered.map((a) => [
+          a.name,
+          a.category ?? "—",
+          a.branch_name ?? "—",
+          a.severity,
+          a.quantity,
+          a.minimum_qty ?? "—",
+          formatDate(a.updated_at ?? a.created_at),
+        ]),
+      ];
+      const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reorder-alerts-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ── Skeleton ──────────────────────────────────────────────────────────────
+  function SkeletonRow() {
+    return (
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-white/5 animate-pulse">
+        <div className="w-2 h-2 rounded-full bg-gray-800 flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-40 bg-gray-800 rounded" />
+          <div className="h-3 w-24 bg-gray-800 rounded" />
+        </div>
+        <div className="h-6 w-16 bg-gray-800 rounded-full" />
+        <div className="h-6 w-20 bg-gray-800 rounded-lg" />
+      </div>
+    );
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <InventoryLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/20">
@@ -237,10 +386,16 @@ function ReorderAlerts() {
               Reorder Alerts
             </h1>
             <p className="text-gray-400 mt-1">
-              Automated alerts for low-stock items that need replenishment.
+              {loading
+                ? "Loading alerts…"
+                : `${active.length} item${active.length !== 1 ? "s" : ""} require${active.length === 1 ? "s" : ""} replenishment`}
             </p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit">
+          <button
+            onClick={handleExport}
+            disabled={exporting || filtered.length === 0}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit"
+          >
             <svg
               className="w-4 h-4"
               fill="none"
@@ -254,12 +409,52 @@ function ReorderAlerts() {
                 d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            Export Report
+            {exporting ? "Exporting…" : "Export CSV"}
           </button>
         </div>
 
-        {/* Alert Summary Banner */}
-        {critical.length > 0 && (
+        {/* Error banner */}
+        {error && (
+          <div className="mb-6 flex items-center gap-3 px-5 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-semibold">
+            <svg
+              className="w-5 h-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
+            </svg>
+            {error}
+          </div>
+        )}
+
+        {/* Order-all success banner */}
+        {orderAllSuccess && (
+          <div className="mb-6 flex items-center gap-3 px-5 py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 text-sm font-semibold">
+            <svg
+              className="w-5 h-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            All critical restock requests submitted successfully.
+          </div>
+        )}
+
+        {/* Critical Alert Banner */}
+        {!loading && criticalActive.length > 0 && (
           <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-5 mb-6">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 bg-red-500/15 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -279,16 +474,26 @@ function ReorderAlerts() {
               </div>
               <div className="flex-1">
                 <p className="text-red-400 font-bold">
-                  {critical.length} Critical Alert
-                  {critical.length > 1 ? "s" : ""} — Immediate Action Required
+                  {criticalActive.length} Critical Alert
+                  {criticalActive.length > 1 ? "s" : ""} — Immediate Action
+                  Required
                 </p>
                 <p className="text-gray-400 text-sm mt-1">
                   These items are critically low and may cause service
                   disruptions. Create restock orders immediately.
                 </p>
+                {orderAllError && (
+                  <p className="text-red-400 text-xs mt-2 font-semibold">
+                    {orderAllError}
+                  </p>
+                )}
               </div>
-              <button className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-red-600/20 flex-shrink-0">
-                Order All Critical
+              <button
+                onClick={handleOrderAllCritical}
+                disabled={orderingAll}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-red-600/20 flex-shrink-0"
+              >
+                {orderingAll ? "Submitting…" : "Order All Critical"}
               </button>
             </div>
           </div>
@@ -302,40 +507,43 @@ function ReorderAlerts() {
               <button
                 key={s}
                 onClick={() => setFilterSeverity(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filterSeverity === s ? "bg-red-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filterSeverity === s
+                    ? "bg-red-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:text-white"
+                }`}
               >
                 {s}
-                {s === "Critical" && critical.length > 0 && (
+                {s === "Critical" && criticalActive.length > 0 && (
                   <span className="ml-1.5 bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full">
-                    {critical.length}
+                    {criticalActive.length}
                   </span>
                 )}
-                {s === "Warning" && warning.length > 0 && (
+                {s === "Warning" && warningActive.length > 0 && (
                   <span className="ml-1.5 bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full">
-                    {warning.length}
+                    {warningActive.length}
                   </span>
                 )}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 ml-2">
-            <span className="text-gray-500 text-sm">Branch:</span>
-            <select
-              value={filterBranch}
-              onChange={(e) => setFilterBranch(e.target.value)}
-              className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:border-red-500 transition-colors"
-            >
-              {[
-                "All Branches",
-                "Quezon City",
-                "Makati",
-                "Pasig",
-                "Mandaluyong",
-              ].map((b) => (
-                <option key={b}>{b}</option>
-              ))}
-            </select>
-          </div>
+
+          {/* Branch filter: admins only (non-admins are already scoped by backend) */}
+          {isAdmin && branches.length > 0 && (
+            <div className="flex items-center gap-2 ml-2">
+              <span className="text-gray-500 text-sm">Branch:</span>
+              <select
+                value={filterBranch}
+                onChange={(e) => setFilterBranch(e.target.value)}
+                className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:border-red-500 transition-colors"
+              >
+                <option>All Branches</option>
+                {branches.map((b) => (
+                  <option key={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Alerts Table */}
@@ -344,7 +552,9 @@ function ReorderAlerts() {
             <div>
               <h3 className="text-lg font-black text-white">Active Alerts</h3>
               <p className="text-gray-500 text-sm mt-0.5">
-                {filtered.length} items require attention
+                {loading
+                  ? "Loading…"
+                  : `${filtered.length} item${filtered.length !== 1 ? "s" : ""} require${filtered.length === 1 ? "s" : ""} attention`}
               </p>
             </div>
           </div>
@@ -353,15 +563,20 @@ function ReorderAlerts() {
           <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5 bg-gray-900/40">
             <div className="col-span-3">Item</div>
             <div className="col-span-1">Category</div>
-            <div className="col-span-2">Branch</div>
-            <div className="col-span-1 text-center">Severity</div>
+            {isAdmin && <div className="col-span-2">Branch</div>}
+            <div
+              className={`${isAdmin ? "col-span-1" : "col-span-2"} text-center`}
+            >
+              Severity
+            </div>
             <div className="col-span-2">Stock Level</div>
-            <div className="col-span-1">Supplier</div>
-            <div className="col-span-1">Last Restock</div>
+            <div className="col-span-2">Last Updated</div>
             <div className="col-span-1 text-right">Action</div>
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-4">
                 <svg
@@ -386,14 +601,17 @@ function ReorderAlerts() {
           ) : (
             filtered.map((alert) => {
               const sev = SEVERITY_STYLES[alert.severity];
-              const cat = CATEGORY_STYLES[alert.category];
-              const pct = Math.min((alert.current / alert.reorder) * 100, 100);
+              const cat = categoryStyle(alert.category);
+              const pct = alert.minimum_qty
+                ? Math.min((alert.quantity / alert.minimum_qty) * 100, 100)
+                : 50;
+
               return (
                 <div
                   key={alert.id}
                   className="flex flex-col lg:grid lg:grid-cols-12 gap-3 lg:gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors group"
                 >
-                  {/* Mobile */}
+                  {/* ── Mobile layout ── */}
                   <div className="lg:hidden flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -403,17 +621,19 @@ function ReorderAlerts() {
                         >
                           {sev.label}
                         </span>
-                        <span
-                          className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cat.bg} ${cat.text} ${cat.border}`}
-                        >
-                          {alert.category}
-                        </span>
+                        {alert.category && (
+                          <span
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cat.bg} ${cat.text} ${cat.border}`}
+                          >
+                            {alert.category}
+                          </span>
+                        )}
                       </div>
                       <p className="text-white font-semibold text-sm">
-                        {alert.item}
+                        {alert.name}
                       </p>
                       <p className="text-gray-500 text-xs">
-                        {alert.branch} · {alert.supplier}
+                        {alert.branch_name ?? "—"} · SKU: {alert.sku ?? "—"}
                       </p>
                     </div>
                     <button
@@ -430,84 +650,89 @@ function ReorderAlerts() {
                         <span
                           className={`font-bold ${alert.severity === "critical" ? "text-red-400" : "text-amber-400"}`}
                         >
-                          {alert.current}
-                        </span>{" "}
-                        / min {alert.reorder}
+                          {alert.quantity}
+                        </span>
+                        {alert.minimum_qty ? ` / min ${alert.minimum_qty}` : ""}
                       </span>
-                      <span>Last: {alert.lastRestocked}</span>
+                      <span>
+                        Updated:{" "}
+                        {formatDate(alert.updated_at ?? alert.created_at)}
+                      </span>
                     </div>
                     <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor:
-                            alert.severity === "critical"
-                              ? "#ef4444"
-                              : "#f59e0b",
-                        }}
+                        style={{ width: `${pct}%`, backgroundColor: sev.bar }}
                       />
                     </div>
                   </div>
 
-                  {/* Desktop */}
+                  {/* ── Desktop layout ── */}
                   <div className="hidden lg:block col-span-3">
                     <p className="text-white font-semibold text-sm">
-                      {alert.item}
+                      {alert.name}
+                    </p>
+                    <p className="text-gray-600 text-xs">
+                      SKU: {alert.sku ?? "—"}
                     </p>
                   </div>
+
                   <div className="hidden lg:flex col-span-1 items-center">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${cat.bg} ${cat.text} ${cat.border}`}
-                    >
-                      {alert.category}
-                    </span>
+                    {alert.category ? (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${cat.bg} ${cat.text} ${cat.border}`}
+                      >
+                        {alert.category}
+                      </span>
+                    ) : (
+                      <span className="text-gray-600 text-xs">—</span>
+                    )}
                   </div>
-                  <div className="hidden lg:flex col-span-2 items-center">
-                    <span className="text-gray-400 text-sm">
-                      {alert.branch}
-                    </span>
-                  </div>
-                  <div className="hidden lg:flex col-span-1 items-center justify-center">
+
+                  {isAdmin && (
+                    <div className="hidden lg:flex col-span-2 items-center">
+                      <span className="text-gray-400 text-sm">
+                        {alert.branch_name ?? "—"}
+                      </span>
+                    </div>
+                  )}
+
+                  <div
+                    className={`hidden lg:flex ${isAdmin ? "col-span-1" : "col-span-2"} items-center justify-center`}
+                  >
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-bold border ${sev.badge}`}
                     >
                       {sev.label}
                     </span>
                   </div>
+
                   <div className="hidden lg:flex col-span-2 items-center">
                     <div className="w-full">
                       <div className="flex items-center justify-between mb-1">
                         <span
                           className={`text-xs font-bold ${alert.severity === "critical" ? "text-red-400" : "text-amber-400"}`}
                         >
-                          {alert.current} / {alert.reorder}
+                          {alert.quantity}
+                          {alert.minimum_qty ? ` / ${alert.minimum_qty}` : ""}
+                          {alert.unit ? ` ${alert.unit}` : ""}
                         </span>
                       </div>
                       <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor:
-                              alert.severity === "critical"
-                                ? "#ef4444"
-                                : "#f59e0b",
-                          }}
+                          style={{ width: `${pct}%`, backgroundColor: sev.bar }}
                         />
                       </div>
                     </div>
                   </div>
-                  <div className="hidden lg:flex col-span-1 items-center">
+
+                  <div className="hidden lg:flex col-span-2 items-center">
                     <span className="text-gray-500 text-xs">
-                      {alert.supplier}
+                      {formatDate(alert.updated_at ?? alert.created_at)}
                     </span>
                   </div>
-                  <div className="hidden lg:flex col-span-1 items-center">
-                    <span className="text-gray-500 text-xs">
-                      {alert.lastRestocked}
-                    </span>
-                  </div>
+
                   <div className="hidden lg:flex col-span-1 items-center justify-end gap-1">
                     <button
                       onClick={() => setSelectedAlert(alert)}
@@ -516,7 +741,7 @@ function ReorderAlerts() {
                       Restock
                     </button>
                     <button
-                      onClick={() => setDismissed([...dismissed, alert.id])}
+                      onClick={() => setDismissed((d) => [...d, alert.id])}
                       className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-gray-400 hover:bg-gray-800 rounded-lg transition-all"
                       title="Dismiss"
                     >
@@ -545,11 +770,11 @@ function ReorderAlerts() {
       {selectedAlert && (
         <RestockModal
           alert={selectedAlert}
+          headers={headers}
           onClose={() => setSelectedAlert(null)}
+          onSuccess={fetchAlerts}
         />
       )}
     </InventoryLayout>
   );
 }
-
-export default ReorderAlerts;

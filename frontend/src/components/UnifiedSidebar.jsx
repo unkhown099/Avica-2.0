@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/otokwikklogo.png";
 import Swal from "sweetalert2";
+import { useAuth, API_BASE } from "../hooks/useAuth.js";
 
 // ─── Menu configs per role ────────────────────────────────────────────────────
 
@@ -161,7 +162,6 @@ const MENU_ITEMS = {
     },
   ],
 
-  // ─── NEW: Inventory Manager ───────────────────────────────────────────────
   inventory: [
     {
       name: "Dashboard",
@@ -177,17 +177,12 @@ const MENU_ITEMS = {
       name: "Reorder Alerts",
       path: "/inventory/alerts",
       icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
-      badge: 5, // shows a red badge with alert count
+      alertBadge: true, // marks this item to receive the live count
     },
     {
       name: "Movement Log",
       path: "/inventory/movement-log",
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
-    },
-    {
-      name: "Branch Distribution",
-      path: "/inventory/branch-distribution",
-      icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z",
     },
   ],
 };
@@ -195,32 +190,77 @@ const MENU_ITEMS = {
 // ─── Role Labels ──────────────────────────────────────────────────────────────
 
 const ROLE_LABELS = {
-  admin: { title: "Admin User", subtitle: "System Administrator" },
-  business_owner: { title: "Branch Owner", subtitle: "Business Manager" },
-  branch_manager: { title: "Manager", subtitle: "Branch Manager" },
-  staff: { title: "Staff", subtitle: "Cashier" },
-  employee: { title: "Mechanic", subtitle: "Service Employee" },
-  inventory_manager: { title: "Inventory Manager", subtitle: "Stock & Supply" }, // NEW
+  admin:             { title: "Admin User",         subtitle: "System Administrator" },
+  business_owner:    { title: "Branch Owner",        subtitle: "Business Manager" },
+  branch_manager:    { title: "Manager",             subtitle: "Branch Manager" },
+  staff:             { title: "Staff",               subtitle: "Cashier" },
+  employee:          { title: "Mechanic",            subtitle: "Service Employee" },
+  inventory_manager: { title: "Inventory Manager",   subtitle: "Stock & Supply" },
 };
+
+// ─── Roles whose inventory menu shows a live reorder-alert badge ──────────────
+const ROLES_WITH_ALERT_BADGE = new Set(["inventory", "admin", "business_owner", "branch_manager"]);
 
 // ─── Unified Sidebar ──────────────────────────────────────────────────────────
 
 function UnifiedSidebar({ isOpen, onClose }) {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location  = useLocation();
+  const navigate  = useNavigate();
+  const { isAuthenticated, role, user, headers } = useAuth();
 
-  const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
-  const user = raw ? JSON.parse(raw) : null;
-  const role = user?.role;
+  const [alertCount, setAlertCount] = useState(null); // null = not yet loaded
 
-  const menuItems = MENU_ITEMS[role] || [];
-  const roleLabel = ROLE_LABELS[role] || { title: "User", subtitle: "" };
+  const menuItems = MENU_ITEMS[role] ?? [];
+  const roleLabel = ROLE_LABELS[role]  ?? { title: "User", subtitle: "" };
+
+  // Fetch live reorder-alert count
+  useEffect(() => {
+    if (!isAuthenticated || !ROLES_WITH_ALERT_BADGE.has(role)) return;
+
+    let cancelled = false;
+
+    const fetchCount = async () => {
+      // Read a fresh token on every tick - avoids stale closure after expiry
+      const token =
+        localStorage.getItem("access_token") ??
+        sessionStorage.getItem("access_token");
+
+      if (!token || cancelled) return;
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/inventory/?status=low,out`,
+          {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (cancelled) return;
+        if (!res.ok) {
+          // Token expired or revoked - clear badge silently
+          setAlertCount(null);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) setAlertCount((data ?? []).length);
+      } catch {
+        // Network error - leave existing count in place
+      }
+    };
+
+    fetchCount();
+
+    // Refresh every 2 minutes so the badge stays reasonably current
+    const interval = setInterval(fetchCount, 2 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [isAuthenticated, role]); // intentionally excludes headers - we read fresh each time
 
   const isActive = (path) => location.pathname === path;
 
-  const handleNavClick = () => {
-    if (onClose) onClose();
-  };
+  const handleNavClick = () => { if (onClose) onClose(); };
 
   const handleLogout = async () => {
     const refresh =
@@ -231,15 +271,15 @@ function UnifiedSidebar({ isOpen, onClose }) {
       sessionStorage.getItem("access_token");
 
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}/logout/`, {
-        method: "POST",
+      await fetch(`${API_BASE}/logout/`, {
+        method:  "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${access}`,
+          Authorization:  `Bearer ${access}`,
         },
         body: JSON.stringify({ refresh }),
       });
-    } catch (_) {
+    } catch {
       // fail silently — still clear storage
     }
 
@@ -249,20 +289,20 @@ function UnifiedSidebar({ isOpen, onClose }) {
     });
 
     await Swal.fire({
-      icon: "success",
-      title: "Logged Out",
-      text: "You have been successfully logged out.",
-      background: "linear-gradient(to bottom right, #1f2937, #111827)",
-      color: "#fff",
+      icon:               "success",
+      title:              "Logged Out",
+      text:               "You have been successfully logged out.",
+      background:         "linear-gradient(to bottom right, #1f2937, #111827)",
+      color:              "#fff",
       confirmButtonColor: "#dc2626",
     });
 
     navigate("/signin");
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Sidebar */}
       <aside
         className={`
           w-60 bg-gray-900 min-h-screen fixed left-0 top-0 flex flex-col z-30
@@ -273,94 +313,75 @@ function UnifiedSidebar({ isOpen, onClose }) {
       >
         {/* Logo */}
         <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-          <img
-            src={logo}
-            alt="Otokwikk logo"
-            className="h-16 md:h-20 object-contain"
-          />
+          <img src={logo} alt="Otokwikk logo" className="h-16 md:h-20 object-contain" />
           <button
             onClick={onClose}
             className="lg:hidden w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white transition-all duration-200 flex-shrink-0"
             aria-label="Close sidebar"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Nav */}
         <nav className="flex-1 py-6 overflow-y-auto">
-          {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={handleNavClick}
-              className={`flex items-center gap-3 px-6 py-3 transition-all duration-200 ${
-                isActive(item.path)
-                  ? "bg-red-600 text-white"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
-              }`}
-            >
-              <svg
-                className="w-5 h-5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          {menuItems.map((item) => {
+            const active     = isActive(item.path);
+            const showBadge  = item.alertBadge && alertCount != null && alertCount > 0;
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={handleNavClick}
+                className={`flex items-center gap-3 px-6 py-3 transition-all duration-200 ${
+                  active
+                    ? "bg-red-600 text-white"
+                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                }`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d={item.icon}
-                />
-              </svg>
-              <span className="font-medium flex-1">{item.name}</span>
-              {/* Badge for alert counts (e.g. Reorder Alerts) */}
-              {item.badge && (
-                <span
-                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${isActive(item.path) ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400"}`}
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          ))}
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                </svg>
+                <span className="font-medium flex-1">{item.name}</span>
+
+                {showBadge && (
+                  <span
+                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                      active ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400"
+                    }`}
+                  >
+                    {alertCount > 99 ? "99+" : alertCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* User Section */}
+        {/* User section */}
         <div className="p-4 border-t border-gray-800">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-sm truncate">
                 {user?.first_name && user?.last_name
                   ? `${user.first_name} ${user.last_name}`
-                  : roleLabel.title}
+                  : user?.full_name
+                  ?? user?.name
+                  ?? roleLabel.title}
               </p>
               <p className="text-gray-400 text-xs truncate">
                 {user?.email || roleLabel.subtitle}
@@ -371,18 +392,9 @@ function UnifiedSidebar({ isOpen, onClose }) {
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-red-600 text-gray-400 hover:text-white rounded-lg transition-all duration-200"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             <span className="font-medium">Logout</span>
           </button>

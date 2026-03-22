@@ -5,6 +5,7 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
+import Swal from "sweetalert2";
 
 import Navbar from "./components/Landing/LandingNav.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
@@ -51,7 +52,6 @@ import ManagerCustomerManagement from "./pages/manager/ManagerCustomerManagement
 // Inventory Imports
 import InventoryDashboard from "./pages/inventory/InventoryDashboard.jsx";
 import InventoryAlerts from "./pages/inventory/InventoryAlerts.jsx";
-import InventoryBranchDistribution from "./pages/inventory/InventoryBranchDistribution.jsx";
 import InventoryMovementLog from "./pages/inventory/InventoryMovementLog.jsx";
 import InventoryStockOverview from "./pages/inventory/InventoryStockOverview.jsx";
 
@@ -71,12 +71,29 @@ import MechanicInventoryRequest from "./pages/employee/MechanicInventoryRequest.
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
 
+// ── Swal backdrop cleanup ─────────────────────────────────────────────────────
+// SweetAlert2 appends its backdrop to document.body. If a Swal is open when
+// React navigates to a new route, the backdrop div becomes orphaned — no JS
+// ever removes it, so the whole page appears darkened and unclickable.
+// This component closes any open Swal on every route change, fixing the issue.
+function SwalRouteCleanup() {
+  const location = useLocation();
+
+  useEffect(() => {
+    Swal.close();
+  }, [location.pathname]);
+
+  return null;
+}
+
+// ── Layout ────────────────────────────────────────────────────────────────────
 function Layout() {
   const location = useLocation();
   const showNavbar = location.pathname === "/";
 
   return (
     <>
+      <SwalRouteCleanup />
       {showNavbar && <Navbar />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -84,7 +101,8 @@ function Layout() {
         <Route path="/signin" element={<SignIn />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        // Customer Routes
+
+        {/* Customer Routes */}
         <Route
           path="/dashboard"
           element={
@@ -141,6 +159,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         {/* Admin Routes */}
         <Route
           path="/admin/dashboard"
@@ -198,6 +217,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         {/* Branch Owner Routes */}
         <Route
           path="/branch-owner/dashboard"
@@ -247,6 +267,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         {/* Manager Routes */}
         <Route
           path="/manager/dashboard"
@@ -296,6 +317,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         {/* Inventory Routes */}
         <Route
           path="/inventory/dashboard"
@@ -310,14 +332,6 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["inventory"]}>
               <InventoryAlerts />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/inventory/branch-distribution"
-          element={
-            <ProtectedRoute allowedRoles={["inventory"]}>
-              <InventoryBranchDistribution />
             </ProtectedRoute>
           }
         />
@@ -371,6 +385,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         {/* Mechanic Routes */}
         <Route
           path="/mechanic/dashboard"
@@ -412,18 +427,19 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         <Route path="*" element={<ErrorPage />} />
       </Routes>
     </>
   );
 }
 
+// ── App ───────────────────────────────────────────────────────────────────────
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [contentReady, setContentReady] = useState(false);
   const [contentVisible, setContentVisible] = useState(false);
 
-  // Preload critical assets
   useEffect(() => {
     const loadContent = async () => {
       const assets = ["/assets/otokwikklogo.png", "/assets/bgpic.png"].map(
@@ -452,7 +468,6 @@ function App() {
       setContentVisible(true);
       setIsLoading(false);
     } else {
-      // Assets not ready yet — wait for them then reveal
       const check = setInterval(() => {
         setContentReady((ready) => {
           if (ready) {
@@ -468,20 +483,10 @@ function App() {
 
   return (
     <>
-      {/* Loading Screen — sits on top, fades itself out */}
       <LoadingScreen onLoadingComplete={handleLoadingComplete} />
-
-      {/*
-        Keep the background dark (#07070d) until the app is fully revealed.
-        This prevents the white flash between loading screen fade-out and
-        the actual page content appearing.
-      */}
       <div
         style={{ background: contentVisible ? "transparent" : "#07070d" }}
-        className={`
-          transition-opacity duration-700
-          ${contentVisible ? "opacity-100" : "opacity-0"}
-        `}
+        className={`transition-opacity duration-700 ${contentVisible ? "opacity-100" : "opacity-0"}`}
       >
         <Router>
           <Layout />
