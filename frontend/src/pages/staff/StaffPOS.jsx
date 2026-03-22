@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import StaffLayout from "./StaffLayout";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -48,7 +48,6 @@ function ReceiptModal({
   customerName,
   items,
   subtotal,
-  tax,
   total,
   paymentMethod,
   onClose,
@@ -95,15 +94,7 @@ function ReceiptModal({
             </div>
           ))}
           <div className="border-t border-white/5 pt-2 space-y-1.5">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Subtotal</span>
-              <span className="text-gray-300">₱{fmt(subtotal)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">VAT (12%)</span>
-              <span className="text-gray-300">₱{fmt(tax)}</span>
-            </div>
-            <div className="flex justify-between pt-1 border-t border-white/5">
+            <div className="flex justify-between pt-1">
               <span className="text-white font-black">Total</span>
               <span className="text-emerald-400 font-black">₱{fmt(total)}</span>
             </div>
@@ -130,18 +121,15 @@ function ReceiptModal({
 
 // ── Main Component ────────────────────────────────────────────────────────────
 function StaffPOS() {
-  // ── Services & Products from API ─────────────────────────────────────────
   const [services, setServices] = useState([]);
   const [products, setProducts] = useState([]);
   const [loadingServices, setLoadingServices] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // ── Done + unpaid queue entries ───────────────────────────────────────────
   const [unpaidEntries, setUnpaidEntries] = useState([]);
   const [loadingUnpaid, setLoadingUnpaid] = useState(true);
   const [unpaidCollapsed, setUnpaidCollapsed] = useState(false);
 
-  // ── Cart & checkout ───────────────────────────────────────────────────────
   const [cart, setCart] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("services");
@@ -163,7 +151,7 @@ function StaffPOS() {
         const res = await fetch(`${API}/services/`, {
           headers: authHeaders(),
           credentials: "include",
-        }); // urls.py: path('services/', ...)
+        });
         if (!res.ok) throw new Error();
         const data = await res.json();
         setServices(Array.isArray(data) ? data : (data.results ?? []));
@@ -176,7 +164,6 @@ function StaffPOS() {
   }, []);
 
   // ── Fetch inventory ───────────────────────────────────────────────────────
-  // URL: /inventory/  (no /api/ prefix — see urls.py)
   const fetchProducts = useCallback(async () => {
     try {
       const res = await fetch(`${API}/inventory/`, {
@@ -186,9 +173,9 @@ function StaffPOS() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       setProducts(
-        Array.isArray(data)
-          ? data.filter((p) => p.quantity > 0)
-          : (data.results ?? []).filter((p) => p.quantity > 0),
+        (Array.isArray(data) ? data : (data.results ?? [])).filter(
+          (p) => p.quantity > 0,
+        ),
       );
     } catch {
       setProducts([]);
@@ -205,7 +192,16 @@ function StaffPOS() {
   const fetchUnpaid = useCallback(async () => {
     try {
       setLoadingUnpaid(true);
-      // urls.py: path('api/queue/', queue_list) — note the /api/ prefix
+
+      // Check if token exists before making request
+      const token = getToken();
+      if (!token) {
+        console.warn("No token found, stopping queue fetch");
+        setUnpaidEntries([]);
+        setLoadingUnpaid(false);
+        return;
+      }
+
       const res = await fetch(
         `${API}/api/queue/?status=done&payment_status=unpaid`,
         {
@@ -213,15 +209,47 @@ function StaffPOS() {
           credentials: "include",
         },
       );
+
+      // Handle 401 Unauthorized - stop polling
+      if (res.status === 401) {
+        console.error("Unauthorized access to queue endpoint");
+        setUnpaidEntries([]);
+        setLoadingUnpaid(false);
+        // Clear the interval by returning a flag or just stop
+        return;
+      }
+
       if (!res.ok) throw new Error();
       const data = await res.json();
       setUnpaidEntries(Array.isArray(data) ? data : (data.results ?? []));
-    } catch {
+    } catch (err) {
+      console.error("Error fetching unpaid queue:", err);
       setUnpaidEntries([]);
     } finally {
       setLoadingUnpaid(false);
     }
   }, []);
+
+  // Use a ref to store the interval ID
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    // Initial fetch
+    fetchUnpaid();
+
+    // Set up interval only if we have a token
+    const token = getToken();
+    if (token) {
+      intervalRef.current = setInterval(fetchUnpaid, 30000);
+    }
+
+    // Cleanup function
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [fetchUnpaid]);
 
   useEffect(() => {
     fetchUnpaid();
@@ -262,10 +290,8 @@ function StaffPOS() {
     });
   };
 
-  // Pull a done+unpaid queue entry into the cart as a service line
   const pullFromQueue = (entry) => {
     const price = parseFloat(entry.price ?? 0);
-    // Pre-fill customer info if cart is empty
     if (cart.length === 0) {
       setCustomerInfo({
         name: entry.customer_name ?? "",
@@ -274,23 +300,23 @@ function StaffPOS() {
       });
     }
     setCart((prev) => {
-      // Use a unique queue-entry id so it doesn't collide with service IDs
-      const queueCartId = `queue_${entry.id}`;
       const existing = prev.find((c) => c._queueId === entry.id);
-      if (existing) return prev; // already in cart
+      if (existing) return prev;
       return [
         ...prev,
         {
-          id: queueCartId,
+          id: `queue_${entry.id}`,
           _queueId: entry.id,
           name: entry.service,
           quantity: 1,
           type: "queue",
           _price: price,
           _entryId: entry.id,
+          _needsPrice: price === 0,
         },
       ];
     });
+    setUnpaidCollapsed(true);
   };
 
   const removeFromCart = (id, type) =>
@@ -302,7 +328,7 @@ function StaffPOS() {
       const product = products.find((p) => p.id === id);
       if (product && qty > product.quantity) return;
     }
-    if (type === "queue") return; // queue items are always qty 1
+    if (type === "queue") return;
     setCart((prev) =>
       prev.map((c) =>
         c.id === id && c.type === type ? { ...c, quantity: qty } : c,
@@ -310,10 +336,21 @@ function StaffPOS() {
     );
   };
 
+  const updatePrice = (id, type, newPrice) => {
+    const p = parseFloat(newPrice);
+    if (isNaN(p) || p < 0) return;
+    setCart((prev) =>
+      prev.map((c) =>
+        c.id === id && c.type === type
+          ? { ...c, _price: p, _needsPrice: false }
+          : c,
+      ),
+    );
+  };
+
   // ── Totals ────────────────────────────────────────────────────────────────
   const subtotal = cart.reduce((s, i) => s + i._price * i.quantity, 0);
-  const tax = subtotal * 0.12;
-  const total = subtotal + tax;
+  const total = subtotal;
   const change = parseFloat(amountGiven || 0) - total;
 
   const bills = [100, 200, 500, 1000, 2000];
@@ -329,19 +366,26 @@ function StaffPOS() {
       setError("Please enter the customer name.");
       return;
     }
+
+    const missingPrice = cart.find((c) => c.type === "queue" && c._price === 0);
+    if (missingPrice) {
+      setError(
+        `Please enter a price for "${missingPrice.name}" before checking out.`,
+      );
+      return;
+    }
+
     if (paymentMethod === "cash" && parseFloat(amountGiven || 0) < total) {
       setError("Amount given is less than the total.");
       return;
     }
+
     setError(null);
     setCheckingOut(true);
-
     const errors = [];
 
     try {
-      // 1. Mark each queue-type cart item as paid on QueueEntry
       for (const item of cart.filter((c) => c.type === "queue")) {
-        // urls.py: path('api/queue/<int:pk>/action/', queue_action)
         const res = await fetch(
           `${API}/api/queue/${item._entryId}/mark-paid/`,
           {
@@ -349,7 +393,6 @@ function StaffPOS() {
             headers: authHeaders(),
             credentials: "include",
             body: JSON.stringify({
-              action: "mark_paid",
               payment_status: "paid",
               payment_method: paymentMethod,
               price: item._price,
@@ -360,17 +403,14 @@ function StaffPOS() {
           const err = await res.json().catch(() => ({}));
           errors.push(`Queue #${item._entryId}: ${err.detail ?? res.status}`);
         } else {
-          // Remove from unpaid list
           setUnpaidEntries((prev) =>
             prev.filter((e) => e.id !== item._entryId),
           );
         }
       }
 
-      // 2. Create a Booking for each service item
       for (const item of cart.filter((c) => c.type === "service")) {
         for (let i = 0; i < item.quantity; i++) {
-          // urls.py: path('api/bookings/', BookingListCreateView) — no /pos/ suffix
           const res = await fetch(`${API}/api/bookings/`, {
             method: "POST",
             headers: authHeaders(),
@@ -395,10 +435,7 @@ function StaffPOS() {
         }
       }
 
-      // 3. Deduct inventory for each product
-      // urls.py: path('inventory/<int:pk>/', InventoryDetailView) — use PATCH to update quantity
       for (const item of cart.filter((c) => c.type === "product")) {
-        // First get current quantity, then PATCH with reduced amount
         const product = products.find((p) => p.id === item.id);
         const newQty = (product?.quantity ?? item.quantity) - item.quantity;
         const res = await fetch(`${API}/inventory/${item.id}/`, {
@@ -420,7 +457,6 @@ function StaffPOS() {
           customerName: customerInfo.name,
           items: cart,
           subtotal,
-          tax,
           total,
           paymentMethod,
         });
@@ -437,6 +473,10 @@ function StaffPOS() {
   };
 
   const getInitial = (name = "") => name.charAt(0).toUpperCase();
+
+  const hasMissingPrice = cart.some(
+    (c) => c.type === "queue" && c._price === 0,
+  );
 
   return (
     <StaffLayout title="" subtitle="">
@@ -506,7 +546,7 @@ function StaffPOS() {
                   placeholder={`Search ${activeTab}…`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
+                  className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 transition-all"
                 />
               </div>
             </div>
@@ -514,7 +554,6 @@ function StaffPOS() {
             {/* Grid */}
             <div className="p-4 overflow-y-auto max-h-[600px]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Services */}
                 {activeTab === "services" &&
                   (loadingServices ? (
                     Array.from({ length: 6 }).map((_, i) => (
@@ -571,7 +610,6 @@ function StaffPOS() {
                     })
                   ))}
 
-                {/* Products */}
                 {activeTab === "products" &&
                   (loadingProducts ? (
                     Array.from({ length: 6 }).map((_, i) => (
@@ -599,11 +637,9 @@ function StaffPOS() {
                               {inCart.quantity}
                             </span>
                           )}
-                          <div className="flex items-start justify-between mb-1 pr-6">
-                            <h3 className="font-black text-white text-sm group-hover:text-emerald-400 transition-colors">
-                              {product.name}
-                            </h3>
-                          </div>
+                          <h3 className="font-black text-white text-sm group-hover:text-emerald-400 transition-colors mb-1 pr-6">
+                            {product.name}
+                          </h3>
                           <p className="text-xs text-gray-500 mb-1">
                             {product.category}
                           </p>
@@ -612,11 +648,7 @@ function StaffPOS() {
                               ₱{parseFloat(product.price).toLocaleString()}
                             </div>
                             <span
-                              className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                                isLow
-                                  ? "bg-amber-500/20 text-amber-400"
-                                  : "bg-emerald-500/20 text-emerald-400"
-                              }`}
+                              className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isLow ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}
                             >
                               {product.quantity} {product.unit ?? "pcs"}
                             </span>
@@ -629,199 +661,34 @@ function StaffPOS() {
             </div>
           </div>
 
-          {/* ── Right: Cart panel ─────────────────────────────────────────── */}
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col sticky top-8 max-h-[calc(100vh-6rem)] overflow-hidden">
-            {/* ── SECTION 1: Done + Unpaid queue entries ────────────────── */}
-            <div className="border-b border-white/5">
-              <button
-                onClick={() => setUnpaidCollapsed((v) => !v)}
-                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-black text-gray-400 uppercase tracking-wider">
-                    Unpaid Queue
-                  </span>
-                  {loadingUnpaid ? (
-                    <span className="text-xs bg-gray-700 text-gray-500 px-2 py-0.5 rounded-full">
-                      …
-                    </span>
-                  ) : unpaidEntries.length > 0 ? (
-                    <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black px-2 py-0.5 rounded-full">
-                      {unpaidEntries.length}
-                    </span>
-                  ) : (
-                    <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold px-2 py-0.5 rounded-full">
-                      All clear
-                    </span>
-                  )}
-                </div>
-                <svg
-                  className={`w-4 h-4 text-gray-500 transition-transform ${unpaidCollapsed ? "-rotate-90" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-
-              {!unpaidCollapsed && (
-                <div className="max-h-52 overflow-y-auto">
-                  {loadingUnpaid ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <SkeletonQueueRow key={i} />
-                    ))
-                  ) : unpaidEntries.length === 0 ? (
-                    <div className="px-5 py-4 text-center text-gray-600 text-xs">
-                      No completed services awaiting payment
-                    </div>
-                  ) : (
-                    unpaidEntries.map((entry) => {
-                      const price = parseFloat(entry.price ?? 0);
-                      const alreadyIn = cart.some(
-                        (c) => c._queueId === entry.id,
-                      );
-                      const needsPrice = price === 0;
-                      return (
-                        <div
-                          key={entry.id}
-                          className={`flex items-center gap-3 px-4 py-3 border-b border-white/5 transition-colors ${
-                            alreadyIn
-                              ? "bg-emerald-500/5"
-                              : "hover:bg-white/[0.02]"
-                          }`}
-                        >
-                          {/* Avatar */}
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
-                              entry.source === "walk_in"
-                                ? "bg-purple-500/10 text-purple-400"
-                                : "bg-blue-500/10 text-blue-400"
-                            }`}
-                          >
-                            {getInitial(entry.customer_name)}
-                          </div>
-
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-white text-xs font-semibold truncate">
-                              {entry.customer_name}
-                            </div>
-                            <div className="text-gray-500 text-xs truncate">
-                              {entry.service}
-                            </div>
-                          </div>
-
-                          {/* Price */}
-                          <div className="text-right shrink-0">
-                            {needsPrice ? (
-                              <span className="text-xs text-amber-400 font-bold">
-                                No price
-                              </span>
-                            ) : (
-                              <span className="text-white text-xs font-bold">
-                                ₱{fmt(price)}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Add to cart / already added */}
-                          {alreadyIn ? (
-                            <span className="text-xs text-emerald-400 font-black shrink-0 flex items-center gap-1">
-                              <svg
-                                className="w-3.5 h-3.5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2.5}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                              Added
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => pullFromQueue(entry)}
-                              className="shrink-0 text-xs font-black px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-400 hover:text-amber-300 transition-all"
-                            >
-                              + Add
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* ── SECTION 2: Cart header ────────────────────────────────── */}
-            <div className="px-5 py-3.5 border-b border-white/5 flex items-center justify-between">
-              <h2 className="text-sm font-black text-white uppercase tracking-wider">
-                Cart
-                <span className="text-gray-500 font-normal text-xs ml-2 normal-case">
-                  ({cart.length} item{cart.length !== 1 ? "s" : ""})
-                </span>
-              </h2>
-              {cart.length > 0 && (
+          {/* ── Right: POS panel with FIXED LAYOUT to keep button visible ── */}
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col h-[calc(100vh-6rem)] sticky top-8 overflow-hidden">
+            {/* Scrollable content area - will scroll, footer stays fixed */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Unpaid Queue */}
+              <div className="border-b border-white/8">
                 <button
-                  onClick={() => {
-                    if (window.confirm("Clear cart?")) setCart([]);
-                  }}
-                  className="text-xs text-gray-600 hover:text-red-400 transition-colors font-semibold"
+                  onClick={() => setUnpaidCollapsed((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors"
                 >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {/* ── SECTION 3: Customer info ──────────────────────────────── */}
-            <div className="px-5 pt-4 pb-3 border-b border-white/5 bg-white/[0.02]">
-              <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2.5">
-                Customer
-              </p>
-              <div className="space-y-2">
-                {[
-                  { key: "name", placeholder: "Customer Name *", type: "text" },
-                  { key: "phone", placeholder: "Phone Number *", type: "tel" },
-                  {
-                    key: "vehicle",
-                    placeholder: "Vehicle (Optional)",
-                    type: "text",
-                  },
-                ].map((f) => (
-                  <input
-                    key={f.key}
-                    type={f.type}
-                    placeholder={f.placeholder}
-                    value={customerInfo[f.key]}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        [f.key]: e.target.value,
-                      })
-                    }
-                    className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* ── SECTION 4: Cart items ─────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {cart.length === 0 ? (
-                <div className="py-8 text-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-amber-500 rounded-full" />
+                    <span className="text-xs font-black text-white uppercase tracking-wider">
+                      Unpaid Queue
+                    </span>
+                    {!loadingUnpaid &&
+                      (unpaidEntries.length > 0 ? (
+                        <span className="text-[10px] bg-amber-500 text-black font-black px-1.5 py-0.5 rounded-full">
+                          {unpaidEntries.length}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.5 rounded-full">
+                          Clear
+                        </span>
+                      ))}
+                  </div>
                   <svg
-                    className="w-10 h-10 text-gray-700 mx-auto mb-3"
+                    className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${unpaidCollapsed ? "-rotate-90" : ""}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -829,54 +696,23 @@ function StaffPOS() {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
                     />
                   </svg>
-                  <p className="text-gray-600 text-sm">Cart is empty</p>
-                  <p className="text-gray-700 text-xs mt-1">
-                    Add items above or pull from queue
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {cart.map((item) => (
-                    <div
-                      key={`${item.type}-${item.id}`}
-                      className={`border rounded-xl p-3 ${
-                        item.type === "queue"
-                          ? "bg-amber-500/5 border-amber-500/20"
-                          : "bg-gray-800/60 border-white/5"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white font-semibold text-sm truncate">
-                            {item.name}
-                          </div>
-                          <div
-                            className={`text-xs mt-0.5 ${
-                              item.type === "service"
-                                ? "text-red-400/70"
-                                : item.type === "product"
-                                  ? "text-emerald-400/70"
-                                  : "text-amber-400/70"
-                            }`}
-                          >
-                            {item.type === "service"
-                              ? "Service"
-                              : item.type === "product"
-                                ? "Product"
-                                : "Queue (done)"}
-                            {" · "}₱{fmt(item._price)} each
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => removeFromCart(item.id, item.type)}
-                          className="text-gray-600 hover:text-red-400 transition-colors ml-2 shrink-0 p-1"
-                        >
+                </button>
+
+                {!unpaidCollapsed && (
+                  <div className="max-h-32 overflow-y-auto">
+                    {loadingUnpaid ? (
+                      Array.from({ length: 2 }).map((_, i) => (
+                        <SkeletonQueueRow key={i} />
+                      ))
+                    ) : unpaidEntries.length === 0 ? (
+                      <div className="px-4 py-5 text-center">
+                        <div className="w-8 h-8 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
                           <svg
-                            className="w-3.5 h-3.5"
+                            className="w-4 h-4 text-emerald-400"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -885,15 +721,217 @@ function StaffPOS() {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
+                              d="M5 13l4 4L19 7"
                             />
                           </svg>
-                        </button>
+                        </div>
+                        <p className="text-gray-600 text-xs">
+                          All services paid
+                        </p>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
+                    ) : (
+                      unpaidEntries.map((entry) => {
+                        const price = parseFloat(entry.price ?? 0);
+                        const alreadyIn = cart.some(
+                          (c) => c._queueId === entry.id,
+                        );
+                        return (
+                          <div
+                            key={entry.id}
+                            className={`flex items-center gap-2.5 px-4 py-2.5 border-b border-white/5 last:border-0 transition-colors ${alreadyIn ? "bg-emerald-500/5" : "hover:bg-white/[0.02]"}`}
+                          >
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
+                                entry.source === "walk_in"
+                                  ? "bg-purple-500/15 text-purple-400"
+                                  : "bg-blue-500/15 text-blue-400"
+                              }`}
+                            >
+                              {getInitial(entry.customer_name)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-white text-xs font-semibold truncate leading-tight">
+                                {entry.customer_name}
+                              </div>
+                              <div className="text-gray-500 text-[10px] truncate leading-tight">
+                                {entry.service}
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              {price === 0 ? (
+                                <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold">
+                                  Set price
+                                </span>
+                              ) : (
+                                <span className="text-xs text-white font-bold">
+                                  ₱{fmt(price)}
+                                </span>
+                              )}
+                            </div>
+                            {alreadyIn ? (
+                              <div className="w-6 h-6 bg-emerald-500/20 rounded-lg flex items-center justify-center shrink-0">
+                                <svg
+                                  className="w-3 h-3 text-emerald-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2.5}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => pullFromQueue(entry)}
+                                className="w-6 h-6 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/25 text-amber-400 rounded-lg flex items-center justify-center shrink-0 transition-all font-black text-sm"
+                              >
+                                +
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Customer info */}
+              <div className="px-4 py-3 border-b border-white/8 bg-white/[0.015]">
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">
+                  Customer
+                </p>
+                <div className="space-y-1.5">
+                  {[
+                    { key: "name", placeholder: "Name *", type: "text" },
+                    { key: "phone", placeholder: "Phone", type: "tel" },
+                    {
+                      key: "vehicle",
+                      placeholder: "Vehicle (optional)",
+                      type: "text",
+                    },
+                  ].map((f) => (
+                    <input
+                      key={f.key}
+                      type={f.type}
+                      placeholder={f.placeholder}
+                      value={customerInfo[f.key]}
+                      onChange={(e) =>
+                        setCustomerInfo({
+                          ...customerInfo,
+                          [f.key]: e.target.value,
+                        })
+                      }
+                      className="w-full bg-gray-800/50 border border-white/8 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-red-500/50 transition-all"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Cart header */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8">
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                  Cart · {cart.length} item{cart.length !== 1 ? "s" : ""}
+                </span>
+                {cart.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Clear cart?")) setCart([]);
+                    }}
+                    className="text-[10px] text-gray-600 hover:text-red-400 transition-colors font-semibold uppercase tracking-wide"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              {/* Cart items - scrollable area */}
+              <div className="px-3 py-2">
+                {cart.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-3">
+                      <svg
+                        className="w-5 h-5 text-gray-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-gray-600 text-xs">Cart is empty</p>
+                    <p className="text-gray-700 text-[10px] mt-0.5">
+                      Add services, products, or pull from queue
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {cart.map((item) => (
+                      <div
+                        key={`${item.type}-${item.id}`}
+                        className={`rounded-xl p-3 border ${
+                          item.type === "queue"
+                            ? item._needsPrice || item._price === 0
+                              ? "bg-amber-500/8 border-amber-500/30"
+                              : "bg-amber-500/5 border-amber-500/15"
+                            : item.type === "product"
+                              ? "bg-emerald-500/5 border-emerald-500/10"
+                              : "bg-gray-800/60 border-white/5"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 min-w-0 pr-2">
+                            <div className="text-white font-semibold text-xs truncate leading-tight">
+                              {item.name}
+                            </div>
+                            <div
+                              className={`text-[10px] mt-0.5 font-medium ${
+                                item.type === "service"
+                                  ? "text-red-400/60"
+                                  : item.type === "product"
+                                    ? "text-emerald-400/60"
+                                    : "text-amber-400/60"
+                              }`}
+                            >
+                              {item.type === "service"
+                                ? "Service"
+                                : item.type === "product"
+                                  ? "Product"
+                                  : "Queue service"}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(item.id, item.type)}
+                            className="text-gray-600 hover:text-red-400 transition-colors p-0.5 shrink-0"
+                          >
+                            <svg
+                              className="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
                           {item.type !== "queue" ? (
-                            <>
+                            <div className="flex items-center gap-1">
                               <button
                                 onClick={() =>
                                   updateQuantity(
@@ -902,11 +940,11 @@ function StaffPOS() {
                                     item.quantity - 1,
                                   )
                                 }
-                                className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white text-sm transition-colors"
+                                className="w-5 h-5 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center text-white text-xs transition-colors"
                               >
                                 −
                               </button>
-                              <span className="text-sm font-bold text-white w-6 text-center">
+                              <span className="text-xs font-bold text-white w-4 text-center">
                                 {item.quantity}
                               </span>
                               <button
@@ -917,131 +955,165 @@ function StaffPOS() {
                                     item.quantity + 1,
                                   )
                                 }
-                                className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-white text-sm transition-colors"
+                                className="w-5 h-5 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center text-white text-xs transition-colors"
                               >
                                 +
                               </button>
-                            </>
+                            </div>
                           ) : (
-                            <span className="text-xs text-amber-400/60 font-semibold">
-                              ×1 (service done)
+                            <span className="text-[10px] text-amber-400/50">
+                              qty 1
                             </span>
                           )}
+
+                          <div className="flex items-center gap-1 flex-1">
+                            <span className="text-gray-500 text-xs">₱</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item._price || ""}
+                              onChange={(e) =>
+                                updatePrice(item.id, item.type, e.target.value)
+                              }
+                              placeholder={
+                                item.type === "queue" ? "Enter price" : ""
+                              }
+                              className={`flex-1 bg-gray-800/80 border rounded px-2 py-1 text-xs text-white font-bold focus:outline-none transition-all min-w-0 ${
+                                item.type === "queue" && item._price === 0
+                                  ? "border-amber-500/60 focus:border-amber-400 placeholder-amber-600/60"
+                                  : "border-white/10 focus:border-red-500/50"
+                              }`}
+                            />
+                          </div>
+
+                          <span className="text-white font-bold text-xs shrink-0">
+                            = ₱{fmt(item._price * item.quantity)}
+                          </span>
                         </div>
-                        <span className="text-white font-bold text-sm">
-                          ₱{fmt(item._price * item.quantity)}
-                        </span>
+
+                        {item.type === "queue" && item._price === 0 && (
+                          <div className="mt-1.5 flex items-center gap-1 text-amber-400 text-[10px]">
+                            <svg
+                              className="w-3 h-3 shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                              />
+                            </svg>
+                            Enter the service price to continue
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* ── SECTION 5: Payment method ─────────────────────────────── */}
-            <div className="px-5 py-3 border-t border-white/5 bg-white/[0.02]">
-              <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">
-                Payment
-              </p>
-              <div className="grid grid-cols-3 gap-1.5 mb-3">
-                {[
-                  { key: "cash", label: "Cash", icon: "💵" },
-                  { key: "gcash", label: "GCash", icon: "📱" },
-                  { key: "card", label: "Card", icon: "💳" },
-                ].map((m) => (
-                  <button
-                    key={m.key}
-                    onClick={() => {
-                      setPaymentMethod(m.key);
-                      setAmountGiven("");
-                    }}
-                    className={`py-2 rounded-xl text-xs font-black transition-all border flex items-center justify-center gap-1.5 ${
-                      paymentMethod === m.key
-                        ? "bg-red-600/20 border-red-500/50 text-red-400"
-                        : "bg-gray-800/60 border-white/5 text-gray-500 hover:text-gray-300"
-                    }`}
-                  >
-                    <span>{m.icon}</span>
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Cash amount + change */}
-              {paymentMethod === "cash" && (
-                <>
-                  <input
-                    type="number"
-                    placeholder="Amount given (₱)"
-                    value={amountGiven}
-                    onChange={(e) => setAmountGiven(e.target.value)}
-                    className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all mb-2"
-                  />
-                  {presets.length > 0 && (
-                    <div className="flex gap-1.5 mb-2">
-                      {presets.map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => setAmountGiven(String(p))}
-                          className="flex-1 py-1 text-xs font-bold bg-gray-800 hover:bg-gray-700 border border-white/5 text-gray-400 hover:text-white rounded-lg transition-all"
-                        >
-                          ₱{p.toLocaleString()}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setAmountGiven(String(Math.ceil(total)))}
-                        className="flex-1 py-1 text-xs font-bold bg-gray-800 hover:bg-gray-700 border border-white/5 text-gray-400 hover:text-white rounded-lg transition-all"
-                      >
-                        Exact
-                      </button>
-                    </div>
-                  )}
-                  {amountGiven && (
-                    <div
-                      className={`flex justify-between text-xs font-bold px-3 py-2 rounded-lg border ${
-                        change >= 0
-                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                          : "bg-red-500/10 border-red-500/20 text-red-400"
+            {/* ── FIXED FOOTER: Payment + Total + Button (ALWAYS VISIBLE) ── */}
+            <div className="border-t border-white/8 bg-gray-900/95 backdrop-blur-sm px-4 pt-3 pb-4 space-y-2 shrink-0">
+              {/* Payment Method */}
+              <div>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">
+                  Payment Method
+                </p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { key: "cash", label: "Cash", icon: "💵" },
+                    { key: "gcash", label: "GCash", icon: "📱" },
+                    { key: "card", label: "Card", icon: "💳" },
+                  ].map((m) => (
+                    <button
+                      key={m.key}
+                      onClick={() => {
+                        setPaymentMethod(m.key);
+                        setAmountGiven("");
+                      }}
+                      className={`py-2 rounded-xl text-xs font-black transition-all border flex items-center justify-center gap-1 ${
+                        paymentMethod === m.key
+                          ? "bg-red-600/20 border-red-500/50 text-red-400 shadow-lg shadow-red-600/10"
+                          : "bg-gray-800/60 border-white/8 text-gray-500 hover:text-gray-300 hover:border-white/15"
                       }`}
                     >
-                      <span>{change >= 0 ? "Change" : "Short"}</span>
-                      <span>
-                        {change >= 0
-                          ? `₱${fmt(change)}`
-                          : `₱${fmt(Math.abs(change))}`}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+                      <span className="text-sm">{m.icon}</span>
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
 
-            {/* ── SECTION 6: Totals ─────────────────────────────────────── */}
-            <div className="px-5 py-3 border-t border-white/5 space-y-1.5">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Subtotal</span>
-                <span className="text-gray-300 font-semibold">
-                  ₱{fmt(subtotal)}
-                </span>
+                {/* Cash amount input + presets */}
+                {paymentMethod === "cash" && (
+                  <div className="mt-2 space-y-1.5">
+                    <input
+                      type="number"
+                      placeholder="Amount given (₱)"
+                      value={amountGiven}
+                      onChange={(e) => setAmountGiven(e.target.value)}
+                      className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-red-500/50 transition-all"
+                    />
+                    {presets.length > 0 && (
+                      <div className="flex gap-1.5">
+                        {presets.map((p) => (
+                          <button
+                            key={p}
+                            onClick={() => setAmountGiven(String(p))}
+                            className="flex-1 py-1 text-[10px] font-bold bg-gray-800 hover:bg-gray-700 border border-white/5 text-gray-400 hover:text-white rounded-lg transition-all"
+                          >
+                            ₱{p.toLocaleString()}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() =>
+                            setAmountGiven(String(Math.ceil(total)))
+                          }
+                          className="flex-1 py-1 text-[10px] font-bold bg-gray-800 hover:bg-gray-700 border border-white/5 text-gray-400 hover:text-white rounded-lg transition-all"
+                        >
+                          Exact
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">VAT (12%)</span>
-                <span className="text-gray-300 font-semibold">₱{fmt(tax)}</span>
-              </div>
-              <div className="flex justify-between pt-2 border-t border-white/5">
-                <span className="text-white font-black">Total</span>
-                <span className="text-red-400 font-black text-lg">
+
+              {/* Total row */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-sm text-gray-400">Total</span>
+                <span className="text-2xl font-black text-white">
                   ₱{fmt(total)}
                 </span>
               </div>
-            </div>
 
-            {/* ── SECTION 7: Error + actions ────────────────────────────── */}
-            <div className="px-5 pb-5 space-y-2">
-              {error && (
-                <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 flex items-center gap-2">
+              {/* Cash change display */}
+              {paymentMethod === "cash" && amountGiven && (
+                <div
+                  className={`flex justify-between text-xs font-bold px-3 py-1.5 rounded-lg border ${
+                    change >= 0
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                      : "bg-red-500/10 border-red-500/20 text-red-400"
+                  }`}
+                >
+                  <span>{change >= 0 ? "Change" : "Short"}</span>
+                  <span>
+                    {change >= 0
+                      ? `₱${fmt(change)}`
+                      : `₱${fmt(Math.abs(change))}`}
+                  </span>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {hasMissingPrice && (
+                <div className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
                   <svg
-                    className="w-4 h-4 shrink-0"
+                    className="w-3 h-3 shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1053,13 +1125,33 @@ function StaffPOS() {
                       d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
                     />
                   </svg>
+                  Enter price for all queue items first
+                </div>
+              )}
+              {error && (
+                <div className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+                  <svg
+                    className="w-3 h-3 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
                   {error}
                 </div>
               )}
+
+              {/* Pay button */}
               <button
                 onClick={handleCheckout}
-                disabled={checkingOut || cart.length === 0}
-                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-xl transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                disabled={checkingOut || cart.length === 0 || hasMissingPrice}
+                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black py-3 rounded-xl transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 text-sm"
               >
                 {checkingOut ? (
                   <>
@@ -1099,7 +1191,7 @@ function StaffPOS() {
                         d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"
                       />
                     </svg>
-                    Pay · ₱{fmt(total)}
+                    Pay ₱{fmt(total)}
                   </>
                 )}
               </button>
@@ -1108,7 +1200,6 @@ function StaffPOS() {
         </div>
       </div>
 
-      {/* Receipt modal */}
       {receipt && (
         <ReceiptModal {...receipt} onClose={() => setReceipt(null)} />
       )}

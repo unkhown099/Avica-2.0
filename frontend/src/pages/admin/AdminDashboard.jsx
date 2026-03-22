@@ -1,6 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
-import AdminLayout from "./AdminLayout";
-import { Line, Doughnut, Bar } from "react-chartjs-2";
+import { useState } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,6 +12,17 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import AdminLayout from "./AdminLayout.jsx";
+import { useOverview } from "../../hooks/useDashboard";
+import {
+  ErrorBanner,
+  exportToCSV,
+} from "../../components/admin/DashboardUI";
+import OverviewView from "../../components/admin/OverviewView";
+import RevenueView from "../../components/admin/RevenueView";
+import CustomersView from "../../components/admin/CustomersView";
+import InventoryView from "../../components/admin/InventoryView";
+import ServicesView from "../../components/admin/ServicesView";
 
 ChartJS.register(
   CategoryScale,
@@ -28,21 +37,7 @@ ChartJS.register(
   Legend,
 );
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const STATUS_STYLE = {
-  completed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  in_progress: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
-};
-const STATUS_LABEL = {
-  completed: "Completed",
-  in_progress: "In Progress",
-  pending: "Pending",
-  cancelled: "Cancelled",
-};
-
-// View tabs definition
+// ── View definitions ──────────────────────────────────────────────────────────
 const VIEWS = [
   {
     key: "overview",
@@ -267,7 +262,7 @@ function handlePrint(viewLabel) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-function AdminDashboard() {
+export default function AdminDashboard() {
   const [activeView, setActiveView] = useState("overview");
   const [stats, setStats] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -425,77 +420,8 @@ function AdminDashboard() {
     },
   ];
 
-  // ── Chart data ───────────────────────────────────────────────────────────
-  const lineChartData = {
-    labels: chart?.labels ?? [],
-    datasets: [
-      {
-        label: "Revenue (₱)",
-        data: chart?.revenue ?? [],
-        borderColor: "#ef4444",
-        backgroundColor: "rgba(239,68,68,0.08)",
-        tension: 0.4,
-        pointBackgroundColor: "#ef4444",
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        yAxisID: "y",
-        fill: true,
-      },
-      {
-        label: "Services Completed",
-        data: chart?.services ?? [],
-        borderColor: "#6b7280",
-        backgroundColor: "rgba(107,114,128,0.05)",
-        tension: 0.4,
-        pointBackgroundColor: "#6b7280",
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        yAxisID: "y1",
-        fill: true,
-      },
-    ],
-  };
-  const lineChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { mode: "index", intersect: false },
-    plugins: {
-      legend: {
-        display: true,
-        position: "bottom",
-        labels: {
-          color: "#9ca3af",
-          usePointStyle: true,
-          pointStyleWidth: 8,
-          padding: 20,
-          font: { size: 12 },
-        },
-      },
-      tooltip: CHART_BASE.tooltip,
-    },
-    scales: {
-      x: { grid: CHART_BASE.grid, ticks: CHART_BASE.ticks },
-      y: {
-        type: "linear",
-        display: true,
-        position: "left",
-        beginAtZero: true,
-        grid: CHART_BASE.grid,
-        ticks: {
-          ...CHART_BASE.ticks,
-          callback: (v) => `₱${v.toLocaleString()}`,
-        },
-      },
-      y1: {
-        type: "linear",
-        display: true,
-        position: "right",
-        beginAtZero: true,
-        grid: { drawOnChartArea: false },
-        ticks: CHART_BASE.ticks,
-      },
-    },
-  };
+  // Overview data is always fetched (needed for stat cards even in other views)
+  const { data, loading, error, refetch } = useOverview();
 
   const serviceDistribution = analytics?.service_distribution ?? [];
   const topServicesData = analytics?.top_services ?? [];
@@ -706,10 +632,7 @@ function AdminDashboard() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <AdminLayout title="" subtitle="">
-      <div
-        ref={printRef}
-        className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 print:bg-white print:p-4"
-      >
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 print:bg-white print:p-4">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -721,10 +644,9 @@ function AdminDashboard() {
             </p>
           </div>
 
-          {/* Action buttons: Print + Excel */}
           <div className="flex items-center gap-2 print:hidden">
             <button
-              onClick={() => handlePrint(viewLabel)}
+              onClick={() => window.print()}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-sm font-semibold"
             >
               <svg
@@ -743,7 +665,7 @@ function AdminDashboard() {
               Print
             </button>
             <button
-              onClick={handleExportExcel}
+              onClick={handleExportCSV}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-sm font-semibold"
             >
               <svg
@@ -782,35 +704,12 @@ function AdminDashboard() {
           ))}
         </div>
 
-        {/* ── Error Banner ────────────────────────────────────────────────── */}
-        {error && (
-          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
-            <svg
-              className="w-5 h-5 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-              />
-            </svg>
-            <span className="text-sm font-medium">{error}</span>
-            <button
-              onClick={() => window.location.reload()}
-              className="ml-auto text-xs font-semibold underline hover:no-underline"
-            >
-              Retry
-            </button>
-          </div>
+        {/* ── Error Banner (only for overview fetch) ──────────────────────── */}
+        {error && activeView === "overview" && (
+          <ErrorBanner message={error} onRetry={refetch} />
         )}
 
-        {/* ══════════════════════════════════════════════════════════════════
-            VIEW: OVERVIEW
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* ── Views ──────────────────────────────────────────────────────── */}
         {activeView === "overview" && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
@@ -1633,6 +1532,10 @@ function AdminDashboard() {
             </div>
           </>
         )}
+        {activeView === "revenue" && <RevenueView />}
+        {activeView === "customers" && <CustomersView />}
+        {activeView === "inventory" && <InventoryView />}
+        {activeView === "services" && <ServicesView />}
       </div>
     </AdminLayout>
   );
