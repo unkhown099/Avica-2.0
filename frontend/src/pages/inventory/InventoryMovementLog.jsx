@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import InventoryLayout from "./InventoryLayout";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 const MOVEMENT_DATA = [
   {
@@ -248,6 +250,19 @@ function MovementLog() {
     return matchSearch && matchType && matchBranch && matchFrom && matchTo;
   });
 
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filtered,
+    pageSize: 10,
+    resetDeps: [search, typeFilter, branchFilter, dateFrom, dateTo],
+  });
+
   // Summary counts
   const usedCount = MOVEMENT_DATA.filter((m) => m.type === "Used").reduce(
     (acc, m) => acc + Math.abs(m.qty),
@@ -395,7 +410,7 @@ function MovementLog() {
             <div>
               <h3 className="text-lg font-black text-white">All Movements</h3>
               <p className="text-gray-500 text-sm mt-0.5">
-                Showing {filtered.length} of {MOVEMENT_DATA.length} records
+                Showing {startItem}-{endItem} of {filtered.length} records
               </p>
             </div>
           </div>
@@ -417,7 +432,7 @@ function MovementLog() {
               </p>
             </div>
           ) : (
-            filtered.map((m) => {
+            paginatedItems.map((m) => {
               const t = TYPE_STYLES[m.type] || TYPE_STYLES.Used;
               const cat = CATEGORY_STYLES[m.category];
               return (
@@ -513,6 +528,13 @@ function MovementLog() {
               );
             })
           )}
+
+          <Pagination
+            current={currentPage}
+            total={totalPages}
+            onChange={setCurrentPage}
+            className="px-6 py-4"
+          />
         </div>
       </div>
     </InventoryLayout>

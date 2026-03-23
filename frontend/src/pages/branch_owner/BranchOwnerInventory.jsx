@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import BranchOwnerLayout from "./BranchOwnerLayout";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 function BranchOwnerInventory() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -184,6 +186,19 @@ function BranchOwnerInventory() {
       (branchFilter === "All Branches" || item.branch === branchFilter) &&
       (statusFilter === "All Status" || item.status === statusFilter)
     );
+  });
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filteredItems,
+    pageSize: 10,
+    resetDeps: [searchQuery, categoryFilter, branchFilter, statusFilter],
   });
 
   const filteredLowStock = lowStockItems.filter(
@@ -434,7 +449,7 @@ function BranchOwnerInventory() {
               </p>
             </div>
           ) : (
-            filteredItems.map((item) => (
+            paginatedItems.map((item) => (
               <div
                 key={item.id}
                 className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
@@ -473,18 +488,18 @@ function BranchOwnerInventory() {
           {filteredItems.length > 0 && (
             <div className="px-6 py-4">
               <p className="text-gray-500 text-sm">
-                Showing{" "}
-                <span className="text-white font-semibold">
-                  {filteredItems.length}
-                </span>{" "}
-                of{" "}
-                <span className="text-white font-semibold">
-                  {inventoryItems.length}
-                </span>{" "}
-                items
+                Showing <span className="text-white font-semibold">{startItem}-{endItem}</span> of{" "}
+                <span className="text-white font-semibold">{filteredItems.length}</span> items
               </p>
             </div>
           )}
+
+          <Pagination
+            current={currentPage}
+            total={totalPages}
+            onChange={setCurrentPage}
+            className="px-6 pb-6"
+          />
         </div>
       </div>
     </BranchOwnerLayout>

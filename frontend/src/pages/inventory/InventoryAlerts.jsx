@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import InventoryLayout from "./InventoryLayout";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 // ── Severity helpers ──────────────────────────────────────────────────────────
 function deriveSeverity(item) {
@@ -287,6 +289,19 @@ export default function ReorderAlerts() {
     return true;
   });
 
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filtered,
+    pageSize: 10,
+    resetDeps: [filterSeverity, filterBranch, alerts.length, dismissed.length],
+  });
+
   const criticalActive = active.filter((a) => a.severity === "critical");
   const warningActive = active.filter((a) => a.severity === "warning");
 
@@ -554,7 +569,7 @@ export default function ReorderAlerts() {
               <p className="text-gray-500 text-sm mt-0.5">
                 {loading
                   ? "Loading…"
-                  : `${filtered.length} item${filtered.length !== 1 ? "s" : ""} require${filtered.length === 1 ? "s" : ""} attention`}
+                  : `${startItem}-${endItem} of ${filtered.length} item${filtered.length !== 1 ? "s" : ""} require${filtered.length === 1 ? "s" : ""} attention`}
               </p>
             </div>
           </div>
@@ -599,7 +614,7 @@ export default function ReorderAlerts() {
               </p>
             </div>
           ) : (
-            filtered.map((alert) => {
+            paginatedItems.map((alert) => {
               const sev = SEVERITY_STYLES[alert.severity];
               const cat = categoryStyle(alert.category);
               const pct = alert.minimum_qty
@@ -763,6 +778,15 @@ export default function ReorderAlerts() {
                 </div>
               );
             })
+          )}
+
+          {!loading && filtered.length > 0 && (
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              onChange={setCurrentPage}
+              className="px-6 py-4"
+            />
           )}
         </div>
       </div>

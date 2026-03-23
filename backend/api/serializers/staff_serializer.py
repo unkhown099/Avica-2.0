@@ -33,6 +33,14 @@ class StaffSerializer(serializers.ModelSerializer):
             role = role if role is not None else self.instance.role
             branch = branch if branch is not None else self.instance.branch
 
+        request = self.context.get("request")
+        requester_staff = getattr(getattr(request, "user", None), "staff_profile", None)
+
+        if requester_staff and requester_staff.role == "Staff" and role == "Business Owner":
+            raise serializers.ValidationError(
+                {"role": "Staff accounts are not allowed to create or assign Business Owner role."}
+            )
+
         if role == "Admin" and (self.instance is None or self.instance.role != "Admin"):
             raise serializers.ValidationError(
                 {"role": "Creating Admin accounts from staff management is not allowed."}

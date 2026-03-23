@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import AdminLayout from "./AdminLayout";
 import axios from "axios";
 import Swal from "sweetalert2";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 function AdminStaffAccounts() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,6 +105,19 @@ function AdminStaffAccounts() {
       String(staff.id).includes(q);
     const matchesRole = roleFilter === "All Roles" || staff.role === roleFilter;
     return matchesSearch && matchesRole;
+  });
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filteredStaff,
+    pageSize: 10,
+    resetDeps: [searchQuery, roleFilter, staffAccounts.length],
   });
 
   const roleColors = {
@@ -338,7 +353,7 @@ function AdminStaffAccounts() {
               </p>
             </div>
           ) : (
-            filteredStaff.map((staff, index) => (
+            paginatedItems.map((staff, index) => (
               <div
                 key={staff.id}
                 className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/3 transition-colors items-center"
@@ -393,16 +408,23 @@ function AdminStaffAccounts() {
               <p className="text-gray-500 text-sm">
                 Showing{" "}
                 <span className="text-white font-semibold">
-                  {filteredStaff.length}
+                  {startItem}-{endItem}
                 </span>{" "}
                 of{" "}
                 <span className="text-white font-semibold">
-                  {staffAccounts.length}
+                  {filteredStaff.length}
                 </span>{" "}
                 staff members
               </p>
             </div>
           )}
+
+          <Pagination
+            current={currentPage}
+            total={totalPages}
+            onChange={setCurrentPage}
+            className="px-6 pb-6"
+          />
         </div>
       </div>
 

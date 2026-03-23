@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import MechanicLayout from "./MechanicLayout";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 function MechanicJobHistory() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -140,6 +142,19 @@ function MechanicJobHistory() {
       serviceFilter === "All Services" || job.service === serviceFilter;
 
     return matchesSearch && matchesService;
+  });
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filteredJobs,
+    pageSize: 10,
+    resetDeps: [searchQuery, serviceFilter, dateFilter],
   });
 
   const renderStars = (rating) => {
@@ -396,7 +411,7 @@ function MechanicJobHistory() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filteredJobs.map((job) => (
+                {paginatedItems.map((job) => (
                   <tr
                     key={job.id}
                     className="hover:bg-white/[0.02] transition-colors duration-150"
@@ -480,8 +495,15 @@ function MechanicJobHistory() {
 
         {/* Results Summary */}
         {filteredJobs.length > 0 && (
-          <div className="mt-4 text-sm text-gray-500">
-            Showing {filteredJobs.length} of {jobHistory.length} completed jobs
+          <div className="mt-4 text-sm text-gray-500 space-y-4">
+            <div>
+              Showing {startItem}-{endItem} of {filteredJobs.length} completed jobs
+            </div>
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              onChange={setCurrentPage}
+            />
           </div>
         )}
       </div>

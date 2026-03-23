@@ -3,6 +3,8 @@ import AdminLayout from "./AdminLayout";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 const CATEGORIES = [
   "Lubricants",
@@ -604,6 +606,26 @@ function AdminInventory() {
     return matchSearch && matchCat && matchStatus;
   });
 
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filtered,
+    pageSize: 10,
+    resetDeps: [
+      searchQuery,
+      categoryFilter,
+      statusFilter,
+      archiveFilter,
+      activeTab,
+      items.length,
+    ],
+  });
+
   const lowStock = items.filter((i) => {
     const key = getInventoryStatusKey(i);
     return (
@@ -1033,7 +1055,7 @@ function AdminInventory() {
                   </p>
                 </div>
               ) : (
-                filtered.map((item) => (
+                paginatedItems.map((item) => (
                   <div
                     key={item.id}
                     className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
@@ -1131,15 +1153,24 @@ function AdminInventory() {
                   <p className="text-gray-500 text-sm">
                     Showing{" "}
                     <span className="text-white font-semibold">
-                      {filtered.length}
+                      {startItem}-{endItem}
                     </span>{" "}
                     of{" "}
                     <span className="text-white font-semibold">
-                      {items.length}
+                      {filtered.length}
                     </span>{" "}
                     items
                   </p>
                 </div>
+              )}
+
+              {!loading && (
+                <Pagination
+                  current={currentPage}
+                  total={totalPages}
+                  onChange={setCurrentPage}
+                  className="px-6 pb-6"
+                />
               )}
             </div>
           </>

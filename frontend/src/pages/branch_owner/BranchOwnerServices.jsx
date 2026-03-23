@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import BranchOwnerLayout from "./BranchOwnerLayout";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 function BranchOwnerServices() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -146,6 +148,19 @@ function BranchOwnerServices() {
     );
   });
 
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filteredServices,
+    pageSize: 10,
+    resetDeps: [searchQuery, categoryFilter, branchFilter],
+  });
+
   return (
     <BranchOwnerLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
@@ -262,7 +277,7 @@ function BranchOwnerServices() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredServices.map((service) => {
+            {paginatedItems.map((service) => {
               const accent =
                 categoryColors[service.category]?.accent || "#6b7280";
               return (
@@ -362,14 +377,16 @@ function BranchOwnerServices() {
         )}
 
         {filteredServices.length > 0 && (
-          <div className="mt-6 text-sm text-gray-500">
-            Showing{" "}
-            <span className="text-white font-semibold">
-              {filteredServices.length}
-            </span>{" "}
-            of{" "}
-            <span className="text-white font-semibold">{services.length}</span>{" "}
-            services
+          <div className="mt-6 text-sm text-gray-500 space-y-4">
+            <p>
+              Showing <span className="text-white font-semibold">{startItem}-{endItem}</span> of{" "}
+              <span className="text-white font-semibold">{filteredServices.length}</span> services
+            </p>
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              onChange={setCurrentPage}
+            />
           </div>
         )}
       </div>
