@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import InventoryLayout from "./InventoryLayout";
-import { useAuth, getAuthHeaders, API_BASE } from "../../hooks/useAuth.js";
-
-const BRANCHES = ["Quezon City", "Makati", "Pasig", "Mandaluyong"];
+import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 
 const CATEGORY_STYLES = {
   Lubricants: {
@@ -62,7 +60,10 @@ function StockBadge({ status }) {
   );
 }
 
-function RestockModal({ item, onClose, onSuccess }) {
+// ── Restock Request Modal ─────────────────────────────────────────────────────
+// Sends POST /inventory/restock-requests/ — backend auto-sets branch from the
+// requester's staff profile, so we just need inventory_item + quantity_requested.
+function RestockModal({ item, headers, onClose, onSuccess }) {
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,7 +79,8 @@ function RestockModal({ item, onClose, onSuccess }) {
     try {
       const res = await fetch(`${API_BASE}/inventory/restock-requests/`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers,
+        credentials: "include",
         body: JSON.stringify({
           inventory_item: item.id,
           quantity_requested: Number(quantity),
@@ -86,7 +88,7 @@ function RestockModal({ item, onClose, onSuccess }) {
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data?.detail || "Failed to submit restock request.");
       }
       onSuccess?.();
@@ -102,7 +104,7 @@ function RestockModal({ item, onClose, onSuccess }) {
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h3 className="text-lg font-black text-white">Restock Item</h3>
+          <h3 className="text-lg font-black text-white">Request Restock</h3>
           <button
             onClick={onClose}
             className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-all"
@@ -123,27 +125,28 @@ function RestockModal({ item, onClose, onSuccess }) {
           </button>
         </div>
         <div className="p-6 space-y-4">
-          {item?.name && (
-            <div className="bg-gray-800/60 rounded-xl p-3">
-              <p className="text-white font-bold text-sm">{item.name}</p>
-              <p className="text-gray-500 text-xs mt-0.5">
-                {item.sku} · {item.branch_name || "—"}
+          {/* Item summary */}
+          <div className="bg-gray-800/60 rounded-xl p-3">
+            <p className="text-white font-bold text-sm">{item.name}</p>
+            <p className="text-gray-500 text-xs mt-0.5">
+              {item.sku} · {item.branch_name || "—"} · Current stock:{" "}
+              <span className="text-white font-semibold">
+                {item.quantity} {item.unit}
+              </span>
+            </p>
+            {item.minimum_qty != null && (
+              <p className="text-gray-600 text-xs mt-0.5">
+                Minimum qty: {item.minimum_qty}
               </p>
-            </div>
-          )}
+            )}
+          </div>
+
           {error && (
             <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
-          <div>
-            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
-              Branch
-            </label>
-            <div className="w-full bg-gray-800 border border-gray-700 text-gray-400 text-sm rounded-xl px-4 py-2.5">
-              {item?.branch_name || "—"}
-            </div>
-          </div>
+
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
               Quantity to Request
@@ -153,22 +156,27 @@ function RestockModal({ item, onClose, onSuccess }) {
               min="1"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              placeholder="Enter quantity..."
+              placeholder={`Suggested: ${Math.max((item.minimum_qty ?? 10) * 2 - item.quantity, 1)}`}
               className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors placeholder-gray-600"
             />
           </div>
+
           <div>
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
-              Notes
+              Notes{" "}
+              <span className="text-gray-600 normal-case font-normal">
+                (optional)
+              </span>
             </label>
             <textarea
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional..."
+              placeholder="e.g. Urgently needed, preferred supplier..."
               className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors placeholder-gray-600 resize-none"
             />
           </div>
+
           <div className="flex gap-3 pt-2">
             <button
               onClick={onClose}
@@ -181,7 +189,7 @@ function RestockModal({ item, onClose, onSuccess }) {
               disabled={loading}
               className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-red-600/20"
             >
-              {loading ? "Submitting..." : "Submit Request"}
+              {loading ? "Submitting..." : "Send Request"}
             </button>
           </div>
         </div>
@@ -190,7 +198,8 @@ function RestockModal({ item, onClose, onSuccess }) {
   );
 }
 
-function TransferModal({ item, onClose, onSuccess }) {
+// ── Transfer Modal (admin only) ───────────────────────────────────────────────
+function TransferModal({ item, headers, onClose, onSuccess }) {
   const [targetBranch, setTargetBranch] = useState("");
   const [quantity, setQuantity] = useState("");
   const [branches, setBranches] = useState([]);
@@ -198,7 +207,7 @@ function TransferModal({ item, onClose, onSuccess }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`${API_BASE}/branches/`, { headers: getAuthHeaders() })
+    fetch(`${API_BASE}/branches/`, { headers, credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         const all = data.results ?? data;
@@ -207,7 +216,7 @@ function TransferModal({ item, onClose, onSuccess }) {
         if (filtered.length > 0) setTargetBranch(String(filtered[0].id));
       })
       .catch(() => {});
-  }, [item]);
+  }, [item, headers]);
 
   const handleSubmit = async () => {
     if (!quantity || Number(quantity) <= 0) {
@@ -223,7 +232,8 @@ function TransferModal({ item, onClose, onSuccess }) {
     try {
       const res = await fetch(`${API_BASE}/inventory/transfer/`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers,
+        credentials: "include",
         body: JSON.stringify({
           source_item_id: item.id,
           target_branch_id: Number(targetBranch),
@@ -232,7 +242,7 @@ function TransferModal({ item, onClose, onSuccess }) {
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data?.detail || "Transfer failed.");
       }
       onSuccess?.();
@@ -269,14 +279,12 @@ function TransferModal({ item, onClose, onSuccess }) {
           </button>
         </div>
         <div className="p-6 space-y-4">
-          {item?.name && (
-            <div className="bg-gray-800/60 rounded-xl p-3">
-              <p className="text-white font-bold text-sm">{item.name}</p>
-              <p className="text-gray-500 text-xs mt-0.5">
-                {item.sku} · Available: {item.quantity} {item.unit}
-              </p>
-            </div>
-          )}
+          <div className="bg-gray-800/60 rounded-xl p-3">
+            <p className="text-white font-bold text-sm">{item.name}</p>
+            <p className="text-gray-500 text-xs mt-0.5">
+              {item.sku} · Available: {item.quantity} {item.unit}
+            </p>
+          </div>
           {error && (
             <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
               {error}
@@ -343,6 +351,7 @@ function TransferModal({ item, onClose, onSuccess }) {
   );
 }
 
+// ── Skeleton ──────────────────────────────────────────────────────────────────
 function SkeletonRow() {
   return (
     <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 animate-pulse">
@@ -370,6 +379,7 @@ function SkeletonRow() {
   );
 }
 
+// ── Main Component ────────────────────────────────────────────────────────────
 function StockOverview() {
   const { isAdmin, headers, isAuthenticated } = useAuth();
 
@@ -379,9 +389,20 @@ function StockOverview() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [branch, setBranch] = useState("");
+  const [branches, setBranches] = useState([]); // for admin filter dropdown
   const [restockItem, setRestockItem] = useState(null);
   const [transferItem, setTransferItem] = useState(null);
 
+  // ── Fetch branches (admin only, for filter dropdown) ──────────────────────
+  useEffect(() => {
+    if (!isAdmin || !isAuthenticated) return;
+    fetch(`${API_BASE}/branches/`, { headers, credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => setBranches(data.results ?? data))
+      .catch(() => {});
+  }, [isAdmin, isAuthenticated, headers]);
+
+  // ── Fetch inventory ───────────────────────────────────────────────────────
   const fetchInventory = useCallback(async () => {
     if (!isAuthenticated) return;
     setLoading(true);
@@ -392,8 +413,9 @@ function StockOverview() {
       if (category !== "All") params.set("category", category);
       if (search) params.set("search", search);
 
-      const res = await fetch(`${API_BASE}/inventory/?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/inventory/?${params}`, {
         headers,
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to load inventory.");
       const data = await res.json();
@@ -409,17 +431,18 @@ function StockOverview() {
     fetchInventory();
   }, [fetchInventory]);
 
+  // ── Derived ───────────────────────────────────────────────────────────────
   const categories = [
     "All",
-    ...Array.from(new Set(items.map((i) => i.category))),
+    ...Array.from(new Set(items.map((i) => i.category).filter(Boolean))),
   ];
 
   const filtered = items.filter((item) => {
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
-      item.name.toLowerCase().includes(q) ||
-      item.sku.toLowerCase().includes(q);
+      item.name?.toLowerCase().includes(q) ||
+      item.sku?.toLowerCase().includes(q);
     const matchCat = category === "All" || item.category === category;
     return matchSearch && matchCat;
   });
@@ -430,6 +453,7 @@ function StockOverview() {
     return "text-white";
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <InventoryLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
@@ -448,6 +472,7 @@ function StockOverview() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Admin branch filter — uses real branch list from API */}
             {isAdmin && (
               <select
                 value={branch}
@@ -455,32 +480,15 @@ function StockOverview() {
                 className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors"
               >
                 <option value="">All Branches</option>
-                {BRANCHES.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
+                {branches.map((b) => (
+                  <option key={b.id} value={b.name}>
+                    {b.name}
                   </option>
                 ))}
               </select>
             )}
-            <button
-              onClick={() => setRestockItem({})}
-              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-red-600/20"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Restock
-            </button>
+
+            {/* Transfer — admin only, opens with no pre-selected item */}
             {isAdmin && (
               <button
                 onClick={() => setTransferItem({})}
@@ -536,11 +544,7 @@ function StockOverview() {
                 <button
                   key={cat}
                   onClick={() => setCategory(cat)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    category === cat
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-800 text-gray-400 hover:text-white"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${category === cat ? "bg-red-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
                 >
                   {cat}
                 </button>
@@ -559,7 +563,6 @@ function StockOverview() {
             <div className="col-span-1 text-right">Actions</div>
           </div>
 
-          {/* Error */}
           {error && (
             <div className="px-6 py-10 text-center">
               <p className="text-red-400 text-sm">{error}</p>
@@ -572,12 +575,10 @@ function StockOverview() {
             </div>
           )}
 
-          {/* Skeleton */}
           {loading &&
             !error &&
             Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
 
-          {/* Empty */}
           {!loading && !error && filtered.length === 0 && (
             <div className="px-6 py-16 text-center">
               <svg
@@ -597,7 +598,6 @@ function StockOverview() {
             </div>
           )}
 
-          {/* Rows */}
           {!loading &&
             !error &&
             filtered.map((item) => {
@@ -636,6 +636,13 @@ function StockOverview() {
                         {item.quantity}
                       </p>
                       <p className="text-gray-500 text-xs">{item.unit}</p>
+                      {/* Mobile restock button — always on a real item */}
+                      <button
+                        onClick={() => setRestockItem(item)}
+                        className="mt-1 px-2 py-1 bg-red-600/15 hover:bg-red-600 border border-red-500/25 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all"
+                      >
+                        Restock
+                      </button>
                     </div>
                   </div>
 
@@ -676,6 +683,7 @@ function StockOverview() {
                     <StockBadge status={item.status} />
                   </div>
                   <div className="hidden lg:flex col-span-1 items-center justify-end gap-1">
+                    {/* Restock — opens modal pre-filled with THIS item */}
                     <button
                       onClick={() => setRestockItem(item)}
                       className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all"
@@ -743,9 +751,11 @@ function StockOverview() {
         </div>
       </div>
 
-      {restockItem && (
+      {/* Modals — only open when a real item is selected (has an id) */}
+      {restockItem?.id && (
         <RestockModal
           item={restockItem}
+          headers={headers}
           onClose={() => setRestockItem(null)}
           onSuccess={fetchInventory}
         />
@@ -753,6 +763,7 @@ function StockOverview() {
       {transferItem && isAdmin && (
         <TransferModal
           item={transferItem}
+          headers={headers}
           onClose={() => setTransferItem(null)}
           onSuccess={fetchInventory}
         />
