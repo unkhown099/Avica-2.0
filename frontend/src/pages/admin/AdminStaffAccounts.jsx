@@ -23,6 +23,12 @@ function AdminStaffAccounts() {
     "Inventory",
   ];
 
+  const createRoles = roles.filter(
+    (role) => role !== "Admin" && role !== "Business Owner",
+  );
+
+  const editRoles = roles.filter((role) => role !== "Admin");
+
   useEffect(() => {
     const fetchStaff = async () => {
       const accessToken =
@@ -393,9 +399,23 @@ function AdminStaffAccounts() {
                       type="button"
                       onClick={() => openEditModal(staff)}
                       disabled={staff.role === "Admin"}
-                      className="px-3 py-1.5 text-xs font-semibold text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Edit"
+                      aria-label="Edit staff"
+                      className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      Edit
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
                     </button>
                  </div>
               </div>
@@ -432,7 +452,7 @@ function AdminStaffAccounts() {
         <CreateStaffModal
           mode={editStaff ? "edit" : "create"}
           initialStaff={editStaff}
-          roles={roles.filter((role) => role !== "Admin")}
+          roles={editStaff ? editRoles : createRoles}
           branches={branches}
           staffAccounts={staffAccounts}
           onClose={() => {
