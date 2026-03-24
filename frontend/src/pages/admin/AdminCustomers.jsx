@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "./AdminLayout";
 import axios from "axios";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 const API = import.meta.env.VITE_API_BASE_URL;
 
@@ -87,6 +89,19 @@ function AdminCustomers() {
       String(c.id).includes(q);
     const matchSeg = segmentFilter === "All" || c.segment === segmentFilter;
     return matchSearch && matchSeg;
+  });
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filtered,
+    pageSize: 10,
+    resetDeps: [searchQuery, segmentFilter, customers.length],
   });
 
   const segmentCounts = SEGMENTS.reduce((acc, s) => {
@@ -247,7 +262,7 @@ function AdminCustomers() {
               </p>
             </div>
           ) : (
-            filtered.map((customer) => {
+            paginatedItems.map((customer) => {
               const fullName = `${customer.first_name} ${customer.last_name}`;
               const color = SEGMENT_COLOR[customer.segment] ?? "#6b7280";
               return (
@@ -357,15 +372,24 @@ function AdminCustomers() {
               <p className="text-gray-500 text-sm">
                 Showing{" "}
                 <span className="text-white font-semibold">
-                  {filtered.length}
+                  {startItem}-{endItem}
                 </span>{" "}
                 of{" "}
                 <span className="text-white font-semibold">
-                  {customers.length}
+                  {filtered.length}
                 </span>{" "}
                 customers
               </p>
             </div>
+          )}
+
+          {!loading && (
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              onChange={setCurrentPage}
+              className="px-6 pb-6"
+            />
           )}
         </div>
       </div>

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import ManagerLayout from './ManagerLayout';
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 function ManagerHistory() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,6 +54,19 @@ function ManagerHistory() {
     (serviceFilter === "All Services" || r.service === serviceFilter) &&
     (statusFilter === "All Status" || r.status === statusFilter),
   );
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filteredHistory,
+    pageSize: 10,
+    resetDeps: [searchQuery, serviceFilter, statusFilter, serviceHistory.length],
+  });
 
   if (loading) {
     return (
@@ -133,7 +148,7 @@ function ManagerHistory() {
               <p className="text-gray-500 text-lg">No records found</p>
               <p className="text-gray-600 text-sm mt-1">Try adjusting your search or filters</p>
             </div>
-          ) : filteredHistory.map(record => (
+          ) : paginatedItems.map(record => (
             <div key={record.id} className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group">
                <div className="col-span-1 text-gray-500 text-xs">{record.date ? String(record.date).slice(5, 10) : "—"}</div>
               <div className="col-span-2 text-white font-semibold text-sm">{record.customer}</div>
@@ -158,10 +173,17 @@ function ManagerHistory() {
            {filteredHistory.length > 0 && (
              <div className="px-6 py-4">
                <p className="text-gray-500 text-sm">
-                 Showing <span className="text-white font-semibold">{filteredHistory.length}</span> of <span className="text-white font-semibold">{serviceHistory.length}</span> records
+                 Showing <span className="text-white font-semibold">{startItem}-{endItem}</span> of <span className="text-white font-semibold">{filteredHistory.length}</span> records
               </p>
             </div>
           )}
+
+          <Pagination
+            current={currentPage}
+            total={totalPages}
+            onChange={setCurrentPage}
+            className="px-6 pb-6"
+          />
         </div>
       </div>
     </ManagerLayout>

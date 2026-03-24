@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import AdminLayout from "./AdminLayout";
 import axios from "axios";
 import Swal from "sweetalert2";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 function AdminStaffAccounts() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -20,6 +22,12 @@ function AdminStaffAccounts() {
     "Employee",
     "Inventory",
   ];
+
+  const createRoles = roles.filter(
+    (role) => role !== "Admin" && role !== "Business Owner",
+  );
+
+  const editRoles = roles.filter((role) => role !== "Admin");
 
   useEffect(() => {
     const fetchStaff = async () => {
@@ -103,6 +111,19 @@ function AdminStaffAccounts() {
       String(staff.id).includes(q);
     const matchesRole = roleFilter === "All Roles" || staff.role === roleFilter;
     return matchesSearch && matchesRole;
+  });
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filteredStaff,
+    pageSize: 10,
+    resetDeps: [searchQuery, roleFilter, staffAccounts.length],
   });
 
   const roleColors = {
@@ -338,7 +359,7 @@ function AdminStaffAccounts() {
               </p>
             </div>
           ) : (
-            filteredStaff.map((staff, index) => (
+            paginatedItems.map((staff, index) => (
               <div
                 key={staff.id}
                 className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/3 transition-colors items-center"
@@ -378,9 +399,23 @@ function AdminStaffAccounts() {
                       type="button"
                       onClick={() => openEditModal(staff)}
                       disabled={staff.role === "Admin"}
-                      className="px-3 py-1.5 text-xs font-semibold text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Edit"
+                      aria-label="Edit staff"
+                      className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      Edit
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
                     </button>
                  </div>
               </div>
@@ -393,16 +428,23 @@ function AdminStaffAccounts() {
               <p className="text-gray-500 text-sm">
                 Showing{" "}
                 <span className="text-white font-semibold">
-                  {filteredStaff.length}
+                  {startItem}-{endItem}
                 </span>{" "}
                 of{" "}
                 <span className="text-white font-semibold">
-                  {staffAccounts.length}
+                  {filteredStaff.length}
                 </span>{" "}
                 staff members
               </p>
             </div>
           )}
+
+          <Pagination
+            current={currentPage}
+            total={totalPages}
+            onChange={setCurrentPage}
+            className="px-6 pb-6"
+          />
         </div>
       </div>
 
@@ -410,7 +452,7 @@ function AdminStaffAccounts() {
         <CreateStaffModal
           mode={editStaff ? "edit" : "create"}
           initialStaff={editStaff}
-          roles={roles.filter((role) => role !== "Admin")}
+          roles={editStaff ? editRoles : createRoles}
           branches={branches}
           staffAccounts={staffAccounts}
           onClose={() => {

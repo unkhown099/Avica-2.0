@@ -47,7 +47,7 @@ class StaffView(APIView):
         return Response(data)
 
     def post(self, request):
-        serializer = StaffSerializer(data=request.data)
+        serializer = StaffSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             staff = serializer.save()
             return Response(
@@ -86,7 +86,12 @@ class StaffDetailView(APIView):
         ):
             return Response({"detail": "Not authorized."}, status=403)
 
-        serializer = StaffSerializer(staff, data=request.data, partial=True)
+        serializer = StaffSerializer(
+            staff,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
         if serializer.is_valid():
             updated_staff = serializer.save()
             return Response(

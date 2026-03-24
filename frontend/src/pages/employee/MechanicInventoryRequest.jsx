@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import MechanicLayout from "./MechanicLayout";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 function MechanicInventoryRequests() {
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -121,6 +123,19 @@ function MechanicInventoryRequests() {
       statusFilter === "All Status" || request.status === statusFilter;
 
     return matchesSearch && matchesStatus;
+  });
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filteredRequests,
+    pageSize: 10,
+    resetDeps: [searchQuery, statusFilter],
   });
 
   const handleInputChange = (e) => {
@@ -371,7 +386,7 @@ function MechanicInventoryRequests() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filteredRequests.map((request) => (
+                {paginatedItems.map((request) => (
                   <tr
                     key={request.id}
                     className="hover:bg-white/[0.02] transition-colors duration-150"
@@ -461,8 +476,15 @@ function MechanicInventoryRequests() {
 
         {/* Results Summary */}
         {filteredRequests.length > 0 && (
-          <div className="mt-4 text-sm text-gray-500">
-            Showing {filteredRequests.length} of {requests.length} requests
+          <div className="mt-4 text-sm text-gray-500 space-y-4">
+            <div>
+              Showing {startItem}-{endItem} of {filteredRequests.length} requests
+            </div>
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              onChange={setCurrentPage}
+            />
           </div>
         )}
 

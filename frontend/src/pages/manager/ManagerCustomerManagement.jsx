@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import ManagerLayout from "./ManagerLayout";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 function ManagerCustomerManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,6 +67,19 @@ function ManagerCustomerManagement() {
         c.phone.includes(searchQuery)) &&
       (segmentFilter === "All Segments" || c.segment === segmentFilter),
   );
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filteredCustomers,
+    pageSize: 10,
+    resetDeps: [searchQuery, segmentFilter, customers.length],
+  });
 
   if (loading) {
     return (
@@ -243,7 +258,7 @@ function ManagerCustomerManagement() {
               </p>
             </div>
           ) : (
-            filteredCustomers.map((customer) => (
+            paginatedItems.map((customer) => (
               <div
                 key={customer.id}
                 className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
@@ -327,18 +342,18 @@ function ManagerCustomerManagement() {
           {filteredCustomers.length > 0 && (
             <div className="px-6 py-4">
               <p className="text-gray-500 text-sm">
-                Showing{" "}
-                <span className="text-white font-semibold">
-                  {filteredCustomers.length}
-                </span>{" "}
-                of{" "}
-                <span className="text-white font-semibold">
-                  {customers.length}
-                </span>{" "}
-                customers
+                Showing <span className="text-white font-semibold">{startItem}-{endItem}</span> of{" "}
+                <span className="text-white font-semibold">{filteredCustomers.length}</span> customers
               </p>
             </div>
           )}
+
+          <Pagination
+            current={currentPage}
+            total={totalPages}
+            onChange={setCurrentPage}
+            className="px-6 pb-6"
+          />
         </div>
       </div>
     </ManagerLayout>

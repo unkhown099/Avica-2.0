@@ -43,7 +43,7 @@ const CATEGORY_ICON = {
   Cosmetic: "✨",
 };
 
-const PAGE_SIZE = 5; // bookings per page
+const PAGE_SIZE = 10; // bookings per page
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 

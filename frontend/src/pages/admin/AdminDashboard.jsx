@@ -21,6 +21,8 @@ import RevenueView from "../../components/admin/RevenueView";
 import CustomersView from "../../components/admin/CustomersView";
 import InventoryView from "../../components/admin/InventoryView";
 import ServicesView from "../../components/admin/ServicesView";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 ChartJS.register(
   CategoryScale,
@@ -273,6 +275,40 @@ export default function AdminDashboard() {
     const status = normalizeInventoryStatus(i.status);
     return status === "critical" || status === "out";
   }).length;
+
+  const sortedServiceCards = [...topServiceCards].sort(
+    (a, b) => b.revenue - a.revenue,
+  );
+
+  const transactionsPagination = usePagination({
+    items: transactions,
+    pageSize: 10,
+    resetDeps: [activeView, transactions.length],
+  });
+
+  const revenueBranchPagination = usePagination({
+    items: revenueByBranch,
+    pageSize: 10,
+    resetDeps: [activeView, revenueByBranch.length],
+  });
+
+  const customersPagination = usePagination({
+    items: customers,
+    pageSize: 10,
+    resetDeps: [activeView, customers.length],
+  });
+
+  const inventoryPagination = usePagination({
+    items: filteredInventoryItems,
+    pageSize: 10,
+    resetDeps: [activeView, inventoryBranchFilter, filteredInventoryItems.length],
+  });
+
+  const servicesPagination = usePagination({
+    items: sortedServiceCards,
+    pageSize: 10,
+    resetDeps: [activeView, topServiceCards.length],
+  });
 
   // ── Stat cards config ────────────────────────────────────────────────────
   const statCards = [
@@ -695,7 +731,7 @@ export default function AdminDashboard() {
                   <p className="text-gray-500 text-sm">No transactions found.</p>
                 </div>
               ) : (
-                transactions.map((row, i) => {
+                transactionsPagination.paginatedItems.map((row, i) => {
                   const statusKey = normalizeStatus(row.status);
                   return (
                     <div
@@ -738,15 +774,24 @@ export default function AdminDashboard() {
                 <p className="text-gray-500 text-sm">
                   Showing{" "}
                   <span className="text-white font-semibold">
-                    {loading ? "—" : transactions.length}
+                    {loading ? "—" : `${transactionsPagination.startItem}-${transactionsPagination.endItem}`}
                   </span>{" "}
                   of{" "}
                   <span className="text-white font-semibold">
-                    {loading ? "—" : (stats?.services_completed ?? "—")}
+                    {loading ? "—" : transactions.length}
                   </span>{" "}
                   transactions
                 </p>
               </div>
+
+              {!loading && (
+                <Pagination
+                  current={transactionsPagination.currentPage}
+                  total={transactionsPagination.totalPages}
+                  onChange={transactionsPagination.setCurrentPage}
+                  className="px-6 pb-6"
+                />
+              )}
             </div>
           </>
         )}
@@ -816,7 +861,7 @@ export default function AdminDashboard() {
                 <div>Branch</div>
                 <div>Revenue</div>
               </div>
-              {revenueByBranch.map((row, idx) => (
+              {revenueBranchPagination.paginatedItems.map((row, idx) => (
                 <div
                   key={`${row.branch}-${idx}`}
                   className="grid grid-cols-2 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
@@ -827,6 +872,13 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
+
+              <Pagination
+                current={revenueBranchPagination.currentPage}
+                total={revenueBranchPagination.totalPages}
+                onChange={revenueBranchPagination.setCurrentPage}
+                className="px-6 py-4"
+              />
             </div>
           </>
         )}
@@ -926,7 +978,7 @@ export default function AdminDashboard() {
                 <div className="col-span-2">Avg Rating</div>
                 <div className="col-span-1">Segment</div>
               </div>
-              {customers.map((c, i) => (
+              {customersPagination.paginatedItems.map((c, i) => (
                 <div
                   key={i}
                   className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
@@ -955,6 +1007,13 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
+
+              <Pagination
+                current={customersPagination.currentPage}
+                total={customersPagination.totalPages}
+                onChange={customersPagination.setCurrentPage}
+                className="px-6 py-4"
+              />
             </div>
           </>
         )}
@@ -1033,7 +1092,7 @@ export default function AdminDashboard() {
                 <div className="col-span-2">Reorder At</div>
                 <div className="col-span-2">Status</div>
               </div>
-              {filteredInventoryItems.map((item, i) => {
+              {inventoryPagination.paginatedItems.map((item, i) => {
                 const invStatus = normalizeInventoryStatus(item.status);
                 return (
                   <div
@@ -1065,6 +1124,13 @@ export default function AdminDashboard() {
                   </div>
                 );
               })}
+
+              <Pagination
+                current={inventoryPagination.currentPage}
+                total={inventoryPagination.totalPages}
+                onChange={inventoryPagination.setCurrentPage}
+                className="px-6 py-4"
+              />
             </div>
           </>
         )}
@@ -1136,10 +1202,8 @@ export default function AdminDashboard() {
                   No service performance data available.
                 </div>
               ) : (
-                [...topServiceCards]
-                  .sort((a, b) => b.revenue - a.revenue)
-                  .map((s, i) => {
-                    const totalRev = topServiceCards.reduce((a, x) => a + Number(x.revenue ?? 0), 0);
+                servicesPagination.paginatedItems.map((s, i) => {
+                    const totalRev = sortedServiceCards.reduce((a, x) => a + Number(x.revenue ?? 0), 0);
                     const pct = totalRev ? ((Number(s.revenue ?? 0) / totalRev) * 100).toFixed(1) : "0.0";
                     return (
                       <div
@@ -1169,6 +1233,15 @@ export default function AdminDashboard() {
                       </div>
                     );
                   })
+              )}
+
+              {topServiceCards.length > 0 && (
+                <Pagination
+                  current={servicesPagination.currentPage}
+                  total={servicesPagination.totalPages}
+                  onChange={servicesPagination.setCurrentPage}
+                  className="px-6 py-4"
+                />
               )}
             </div>
           </>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import InventoryLayout from "./InventoryLayout";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 const CATEGORY_STYLES = {
   Lubricants: {
@@ -447,6 +449,19 @@ function StockOverview() {
     return matchSearch && matchCat;
   });
 
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filtered,
+    pageSize: 10,
+    resetDeps: [search, category, branch, items.length],
+  });
+
   const quantityColor = (qty, minQty) => {
     if (qty === 0) return "text-red-400";
     if (qty <= minQty) return "text-amber-400";
@@ -600,7 +615,7 @@ function StockOverview() {
 
           {!loading &&
             !error &&
-            filtered.map((item) => {
+            paginatedItems.map((item) => {
               const cat =
                 CATEGORY_STYLES[item.category] ?? CATEGORY_STYLES.Other;
               return (
@@ -735,9 +750,9 @@ function StockOverview() {
               <p className="text-gray-500 text-sm">
                 Showing{" "}
                 <span className="text-white font-semibold">
-                  {filtered.length}
+                  {startItem}-{endItem}
                 </span>{" "}
-                item{filtered.length !== 1 ? "s" : ""}
+                of <span className="text-white font-semibold">{filtered.length}</span> item{filtered.length !== 1 ? "s" : ""}
               </p>
               {filtered.some((i) => i.status !== "In Stock") && (
                 <p className="text-amber-400 text-xs">
@@ -747,6 +762,15 @@ function StockOverview() {
                 </p>
               )}
             </div>
+          )}
+
+          {!loading && !error && (
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              onChange={setCurrentPage}
+              className="px-6 pb-6"
+            />
           )}
         </div>
       </div>

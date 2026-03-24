@@ -3,6 +3,8 @@ import AdminLayout from "./AdminLayout";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 const CATEGORIES = [
   "Lubricants",
@@ -28,6 +30,18 @@ const inputCls =
   "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all";
 
 const DARK_SWAL = { background: "#111827", color: "#f9fafb" };
+const ALL_BRANCHES = "All Branches";
+const CENTRAL_BRANCH = "Central";
+
+const getItemBranchLabel = (item) =>
+  item?.branch_name && String(item.branch_name).trim()
+    ? item.branch_name
+    : CENTRAL_BRANCH;
+
+const getBranchBadgeClass = (branchLabel) =>
+  branchLabel === CENTRAL_BRANCH
+    ? "bg-sky-500/20 text-sky-300 border-sky-500/30"
+    : "bg-amber-500/20 text-amber-300 border-amber-500/30";
 
 const getInventoryStatusKey = (item) => {
   const quantity = Number(item?.quantity ?? 0);
@@ -467,6 +481,7 @@ function AdminInventory() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [branchFilter, setBranchFilter] = useState(CENTRAL_BRANCH);
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("inventory");
   const [archiveFilter, setArchiveFilter] = useState("active");
@@ -591,7 +606,25 @@ function AdminInventory() {
     }
   };
 
-  const filtered = items.filter((item) => {
+  const branchOptions = React.useMemo(() => {
+    const namesFromItems = items.map(getItemBranchLabel);
+    const namesFromBranches = (branches || []).map((b) => b.name).filter(Boolean);
+    return [
+      ALL_BRANCHES,
+      CENTRAL_BRANCH,
+      ...Array.from(
+        new Set([...namesFromItems, ...namesFromBranches].filter((n) => n && n !== CENTRAL_BRANCH)),
+      ).sort((a, b) => a.localeCompare(b)),
+    ];
+  }, [items, branches]);
+
+  const branchScopedItems = items.filter((item) =>
+    branchFilter === ALL_BRANCHES
+      ? true
+      : getItemBranchLabel(item) === branchFilter,
+  );
+
+  const filtered = branchScopedItems.filter((item) => {
     const q = searchQuery.toLowerCase();
     const matchSearch =
       item.name?.toLowerCase().includes(q) ||
@@ -604,7 +637,28 @@ function AdminInventory() {
     return matchSearch && matchCat && matchStatus;
   });
 
-  const lowStock = items.filter((i) => {
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems,
+  } = usePagination({
+    items: filtered,
+    pageSize: 10,
+    resetDeps: [
+      searchQuery,
+      categoryFilter,
+      branchFilter,
+      statusFilter,
+      archiveFilter,
+      activeTab,
+      items.length,
+    ],
+  });
+
+  const lowStock = branchScopedItems.filter((i) => {
     const key = getInventoryStatusKey(i);
     return (
       key === "running_low" || key === "reorder_now" || key === "out_of_stock"
@@ -613,7 +667,7 @@ function AdminInventory() {
 
   const pendingRestock = restockRequests.filter((r) => r.status === "pending");
 
-  const totalValue = items.reduce(
+  const totalValue = branchScopedItems.reduce(
     (sum, i) => sum + (parseFloat(i.price) || 0) * (i.quantity || 0),
     0,
   );
@@ -729,8 +783,11 @@ function AdminInventory() {
               {[
                 {
                   label: "Total Items",
-                  sub: "All inventory items",
-                  value: loading ? null : items.length,
+                  sub:
+                    branchFilter === ALL_BRANCHES
+                      ? "All inventory items"
+                      : `Items in ${branchFilter}`,
+                  value: loading ? null : branchScopedItems.length,
                   color: "#ef4444",
                   iconPath:
                     "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
@@ -834,7 +891,11 @@ function AdminInventory() {
                             {item.minimum_qty} {item.unit}
                           </span>
                           <span className="mx-2 text-gray-700">·</span>
-                          {item.branch_name ?? "Central"}
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getBranchBadgeClass(getItemBranchLabel(item))}`}
+                          >
+                            {getItemBranchLabel(item)}
+                          </span>
                         </div>
                       </div>
                       <button
@@ -960,6 +1021,11 @@ function AdminInventory() {
                   options: ["All Categories", ...CATEGORIES],
                 },
                 {
+                  value: branchFilter,
+                  onChange: setBranchFilter,
+                  options: branchOptions,
+                },
+                {
                   value: statusFilter,
                   onChange: setStatusFilter,
                   options: [
@@ -1033,7 +1099,7 @@ function AdminInventory() {
                   </p>
                 </div>
               ) : (
-                filtered.map((item) => (
+                paginatedItems.map((item) => (
                   <div
                     key={item.id}
                     className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
@@ -1057,9 +1123,7 @@ function AdminInventory() {
                       ₱{Number(item.price).toLocaleString()}
                     </div>
                     <div className="col-span-2 text-gray-400 text-sm">
-                      {item.branch_name ?? (
-                        <span className="text-gray-700">—</span>
-                      )}
+                      {getItemBranchLabel(item)}
                     </div>
                     <div className="col-span-1 text-gray-400 text-sm">
                       {item.supplier || (
@@ -1131,15 +1195,24 @@ function AdminInventory() {
                   <p className="text-gray-500 text-sm">
                     Showing{" "}
                     <span className="text-white font-semibold">
-                      {filtered.length}
+                      {startItem}-{endItem}
                     </span>{" "}
                     of{" "}
                     <span className="text-white font-semibold">
-                      {items.length}
+                      {filtered.length}
                     </span>{" "}
                     items
                   </p>
                 </div>
+              )}
+
+              {!loading && (
+                <Pagination
+                  current={currentPage}
+                  total={totalPages}
+                  onChange={setCurrentPage}
+                  className="px-6 pb-6"
+                />
               )}
             </div>
           </>
