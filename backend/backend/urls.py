@@ -46,6 +46,17 @@ from api.views.queue_views import (
 )
 from api.views.customer_history import CustomerHistoryAPIView
 from api.views.ratings_views import RatingCreateView
+from api.views.business_owner_views import (
+    OwnerDashboardStatsView,
+    OwnerRevenueTrendView,
+    OwnerBranchRevenueView,
+    OwnerBranchListView,
+    OwnerAppointmentListView,
+    OwnerAppointmentCalendarView,
+    OwnerServiceListView,
+    OwnerInventoryView,
+    OwnerStaffListView
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -124,6 +135,17 @@ urlpatterns = [
     path('inventory/<int:pk>/',    InventoryDetailView.as_view(),        name='inventory-detail'),
     path('appointments/',          AdminAppointmentListView.as_view(),   name='admin-appointments'),
     path('appointments/<int:pk>/', AdminAppointmentDetailView.as_view(), name='admin-appointment-detail'),
+
+    # ── Business Owner endpoints ──────────────────────────────────────────────────
+    path("owner/dashboard/stats/",        OwnerDashboardStatsView.as_view()),
+    path("owner/dashboard/trend/",        OwnerRevenueTrendView.as_view()),
+    path("owner/dashboard/branch-revenue/", OwnerBranchRevenueView.as_view()),
+    path("owner/branches/",               OwnerBranchListView.as_view()),
+    path("owner/appointments/",           OwnerAppointmentListView.as_view()),
+    path("owner/appointments/calendar/",  OwnerAppointmentCalendarView.as_view()),
+    path("owner/services/",               OwnerServiceListView.as_view()),
+    path("owner/inventory/",              OwnerInventoryView.as_view()),
+    path("owner/staff/",                  OwnerStaffListView.as_view()),
 
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),

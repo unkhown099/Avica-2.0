@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import BranchOwnerLayout from "./BranchOwnerLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
+import { API_BASE } from "../../hooks/useAuth.js";
+import { getUserFromSession } from "../../utils/getUser.js";
 
 function BranchOwnerAccountManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -10,69 +11,142 @@ function BranchOwnerAccountManagement() {
   const [branchFilter, setBranchFilter] = useState("All Branches");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [staffAccounts, setStaffAccounts] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [headers, setHeaders] = useState({});
 
   const roleBadge = {
+    "Admin": "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
+    "Business Owner": "bg-purple-500/20 text-purple-400 border-purple-500/30",
     "Branch Manager": "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    Mechanic: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    "Service Advisor":
-      "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    Receptionist: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    "Parts Manager": "bg-red-500/20 text-red-400 border-red-500/30",
+    "Staff": "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    "Employee": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    "Inventory": "bg-orange-500/20 text-orange-400 border-orange-500/30",
   };
 
   const roleColors = {
+    "Admin": "#6366f1",
+    "Business Owner": "#a855f7",
     "Branch Manager": "#a855f7",
-    Mechanic: "#3b82f6",
-    "Service Advisor": "#10b981",
-    Receptionist: "#f59e0b",
-    "Parts Manager": "#ef4444",
+    "Staff": "#06b6d4",
+    "Employee": "#3b82f6",
+    "Inventory": "#f97316",
   };
 
+  // All roles from your Staff model
   const roles = [
+    "Admin",
+    "Business Owner", 
     "Branch Manager",
-    "Mechanic",
-    "Service Advisor",
-    "Receptionist",
-    "Parts Manager",
+    "Staff",
+    "Employee",
+    "Inventory",
   ];
-  const branches = Array.from(
-    new Set(staffAccounts.map((s) => s.branch).filter(Boolean)),
-  ).sort();
 
+  // Check authentication and get headers
   useEffect(() => {
+    const user = getUserFromSession();
+    const token =
+      localStorage.getItem("access_token") ||
+      sessionStorage.getItem("access_token");
+
+    if (user && token) {
+      setIsAuthenticated(true);
+      setHeaders({
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      });
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
+  // Fetch staff accounts
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
     const fetchStaff = async () => {
       try {
-        const accessToken =
-          localStorage.getItem("access_token") ||
-          sessionStorage.getItem("access_token");
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/staff/`, {
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-        });
-        setStaffAccounts(Array.isArray(res.data) ? res.data : []);
-      } catch (error) {
-        console.error("Failed to load staff accounts:", error);
+        setLoading(true);
+        setError(null);
+
+        // Build query params
+        const params = new URLSearchParams();
+        if (searchQuery) params.append("search", searchQuery);
+        if (roleFilter !== "All Roles") params.append("role", roleFilter);
+        if (branchFilter !== "All Branches")
+          params.append("branch", branchFilter);
+        if (statusFilter !== "All Status")
+          params.append("status", statusFilter);
+
+        const response = await fetch(
+          `${API_BASE}/owner/staff/?${params.toString()}`,
+          { headers, credentials: "include" },
+        );
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("user");
+            sessionStorage.removeItem("access_token");
+            sessionStorage.removeItem("user");
+            setIsAuthenticated(false);
+            throw new Error("Session expired. Please login again.");
+          }
+          throw new Error("Failed to fetch staff accounts");
+        }
+
+        const data = await response.json();
+        setStaffAccounts(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setError(err.message);
         setStaffAccounts([]);
       } finally {
         setLoading(false);
       }
     };
+
     fetchStaff();
-  }, []);
+  }, [
+    isAuthenticated,
+    headers,
+    searchQuery,
+    roleFilter,
+    branchFilter,
+    statusFilter,
+  ]);
+
+  // Fetch branches for filter dropdown
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchBranches = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/owner/branches/`, {
+          headers,
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setBranches(data.map((b) => ({ id: b.id, name: b.name })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch branches:", err);
+      }
+    };
+
+    fetchBranches();
+  }, [isAuthenticated, headers]);
 
   const roleCounts = roles.reduce((acc, r) => {
     acc[r] = staffAccounts.filter((s) => s.role === r).length;
     return acc;
   }, {});
 
-  const filteredStaff = staffAccounts.filter(
-    (s) =>
-      (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (roleFilter === "All Roles" || s.role === roleFilter) &&
-      (branchFilter === "All Branches" || s.branch === branchFilter) &&
-      (statusFilter === "All Status" || s.status === statusFilter),
-  );
+  const filteredStaff = staffAccounts; // Already filtered by API
 
   const {
     currentPage,
@@ -84,14 +158,40 @@ function BranchOwnerAccountManagement() {
   } = usePagination({
     items: filteredStaff,
     pageSize: 10,
-    resetDeps: [searchQuery, roleFilter, branchFilter, statusFilter, staffAccounts.length],
+    resetDeps: [
+      searchQuery,
+      roleFilter,
+      branchFilter,
+      statusFilter,
+      staffAccounts.length,
+    ],
   });
 
-  if (loading) {
+  // Format staff name
+  const formatStaffName = (staff) => {
+    if (staff.first_name && staff.last_name) {
+      return `${staff.first_name} ${staff.last_name}`;
+    }
+    if (staff.first_name) return staff.first_name;
+    if (staff.last_name) return staff.last_name;
+    return staff.email?.split("@")[0] || "Unknown";
+  };
+
+  // If not authenticated, show message
+  if (!isAuthenticated && !loading) {
     return (
       <BranchOwnerLayout title="" subtitle="">
-        <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="text-red-400 text-xl mb-4">
+                ⚠️ Authentication Required
+              </div>
+              <p className="text-gray-400">
+                Please login to access staff accounts.
+              </p>
+            </div>
+          </div>
         </div>
       </BranchOwnerLayout>
     );
@@ -109,20 +209,42 @@ function BranchOwnerAccountManagement() {
           </p>
         </div>
 
+        {error && (
+          <div className="mb-6 flex items-center gap-3 px-5 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-semibold">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            {error}
+          </div>
+        )}
+
         {/* Role Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           {roles.map((role) => (
             <div
               key={role}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all"
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all cursor-pointer"
+              onClick={() => setRoleFilter(role)}
             >
               <div className="text-2xl font-black text-white mb-1">
                 {roleCounts[role] || 0}
               </div>
-              <div className="text-xs text-gray-400 font-medium">{role}</div>
+              <div className="text-xs text-gray-400 font-medium truncate">
+                {role}
+              </div>
               <div className="mt-2 h-1 rounded-full bg-gray-800">
                 <div
-                  className="h-1 rounded-full"
+                  className="h-1 rounded-full transition-all"
                   style={{
                     width: staffAccounts.length
                       ? `${((roleCounts[role] || 0) / staffAccounts.length) * 100}%`
@@ -159,34 +281,35 @@ function BranchOwnerAccountManagement() {
               className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
             />
           </div>
-          {[
-            {
-              value: roleFilter,
-              onChange: setRoleFilter,
-              options: ["All Roles", ...roles],
-            },
-            {
-              value: branchFilter,
-              onChange: setBranchFilter,
-              options: ["All Branches", ...branches],
-            },
-            {
-              value: statusFilter,
-              onChange: setStatusFilter,
-              options: ["All Status", "Active", "Inactive"],
-            },
-          ].map((sel, i) => (
-            <select
-              key={i}
-              value={sel.value}
-              onChange={(e) => sel.onChange(e.target.value)}
-              className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
-            >
-              {sel.options.map((o) => (
-                <option key={o}>{o}</option>
-              ))}
-            </select>
-          ))}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
+          >
+            <option value="All Roles">All Roles</option>
+            {roles.map((role) => (
+              <option key={role}>{role}</option>
+            ))}
+          </select>
+          <select
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
+          >
+            <option value="All Branches">All Branches</option>
+            {branches.map((b) => (
+              <option key={b.id}>{b.name}</option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
+          >
+            <option value="All Status">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
         </div>
 
         {/* Table */}
@@ -200,7 +323,12 @@ function BranchOwnerAccountManagement() {
             <div className="col-span-1 text-right">Actions</div>
           </div>
 
-          {filteredStaff.length === 0 ? (
+          {loading ? (
+            <div className="py-20 text-center">
+              <div className="inline-block w-8 h-8 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin"></div>
+              <p className="text-gray-500 mt-4">Loading staff accounts...</p>
+            </div>
+          ) : filteredStaff.length === 0 ? (
             <div className="py-20 text-center">
               <svg
                 className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -221,87 +349,125 @@ function BranchOwnerAccountManagement() {
               </p>
             </div>
           ) : (
-            paginatedItems.map((staff) => (
-              <div
-                key={staff.id}
-                className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
-              >
-                <div className="col-span-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
-                      style={{
-                        backgroundColor:
-                          (roleColors[staff.role] || "#6b7280") + "22",
-                        color: roleColors[staff.role] || "#6b7280",
-                      }}
-                    >
-                      {(staff.name || "?").charAt(0)}
-                    </div>
-                    <div>
-                      <div className="text-white font-semibold text-sm">
-                        {staff.name}
+            paginatedItems.map((staff) => {
+              const staffName = formatStaffName(staff);
+              const staffRole = staff.role || "Staff";
+              const branchName =
+                staff.branch_name || staff.branch || "Unassigned";
+              const status = staff.status || "Active";
+
+              return (
+                <div
+                  key={staff.id}
+                  className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+                >
+                  <div className="col-span-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+                        style={{
+                          backgroundColor:
+                            (roleColors[staffRole] || "#6b7280") + "22",
+                          color: roleColors[staffRole] || "#6b7280",
+                        }}
+                      >
+                        {(staffName || "?").charAt(0).toUpperCase()}
                       </div>
-                      <div className="text-gray-500 text-xs truncate max-w-[150px]">
-                        {staff.email}
+                      <div>
+                        <div
+                          className="text-white font-semibold text-sm truncate max-w-[180px]"
+                          title={staffName}
+                        >
+                          {staffName}
+                        </div>
+                        <div
+                          className="text-gray-500 text-xs truncate max-w-[150px]"
+                          title={staff.email}
+                        >
+                          {staff.email || "—"}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="col-span-2 text-gray-400 text-sm">
-                  {staff.phone}
-                </div>
-                <div className="col-span-2">
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${roleBadge[staff.role] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+                  <div
+                    className="col-span-2 text-gray-400 text-sm truncate"
+                    title={staff.phone}
                   >
-                    {staff.role}
-                  </span>
-                </div>
-                <div className="col-span-2 text-gray-400 text-sm">
-                  {staff.branch}
-                </div>
-                <div className="col-span-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                    {staff.status}
-                  </span>
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                    {staff.phone || "—"}
+                  </div>
+                  <div className="col-span-2">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${roleBadge[staffRole] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                      />
-                    </svg>
-                  </button>
+                      {staffRole}
+                    </span>
+                  </div>
+                  <div
+                    className="col-span-2 text-gray-400 text-sm truncate"
+                    title={branchName}
+                  >
+                    {branchName}
+                  </div>
+                  <div className="col-span-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        status === "Active"
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                      }`}
+                    >
+                      {status}
+                    </span>
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <button
+                      className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                      title="More options"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
 
-          {filteredStaff.length > 0 && (
-            <div className="px-6 py-4">
+          {!loading && filteredStaff.length > 0 && (
+            <div className="px-6 py-4 border-t border-white/5">
               <p className="text-gray-500 text-sm">
-                Showing <span className="text-white font-semibold">{startItem}-{endItem}</span> of{" "}
-                <span className="text-white font-semibold">{filteredStaff.length}</span> staff accounts
+                Showing{" "}
+                <span className="text-white font-semibold">
+                  {startItem}-{endItem}
+                </span>{" "}
+                of{" "}
+                <span className="text-white font-semibold">
+                  {filteredStaff.length}
+                </span>{" "}
+                staff accounts
               </p>
             </div>
           )}
 
-          <Pagination
-            current={currentPage}
-            total={totalPages}
-            onChange={setCurrentPage}
-            className="px-6 pb-6"
-          />
+          {!loading && filteredStaff.length > 0 && (
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              onChange={setCurrentPage}
+              className="px-6 pb-6"
+            />
+          )}
         </div>
       </div>
     </BranchOwnerLayout>
