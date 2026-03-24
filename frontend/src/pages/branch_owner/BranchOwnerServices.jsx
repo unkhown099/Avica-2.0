@@ -1,113 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import BranchOwnerLayout from "./BranchOwnerLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
+import { API_BASE } from "../../hooks/useAuth.js";
+import { getUserFromSession } from "../../utils/getUser.js";
 
 function BranchOwnerServices() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [branchFilter, setBranchFilter] = useState("All Branches");
 
-  const services = [
-    {
-      id: "SRV-001",
-      name: "Oil Change",
-      category: "Maintenance",
-      description: "Complete engine oil and filter replacement service",
-      duration: "30-45 mins",
-      priceRange: "₱800 - ₱1,500",
-      branches: [
-        "San Mateo Rizal",
-        "South Caloocan",
-        "North Caloocan",
-        "Quezon City",
-      ],
-      status: "Active",
-    },
-    {
-      id: "SRV-002",
-      name: "Brake Repair",
-      category: "Repair",
-      description: "Brake pad replacement and system inspection",
-      duration: "1-2 hours",
-      priceRange: "₱2,500 - ₱5,000",
-      branches: ["San Mateo Rizal", "South Caloocan", "Quezon City"],
-      status: "Active",
-    },
-    {
-      id: "SRV-003",
-      name: "Engine Diagnostic",
-      category: "Diagnostic",
-      description: "Computerized engine diagnostics and problem identification",
-      duration: "45-60 mins",
-      priceRange: "₱1,200 - ₱2,000",
-      branches: ["San Mateo Rizal", "North Caloocan", "Quezon City"],
-      status: "Active",
-    },
-    {
-      id: "SRV-004",
-      name: "Tire Replacement",
-      category: "Maintenance",
-      description: "Tire replacement, balancing, and alignment",
-      duration: "1-1.5 hours",
-      priceRange: "₱3,000 - ₱8,000",
-      branches: [
-        "San Mateo Rizal",
-        "South Caloocan",
-        "North Caloocan",
-        "Quezon City",
-        "Camarin",
-      ],
-      status: "Active",
-    },
-    {
-      id: "SRV-005",
-      name: "AC Service",
-      category: "Maintenance",
-      description: "Air conditioning system cleaning and recharge",
-      duration: "1-2 hours",
-      priceRange: "₱1,500 - ₱3,500",
-      branches: ["San Mateo Rizal", "South Caloocan", "Quezon City", "Camarin"],
-      status: "Active",
-    },
-    {
-      id: "SRV-006",
-      name: "Transmission Repair",
-      category: "Repair",
-      description: "Transmission diagnostics and repair services",
-      duration: "2-4 hours",
-      priceRange: "₱5,000 - ₱15,000",
-      branches: ["San Mateo Rizal", "South Caloocan"],
-      status: "Active",
-    },
-    {
-      id: "SRV-007",
-      name: "Battery Replacement",
-      category: "Maintenance",
-      description: "Battery testing and replacement service",
-      duration: "20-30 mins",
-      priceRange: "₱3,500 - ₱6,000",
-      branches: [
-        "San Mateo Rizal",
-        "South Caloocan",
-        "North Caloocan",
-        "Quezon City",
-        "Camarin",
-      ],
-      status: "Active",
-    },
-    {
-      id: "SRV-008",
-      name: "Body Work & Paint",
-      category: "Cosmetic",
-      description: "Dent repair, painting, and body restoration",
-      duration: "1-3 days",
-      priceRange: "₱8,000 - ₱50,000",
-      branches: ["San Mateo Rizal", "South Caloocan"],
-      status: "Active",
-    },
-  ];
+  const [services, setServices] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [headers, setHeaders] = useState({});
 
+  // Category colors mapping
   const categoryColors = {
     Maintenance: {
       badge: "bg-red-500/20 text-red-400 border-red-500/30",
@@ -125,28 +36,116 @@ function BranchOwnerServices() {
       badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
       accent: "#3b82f6",
     },
+    Preventive: {
+      badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      accent: "#10b981",
+    },
+    Electrical: {
+      badge: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      accent: "#f97316",
+    },
   };
 
-  const categoryCounts = [
-    "Maintenance",
-    "Repair",
-    "Diagnostic",
-    "Cosmetic",
-  ].reduce((acc, c) => {
-    acc[c] = services.filter((s) => s.category === c).length;
+  // Check authentication and get headers
+  useEffect(() => {
+    const user = getUserFromSession();
+    const token =
+      localStorage.getItem("access_token") ||
+      sessionStorage.getItem("access_token");
+
+    if (user && token) {
+      setIsAuthenticated(true);
+      setHeaders({
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      });
+    } else {
+      setIsAuthenticated(false);
+    }
+  }, []);
+
+  // Fetch services data
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchServices = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Build query params
+        const params = new URLSearchParams();
+        if (searchQuery) params.append("search", searchQuery);
+        if (categoryFilter !== "All Categories")
+          params.append("category", categoryFilter);
+        if (branchFilter !== "All Branches")
+          params.append("branch", branchFilter);
+
+        const response = await fetch(
+          `${API_BASE}/owner/services/?${params.toString()}`,
+          { headers, credentials: "include" },
+        );
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("user");
+            sessionStorage.removeItem("access_token");
+            sessionStorage.removeItem("user");
+            setIsAuthenticated(false);
+            throw new Error("Session expired. Please login again.");
+          }
+          throw new Error("Failed to fetch services");
+        }
+
+        const data = await response.json();
+        setServices(data);
+
+        // Extract unique categories from services
+        const uniqueCategories = [
+          ...new Set(data.map((s) => s.category).filter(Boolean)),
+        ];
+        setCategories(uniqueCategories);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchServices();
+  }, [isAuthenticated, headers, searchQuery, categoryFilter, branchFilter]);
+
+  // Fetch branches for filter dropdown
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchBranches = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/owner/branches/`, {
+          headers,
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setBranches(data.map((b) => ({ id: b.id, name: b.name })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch branches:", err);
+      }
+    };
+
+    fetchBranches();
+  }, [isAuthenticated, headers]);
+
+  // Calculate category counts
+  const categoryCounts = categories.reduce((acc, category) => {
+    acc[category] = services.filter((s) => s.category === category).length;
     return acc;
   }, {});
 
-  const filteredServices = services.filter((s) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      (s.name.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q)) &&
-      (categoryFilter === "All Categories" || s.category === categoryFilter) &&
-      (branchFilter === "All Branches" || s.branches.includes(branchFilter))
-    );
-  });
+  const filteredServices = services; // Already filtered by API
 
   const {
     currentPage,
@@ -157,9 +156,27 @@ function BranchOwnerServices() {
     paginatedItems,
   } = usePagination({
     items: filteredServices,
-    pageSize: 10,
-    resetDeps: [searchQuery, categoryFilter, branchFilter],
+    pageSize: 9, // Changed to 9 for 3x3 grid
+    resetDeps: [searchQuery, categoryFilter, branchFilter, services],
   });
+
+  // If not authenticated, show message
+  if (!isAuthenticated && !loading) {
+    return (
+      <BranchOwnerLayout title="" subtitle="">
+        <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="text-red-400 text-xl mb-4">
+                ⚠️ Authentication Required
+              </div>
+              <p className="text-gray-400">Please login to access services.</p>
+            </div>
+          </div>
+        </div>
+      </BranchOwnerLayout>
+    );
+  }
 
   return (
     <BranchOwnerLayout title="" subtitle="">
@@ -173,34 +190,57 @@ function BranchOwnerServices() {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: "Maintenance", color: "#ef4444" },
-            { label: "Repair", color: "#f59e0b" },
-            { label: "Diagnostic", color: "#a855f7" },
-            { label: "Cosmetic", color: "#3b82f6" },
-          ].map(({ label, color }) => (
-            <div
-              key={label}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all"
+        {error && (
+          <div className="mb-6 flex items-center gap-3 px-5 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-semibold">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <div className="text-2xl font-black text-white mb-1">
-                {categoryCounts[label] || 0}
-              </div>
-              <div className="text-xs text-gray-400 font-medium">{label}</div>
-              <div className="mt-2 h-1 rounded-full bg-gray-800">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            {error}
+          </div>
+        )}
+
+        {/* Stats Cards */}
+        {!loading && categories.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            {categories.slice(0, 6).map((category) => {
+              const color = categoryColors[category]?.accent || "#6b7280";
+              const count = categoryCounts[category] || 0;
+              return (
                 <div
-                  className="h-1 rounded-full"
-                  style={{
-                    width: `${((categoryCounts[label] || 0) / services.length) * 100}%`,
-                    backgroundColor: color,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+                  key={category}
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all cursor-pointer"
+                  onClick={() => setCategoryFilter(category)}
+                >
+                  <div className="text-2xl font-black text-white mb-1">
+                    {count}
+                  </div>
+                  <div className="text-xs text-gray-400 font-medium truncate">
+                    {category}
+                  </div>
+                  <div className="mt-2 h-1 rounded-full bg-gray-800">
+                    <div
+                      className="h-1 rounded-full"
+                      style={{
+                        width: `${(count / services.length) * 100}%`,
+                        backgroundColor: color,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -232,7 +272,7 @@ function BranchOwnerServices() {
             className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[160px]"
           >
             <option value="All Categories">All Categories</option>
-            {["Maintenance", "Repair", "Diagnostic", "Cosmetic"].map((c) => (
+            {categories.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
@@ -242,20 +282,36 @@ function BranchOwnerServices() {
             className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[160px]"
           >
             <option value="All Branches">All Branches</option>
-            {[
-              "San Mateo Rizal",
-              "South Caloocan",
-              "North Caloocan",
-              "Quezon City",
-              "Camarin",
-            ].map((b) => (
-              <option key={b}>{b}</option>
+            {branches.map((b) => (
+              <option key={b.id}>{b.name}</option>
             ))}
           </select>
         </div>
 
-        {/* Grid */}
-        {filteredServices.length === 0 ? (
+        {/* Loading State */}
+        {loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm animate-pulse"
+              >
+                <div className="h-6 bg-gray-800 rounded w-24 mb-4"></div>
+                <div className="h-5 bg-gray-800 rounded w-32 mb-2"></div>
+                <div className="h-3 bg-gray-800 rounded w-20 mb-3"></div>
+                <div className="h-16 bg-gray-800 rounded mb-4"></div>
+                <div className="space-y-2 mb-4">
+                  <div className="h-4 bg-gray-800 rounded w-32"></div>
+                  <div className="h-4 bg-gray-800 rounded w-28"></div>
+                </div>
+                <div className="h-10 bg-gray-800 rounded"></div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Services Grid */}
+        {!loading && filteredServices.length === 0 ? (
           <div className="bg-gray-900/60 border border-white/5 rounded-2xl py-20 text-center backdrop-blur-sm">
             <svg
               className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -276,118 +332,142 @@ function BranchOwnerServices() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {paginatedItems.map((service) => {
-              const accent =
-                categoryColors[service.category]?.accent || "#6b7280";
-              return (
-                <div
-                  key={service.id}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all flex flex-col"
-                >
-                  <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${categoryColors[service.category]?.badge}`}
-                    >
-                      {service.category}
-                    </span>
-                  </div>
+          !loading && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {paginatedItems.map((service) => {
+                  const accent =
+                    categoryColors[service.category]?.accent || "#6b7280";
+                  const badgeClass =
+                    categoryColors[service.category]?.badge ||
+                    "bg-gray-500/20 text-gray-400 border-gray-500/30";
 
-                  <div className="flex items-center gap-3 mb-1">
+                  return (
                     <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: accent + "22" }}
+                      key={service.id}
+                      className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all flex flex-col"
                     >
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: accent }}
-                      />
-                    </div>
-                    <h3 className="text-lg font-black text-white">
-                      {service.name}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-gray-600 font-mono ml-11 mb-3">
-                    {service.id}
-                  </p>
-                  <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-                    {service.description}
-                  </p>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <svg
-                        className="w-4 h-4 text-gray-600 shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span className="text-gray-500">{service.duration}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <svg
-                        className="w-4 h-4 text-gray-600 shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span className="text-white font-bold">
-                        {service.priceRange}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mb-5">
-                    <p className="text-xs text-gray-600 mb-2">Available at:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {service.branches.map((b, i) => (
+                      <div className="flex items-center gap-2 mb-4 flex-wrap">
                         <span
-                          key={i}
-                          className="px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 text-xs rounded-lg"
+                          className={`px-3 py-1 rounded-full text-xs font-semibold border ${badgeClass}`}
                         >
-                          {b}
+                          {service.category}
                         </span>
-                      ))}
+                      </div>
+
+                      <div className="flex items-center gap-3 mb-1">
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: accent + "22" }}
+                        >
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: accent }}
+                          />
+                        </div>
+                        <h3 className="text-lg font-black text-white">
+                          {service.name}
+                        </h3>
+                      </div>
+
+                      <p className="text-gray-400 text-sm mb-4 leading-relaxed line-clamp-2">
+                        {service.description}
+                      </p>
+
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-2 text-sm">
+                          <svg
+                            className="w-4 h-4 text-gray-600 shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <span className="text-gray-500">
+                            {service.duration} mins
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <svg
+                            className="w-4 h-4 text-gray-600 shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <span className="text-white font-bold">
+                            {service.price_range}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mb-5">
+                        <p className="text-xs text-gray-600 mb-2">
+                          Available at:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {service.branch_names &&
+                            service.branch_names.slice(0, 3).map((b, i) => (
+                              <span
+                                key={i}
+                                className="px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 text-xs rounded-lg"
+                              >
+                                {b}
+                              </span>
+                            ))}
+                          {service.branch_names &&
+                            service.branch_names.length > 3 && (
+                              <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 text-xs rounded-lg">
+                                +{service.branch_names.length - 3} more
+                              </span>
+                            )}
+                        </div>
+                      </div>
+
+                      <div className="mt-auto pt-4 border-t border-white/5">
+                        <button className="w-full text-center text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all">
+                          View Details
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
 
-                  <div className="mt-auto pt-4 border-t border-white/5">
-                    <button className="w-full text-center text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all">
-                      View Details
-                    </button>
-                  </div>
+              {filteredServices.length > 0 && (
+                <div className="mt-6 text-sm text-gray-500 space-y-4">
+                  <p>
+                    Showing{" "}
+                    <span className="text-white font-semibold">
+                      {startItem}-{endItem}
+                    </span>{" "}
+                    of{" "}
+                    <span className="text-white font-semibold">
+                      {filteredServices.length}
+                    </span>{" "}
+                    services
+                  </p>
+                  <Pagination
+                    current={currentPage}
+                    total={totalPages}
+                    onChange={setCurrentPage}
+                  />
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {filteredServices.length > 0 && (
-          <div className="mt-6 text-sm text-gray-500 space-y-4">
-            <p>
-              Showing <span className="text-white font-semibold">{startItem}-{endItem}</span> of{" "}
-              <span className="text-white font-semibold">{filteredServices.length}</span> services
-            </p>
-            <Pagination
-              current={currentPage}
-              total={totalPages}
-              onChange={setCurrentPage}
-            />
-          </div>
+              )}
+            </>
+          )
         )}
       </div>
     </BranchOwnerLayout>
