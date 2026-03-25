@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "./AdminLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 
 const getToken = () =>
   localStorage.getItem("access_token") ??
@@ -31,12 +32,12 @@ function BranchModal({ onClose, onSaved, editBranch }) {
   const [form, setForm] = useState(
     isEdit
       ? {
-          name: editBranch.name,
-          address: editBranch.address,
-          hours: editBranch.hours,
-          slots: editBranch.slots,
-          is_active: editBranch.is_active,
-        }
+        name: editBranch.name,
+        address: editBranch.address,
+        hours: editBranch.hours,
+        slots: editBranch.slots,
+        is_active: editBranch.is_active,
+      }
       : EMPTY_FORM,
   );
   const [saving, setSaving] = useState(false);
@@ -76,8 +77,8 @@ function BranchModal({ onClose, onSaved, editBranch }) {
     } catch (err) {
       setError(
         err.response?.data?.detail ??
-          JSON.stringify(err.response?.data) ??
-          err.message,
+        JSON.stringify(err.response?.data) ??
+        err.message,
       );
     } finally {
       setSaving(false);

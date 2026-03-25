@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+const API_BASE_RAW = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+export const API_BASE = API_BASE_RAW.endsWith("/") ? API_BASE_RAW.slice(0, -1) : API_BASE_RAW;
 
 // ── JWT decoder (no library needed) ──────────────────────────────────────────
 function decodeJWT(token) {
@@ -46,12 +47,12 @@ function resolveStoredUser() {
 export function useAuth() {
   return useMemo(() => {
     const empty = {
-      token:           null,
-      user:            null,
-      role:            null,
-      isAdmin:         false,
+      token: null,
+      user: null,
+      role: null,
+      isAdmin: false,
       isAuthenticated: false,
-      headers:         {},
+      headers: {},
     };
 
     const token = resolveToken();
@@ -65,8 +66,8 @@ export function useAuth() {
     }
 
     // Role comes from the JWT (added via custom SimpleJWT serializer)
-    const role    = payload.role ?? payload.user_role ?? null;
-    const isAdmin = ["Admin", "Business Owner"].includes(role);
+    const role = payload.role ?? payload.user_role ?? null;
+    const isAdmin = ["admin", "business_owner"].includes(role);
 
     // Merge JWT claims with the richer profile stored at login time.
     // JWT is the source of truth for id/email/role; stored profile fills in
@@ -75,19 +76,19 @@ export function useAuth() {
 
     const user = {
       // From JWT (always present if token is valid)
-      id:         payload.user_id ?? payload.id ?? null,
-      email:      payload.email   ?? stored?.email ?? null,
+      id: payload.user_id ?? payload.id ?? null,
+      email: payload.email ?? stored?.email ?? null,
       // From stored profile (set by login response)
-      first_name:  stored?.first_name  ?? null,
-      last_name:   stored?.last_name   ?? null,
-      full_name:   stored?.full_name   ?? stored?.name ?? null,
-      branch_id:   stored?.branch_id   ?? stored?.branch?.id   ?? null,
+      first_name: stored?.first_name ?? null,
+      last_name: stored?.last_name ?? null,
+      full_name: stored?.full_name ?? stored?.name ?? null,
+      branch_id: stored?.branch_id ?? stored?.branch?.id ?? null,
       branch_name: stored?.branch_name ?? stored?.branch?.name ?? null,
       // Pass through the whole stored object in case other fields are needed
       ...stored,
       // Re-apply JWT fields so they always win over stored values
-      id:    payload.user_id ?? payload.id ?? null,
-      email: payload.email   ?? stored?.email ?? null,
+      id: payload.user_id ?? payload.id ?? null,
+      email: payload.email ?? stored?.email ?? null,
     };
 
     return {
@@ -98,7 +99,7 @@ export function useAuth() {
       isAuthenticated: true,
       headers: {
         "Content-Type": "application/json",
-        Authorization:  `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     };
   }, []);
@@ -112,5 +113,3 @@ export function getAuthHeaders() {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
-
-export { API_BASE };

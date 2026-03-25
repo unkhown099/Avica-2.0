@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import CustomerLayout from "./CustomerLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -138,11 +139,10 @@ function Pagination({ current, total, onChange }) {
           <button
             key={p}
             onClick={() => onChange(p)}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
-              p === current
-                ? "bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-500"
-                : "border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50"
-            }`}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${p === current
+              ? "bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-500"
+              : "border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50"
+              }`}
           >
             {p}
           </button>
@@ -184,13 +184,12 @@ function StepIndicator({ current }) {
           <React.Fragment key={label}>
             <div className="flex flex-col items-center gap-1 flex-shrink-0">
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
-                  done
-                    ? "bg-red-600 text-white"
-                    : active
-                      ? "bg-red-600/20 border-2 border-red-500 text-red-400"
-                      : "bg-white/5 border border-white/10 text-gray-600"
-                }`}
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${done
+                  ? "bg-red-600 text-white"
+                  : active
+                    ? "bg-red-600/20 border-2 border-red-500 text-red-400"
+                    : "bg-white/5 border border-white/10 text-gray-600"
+                  }`}
               >
                 {done ? (
                   <svg
@@ -211,13 +210,12 @@ function StepIndicator({ current }) {
                 )}
               </div>
               <span
-                className={`text-[10px] font-semibold tracking-wide uppercase ${
-                  active
-                    ? "text-red-400"
-                    : done
-                      ? "text-gray-400"
-                      : "text-gray-600"
-                }`}
+                className={`text-[10px] font-semibold tracking-wide uppercase ${active
+                  ? "text-red-400"
+                  : done
+                    ? "text-gray-400"
+                    : "text-gray-600"
+                  }`}
               >
                 {label}
               </span>
@@ -642,7 +640,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
 
   useEffect(() => {
     setServicesLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/services/`, {
+    fetch(`${API_BASE}/services/`, {
       headers: authHeaders(),
     })
       .then((r) => {
@@ -666,7 +664,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
 
   useEffect(() => {
     setBranchLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/branches/`, {
+    fetch(`${API_BASE}/branches/`, {
       headers: authHeaders(),
     })
       .then((r) => {
@@ -732,7 +730,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       };
 
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/`,
+        `${API_BASE}/api/bookings/`,
         {
           method: "POST",
           headers: authHeaders(),
@@ -757,7 +755,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             setFieldErrors(newFieldErrors);
             throw new Error(
               Object.values(newFieldErrors)[0] ||
-                "Please check the form for errors.",
+              "Please check the form for errors.",
             );
           } else if (errorMessage) throw new Error(errorMessage);
           else
@@ -875,8 +873,8 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         </div>
                         <div className="text-red-400 font-black text-base">
                           {s.price_min &&
-                          s.price_max &&
-                          s.price_min !== s.price_max
+                            s.price_max &&
+                            s.price_min !== s.price_max
                             ? `₱${parseFloat(s.price_min).toLocaleString()} – ₱${parseFloat(s.price_max).toLocaleString()}`
                             : `₱${parseFloat(s.price_min || s.price || 0).toLocaleString()}`}
                         </div>
@@ -1239,10 +1237,10 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             onClick={
               step > 0
                 ? () => {
-                    setStep((s) => s - 1);
-                    setError("");
-                    setFieldErrors({});
-                  }
+                  setStep((s) => s - 1);
+                  setError("");
+                  setFieldErrors({});
+                }
                 : onClose
             }
             className="px-5 py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:border-white/20 font-semibold text-sm transition-all"
@@ -1509,7 +1507,7 @@ function BookingsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, {
+    fetch(`${API_BASE}/api/bookings/`, {
       headers: authHeaders(),
     })
       .then((r) => {
@@ -1541,7 +1539,7 @@ function BookingsPage() {
   const handleCancel = async (id) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/${id}/`,
+        `${API_BASE}/api/bookings/${id}/`,
         {
           method: "PATCH",
           headers: authHeaders(),
@@ -1656,11 +1654,10 @@ function BookingsPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-5 py-2 rounded-xl font-semibold text-sm capitalize transition-all ${
-                filter === f
-                  ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                  : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40"
-              }`}
+              className={`px-5 py-2 rounded-xl font-semibold text-sm capitalize transition-all ${filter === f
+                ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40"
+                }`}
             >
               {f}
             </button>
@@ -1744,11 +1741,11 @@ function BookingsPage() {
                 booking.service_name ||
                 booking.service_detail?.name ||
                 (typeof rawSvc === "string" &&
-                rawSvc.trim() !== "" &&
-                isNaN(rawSvc)
+                  rawSvc.trim() !== "" &&
+                  isNaN(rawSvc)
                   ? rawSvc
                   : typeof rawSvc === "number" ||
-                      (typeof rawSvc === "string" && !isNaN(rawSvc))
+                    (typeof rawSvc === "string" && !isNaN(rawSvc))
                     ? `Service #${rawSvc}`
                     : String(rawSvc || "Unknown Service"));
 
@@ -1757,8 +1754,8 @@ function BookingsPage() {
               const rawPrice = parseFloat(booking.price);
               const priceDisplay =
                 !isNaN(rawPrice) &&
-                booking.price != null &&
-                booking.price !== ""
+                  booking.price != null &&
+                  booking.price !== ""
                   ? rawPrice > 0
                     ? `₱${rawPrice.toLocaleString("en-PH")}`
                     : "To be assessed"

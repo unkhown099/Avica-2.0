@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { API_BASE } from "./useAuth.js";
 
 function getToken() {
   return (
@@ -17,7 +18,7 @@ function authHeaders() {
 }
 
 async function apiFetch(url) {
-  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}${url}`, {
+  const res = await fetch(`${API_BASE}${url}`, {
     headers: authHeaders(),
     credentials: "include",
   });

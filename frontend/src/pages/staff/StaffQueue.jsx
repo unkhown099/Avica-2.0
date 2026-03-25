@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import StaffLayout from "./StaffLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ function authHeaders() {
   };
 }
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 
 const SERVICES = [
   "Exterior Detailing",
@@ -44,8 +45,8 @@ const STATUS_META = {
   },
   done: {
     label: "Done",
-    dot: "bg-gray-500",
-    badge: "bg-gray-500/15 text-gray-400 border-gray-500/30",
+    dot: "bg-blue-400",
+    badge: "bg-blue-500/15 text-blue-400 border-blue-500/30",
     glow: "",
   },
   skipped: {
@@ -112,10 +113,9 @@ function AssignDropdown({ entry, employees, onAssign, assigning }) {
         onClick={() => setOpen((p) => !p)}
         disabled={assigning}
         className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all w-full
-          ${
-            current
-              ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25"
-              : "bg-gray-700/40 border-white/10 text-gray-400 hover:text-white hover:border-white/20"
+          ${current
+            ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25"
+            : "bg-gray-700/40 border-white/10 text-gray-400 hover:text-white hover:border-white/20"
           }`}
       >
         {assigning ? (
@@ -211,10 +211,9 @@ function AssignDropdown({ entry, employees, onAssign, assigning }) {
                   setOpen(false);
                 }}
                 className={`w-full text-left px-4 py-2.5 text-xs transition-all flex items-center gap-2
-                  ${
-                    current?.id === emp.id
-                      ? "bg-indigo-500/20 text-indigo-300"
-                      : "text-gray-300 hover:bg-white/5"
+                  ${current?.id === emp.id
+                    ? "bg-indigo-500/20 text-indigo-300"
+                    : "text-gray-300 hover:bg-white/5"
                   }`}
               >
                 <div className="w-6 h-6 rounded-full bg-gray-700 border border-white/10 flex items-center justify-center text-xs font-black text-gray-300 shrink-0">
@@ -773,7 +772,7 @@ function StaffQueue() {
       if (!res.ok) return;
       const data = await res.json();
       setEmployees(Array.isArray(data) ? data : []);
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -1103,11 +1102,10 @@ function StaffQueue() {
                           </div>
                         </div>
                         <span
-                          className={`text-xs font-black px-2 py-0.5 rounded-lg ${
-                            activeJobs > 0
-                              ? "bg-amber-500/20 text-amber-400"
-                              : "bg-emerald-500/20 text-emerald-400"
-                          }`}
+                          className={`text-xs font-black px-2 py-0.5 rounded-lg ${activeJobs > 0
+                            ? "bg-amber-500/20 text-amber-400"
+                            : "bg-emerald-500/20 text-emerald-400"
+                            }`}
                         >
                           {activeJobs > 0
                             ? `${activeJobs} job${activeJobs > 1 ? "s" : ""}`

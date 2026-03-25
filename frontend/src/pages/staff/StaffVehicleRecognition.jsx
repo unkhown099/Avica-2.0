@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import StaffLayout from "./StaffLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 function StaffVehicleRecognition() {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -70,7 +71,7 @@ function StaffVehicleRecognition() {
           .find((r) => r.startsWith("csrftoken="))
           ?.split("=")[1];
       const response = await fetch(
-        "http://127.0.0.1:8000/api/analyze-vehicle/",
+        `${API_BASE}/api/analyze-vehicle/`,
         {
           method: "POST",
           credentials: "include",
@@ -133,11 +134,10 @@ function StaffVehicleRecognition() {
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
-                    isDragging
+                  className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${isDragging
                       ? "border-red-500 bg-red-500/10"
                       : "border-white/10 hover:border-white/20"
-                  }`}
+                    }`}
                 >
                   <svg
                     className="w-16 h-16 text-gray-600 mx-auto mb-4"

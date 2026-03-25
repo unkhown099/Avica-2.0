@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
 import { GoogleLogin } from "@react-oauth/google";
+import { API_BASE } from "../hooks/useAuth.js";
 
 const DARK_SWAL = {
   background: "linear-gradient(to bottom right, #1f2937, #111827)",
@@ -69,7 +70,7 @@ function SignIn() {
     if (!validateForm()) return;
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/login/`, {
+      const res = await fetch(`${API_BASE}/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -127,7 +128,7 @@ function SignIn() {
     setIsSubmittingForgot(true);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/forgot-password/`,
+        `${API_BASE}/forgot-password/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -161,7 +162,7 @@ function SignIn() {
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/google-login/`,
+        `${API_BASE}/google-login/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -311,9 +312,8 @@ function SignIn() {
                     onChange={handleChange}
                     autoComplete="off"
                     placeholder="john.doe@example.com"
-                    className={`w-full px-5 py-3.5 bg-gray-900 border ${
-                      errors.email ? "border-red-600" : "border-gray-700"
-                    } rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                    className={`w-full px-5 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"
+                      } rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                   />
                   {errors.email && (
                     <p className="text-red-500 text-base mt-1">
@@ -339,9 +339,8 @@ function SignIn() {
                       onChange={handleChange}
                       autoComplete="off"
                       placeholder="••••••••"
-                      className={`w-full px-5 py-3.5 bg-gray-900 border ${
-                        errors.password ? "border-red-600" : "border-gray-700"
-                      } rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-14`}
+                      className={`w-full px-5 py-3.5 bg-gray-900 border ${errors.password ? "border-red-600" : "border-gray-700"
+                        } rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-14`}
                     />
                     <button
                       type="button"

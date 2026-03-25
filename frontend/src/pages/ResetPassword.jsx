@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
+import { API_BASE } from "../hooks/useAuth.js";
 
 function ResetPassword() {
     const [searchParams] = useSearchParams();
@@ -23,7 +24,7 @@ function ResetPassword() {
 
         setIsSubmitting(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/reset-password/`, {
+            const res = await fetch(`${API_BASE}/reset-password/`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

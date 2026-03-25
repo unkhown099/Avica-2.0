@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { API_BASE } from "../../hooks/useAuth.js";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -104,17 +105,21 @@ const CHART_BASE = {
 
 // ── Status badge styles ───────────────────────────────────────────────────────
 const STATUS_STYLE = {
-  completed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  completed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
-  in_progress: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
+  in_progress: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
 
 const STATUS_LABEL = {
+  done: "Done",
   completed: "Completed",
   pending: "Pending",
   cancelled: "Cancelled",
   in_progress: "In Progress",
+  rescheduled: "Rescheduled",
 };
 
 // ── Small reusable components ─────────────────────────────────────────────────
@@ -205,7 +210,7 @@ export default function AdminDashboard() {
         const token =
           localStorage.getItem("access_token") ??
           sessionStorage.getItem("access_token");
-        const baseUrl = import.meta.env.VITE_API_BASE_URL;
+        const baseUrl = API_BASE;
         const headers = {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -611,11 +616,10 @@ export default function AdminDashboard() {
             <button
               key={v.key}
               onClick={() => setActiveView(v.key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                activeView === v.key
-                  ? "bg-red-600 text-white shadow-lg shadow-red-900/30"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${activeView === v.key
+                ? "bg-red-600 text-white shadow-lg shadow-red-900/30"
+                : "text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
             >
               {v.icon}
               {v.label}
@@ -1115,10 +1119,10 @@ export default function AdminDashboard() {
                         {invStatus === "ok"
                           ? "Available 🟢"
                           : invStatus === "low"
-                          ? "Running Low 🟡"
-                          : invStatus === "critical"
-                          ? "Reorder Now 🔴"
-                          : "Out of Stock ⚫"}
+                            ? "Running Low 🟡"
+                            : invStatus === "critical"
+                              ? "Reorder Now 🔴"
+                              : "Out of Stock ⚫"}
                       </span>
                     </div>
                   </div>
@@ -1203,36 +1207,36 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 servicesPagination.paginatedItems.map((s, i) => {
-                    const totalRev = sortedServiceCards.reduce((a, x) => a + Number(x.revenue ?? 0), 0);
-                    const pct = totalRev ? ((Number(s.revenue ?? 0) / totalRev) * 100).toFixed(1) : "0.0";
-                    return (
-                      <div
-                        key={i}
-                        className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
-                      >
-                        <div className="col-span-4 flex items-center gap-3">
-                          <div
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
-                          />
-                          <span className="text-white font-semibold text-sm">{s.service}</span>
-                        </div>
-                        <div className="col-span-2 text-gray-400 text-sm">{s.count}</div>
-                        <div className="col-span-3 text-white font-bold text-sm">
-                          ₱{Number(s.revenue ?? 0).toLocaleString()}
-                        </div>
-                        <div className="col-span-2 text-gray-500 text-xs">{s.avg_time ?? "—"}</div>
-                        <div className="col-span-1">
-                          <span
-                            className="text-xs font-bold"
-                            style={{ color: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
-                          >
-                            {pct}%
-                          </span>
-                        </div>
+                  const totalRev = sortedServiceCards.reduce((a, x) => a + Number(x.revenue ?? 0), 0);
+                  const pct = totalRev ? ((Number(s.revenue ?? 0) / totalRev) * 100).toFixed(1) : "0.0";
+                  return (
+                    <div
+                      key={i}
+                      className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                    >
+                      <div className="col-span-4 flex items-center gap-3">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
+                        />
+                        <span className="text-white font-semibold text-sm">{s.service}</span>
                       </div>
-                    );
-                  })
+                      <div className="col-span-2 text-gray-400 text-sm">{s.count}</div>
+                      <div className="col-span-3 text-white font-bold text-sm">
+                        ₱{Number(s.revenue ?? 0).toLocaleString()}
+                      </div>
+                      <div className="col-span-2 text-gray-500 text-xs">{s.avg_time ?? "—"}</div>
+                      <div className="col-span-1">
+                        <span
+                          className="text-xs font-bold"
+                          style={{ color: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
+                        >
+                          {pct}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
               )}
 
               {topServiceCards.length > 0 && (

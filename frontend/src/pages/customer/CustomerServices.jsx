@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout.jsx";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 const categories = [
   "All",
@@ -30,9 +31,9 @@ function ServicesPage() {
         if (activeCategory !== "All") params.append("category", activeCategory);
         if (search.trim()) params.append("search", search.trim());
 
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/services/?${params.toString()}`, {
+        const res = await fetch(`${API_BASE}/services/?${params.toString()}`, {
           headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token")}`,
             "Content-Type": "application/json",
           },
         });
@@ -96,11 +97,10 @@ function ServicesPage() {
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                  activeCategory === cat
+                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-200 ${activeCategory === cat
                     ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
                     : "bg-gray-900 text-gray-400 border border-white/10 hover:border-red-600/40 hover:text-white"
-                }`}
+                  }`}
               >
                 {cat}
               </button>

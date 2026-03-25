@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { API_BASE } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
 import logo from "../../assets/otokwikklogo.png";
 
@@ -36,7 +37,7 @@ const Navbar = () => {
       sessionStorage.getItem("refresh_token");
 
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}/logout/`, {
+      await fetch(`${API_BASE}/logout/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -76,11 +77,10 @@ const Navbar = () => {
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-        scrolled
-          ? "bg-black/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
-          : "bg-transparent"
-      }`}
+      className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrolled
+        ? "bg-black/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
+        : "bg-transparent"
+        }`}
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-24 transition-all duration-500">

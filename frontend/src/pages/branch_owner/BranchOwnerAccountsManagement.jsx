@@ -4,6 +4,7 @@ import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
 import { API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser.js";
+import Swal from "sweetalert2";
 
 function BranchOwnerAccountManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,7 +39,7 @@ function BranchOwnerAccountManagement() {
   // All roles from your Staff model
   const roles = [
     "Admin",
-    "Business Owner", 
+    "Business Owner",
     "Branch Manager",
     "Staff",
     "Employee",
@@ -166,6 +167,59 @@ function BranchOwnerAccountManagement() {
       staffAccounts.length,
     ],
   });
+
+  // Handle action
+  const handleToggleStatus = async (staff) => {
+    const newStatus = staff.status === "Active" ? "Inactive" : "Active";
+    const result = await Swal.fire({
+      title: `Confirm Action`,
+      text: `Are you sure you want to ${newStatus === "Active" ? "activate" : "deactivate"} ${staff.first_name || staff.email}?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: newStatus === "Active" ? "#10b981" : "#ef4444",
+      cancelButtonColor: "#374151",
+      confirmButtonText: `Yes, ${newStatus === "Active" ? "activate" : "deactivate"}`,
+      background: "linear-gradient(to bottom right, #1f2937, #111827)",
+      color: "#fff",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`${API_BASE}/owner/staff/${staff.id}/`, {
+          method: "PATCH",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ status: newStatus }),
+        });
+
+        if (!response.ok) throw new Error("Failed to update status");
+
+        const updatedStaff = await response.json();
+
+        setStaffAccounts((prev) =>
+          prev.map((s) => (s.id === staff.id ? updatedStaff : s))
+        );
+
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: `Account has been ${newStatus.toLowerCase()}d.`,
+          background: "linear-gradient(to bottom right, #1f2937, #111827)",
+          color: "#fff",
+          confirmButtonColor: "#ef4444",
+        });
+      } catch (err) {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: err.message,
+          background: "linear-gradient(to bottom right, #1f2937, #111827)",
+          color: "#fff",
+          confirmButtonColor: "#ef4444",
+        });
+      }
+    }
+  };
 
   // Format staff name
   const formatStaffName = (staff) => {
@@ -410,33 +464,24 @@ function BranchOwnerAccountManagement() {
                   </div>
                   <div className="col-span-2">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        status === "Active"
-                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                          : "bg-gray-500/20 text-gray-400 border-gray-500/30"
-                      }`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${status === "Active"
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                        : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                        }`}
                     >
                       {status}
                     </span>
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <button
-                      className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                      title="More options"
+                      onClick={() => handleToggleStatus(staff)}
+                      className={`opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${status === "Active"
+                          ? "text-red-400 bg-red-500/10 hover:bg-red-500/20"
+                          : "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
+                        }`}
+                      title={status === "Active" ? "Deactivate Account" : "Activate Account"}
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                        />
-                      </svg>
+                      {status === "Active" ? "Deactivate" : "Activate"}
                     </button>
                   </div>
                 </div>

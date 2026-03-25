@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import AdminLayout from "./AdminLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 const getToken = () =>
   localStorage.getItem("access_token") ??
   sessionStorage.getItem("access_token");
@@ -29,17 +30,23 @@ const DAY_HEADERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const STATUS_STYLE = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+  cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
+  done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
 const STATUS_LABEL = {
   confirmed: "Confirmed",
   pending: "Pending",
   cancelled: "Cancelled",
+  done: "Done",
+  rescheduled: "Rescheduled",
 };
 const STATUS_DOT = {
   confirmed: "bg-emerald-400",
   pending: "bg-amber-400",
   cancelled: "bg-red-400",
+  done: "bg-blue-400",
+  rescheduled: "bg-indigo-400",
 };
 
 function getDaysInMonth(year, month) {
@@ -161,6 +168,8 @@ function EditModal({ appointment, onClose, onSaved }) {
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
               <option value="cancelled">Cancelled</option>
+              <option value="rescheduled">Rescheduled</option>
+              <option value="done">Done</option>
             </select>
           </div>
           <div>
@@ -504,13 +513,12 @@ function AdminAppointments() {
                     <button
                       key={day}
                       onClick={() => setSelectedDay(day)}
-                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                        isSelected
-                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                          : isToday
-                            ? "border border-red-500/40 text-red-400 hover:bg-red-500/10"
-                            : "hover:bg-white/5 text-gray-400 hover:text-white"
-                      }`}
+                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${isSelected
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                        : isToday
+                          ? "border border-red-500/40 text-red-400 hover:bg-red-500/10"
+                          : "hover:bg-white/5 text-gray-400 hover:text-white"
+                        }`}
                     >
                       <span>{day}</span>
                       {statuses.length > 0 && (
