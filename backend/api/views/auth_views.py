@@ -27,9 +27,10 @@ class SignupView(APIView):
         if serializer.is_valid():
             user = serializer.save()
 
-            # Set inactive until email is verified
-            user.is_active = False
-            user.save()
+            # Keep customer accounts active right after signup so they can log in.
+            # Email verification can still be used as a separate flag.
+            user.is_active = True
+            user.save(update_fields=["is_active"])
 
             Customer.objects.create(
                 user=user,
@@ -109,7 +110,7 @@ class SignupView(APIView):
                 {
                     "success": True,
                     "title": "Account Created!",
-                    "message": "Please check your email to verify your account before logging in.",
+                    "message": "Account created successfully. You can now log in.",
                 },
                 status=status.HTTP_201_CREATED,
             )

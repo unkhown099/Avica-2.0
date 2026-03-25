@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import StaffLayout from "./StaffLayout";
+import Swal from "sweetalert2";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -17,7 +18,68 @@ function authHeaders() {
   };
 }
 
+function getTokenStorage() {
+  if (localStorage.getItem("access_token") || localStorage.getItem("refresh_token")) {
+    return localStorage;
+  }
+  if (sessionStorage.getItem("access_token") || sessionStorage.getItem("refresh_token")) {
+    return sessionStorage;
+  }
+  return localStorage;
+}
+
+async function refreshAccessToken() {
+  const storage = getTokenStorage();
+  const refresh = storage.getItem("refresh_token");
+  if (!refresh) return null;
+
+  const res = await fetch(`${API}/token/refresh/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh }),
+  });
+
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => ({}));
+  if (!data?.access) return null;
+
+  storage.setItem("access_token", data.access);
+  return data.access;
+}
+
+async function authFetch(url, options = {}) {
+  const merged = {
+    ...options,
+    headers: {
+      ...authHeaders(),
+      ...(options.headers || {}),
+    },
+  };
+
+  let res = await fetch(url, merged);
+  if (res.status !== 401) return res;
+
+  const newAccess = await refreshAccessToken();
+  if (!newAccess) return res;
+
+  const retry = {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${newAccess}`,
+      ...(options.headers || {}),
+    },
+  };
+  res = await fetch(url, retry);
+  return res;
+}
+
 const API = import.meta.env.VITE_API_BASE_URL;
+const DARK_SWAL = {
+  background: "#111827",
+  color: "#f9fafb",
+  confirmButtonColor: "#dc2626",
+};
 
 const SERVICES = [
   "Exterior Detailing",
@@ -28,6 +90,14 @@ const SERVICES = [
   "Engine Bay Cleaning",
   "Other",
 ];
+
+function todayDateValue() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 const STATUS_META = {
   waiting: {
@@ -49,7 +119,7 @@ const STATUS_META = {
     glow: "",
   },
   skipped: {
-    label: "Skipped",
+    label: "No Show",
     dot: "bg-red-400",
     badge: "bg-red-500/15 text-red-400 border-red-500/30",
     glow: "",
@@ -173,31 +243,6 @@ function AssignDropdown({ entry, employees, onAssign, assigning }) {
 
       {open && (
         <div className="absolute bottom-full mb-1 left-0 right-0 bg-gray-800 border border-white/10 rounded-xl shadow-2xl z-20 overflow-hidden">
-          {/* Unassign option */}
-          {current && (
-            <button
-              onClick={() => {
-                onAssign(entry.id, null);
-                setOpen(false);
-              }}
-              className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-2 border-b border-white/5"
-            >
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-              Remove assignment
-            </button>
-          )}
           {employees.length === 0 ? (
             <div className="px-4 py-3 text-xs text-gray-500">
               No mechanics available
@@ -322,6 +367,11 @@ function QueueCard({
             icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
             text: `~${entry.wait_minutes} min wait`,
           },
+          entry.source === "booking" &&
+            (entry.appointment_date || entry.appointment_time) && {
+              icon: "M8 7V3m8 4V3m-9 8h10m-13 9h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v11a2 2 0 002 2z",
+              text: `Appointment: ${entry.appointment_date || "-"} ${entry.appointment_time || ""}`.trim(),
+            },
         ]
           .filter(Boolean)
           .map((row, i) => (
@@ -385,63 +435,35 @@ function QueueCard({
       {/* Action buttons */}
       <div className="pt-3 border-t border-white/5 flex gap-2">
         {entry.status === "waiting" && (
-          <>
-            <button
-              onClick={() => onAction(entry.id, "in_service")}
-              disabled={isActive}
-              className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
-            >
-              {isActive ? (
-                <svg
-                  className="w-3.5 h-3.5 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              )}
-              Start Service
-            </button>
-            <button
-              onClick={() => onAction(entry.id, "skipped")}
-              disabled={isActive}
-              className="px-3 flex items-center justify-center bg-gray-700/40 hover:bg-gray-700 border border-white/10 text-gray-400 hover:text-white text-xs font-semibold rounded-xl transition-all duration-200 disabled:opacity-50"
-              title="Skip"
-            >
+          <button
+            onClick={() => onAction(entry.id, "in_service")}
+            disabled={isActive || !entry.assigned_employee}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!entry.assigned_employee ? "Assign a mechanic first" : ""}
+          >
+            {isActive ? (
               <svg
-                className="w-4 h-4"
+                className="w-3.5 h-3.5 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-3.5 h-3.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -450,11 +472,18 @@ function QueueCard({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-            </button>
-          </>
+            )}
+            {entry.assigned_employee ? "Start Service" : "Assign Mechanic First"}
+          </button>
         )}
         {entry.status === "in_service" && (
           <button
@@ -541,8 +570,92 @@ function WalkInModal({ onClose, onAdded }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [services, setServices] = useState([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchServices = async () => {
+      setLoadingServices(true);
+      try {
+        const res = await fetch(`${API}/services/`, {
+          headers: authHeaders(),
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const rows = Array.isArray(data) ? data : (data.results ?? []);
+        const activeServices = rows
+          .filter((s) => s?.is_active !== false)
+          .map((s) => s?.name)
+          .filter(Boolean);
+        if (active) {
+          setServices(activeServices.length > 0 ? activeServices : SERVICES);
+        }
+      } catch {
+        if (active) setServices(SERVICES);
+      } finally {
+        if (active) setLoadingServices(false);
+      }
+    };
+
+    const fetchCustomers = async () => {
+      setLoadingCustomers(true);
+      try {
+        const res = await fetch(`${API}/customers/`, {
+          headers: authHeaders(),
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const rows = Array.isArray(data) ? data : (data.results ?? []);
+        if (active) setCustomers(rows);
+      } catch {
+        if (active) setCustomers([]);
+      } finally {
+        if (active) setLoadingCustomers(false);
+      }
+    };
+
+    fetchServices();
+    fetchCustomers();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredCustomers = customers
+    .filter((c) => {
+      const query = form.customerName.trim().toLowerCase();
+      if (!query) return false;
+      const fullName = `${c.first_name || ""} ${c.last_name || ""}`
+        .trim()
+        .toLowerCase();
+      const phone = (c.phone || "").toLowerCase();
+      const email = (c.email || "").toLowerCase();
+      return (
+        fullName.includes(query) || phone.includes(query) || email.includes(query)
+      );
+    })
+    .slice(0, 8);
+
+  const serviceOptions = services.length > 0 ? services : SERVICES;
+
+  const selectCustomer = (customer) => {
+    const fullName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
+    setForm((prev) => ({
+      ...prev,
+      customerName: fullName || prev.customerName,
+      phone: customer.phone || prev.phone,
+    }));
+    setShowCustomerResults(false);
+  };
 
   const handleSubmit = async () => {
     if (!form.customerName || !form.phone || !form.vehicle || !form.service) {
@@ -615,13 +728,53 @@ function WalkInModal({ onClose, onAdded }) {
             </button>
           </div>
           <div className="p-6 space-y-4">
+            <div className="relative">
+              <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
+                Customer Name *
+              </label>
+              <input
+                type="text"
+                value={form.customerName}
+                onChange={(e) => {
+                  set("customerName", e.target.value);
+                  setShowCustomerResults(true);
+                }}
+                onFocus={() => setShowCustomerResults(true)}
+                onBlur={() => setTimeout(() => setShowCustomerResults(false), 180)}
+                placeholder="Type customer name / phone / email"
+                className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500/60 transition-all text-sm"
+              />
+
+              {showCustomerResults && form.customerName.trim() && (
+                <div className="absolute z-20 mt-1 w-full bg-gray-800 border border-white/10 rounded-xl shadow-2xl max-h-56 overflow-y-auto">
+                  {loadingCustomers ? (
+                    <div className="px-4 py-3 text-xs text-gray-500">Searching customers...</div>
+                  ) : filteredCustomers.length > 0 ? (
+                    filteredCustomers.map((c) => {
+                      const fullName = `${c.first_name || ""} ${c.last_name || ""}`.trim();
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => selectCustomer(c)}
+                          className="w-full text-left px-4 py-2.5 text-xs text-gray-200 hover:bg-white/5 transition-all"
+                        >
+                          <div className="font-semibold">{fullName || "Unnamed Customer"}</div>
+                          <div className="text-gray-500">
+                            {c.phone || "No phone"}
+                            {c.email ? ` | ${c.email}` : ""}
+                          </div>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-4 py-3 text-xs text-gray-500">No existing customer found</div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {[
-              {
-                label: "Customer Name *",
-                key: "customerName",
-                type: "text",
-                placeholder: "Juan dela Cruz",
-              },
               {
                 label: "Phone *",
                 key: "phone",
@@ -663,8 +816,10 @@ function WalkInModal({ onClose, onAdded }) {
                 onChange={(e) => set("service", e.target.value)}
                 className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500/60 transition-all text-sm cursor-pointer"
               >
-                <option value="">Select a service</option>
-                {SERVICES.map((s) => (
+                <option value="">
+                  {loadingServices ? "Loading services..." : "Select a service"}
+                </option>
+                {serviceOptions.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
@@ -745,16 +900,25 @@ function StaffQueue() {
   const [assignLoading, setAssignLoading] = useState(null);
   const [showWalkIn, setShowWalkIn] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [activeQueueTab, setActiveQueueTab] = useState("waiting");
+  const [selectedDate, setSelectedDate] = useState(todayDateValue);
 
   const fetchQueue = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
+      const qs = new URLSearchParams();
+      if (selectedDate) qs.set("date", selectedDate);
       const [qRes, hRes] = await Promise.all([
-        fetch(`${API}/api/queue/`, { headers: authHeaders() }),
-        fetch(`${API}/api/queue/history/`, { headers: authHeaders() }),
+        authFetch(`${API}/api/queue/?${qs.toString()}`),
+        authFetch(`${API}/api/queue/history/?${qs.toString()}`),
       ]);
-      if (!qRes.ok) throw new Error(`Error ${qRes.status}`);
+      if (!qRes.ok || !hRes.ok) {
+        if (qRes.status === 401 || hRes.status === 401) {
+          throw new Error("Session expired. Please sign in again.");
+        }
+        throw new Error(`Error ${qRes.status || hRes.status}`);
+      }
       const [qData, hData] = await Promise.all([qRes.json(), hRes.json()]);
       setQueue(Array.isArray(qData) ? qData : (qData.results ?? []));
       setHistory(Array.isArray(hData) ? hData : (hData.results ?? []));
@@ -763,13 +927,11 @@ function StaffQueue() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedDate]);
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/queue/employees/`, {
-        headers: authHeaders(),
-      });
+      const res = await authFetch(`${API}/api/queue/employees/`);
       if (!res.ok) return;
       const data = await res.json();
       setEmployees(Array.isArray(data) ? data : []);
@@ -792,12 +954,14 @@ function StaffQueue() {
   const handleAction = async (id, newStatus) => {
     setActionLoading(id);
     try {
-      const res = await fetch(`${API}/api/queue/${id}/action/`, {
+      const res = await authFetch(`${API}/api/queue/${id}/action/`, {
         method: "PATCH",
-        headers: authHeaders(),
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Action failed. Please try again.");
+      }
       const updated = await res.json();
       if (newStatus === "done" || newStatus === "skipped") {
         setQueue((prev) => prev.filter((q) => q.id !== id));
@@ -807,8 +971,13 @@ function StaffQueue() {
           prev.map((q) => (q.id === updated.id ? updated : q)),
         );
       }
-    } catch {
-      alert("Action failed. Please try again.");
+    } catch (e) {
+      await Swal.fire({
+        icon: "error",
+        title: "Action failed",
+        text: e.message || "Action failed. Please try again.",
+        ...DARK_SWAL,
+      });
     } finally {
       setActionLoading(null);
     }
@@ -817,16 +986,20 @@ function StaffQueue() {
   const handleAssign = async (id, employeeId) => {
     setAssignLoading(id);
     try {
-      const res = await fetch(`${API}/api/queue/${id}/assign/`, {
+      const res = await authFetch(`${API}/api/queue/${id}/assign/`, {
         method: "PATCH",
-        headers: authHeaders(),
         body: JSON.stringify({ employee_id: employeeId }),
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
       setQueue((prev) => prev.map((q) => (q.id === updated.id ? updated : q)));
     } catch {
-      alert("Failed to assign employee.");
+      await Swal.fire({
+        icon: "error",
+        title: "Assignment failed",
+        text: "Failed to assign employee.",
+        ...DARK_SWAL,
+      });
     } finally {
       setAssignLoading(null);
     }
@@ -834,6 +1007,7 @@ function StaffQueue() {
 
   const waiting = queue.filter((q) => q.status === "waiting");
   const inService = queue.filter((q) => q.status === "in_service");
+  const activeQueueRows = activeQueueTab === "waiting" ? waiting : inService;
   const doneToday = history.filter((h) => h.status === "done").length;
   const unassigned = queue.filter(
     (q) =>
@@ -855,6 +1029,17 @@ function StaffQueue() {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 bg-gray-900/70 border border-white/10 text-gray-300 rounded-xl px-3 py-2.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Date
+              </span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value || todayDateValue())}
+                className="bg-transparent text-sm text-white outline-none [color-scheme:dark]"
+              />
+            </div>
             <button
               onClick={() => setShowHistory((p) => !p)}
               className="flex items-center gap-2 border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-semibold px-4 py-2.5 rounded-xl transition-all text-sm"
@@ -915,6 +1100,7 @@ function StaffQueue() {
           </div>
         </div>
 
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard
@@ -928,7 +1114,7 @@ function StaffQueue() {
             accent="border-emerald-500/20"
           />
           <StatCard
-            label="Completed Today"
+            label="Completed"
             value={doneToday}
             accent="border-white/5"
           />
@@ -961,11 +1147,36 @@ function StaffQueue() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* ── Active Queue ─────────────────────────────────── */}
           <div className="xl:col-span-2 space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-lg font-black text-white">Active Queue</h2>
-              <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-black flex items-center justify-center">
-                {queue.length}
-              </span>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-2">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-black text-white">Active Queue</h2>
+                <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-black flex items-center justify-center">
+                  {queue.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 md:ml-auto">
+                <button
+                  onClick={() => setActiveQueueTab("waiting")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    activeQueueTab === "waiting"
+                      ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                      : "bg-gray-800/60 border-white/10 text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Waiting ({waiting.length})
+                </button>
+                <button
+                  onClick={() => setActiveQueueTab("in_service")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    activeQueueTab === "in_service"
+                      ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                      : "bg-gray-800/60 border-white/10 text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Now Serving ({inService.length})
+                </button>
+              </div>
             </div>
 
             {loading && (
@@ -1017,36 +1228,38 @@ function StaffQueue() {
               </div>
             )}
 
-            {inService.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Now Serving
+            {!loading && queue.length > 0 && activeQueueRows.length === 0 && (
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl py-10 text-center backdrop-blur-sm">
+                <p className="text-gray-400 font-semibold">
+                  {activeQueueTab === "waiting"
+                    ? "No waiting entries"
+                    : "No ongoing services"}
                 </p>
-                <div className="space-y-3">
-                  {inService.map((e) => (
-                    <QueueCard
-                      key={e.id}
-                      entry={e}
-                      employees={employees}
-                      onAction={handleAction}
-                      onAssign={handleAssign}
-                      actionLoading={actionLoading}
-                      assignLoading={assignLoading}
-                    />
-                  ))}
-                </div>
               </div>
             )}
 
-            {waiting.length > 0 && (
-              <div className={inService.length > 0 ? "mt-6" : ""}>
-                <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                  Waiting ({waiting.length})
+            {!loading && activeQueueRows.length > 0 && (
+              <div>
+                <p
+                  className={`text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2 ${
+                    activeQueueTab === "waiting"
+                      ? "text-amber-400"
+                      : "text-emerald-400"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      activeQueueTab === "waiting"
+                        ? "bg-amber-400"
+                        : "bg-emerald-400 animate-pulse"
+                    }`}
+                  />
+                  {activeQueueTab === "waiting"
+                    ? `Waiting (${waiting.length})`
+                    : `Now Serving (${inService.length})`}
                 </p>
                 <div className="space-y-3">
-                  {waiting.map((e) => (
+                  {activeQueueRows.map((e) => (
                     <QueueCard
                       key={e.id}
                       entry={e}
@@ -1089,7 +1302,7 @@ function StaffQueue() {
                     return (
                       <div
                         key={emp.id}
-                        className="flex items-center gap-3 bg-gray-800/60 border border-white/5 rounded-xl px-3 py-2.5"
+                        className="grid grid-cols-[auto_1fr_auto] items-center gap-3 bg-gray-800/60 border border-white/5 rounded-xl px-3 py-2.5 min-h-[58px]"
                       >
                         <div className="w-8 h-8 rounded-full bg-gray-700 border border-white/10 flex items-center justify-center text-sm font-black text-white shrink-0">
                           {emp.full_name.charAt(0)}
@@ -1103,7 +1316,7 @@ function StaffQueue() {
                           </div>
                         </div>
                         <span
-                          className={`text-xs font-black px-2 py-0.5 rounded-lg ${
+                          className={`text-xs font-black px-2 py-0.5 rounded-lg text-center min-w-[68px] ${
                             activeJobs > 0
                               ? "bg-amber-500/20 text-amber-400"
                               : "bg-emerald-500/20 text-emerald-400"
