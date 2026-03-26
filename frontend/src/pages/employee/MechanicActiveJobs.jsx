@@ -30,6 +30,47 @@ function getMe() {
   }
 }
 
+// Check if a job is older than 24 hours
+function isJobOlderThan24Hours(completedAt) {
+  if (!completedAt) return false;
+  const completedDate = new Date(completedAt);
+  const now = new Date();
+  const hoursDiff = (now - completedDate) / (1000 * 60 * 60);
+  return hoursDiff >= 24;
+}
+
+// Check if job was completed today
+function isCompletedToday(completedAt) {
+  if (!completedAt) return false;
+  const completedDate = new Date(completedAt);
+  const today = new Date();
+  return (
+    completedDate.getDate() === today.getDate() &&
+    completedDate.getMonth() === today.getMonth() &&
+    completedDate.getFullYear() === today.getFullYear()
+  );
+}
+
+// Filter out jobs that are older than 24 hours
+function filterRecentDoneJobs(entries) {
+  return entries.filter(entry => {
+    if (entry.status === "done") {
+      // If completed_at exists and is older than 24 hours, remove it
+      if (entry.completed_at && isJobOlderThan24Hours(entry.completed_at)) {
+        return false;
+      }
+      // Also remove if completed_at doesn't exist but it's been more than a day since created
+      if (!entry.completed_at && entry.completed_at === null) {
+        const createdDate = new Date(entry.queued_at);
+        const now = new Date();
+        const hoursDiff = (now - createdDate) / (1000 * 60 * 60);
+        if (hoursDiff >= 24) return false;
+      }
+    }
+    return true;
+  });
+}
+
 const API = import.meta.env.VITE_API_BASE_URL;
 
 // ─── Confirmation Modal Component ────────────────────────────────────────────
@@ -181,30 +222,34 @@ function JobCard({
 }) {
   return (
     <div
-      draggable
-      onDragStart={(e) => onDragStart(e, entry)}
+      draggable={entry.status !== "done"} // Make done jobs non-draggable
+      onDragStart={(e) => {
+        if (entry.status !== "done") onDragStart(e, entry);
+      }}
       onDragEnd={onDragEnd}
       onClick={() => onClick(entry)}
       className={`
-        relative rounded-xl border p-4 cursor-grab active:cursor-grabbing
+        relative rounded-xl border p-4 ${entry.status !== "done" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
         transition-all duration-200 select-none group
-        ${isDragging ? "opacity-25 scale-95 rotate-1 shadow-2xl" : "hover:-translate-y-0.5 hover:shadow-lg"}
+        ${isDragging ? "opacity-25 scale-95 rotate-1 shadow-2xl" : entry.status !== "done" ? "hover:-translate-y-0.5 hover:shadow-lg" : ""}
         ${
           isSelected
             ? `${col.cardSelectedBorder} ${col.cardSelectedBg} shadow-md`
-            : `${col.cardBorder} bg-gray-900/70 hover:bg-gray-800/60 hover:border-white/15`
+            : `${col.cardBorder} bg-gray-900/70 ${entry.status !== "done" ? "hover:bg-gray-800/60 hover:border-white/15" : ""}`
         }
       `}
     >
-      {/* Drag grip dots */}
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-25 transition-opacity flex flex-col gap-[3px] pointer-events-none">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex gap-[3px]">
-            <div className="w-[3px] h-[3px] rounded-full bg-white" />
-            <div className="w-[3px] h-[3px] rounded-full bg-white" />
-          </div>
-        ))}
-      </div>
+      {/* Drag grip dots - hide for done jobs */}
+      {entry.status !== "done" && (
+        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-25 transition-opacity flex flex-col gap-[3px] pointer-events-none">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex gap-[3px]">
+              <div className="w-[3px] h-[3px] rounded-full bg-white" />
+              <div className="w-[3px] h-[3px] rounded-full bg-white" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Queue number + customer name */}
       <div className="flex items-center gap-3 mb-3 pr-8">
@@ -318,6 +363,20 @@ function JobCard({
           {entry.source === "walk_in" ? "Walk-in" : "Booking"}
         </span>
       </div>
+      
+      {/* Show completed time for done jobs */}
+      {entry.status === "done" && entry.completed_at && (
+        <div className="mt-3 pt-2 border-t border-white/5">
+          <p className="text-gray-500 text-xs">
+            Completed: {new Date(entry.completed_at).toLocaleString()}
+          </p>
+          {isJobOlderThan24Hours(entry.completed_at) && (
+            <p className="text-red-400 text-xs mt-1">
+              ⏰ Will be removed in {Math.ceil(24 - (Date.now() - new Date(entry.completed_at)) / (1000 * 60 * 60))} hours
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -358,15 +417,15 @@ function KanbanColumn({
         </span>
       </div>
 
-      {/* Drop zone */}
+      {/* Drop zone - disable dropping on done column */}
       <div
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-        onDragLeave={onDragLeave}
+        onDragOver={col.id !== "done" ? (e) => onDragOver(e, col.id) : undefined}
+        onDrop={col.id !== "done" ? (e) => onDrop(e, col.id) : undefined}
+        onDragLeave={col.id !== "done" ? onDragLeave : undefined}
         style={{ minHeight: 260 }}
         className={`
           flex-1 rounded-xl border-2 border-dashed p-3 transition-all duration-200
-          ${isOver ? `${col.dropActiveBg} scale-[1.015]` : "border-white/6 bg-transparent"}
+          ${isOver && col.id !== "done" ? `${col.dropActiveBg} scale-[1.015]` : "border-white/6 bg-transparent"}
         `}
       >
         {entries.length === 0 ? (
@@ -385,7 +444,9 @@ function KanbanColumn({
               />
             </svg>
             <p className="text-gray-600 text-xs font-medium">{col.emptyText}</p>
-            <p className="text-gray-700 text-xs">← Drop here</p>
+            {col.id !== "done" && (
+              <p className="text-gray-700 text-xs">← Drop here</p>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -471,6 +532,21 @@ function DetailPanel({ entry, onClose, actionLoading, onActionClick }) {
               </span>
             )}
           </div>
+
+          {/* Completion time for done jobs */}
+          {entry.status === "done" && entry.completed_at && (
+            <div className="bg-white/5 rounded-xl px-4 py-3">
+              <p className="text-gray-400 text-sm">Completed at:</p>
+              <p className="text-white font-semibold text-sm">
+                {new Date(entry.completed_at).toLocaleString()}
+              </p>
+              {isJobOlderThan24Hours(entry.completed_at) && (
+                <p className="text-red-400 text-xs mt-2">
+                  This job will be removed in {Math.ceil(24 - (Date.now() - new Date(entry.completed_at)) / (1000 * 60 * 60))} hours
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Info rows */}
           <div className="rounded-xl overflow-hidden border border-white/8 divide-y divide-white/5">
@@ -558,80 +634,82 @@ function DetailPanel({ entry, onClose, actionLoading, onActionClick }) {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="space-y-2.5">
-            {entry.status === "waiting" && (
-              <button
-                onClick={() =>
-                  onActionClick(entry.id, "in_service", "Start Service")
-                }
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-400 hover:text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <Spinner />
-                ) : (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                )}
-                Start Service
-              </button>
-            )}
+          {/* Actions - hide for done jobs */}
+          {entry.status !== "done" && (
+            <div className="space-y-2.5">
+              {entry.status === "waiting" && (
+                <button
+                  onClick={() =>
+                    onActionClick(entry.id, "in_service", "Start Service")
+                  }
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-400 hover:text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <Spinner />
+                  ) : (
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  )}
+                  Start Service
+                </button>
+              )}
 
-            {entry.status === "in_service" && (
-              <button
-                onClick={() => onActionClick(entry.id, "done", "Mark as Done")}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50 shadow-lg shadow-emerald-600/20"
-              >
-                {isLoading ? (
-                  <Spinner />
-                ) : (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                )}
-                Mark as Done
-              </button>
-            )}
+              {entry.status === "in_service" && (
+                <button
+                  onClick={() => onActionClick(entry.id, "done", "Mark as Done")}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50 shadow-lg shadow-emerald-600/20"
+                >
+                  {isLoading ? (
+                    <Spinner />
+                  ) : (
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
+                  Mark as Done
+                </button>
+              )}
 
-            {(entry.status === "waiting" || entry.status === "in_service") && (
-              <button
-                onClick={() => onActionClick(entry.id, "skipped", "Skip Job")}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 text-gray-500 hover:text-gray-300 font-semibold py-2.5 rounded-xl transition-all text-sm disabled:opacity-50"
-              >
-                Skip this job
-              </button>
-            )}
-          </div>
+              {(entry.status === "waiting" || entry.status === "in_service") && (
+                <button
+                  onClick={() => onActionClick(entry.id, "skipped", "Skip Job")}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 text-gray-500 hover:text-gray-300 font-semibold py-2.5 rounded-xl transition-all text-sm disabled:opacity-50"
+                >
+                  Skip this job
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -681,10 +759,13 @@ export default function MechanicActiveJobs() {
       ]);
       if (!qRes.ok) throw new Error(`Error ${qRes.status}`);
       const [qData, hData] = await Promise.all([qRes.json(), hRes.json()]);
-      setEntries([
+      let allEntries = [
         ...(Array.isArray(qData) ? qData : (qData.results ?? [])),
         ...(Array.isArray(hData) ? hData : (hData.results ?? [])),
-      ]);
+      ];
+      // Filter out old done jobs
+      allEntries = filterRecentDoneJobs(allEntries);
+      setEntries(allEntries);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -696,6 +777,7 @@ export default function MechanicActiveJobs() {
     fetchEntries();
   }, [fetchEntries]);
 
+  // Auto-refresh every 30 seconds to clean up old done jobs
   useEffect(() => {
     const id = setInterval(fetchEntries, 30000);
     return () => clearInterval(id);
@@ -769,10 +851,19 @@ export default function MechanicActiveJobs() {
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
+      
+      // If marking as done, add completed_at timestamp
+      if (newStatus === "done" && !updated.completed_at) {
+        updated.completed_at = new Date().toISOString();
+      }
+      
       setEntries((prev) =>
         prev.map((e) => (e.id === updated.id ? updated : e)),
       );
       setSelectedEntry((prev) => (prev?.id === updated.id ? updated : prev));
+      
+      // Immediately refresh to remove any old done jobs
+      setTimeout(() => fetchEntries(), 100);
     } catch {
       alert("Action failed. Please try again.");
     } finally {
@@ -854,7 +945,7 @@ export default function MechanicActiveJobs() {
                 <p className="text-2xl font-black text-white leading-none">
                   {totalDone}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Done</p>
+                <p className="text-xs text-gray-500 mt-1">Done (24h)</p>
               </div>
             </div>
             <button

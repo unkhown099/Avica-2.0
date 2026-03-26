@@ -58,6 +58,18 @@ from api.views.business_owner_views import (
     OwnerInventoryView,
     OwnerStaffListView
 )
+from api.views.mechanic_views import (
+    MechanicDashboardView,
+    MechanicJobsView,
+    MechanicJobDetailView,
+    MechanicJobActionView,
+    MechanicPartsRequestView,
+    MechanicJobReportView,
+    MechanicAvailabilityView,
+    MechanicScheduleWeekView,
+    MechanicScheduleDayView,
+    MechanicCalendarView
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -148,6 +160,18 @@ urlpatterns = [
     path("owner/services/",               OwnerServiceListView.as_view()),
     path("owner/inventory/",              OwnerInventoryView.as_view()),
     path("owner/staff/",                  OwnerStaffListView.as_view()),
+
+  # ── Mechanic endpoints ──────────────────────────────────────────────────────
+    path('api/mechanic/dashboard/',          MechanicDashboardView.as_view(),    name='mechanic-dashboard'),
+    path('api/mechanic/jobs/',               MechanicJobsView.as_view(),         name='mechanic-jobs'),
+    path('api/mechanic/jobs/<int:pk>/',      MechanicJobDetailView.as_view(),    name='mechanic-job-detail'),
+    path('api/mechanic/jobs/<int:pk>/action/', MechanicJobActionView.as_view(),  name='mechanic-job-action'),
+    path('api/mechanic/jobs/<int:job_id>/request-parts/', MechanicPartsRequestView.as_view(), name='mechanic-request-parts'),
+    path('api/mechanic/jobs/<int:pk>/report/', MechanicJobReportView.as_view(),  name='mechanic-job-report'),
+    path('api/mechanic/availability/',       MechanicAvailabilityView.as_view(),  name='mechanic-availability'),
+    path('api/mechanic/schedule/week/',      MechanicScheduleWeekView.as_view(),  name='mechanic-schedule-week'),
+    path('api/mechanic/schedule/day/',       MechanicScheduleDayView.as_view(),   name='mechanic-schedule-day'),
+    path('api/mechanic/calendar/',           MechanicCalendarView.as_view(),      name='mechanic-calendar'),
 
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
