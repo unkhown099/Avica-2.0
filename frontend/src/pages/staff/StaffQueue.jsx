@@ -19,7 +19,6 @@ function authHeaders() {
   };
 }
 
-const API = API_BASE;
 function getTokenStorage() {
   if (localStorage.getItem("access_token") || localStorage.getItem("refresh_token")) {
     return localStorage;
@@ -35,7 +34,7 @@ async function refreshAccessToken() {
   const refresh = storage.getItem("refresh_token");
   if (!refresh) return null;
 
-  const res = await fetch(`${API}/token/refresh/`, {
+  const res = await fetch(`${API_BASE}/token/refresh/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh }),
@@ -76,7 +75,6 @@ async function authFetch(url, options = {}) {
   return res;
 }
 
-const API = import.meta.env.VITE_API_BASE_URL;
 const DARK_SWAL = {
   background: "#111827",
   color: "#f9fafb",
@@ -584,7 +582,7 @@ function WalkInModal({ onClose, onAdded }) {
     const fetchServices = async () => {
       setLoadingServices(true);
       try {
-        const res = await fetch(`${API}/services/`, {
+        const res = await fetch(`${API_BASE}/services/`, {
           headers: authHeaders(),
           credentials: "include",
         });
@@ -608,7 +606,7 @@ function WalkInModal({ onClose, onAdded }) {
     const fetchCustomers = async () => {
       setLoadingCustomers(true);
       try {
-        const res = await fetch(`${API}/customers/`, {
+        const res = await fetch(`${API_BASE}/customers/`, {
           headers: authHeaders(),
           credentials: "include",
         });
@@ -665,7 +663,7 @@ function WalkInModal({ onClose, onAdded }) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API}/api/queue/walk-in/`, {
+      const res = await fetch(`${API_BASE}/api/queue/walk-in/`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -910,8 +908,8 @@ function StaffQueue() {
       const qs = new URLSearchParams();
       if (selectedDate) qs.set("date", selectedDate);
       const [qRes, hRes] = await Promise.all([
-        authFetch(`${API}/api/queue/?${qs.toString()}`),
-        authFetch(`${API}/api/queue/history/?${qs.toString()}`),
+        authFetch(`${API_BASE}/api/queue/?${qs.toString()}`),
+        authFetch(`${API_BASE}/api/queue/history/?${qs.toString()}`),
       ]);
       if (!qRes.ok || !hRes.ok) {
         if (qRes.status === 401 || hRes.status === 401) {
@@ -931,7 +929,7 @@ function StaffQueue() {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await authFetch(`${API}/api/queue/employees/`);
+      const res = await authFetch(`${API_BASE}/api/queue/employees/`);
       if (!res.ok) return;
       const data = await res.json();
       setEmployees(Array.isArray(data) ? data : []);
@@ -954,7 +952,7 @@ function StaffQueue() {
   const handleAction = async (id, newStatus) => {
     setActionLoading(id);
     try {
-      const res = await authFetch(`${API}/api/queue/${id}/action/`, {
+      const res = await authFetch(`${API_BASE}/api/queue/${id}/action/`, {
         method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
       });
@@ -986,7 +984,7 @@ function StaffQueue() {
   const handleAssign = async (id, employeeId) => {
     setAssignLoading(id);
     try {
-      const res = await authFetch(`${API}/api/queue/${id}/assign/`, {
+      const res = await authFetch(`${API_BASE}/api/queue/${id}/assign/`, {
         method: "PATCH",
         body: JSON.stringify({ employee_id: employeeId }),
       });

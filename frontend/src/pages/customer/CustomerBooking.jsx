@@ -110,6 +110,7 @@ function Pagination({ current, total, onChange }) {
         </svg>
       </button>
       <div className="flex items-center gap-1 flex-wrap">
+        {/* FIX: removed duplicate return block — single clean map */}
         {pages.map((p) => {
           const show = p === 1 || p === total || Math.abs(p - current) <= 1;
           const ellipsisBefore = p === current - 2 && current > 3;
@@ -128,23 +129,6 @@ function Pagination({ current, total, onChange }) {
               {p}
             </button>
           );
-        }
-        if (!show) return null;
-
-        return (
-          <button
-            key={p}
-            onClick={() => onChange(p)}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${p === current
-              ? "bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-500"
-              : "border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50"
-              }`}
-          >
-            {p}
-          </button>
-        );
-      })}
-
         })}
       </div>
       <button
@@ -585,27 +569,26 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // FIX: Use null to mean "not yet loaded", true/false/undefined for each slot
-  // null = loading, {} with keys = loaded
   const [availableSlots, setAvailableSlots] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
 
-  // FIX: Store user bookings separately for duplicate-date check
   const [userBookings, setUserBookings] = useState([]);
   const [userBookingsLoaded, setUserBookingsLoaded] = useState(false);
   const [hasBookingOnSelectedDate, setHasBookingOnSelectedDate] = useState(false);
 
   // ── Load user's existing bookings once on mount ──────────────────────────
+  // FIX: was incorrectly fetching /services/ and calling setUserBookingsLoaded in catch only
   useEffect(() => {
-    setServicesLoading(true);
-    fetch(`${API_BASE}/services/`, {
-      headers: authHeaders(),
-    })
+    fetch(`${API_BASE}/api/bookings/`, { headers: authHeaders() })
       .then((r) => {
-        if (!r.ok) throw new Error("Failed to load services.");
+        if (!r.ok) throw new Error();
         return r.json();
       })
-      .catch(() => setUserBookingsLoaded(true)); // still mark loaded so we don't block forever
+      .then((data) => {
+        setUserBookings(Array.isArray(data) ? data : (data.results ?? []));
+        setUserBookingsLoaded(true);
+      })
+      .catch(() => setUserBookingsLoaded(true));
   }, []);
 
   // ── Check if user already has an active booking on the selected date ─────
@@ -639,9 +622,8 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       return;
     }
 
-    // FIX: Immediately clear selected time when date changes so user must re-pick
     setForm((prev) => ({ ...prev, time: "" }));
-    setAvailableSlots(null); // show loading state
+    setAvailableSlots(null);
     setCheckingAvailability(true);
 
     fetch(
@@ -650,12 +632,9 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     )
       .then((r) => r.ok ? r.json() : Promise.reject())
       .then((data) => {
-        // FIX: API returns { available_slots: { "8:00 AM": true, "9:00 AM": false, ... } }
-        // We store exactly this — slots not in the object default to unavailable
         setAvailableSlots(data.available_slots ?? {});
       })
       .catch(() => {
-        // Fallback: all slots available if API unreachable
         const fallback = {};
         TIME_SLOTS.forEach((s) => { fallback[s] = true; });
         setAvailableSlots(fallback);
@@ -677,9 +656,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   // ── Branches ──────────────────────────────────────────────────────────────
   useEffect(() => {
     setBranchLoading(true);
-    fetch(`${API_BASE}/branches/`, {
-      headers: authHeaders(),
-    })
+    fetch(`${API_BASE}/branches/`, { headers: authHeaders() })
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load branches.");
         return r.json();
@@ -697,14 +674,11 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     setFieldErrors((p) => ({ ...p, [key]: null }));
   };
 
-  // ── Helper: is a given slot truly available? ─────────────────────────────
-  // FIX: returns false if slots not yet loaded (null) or slot explicitly false
   const isSlotAvailable = (slot) => {
-    if (availableSlots === null) return false; // still loading
+    if (availableSlots === null) return false;
     return availableSlots[slot] === true;
   };
 
-  // ── Validate current step before advancing ────────────────────────────────
   const canAdvance = () => {
     setError("");
     if (step === 0) {
@@ -716,19 +690,16 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       return true;
     }
     if (step === 2) {
-      // FIX: Block same-day booking
       if (!form.date) { setError("Please select a date."); return false; }
       if (form.date <= todayISO()) {
         setError("Same-day bookings are not allowed. Please select tomorrow or a later date.");
         return false;
       }
-      // FIX: Block if user already has a booking that day
       if (hasBookingOnSelectedDate) {
         setError("You already have a booking on this date. Multiple bookings on the same day are not allowed.");
         return false;
       }
       if (!form.time) { setError("Please select a time slot."); return false; }
-      // FIX: Verify slot is still available at the moment of advancing
       if (!isSlotAvailable(form.time)) {
         setError("The selected time slot is no longer available. Please choose another.");
         setForm((p) => ({ ...p, time: "" }));
@@ -753,17 +724,14 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       if (!form.branch?.id) throw new Error("Please select a branch");
       if (!form.date || !form.time) throw new Error("Please select date and time");
 
-      // FIX: Same-day guard at submit time
       if (form.date <= todayISO()) {
         throw new Error("Same-day bookings are not allowed. Please select tomorrow or a later date.");
       }
 
-      // FIX: Duplicate-day guard at submit time
       if (hasBookingOnSelectedDate) {
         throw new Error("You already have a booking on this date. Multiple bookings on the same day are not allowed.");
       }
 
-      // FIX: Slot availability guard at submit time
       if (!isSlotAvailable(form.time)) {
         throw new Error("This time slot is no longer available. Please go back and select another time.");
       }
@@ -783,23 +751,21 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         price: parseFloat(form.service.price_min ?? form.service.price ?? 0),
       };
 
-      const res = await fetch(
-        `${API_BASE}/api/bookings/`,
-        {
-          method: "POST",
-          headers: authHeaders(),
-          body: JSON.stringify(payload),
-        },
-      );
+      const res = await fetch(`${API_BASE}/api/bookings/`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+      });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         if (errorData && typeof errorData === "object") {
-          const nfe = {};
-          let em = "";
+          // FIX: was referencing undefined `newFieldErrors` and `errorMessage`
+          const newFieldErrors = {};
+          let errorMessage = "";
           Object.entries(errorData).forEach(([f, e]) => {
-            if (f === "non_field_errors" || f === "detail") em = Array.isArray(e) ? e[0] : e;
-            else nfe[f] = Array.isArray(e) ? e[0] : e;
+            if (f === "non_field_errors" || f === "detail") errorMessage = Array.isArray(e) ? e[0] : e;
+            else newFieldErrors[f] = Array.isArray(e) ? e[0] : e;
           });
           if (Object.keys(newFieldErrors).length > 0) {
             setFieldErrors(newFieldErrors);
@@ -808,10 +774,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
               "Please check the form for errors.",
             );
           } else if (errorMessage) throw new Error(errorMessage);
-          else
-            throw new Error(
-              "Failed to create booking. Please check your input.",
-            );
+          else throw new Error("Failed to create booking. Please check your input.");
         }
         throw new Error(`Error ${res.status}: Failed to create booking.`);
       }
@@ -823,7 +786,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     }
   };
 
-  // ── Count available slots for display ────────────────────────────────────
   const availableCount = availableSlots
     ? Object.values(availableSlots).filter((v) => v === true).length
     : 0;
@@ -880,9 +842,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         className={`p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
                       >
                         <div className="text-2xl mb-2">{icon}</div>
-                        <div
-                          className={`font-bold text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}
-                        >
+                        <div className={`font-bold text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}>
                           {s.name}
                         </div>
                         <div className="text-red-400 font-black text-base">
@@ -968,7 +928,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
           {/* ── Step 2: Schedule ── */}
           {step === 2 && (
             <div className="space-y-4 sm:space-y-5">
-              {/* Date picker */}
               <div>
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
                   Pick a Date{" "}
@@ -978,19 +937,14 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   type="date"
                   min={tomorrowISO()}
                   value={form.date}
-                  onChange={(e) => {
-                    // FIX: use set() so error is cleared, time reset happens in the useEffect
-                    set("date", e.target.value);
-                  }}
+                  onChange={(e) => set("date", e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
                 />
-                {/* FIX: warn if user somehow picks today (browser may allow it on some devices) */}
                 {form.date && form.date <= todayISO() && (
                   <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
                     Same-day bookings are not allowed. Please select tomorrow or a later date.
                   </p>
                 )}
-                {/* FIX: warn about duplicate booking on this date */}
                 {form.date && form.date > todayISO() && hasBookingOnSelectedDate && (
                   <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">
                     You already have a booking on this date. Please choose a different day.
@@ -998,7 +952,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                 )}
               </div>
 
-              {/* Time slots */}
               <div>
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
                   Pick a Time Slot
@@ -1007,7 +960,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   )}
                 </p>
 
-                {/* FIX: show skeleton/loading state while slots are null */}
                 {form.date && availableSlots === null && !checkingAvailability && (
                   <p className="text-gray-500 text-[10px] sm:text-xs mb-2">Select a date and branch to see available slots.</p>
                 )}
@@ -1015,11 +967,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
                   {TIME_SLOTS.map((t) => {
                     const active = form.time === t;
-                    // FIX: a slot is only clickable if:
-                    //  1. slots have been loaded (availableSlots !== null)
-                    //  2. the slot is explicitly true in the response
-                    //  3. the date is valid (tomorrow or later)
-                    //  4. user doesn't already have a booking that day
                     const slotsLoaded = availableSlots !== null;
                     const slotAvailable = slotsLoaded && availableSlots[t] === true;
                     const dateValid = form.date && form.date > todayISO();
@@ -1056,7 +1003,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         }`}
                       >
                         {t}
-                        {/* FIX: show correct label based on why it's disabled */}
                         {isDisabled && slotsLoaded && !checkingAvailability && !hasBookingOnSelectedDate && dateValid && (
                           <span className="block text-[8px] text-gray-600 font-normal">Fully Booked</span>
                         )}
@@ -1068,7 +1014,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   })}
                 </div>
 
-                {/* Slot count summary */}
                 {form.date && form.date > todayISO() && !checkingAvailability && availableSlots !== null && !hasBookingOnSelectedDate && (
                   <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
                     {availableCount > 0
@@ -1078,7 +1023,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                 )}
               </div>
 
-              {/* Selected summary pill */}
               {form.date && form.time && (
                 <div className="flex items-center gap-2 sm:gap-3 bg-white/4 rounded-xl px-3 sm:px-4 py-2 sm:py-3 border border-white/8">
                   <svg className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1377,12 +1321,9 @@ function BookingsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_BASE}/api/bookings/`, {
-      headers: authHeaders(),
-    })
+    fetch(`${API_BASE}/api/bookings/`, { headers: authHeaders() })
       .then((r) => {
-        if (!r.ok)
-          throw new Error(`Error ${r.status}: Failed to load bookings.`);
+        if (!r.ok) throw new Error(`Error ${r.status}: Failed to load bookings.`);
         return r.json();
       })
       .then((data) =>
@@ -1405,14 +1346,12 @@ function BookingsPage() {
     const booking = cancelBooking;
     if (!booking) return;
     try {
-      const res = await fetch(
-        `${API_BASE}/api/bookings/${id}/`,
-        {
-          method: "PATCH",
-          headers: authHeaders(),
-          body: JSON.stringify({ status: "cancelled" }),
-        },
-      );
+      // FIX: was referencing undefined `id` — must use `booking.id`
+      const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ status: "cancelled" }),
+      });
       if (!res.ok) throw new Error();
       setBookings((prev) => prev.map((b) => b.id === booking.id ? { ...b, status: "cancelled" } : b));
       showToast("Booking cancelled successfully.");
@@ -1532,103 +1471,47 @@ function BookingsPage() {
             </div>
           )}
 
-          {!loading &&
-            !fetchError &&
-            paginated.map((booking) => {
-              const sc = statusConfig[booking.status] || statusConfig.pending;
+          {/* FIX: removed stray extra closing </div> that broke JSX structure */}
+          {!loading && !fetchError && paginated.map((booking) => {
+            const sc = statusConfig[booking.status] || statusConfig.pending;
 
-              const rawSvc = booking.service;
-              const serviceName =
-                booking.service_name ||
-                booking.service_detail?.name ||
-                (typeof rawSvc === "string" &&
-                  rawSvc.trim() !== "" &&
-                  isNaN(rawSvc)
-                  ? rawSvc
-                  : typeof rawSvc === "number" ||
-                    (typeof rawSvc === "string" && !isNaN(rawSvc))
-                    ? `Service #${rawSvc}`
-                    : String(rawSvc || "Unknown Service"));
+            const rawSvc = booking.service;
+            const serviceName =
+              booking.service_name ||
+              booking.service_detail?.name ||
+              (typeof rawSvc === "string" &&
+                rawSvc.trim() !== "" &&
+                isNaN(rawSvc)
+                ? rawSvc
+                : typeof rawSvc === "number" ||
+                  (typeof rawSvc === "string" && !isNaN(rawSvc))
+                  ? `Service #${rawSvc}`
+                  : String(rawSvc || "Unknown Service"));
 
-              const displayTime = toDisplayTime(booking.time);
+            const displayTime = toDisplayTime(booking.time);
 
-              const rawPrice = parseFloat(booking.price);
-              const priceDisplay =
-                !isNaN(rawPrice) &&
-                  booking.price != null &&
-                  booking.price !== ""
-                  ? rawPrice > 0
-                    ? `₱${rawPrice.toLocaleString("en-PH")}`
-                    : "To be assessed"
-                  : "—";
+            const rawPrice = parseFloat(booking.price);
+            const priceDisplay =
+              !isNaN(rawPrice) && booking.price != null && booking.price !== ""
+                ? rawPrice > 0
+                  ? `₱${rawPrice.toLocaleString("en-PH")}`
+                  : "To be assessed"
+                : "—";
 
-              return (
-                <div
-                  key={booking.id}
-                  className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-6 border border-white/5 hover:border-red-600/30 transition-all duration-300"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3 flex-wrap">
-                        <h3 className="text-xl font-black text-white">
-                          {serviceName}
-                        </h3>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-bold border ${sc.color}`}
-                        >
-                          {sc.label}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-x-5 gap-y-2 text-gray-400 text-sm">
-                        {[
-                          {
-                            icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-                            text: booking.date,
-                          },
-                          {
-                            icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-                            text: displayTime,
-                          },
-                          booking.staff && {
-                            icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
-                            text: booking.staff,
-                          },
-                          booking.branch && {
-                            icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
-                            text:
-                              typeof booking.branch === "object"
-                                ? booking.branch.name
-                                : booking.branch,
-                          },
-                        ]
-                          .filter(Boolean)
-                          .map(
-                            ({ icon, text }) =>
-                              text && (
-                                <div
-                                  key={icon}
-                                  className="flex items-center gap-2"
-                                >
-                                  <svg
-                                    className="w-4 h-4 text-red-600 flex-shrink-0"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d={icon}
-                                    />
-                                  </svg>
-                                  {text}
-                                </div>
-                              ),
-                          )}
-                      </div>
+            return (
+              <div
+                key={booking.id}
+                className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/30 transition-all duration-300"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 sm:gap-5 mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3 flex-wrap">
+                      <h3 className="text-lg sm:text-xl font-black text-white">{serviceName}</h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${sc.color}`}>
+                        {sc.label}
+                      </span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-x-4 sm:gap-x-5 gap-y-1.5 sm:gap-y-2 text-gray-400 text-[10px] sm:text-xs">
+                    <div className="flex flex-wrap gap-x-4 sm:gap-x-5 gap-y-1.5 sm:gap-y-2 text-gray-400 text-xs sm:text-sm">
                       {[
                         { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", text: booking.date },
                         { icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", text: displayTime },
@@ -1639,33 +1522,32 @@ function BookingsPage() {
                         },
                       ].filter(Boolean).map(({ icon, text }) =>
                         text && (
-                          <div key={icon} className="flex items-center gap-1 sm:gap-2">
-                            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div key={icon} className="flex items-center gap-1.5 sm:gap-2">
+                            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
                             </svg>
-                            <span className="truncate">{text}</span>
+                            {text}
                           </div>
                         )
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-wrap">
-                    <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">{priceDisplay}</div>
-                    {booking.status !== "cancelled" && booking.status !== "done" && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setCancelBooking(booking)}
-                          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">{priceDisplay}</div>
+                  {booking.status !== "cancelled" && booking.status !== "done" && (
+                    <button
+                      onClick={() => setCancelBooking(booking)}
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
+
           {!loading && !fetchError && filtered.length === 0 && (
             <div className="text-center py-16 sm:py-24 text-gray-500">
               <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
