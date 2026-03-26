@@ -39,18 +39,13 @@ class AdminAppointmentDetailView(APIView):
             return None
 
     def patch(self, request, pk):
-        booking = self.get_object(pk)
-        if not booking:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = AppointmentSerializer(booking, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "Admin appointments are view-only."},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     def delete(self, request, pk):
-        booking = self.get_object(pk)
-        if not booking:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        booking.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {"detail": "Admin appointments are view-only."},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
