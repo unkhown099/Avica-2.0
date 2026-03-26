@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE } from "../../hooks/useAuth.js";
 import ManagerLayout from "./ManagerLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
@@ -41,7 +42,7 @@ function ManagerAccountManagement() {
         const accessToken =
           localStorage.getItem("access_token") ||
           sessionStorage.getItem("access_token");
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/staff/`, {
+        const res = await axios.get(`${API_BASE}/staff/`, {
           headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         });
         setStaffAccounts(Array.isArray(res.data) ? res.data : []);

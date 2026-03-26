@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import CustomerLayout from "./CustomerLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ function Pagination({ current, total, onChange }) {
           );
         })}
       </div>
+
       <button
         onClick={() => onChange(current + 1)}
         disabled={current === total}
@@ -613,7 +615,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     setCheckingAvailability(true);
 
     fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/api/bookings/available-slots/?branch_id=${form.branch.id}&date=${form.date}`,
+      `${API_BASE}/api/bookings/available-slots/?branch_id=${form.branch.id}&date=${form.date}`,
       { headers: authHeaders() },
     )
       .then((r) => r.ok ? r.json() : Promise.reject())
@@ -645,7 +647,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   // ── Branches ──────────────────────────────────────────────────────────────
   useEffect(() => {
     setBranchLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/branches/`, { headers: authHeaders() })
+    fetch(`${API_BASE}/branches/`, { headers: authHeaders() })
       .then((r) => { if (!r.ok) throw new Error("Failed to load branches."); return r.json(); })
       .then((data) => setBranches(Array.isArray(data) ? data : (data.results ?? [])))
       .catch((err) => setBranchError(err.message))
@@ -792,7 +794,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         preferred_employee_id: bookingMode === "specific" ? form.preferredEmployee?.id ?? null : null,
       };
 
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, {
+      const res = await fetch(`${API_BASE}/api/bookings/`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify(payload),
@@ -1582,7 +1584,7 @@ function BookingsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, { headers: authHeaders() })
+    fetch(`${API_BASE}/api/bookings/`, { headers: authHeaders() })
       .then((r) => { if (!r.ok) throw new Error(`Error ${r.status}: Failed to load bookings.`); return r.json(); })
       .then((data) => setBookings(Array.isArray(data) ? data : (data.results ?? [])))
       .catch((err) => setFetchError(err.message))
@@ -1602,7 +1604,7 @@ function BookingsPage() {
     const booking = cancelBooking;
     if (!booking) return;
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/${booking.id}/`, {
+      const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/`, {
         method: "PATCH",
         headers: authHeaders(),
         body: JSON.stringify({ status: "cancelled", cancellation_reason: reason }),

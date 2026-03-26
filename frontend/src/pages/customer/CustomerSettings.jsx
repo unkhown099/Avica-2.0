@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
 
 // Auth helpers
@@ -12,21 +13,19 @@ const authHeaders = () => ({
   ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
 });
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 
 function Toggle({ enabled, onChange, disabled = false }) {
   return (
     <button
       onClick={() => !disabled && onChange(!enabled)}
       disabled={disabled}
-      className={`relative w-11 h-6 rounded-full transition-all duration-300 focus:outline-none ${
-        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-      } ${enabled ? "bg-red-600" : "bg-gray-700"}`}
+      className={`relative w-11 h-6 rounded-full transition-all duration-300 focus:outline-none ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+        } ${enabled ? "bg-red-600" : "bg-gray-700"}`}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${
-          enabled ? "translate-x-5" : "translate-x-0"
-        }`}
+        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${enabled ? "translate-x-5" : "translate-x-0"
+          }`}
       />
     </button>
   );

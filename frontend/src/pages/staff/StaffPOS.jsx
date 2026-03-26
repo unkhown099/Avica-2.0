@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import StaffLayout from "./StaffLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 const getToken = () =>
@@ -11,7 +12,7 @@ const authHeaders = () => ({
   ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
 });
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 const fmt = (n) =>
   Number(n ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
@@ -503,19 +504,17 @@ function StaffPOS() {
                     setActiveTab(tab);
                     setSearchQuery("");
                   }}
-                  className={`flex-1 px-6 py-4 text-sm font-black uppercase tracking-wider transition-all ${
-                    activeTab === tab
+                  className={`flex-1 px-6 py-4 text-sm font-black uppercase tracking-wider transition-all ${activeTab === tab
                       ? "text-white border-b-2 border-red-500"
                       : "text-gray-500 hover:text-gray-300"
-                  }`}
+                    }`}
                 >
                   {tab}
                   <span
-                    className={`ml-2 text-xs px-1.5 py-0.5 rounded-full font-bold ${
-                      activeTab === tab
+                    className={`ml-2 text-xs px-1.5 py-0.5 rounded-full font-bold ${activeTab === tab
                         ? "bg-red-500/20 text-red-400"
                         : "bg-white/5 text-gray-600"
-                    }`}
+                      }`}
                   >
                     {tab === "services"
                       ? filteredServices.length
@@ -741,11 +740,10 @@ function StaffPOS() {
                             className={`flex items-center gap-2.5 px-4 py-2.5 border-b border-white/5 last:border-0 transition-colors ${alreadyIn ? "bg-emerald-500/5" : "hover:bg-white/[0.02]"}`}
                           >
                             <div
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
-                                entry.source === "walk_in"
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${entry.source === "walk_in"
                                   ? "bg-purple-500/15 text-purple-400"
                                   : "bg-blue-500/15 text-blue-400"
-                              }`}
+                                }`}
                             >
                               {getInitial(entry.customer_name)}
                             </div>
@@ -873,15 +871,14 @@ function StaffPOS() {
                     {cart.map((item) => (
                       <div
                         key={`${item.type}-${item.id}`}
-                        className={`rounded-xl p-3 border ${
-                          item.type === "queue"
+                        className={`rounded-xl p-3 border ${item.type === "queue"
                             ? item._needsPrice || item._price === 0
                               ? "bg-amber-500/8 border-amber-500/30"
                               : "bg-amber-500/5 border-amber-500/15"
                             : item.type === "product"
                               ? "bg-emerald-500/5 border-emerald-500/10"
                               : "bg-gray-800/60 border-white/5"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1 min-w-0 pr-2">
@@ -889,13 +886,12 @@ function StaffPOS() {
                               {item.name}
                             </div>
                             <div
-                              className={`text-[10px] mt-0.5 font-medium ${
-                                item.type === "service"
+                              className={`text-[10px] mt-0.5 font-medium ${item.type === "service"
                                   ? "text-red-400/60"
                                   : item.type === "product"
                                     ? "text-emerald-400/60"
                                     : "text-amber-400/60"
-                              }`}
+                                }`}
                             >
                               {item.type === "service"
                                 ? "Service"
@@ -974,11 +970,10 @@ function StaffPOS() {
                               placeholder={
                                 item.type === "queue" ? "Enter price" : ""
                               }
-                              className={`flex-1 bg-gray-800/80 border rounded px-2 py-1 text-xs text-white font-bold focus:outline-none transition-all min-w-0 ${
-                                item.type === "queue" && item._price === 0
+                              className={`flex-1 bg-gray-800/80 border rounded px-2 py-1 text-xs text-white font-bold focus:outline-none transition-all min-w-0 ${item.type === "queue" && item._price === 0
                                   ? "border-amber-500/60 focus:border-amber-400 placeholder-amber-600/60"
                                   : "border-white/10 focus:border-red-500/50"
-                              }`}
+                                }`}
                             />
                           </div>
 
@@ -1030,11 +1025,10 @@ function StaffPOS() {
                         setPaymentMethod(m.key);
                         setAmountGiven("");
                       }}
-                      className={`py-2 rounded-xl text-xs font-black transition-all border flex items-center justify-center gap-1 ${
-                        paymentMethod === m.key
+                      className={`py-2 rounded-xl text-xs font-black transition-all border flex items-center justify-center gap-1 ${paymentMethod === m.key
                           ? "bg-red-600/20 border-red-500/50 text-red-400 shadow-lg shadow-red-600/10"
                           : "bg-gray-800/60 border-white/8 text-gray-500 hover:text-gray-300 hover:border-white/15"
-                      }`}
+                        }`}
                     >
                       <span className="text-sm">{m.icon}</span>
                       {m.label}
@@ -1068,11 +1062,10 @@ function StaffPOS() {
               {/* Cash change display */}
               {paymentMethod === "cash" && amountGiven && (
                 <div
-                  className={`flex justify-between text-xs font-bold px-3 py-1.5 rounded-lg border ${
-                    change >= 0
+                  className={`flex justify-between text-xs font-bold px-3 py-1.5 rounded-lg border ${change >= 0
                       ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                       : "bg-red-500/10 border-red-500/20 text-red-400"
-                  }`}
+                    }`}
                 >
                   <span>{change >= 0 ? "Change" : "Short"}</span>
                   <span>

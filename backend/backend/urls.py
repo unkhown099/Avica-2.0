@@ -13,9 +13,10 @@ from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
 from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
-from api.views.dashboard_views import AdminDashboardView
+from api.views.dashboard_views import AdminDashboardView, ManagerDashboardView
 from api.views.service_views import ServiceListCreateView, ServiceDetailView
-from api.views.customer_views import AdminCustomerListView
+from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView
+from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
 from api.views.inventory_views import (
     InventoryListCreateView,
     InventoryDetailView,
@@ -24,9 +25,6 @@ from api.views.inventory_views import (
     DirectStockTransferView,
     InventoryTransactionHistoryView,
 )
-from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView
-from api.views.inventory_views import InventoryListCreateView, InventoryDetailView
-from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
 from api.views.bookings_views import (
     BookingListCreateView,
     BookingDetailView,
@@ -56,7 +54,13 @@ from api.views.business_owner_views import (
     OwnerAppointmentCalendarView,
     OwnerServiceListView,
     OwnerInventoryView,
-    OwnerStaffListView
+    OwnerStaffListView,
+    OwnerStaffDetailView,
+)
+from api.views.notification_views import (
+    NotificationListView,
+    NotificationMarkReadView,
+    NotificationMarkAllReadView,
 )
 
 urlpatterns = [
@@ -129,13 +133,6 @@ urlpatterns = [
     path('inventory/transfer/', DirectStockTransferView.as_view(), name='inventory-transfer'),
     path('inventory/transactions/', InventoryTransactionHistoryView.as_view(), name='inventory-transactions'),
     path('appointments/',          AdminAppointmentListView.as_view(),  name='admin-appointments'),
-    path('dashboard/',             AdminDashboardView.as_view(),         name='admin-dashboard'),
-    path('services/',              ServiceListCreateView.as_view(),      name='service-list'),
-    path('services/<int:pk>/',     ServiceDetailView.as_view(),          name='service-detail'),
-    path('customers/',             AdminCustomerListView.as_view(),      name='admin-customers'),
-    path('inventory/',             InventoryListCreateView.as_view(),    name='inventory-list'),
-    path('inventory/<int:pk>/',    InventoryDetailView.as_view(),        name='inventory-detail'),
-    path('appointments/',          AdminAppointmentListView.as_view(),   name='admin-appointments'),
     path('appointments/<int:pk>/', AdminAppointmentDetailView.as_view(), name='admin-appointment-detail'),
 
     # ── Business Owner endpoints ──────────────────────────────────────────────────
@@ -148,6 +145,15 @@ urlpatterns = [
     path("owner/services/",               OwnerServiceListView.as_view()),
     path("owner/inventory/",              OwnerInventoryView.as_view()),
     path("owner/staff/",                  OwnerStaffListView.as_view()),
+    path("owner/staff/<int:pk>/",         OwnerStaffDetailView.as_view()),
+
+    # ── Manager endpoints ─────────────────────────────────────────────────────
+    path("api/manager/dashboard/",        ManagerDashboardView.as_view()),
+
+    # ── Notification endpoints ───────────────────────────────────────────────
+    path("api/notifications/",                NotificationListView.as_view(), name="notification-list"),
+    path("api/notifications/<int:pk>/read/", NotificationMarkReadView.as_view(), name="notification-mark-read"),
+    path("api/notifications/mark-all-read/", NotificationMarkAllReadView.as_view(), name="notification-mark-all-read"),
 
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),

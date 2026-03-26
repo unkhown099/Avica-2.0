@@ -1,13 +1,13 @@
 [
-{
-  "model": "api.branch",
-  "pk": 1,
-  "fields": {
-    "name": "Caloocan Branch",
-    "address": "123 Rizal Ave Extension, Caloocan City, Metro Manila",
-    "hours": "Mon�Sat 8AM�6PM",
-    "slots": 5,
-    "is_active": true
+  {
+    "model": "api.branch",
+    "pk": 1,
+    "fields": {
+      "name": "Caloocan Branch",
+      "address": "123 Rizal Ave Extension, Caloocan City, Metro Manila",
+      "hours": "Mon�Sat 8AM�6PM",
+      "slots": 5,
+      "is_active": true
+    }
   }
-}
 ]

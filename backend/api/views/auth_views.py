@@ -137,16 +137,31 @@ def _get_profile_data(user):
         "Inventory":      "inventory",
     }
 
+    def get_pic_url(pic):
+        if not pic:
+            return ""
+        if isinstance(pic, str):
+            return pic
+        if hasattr(pic, "name") and pic.name and pic.name.startswith("http"):
+            return pic.name
+        if hasattr(pic, "url"):
+            try:
+                return pic.url
+            except Exception:
+                pass
+        return str(pic)
+
     # Check staff first
     try:
         staff = Staff.objects.get(user=user)
+        pic = getattr(staff, "profile_picture", None)
         return (
             ROLE_MAP.get(staff.role, "staff"),
             getattr(staff, "first_name", "") or "",
             getattr(staff, "last_name",  "") or "",
             getattr(staff, "suffix",     "") or "",
             getattr(staff, "phone",      "") or "",
-            getattr(staff, "profile_picture", "") or "",
+            get_pic_url(pic),
         )
     except Staff.DoesNotExist:
         pass
@@ -154,13 +169,14 @@ def _get_profile_data(user):
     # Fall back to customer
     try:
         customer = Customer.objects.get(user=user)
+        pic = getattr(customer, "profile_picture", None)
         return (
             "customer",
             customer.first_name or "",
             customer.last_name  or "",
             customer.suffix     or "",
             customer.phone      or "",
-            customer.profile_picture or "",
+            get_pic_url(pic),
         )
     except Customer.DoesNotExist:
         pass
@@ -399,6 +415,9 @@ class GoogleLoginView(APIView):
             })
 
         except Exception as e:
+            print("Google Login error details:", str(e))
+            import traceback
+            traceback.print_exc()
             return Response({"success": False, "message": str(e)}, status=500)
 
 

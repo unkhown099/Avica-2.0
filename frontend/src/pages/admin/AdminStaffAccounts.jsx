@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "./AdminLayout";
 import axios from "axios";
+import { API_BASE } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
@@ -47,10 +48,10 @@ function AdminStaffAccounts() {
 
       try {
         const [staffRes, branchRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_BASE_URL}/staff/`, {
+          axios.get(`${API_BASE}/staff/`, {
             headers: { Authorization: `Bearer ${accessToken}` },
           }),
-          axios.get(`${import.meta.env.VITE_API_BASE_URL}/branches/`, {
+          axios.get(`${API_BASE}/branches/`, {
             headers: { Authorization: `Bearer ${accessToken}` },
           }),
         ]);
@@ -93,11 +94,10 @@ function AdminStaffAccounts() {
 
   const getStatusBadge = (status) => (
     <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-        status === "Active"
+      className={`px-3 py-1 rounded-full text-xs font-semibold border ${status === "Active"
           ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
           : "bg-gray-500/20 text-gray-400 border-gray-500/30"
-      }`}
+        }`}
     >
       {status}
     </span>
@@ -174,7 +174,7 @@ function AdminStaffAccounts() {
 
     try {
       await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/staff/verify-password/`,
+        `${API_BASE}/staff/verify-password/`,
         { password },
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
@@ -241,25 +241,6 @@ function AdminStaffAccounts() {
               Manage your team members and their access levels
             </p>
           </div>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add Staff
-          </button>
         </div>
 
         {/* Stats Cards */}
@@ -289,7 +270,7 @@ function AdminStaffAccounts() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-center">
           <div className="relative flex-1">
             <svg
               className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
@@ -322,6 +303,25 @@ function AdminStaffAccounts() {
               <option key={r}>{r}</option>
             ))}
           </select>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 sm:ml-auto"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Add Staff
+          </button>
         </div>
 
         {/* Table */}
@@ -364,7 +364,7 @@ function AdminStaffAccounts() {
                 key={staff.id}
                 className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/3 transition-colors items-center"
               >
-              
+
                 <div className="col-span-2">
                   <div className="flex items-center gap-3">
                     <div
@@ -383,41 +383,41 @@ function AdminStaffAccounts() {
                     </div>
                   </div>
                 </div>
-                 <div className="col-span-2 text-gray-400 text-sm truncate">
-                   {staff.email}
-                 </div>
-                  <div className="col-span-2 text-gray-400 text-sm">
-                    {staff.phone}
-                  </div>
-                  <div className="col-span-2 text-gray-400 text-sm truncate">
-                    {staff.branch || "—"}
-                  </div>
-                  <div className="col-span-2">{getRoleBadge(staff.role)}</div>
-                  <div className="col-span-1">{getStatusBadge(staff.status)}</div>
-                  <div className="col-span-1 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => openEditModal(staff)}
-                      disabled={staff.role === "Admin"}
-                      title="Edit"
-                      aria-label="Edit staff"
-                      className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                <div className="col-span-2 text-gray-400 text-sm truncate">
+                  {staff.email}
+                </div>
+                <div className="col-span-2 text-gray-400 text-sm">
+                  {staff.phone}
+                </div>
+                <div className="col-span-2 text-gray-400 text-sm truncate">
+                  {staff.branch || "—"}
+                </div>
+                <div className="col-span-2">{getRoleBadge(staff.role)}</div>
+                <div className="col-span-1">{getStatusBadge(staff.status)}</div>
+                <div className="col-span-1 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(staff)}
+                    disabled={staff.role === "Admin"}
+                    title="Edit"
+                    aria-label="Edit staff"
+                    className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
-                 </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -589,15 +589,15 @@ function CreateStaffModal({
 
       const res = isEdit
         ? await axios.patch(
-            `${import.meta.env.VITE_API_BASE_URL}/staff/${initialStaff.id}/`,
-            payload,
-            {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            },
-          )
-        : await axios.post(`${import.meta.env.VITE_API_BASE_URL}/staff/`, payload, {
+          `${API_BASE}/staff/${initialStaff.id}/`,
+          payload,
+          {
             headers: { Authorization: `Bearer ${accessToken}` },
-          });
+          },
+        )
+        : await axios.post(`${API_BASE}/staff/`, payload, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
 
       if (isEdit) {
         onUpdated(res.data);

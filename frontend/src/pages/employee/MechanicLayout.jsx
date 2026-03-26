@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import UnifiedSidebar from "../../components/UnifiedSidebar.jsx";
+import NotificationDropdown from "../../components/NotificationDropdown.jsx";
 
 const PAGE_TITLES = {
   "/mechanic/dashboard": "Dashboard",
@@ -54,7 +55,12 @@ function MechanicLayout({ children }) {
           />
         </header>
 
-        <main className="p-4 sm:p-6 lg:p-8 flex-1">{children}</main>
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 relative">
+          <div className="absolute top-4 sm:top-6 lg:top-8 right-4 sm:right-6 lg:right-8 z-20">
+            <NotificationDropdown />
+          </div>
+          {children}
+        </main>
       </div>
     </div>
   );

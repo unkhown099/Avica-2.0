@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import MechanicLayout from "./MechanicLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -30,7 +31,7 @@ function getMe() {
   }
 }
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 
 // ─── Confirmation Modal Component ────────────────────────────────────────────
 
@@ -189,10 +190,9 @@ function JobCard({
         relative rounded-xl border p-4 cursor-grab active:cursor-grabbing
         transition-all duration-200 select-none group
         ${isDragging ? "opacity-25 scale-95 rotate-1 shadow-2xl" : "hover:-translate-y-0.5 hover:shadow-lg"}
-        ${
-          isSelected
-            ? `${col.cardSelectedBorder} ${col.cardSelectedBg} shadow-md`
-            : `${col.cardBorder} bg-gray-900/70 hover:bg-gray-800/60 hover:border-white/15`
+        ${isSelected
+          ? `${col.cardSelectedBorder} ${col.cardSelectedBg} shadow-md`
+          : `${col.cardBorder} bg-gray-900/70 hover:bg-gray-800/60 hover:border-white/15`
         }
       `}
     >
@@ -309,11 +309,10 @@ function JobCard({
         </span>
         <span
           className={`px-2.5 py-1 rounded-full text-xs font-semibold border
-          ${
-            entry.source === "walk_in"
+          ${entry.source === "walk_in"
               ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
               : "bg-violet-500/15 text-violet-300 border-violet-500/30"
-          }`}
+            }`}
         >
           {entry.source === "walk_in" ? "Walk-in" : "Booking"}
         </span>
@@ -668,7 +667,7 @@ export default function MechanicActiveJobs() {
       .then((d) => {
         if (d?.staff_profile?.id) setStaffId(d.staff_profile.id);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const fetchEntries = useCallback(async () => {
@@ -842,7 +841,7 @@ export default function MechanicActiveJobs() {
               Drag cards between columns · click a card to see details
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 md:mt-12">
             <div className="flex gap-2">
               <div className="bg-gray-900/80 border border-amber-500/20 rounded-xl px-5 py-2.5 text-center">
                 <p className="text-2xl font-black text-white leading-none">

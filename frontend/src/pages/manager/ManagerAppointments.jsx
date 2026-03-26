@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ManagerLayout from "./ManagerLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
+import Swal from "sweetalert2";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -42,13 +44,17 @@ function getDaysInMonth(year, month) {
 const statusStyle = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+  cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
+  done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
 
 const statusLabel = {
   confirmed: "Confirmed",
   pending: "Pending",
   cancelled: "Cancelled",
+  done: "Done",
+  rescheduled: "Rescheduled",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -77,7 +83,7 @@ function ManagerAppointments() {
   const fetchBookings = useCallback(() => {
     setLoading(true);
     setError("");
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/`, { headers: authHeaders() })
+    fetch(`${API_BASE}/api/staff/bookings/`, { headers: authHeaders() })
       .then((r) => {
         if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
@@ -135,7 +141,7 @@ function ManagerAppointments() {
   const handleAction = async (id, newStatus, assignedEmployeeId = null) => {
     setActionLoading(id);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/${id}/action/`, {
+      const res = await fetch(`${API_BASE}/api/staff/bookings/${id}/action/`, {
         method: "PATCH",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -159,6 +165,89 @@ function ManagerAppointments() {
       alert(e.message || "Action failed. Please try again.");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleReschedule = async (booking) => {
+    const { value: formValues } = await Swal.fire({
+      title: "Reschedule Appointment",
+      html: `
+        <div class="space-y-4 text-left">
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">New Date</label>
+            <input id="swal-input1" type="date" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" value="${booking.date}">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">New Time</label>
+            <input id="swal-input2" type="text" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="e.g. 10:00 AM" value="${booking.time}">
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Reschedule",
+      confirmButtonColor: "#3b82f6",
+      background: "#111827",
+      color: "#fff",
+      preConfirm: () => {
+        return {
+          date: document.getElementById("swal-input1").value,
+          time: document.getElementById("swal-input2").value,
+        };
+      },
+    });
+
+    if (formValues) {
+      if (!formValues.date || !formValues.time) {
+        Swal.fire({
+          icon: "error",
+          title: "Missing info",
+          text: "Both date and time are required.",
+          background: "#111827",
+          color: "#fff",
+        });
+        return;
+      }
+
+      setActionLoading(booking.id);
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/staff/bookings/${booking.id}/action/`,
+          {
+            method: "PATCH",
+            headers: authHeaders(),
+            body: JSON.stringify({
+              status: "rescheduled",
+              date: formValues.date,
+              time: formValues.time,
+            }),
+          },
+        );
+        if (!res.ok) throw new Error();
+        const updated = await res.json();
+        setBookings((prev) =>
+          prev.map((b) => (b.id === updated.id ? updated : b)),
+        );
+        Swal.fire({
+          icon: "success",
+          title: "Rescheduled",
+          text: "The appointment has been rescheduled and the customer will be notified.",
+          timer: 2000,
+          showConfirmButton: false,
+          background: "#111827",
+          color: "#fff",
+        });
+      } catch {
+        Swal.fire({
+          icon: "error",
+          title: "Failed",
+          text: "Failed to reschedule. Please try again.",
+          background: "#111827",
+          color: "#fff",
+        });
+      } finally {
+        setActionLoading(null);
+      }
     }
   };
 
@@ -293,11 +382,10 @@ function ManagerAppointments() {
                     <button
                       key={day}
                       onClick={() => setSelectedDate(day)}
-                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                        isSelected
-                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                          : "hover:bg-white/5 text-gray-400 hover:text-white"
-                      }`}
+                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${isSelected
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                        : "hover:bg-white/5 text-gray-400 hover:text-white"
+                        }`}
                     >
                       <span>{day}</span>
                       {dots.length > 0 && (
@@ -305,15 +393,16 @@ function ManagerAppointments() {
                           {dots.slice(0, 3).map((s, idx) => (
                             <div
                               key={idx}
-                              className={`w-1 h-1 rounded-full ${
-                                isSelected
-                                  ? "bg-white/70"
-                                  : s === "confirmed"
-                                    ? "bg-emerald-400"
-                                    : s === "pending"
-                                      ? "bg-amber-400"
+                              className={`w-1 h-1 rounded-full ${isSelected
+                                ? "bg-white/70"
+                                : s === "confirmed"
+                                  ? "bg-emerald-400"
+                                  : s === "pending"
+                                    ? "bg-amber-400"
+                                    : s === "done"
+                                      ? "bg-blue-400"
                                       : "bg-red-400"
-                              }`}
+                                }`}
                             />
                           ))}
                         </div>
@@ -331,6 +420,9 @@ function ManagerAppointments() {
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-blue-400" /> Done
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <div className="w-2 h-2 rounded-full bg-red-400" /> Cancelled
@@ -431,13 +523,14 @@ function ManagerAppointments() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${
-                            b.status === "confirmed"
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : b.status === "pending"
-                                ? "bg-amber-500/20 text-amber-400"
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${b.status === "confirmed"
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : b.status === "pending"
+                              ? "bg-amber-500/20 text-amber-400"
+                              : b.status === "done"
+                                ? "bg-blue-500/20 text-blue-400"
                                 : "bg-red-500/20 text-red-400"
-                          }`}
+                            }`}
                         >
                           {(b.service || "?").charAt(0)}
                         </div>
@@ -613,25 +706,54 @@ function ManagerAppointments() {
                           )}
                           Approve
                         </button>
+                        <button
+                          onClick={() => handleReschedule(b)}
+                          disabled={actionLoading === b.id}
+                          className="flex-1 flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                          Reschedule
+                        </button>
                       </div>
                     )}
 
                     {b.status === "confirmed" && (
-                      <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-emerald-400 text-sm">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                      <div className="pt-3 border-t border-white/5 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          Approved
+                        </div>
+                        <button
+                          onClick={() => handleAction(b.id, "done")}
+                          disabled={actionLoading === b.id}
+                          className="w-full flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        Approved
+                          Mark as Done
+                        </button>
                       </div>
                     )}
 

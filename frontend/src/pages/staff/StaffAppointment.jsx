@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import StaffLayout from "./StaffLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
+import Swal from "sweetalert2";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -35,8 +37,9 @@ function getDaysInMonth(year, month) {
 const statusStyle = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+  cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
   done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
 const statusLabel = {
   confirmed: "Confirmed",
@@ -70,7 +73,7 @@ function StaffAppointments() {
   const fetchBookings = useCallback(() => {
     setLoading(true);
     setError("");
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/`, {
+    fetch(`${API_BASE}/api/staff/bookings/`, {
       headers: authHeaders(),
     })
       .then((r) => {
@@ -97,7 +100,7 @@ function StaffAppointments() {
   }, [fetchBookings]);
 
   const fetchEmployees = useCallback(() => {
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/queue/employees/`, {
+    fetch(`${API_BASE}/api/queue/employees/`, {
       headers: authHeaders(),
     })
       .then((r) => {
@@ -157,7 +160,7 @@ function StaffAppointments() {
     setActionLoading(id);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/${id}/action/`,
+        `${API_BASE}/api/staff/bookings/${id}/action/`,
         {
           method: "PATCH",
           headers: authHeaders(),
@@ -183,6 +186,89 @@ function StaffAppointments() {
       alert(e.message || "Action failed. Please try again.");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleReschedule = async (booking) => {
+    const { value: formValues } = await Swal.fire({
+      title: "Reschedule Appointment",
+      html: `
+        <div class="space-y-4 text-left">
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">New Date</label>
+            <input id="swal-input1" type="date" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" value="${booking.date}">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">New Time</label>
+            <input id="swal-input2" type="text" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="e.g. 10:00 AM" value="${booking.time}">
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Reschedule",
+      confirmButtonColor: "#3b82f6",
+      background: "#111827",
+      color: "#fff",
+      preConfirm: () => {
+        return {
+          date: document.getElementById("swal-input1").value,
+          time: document.getElementById("swal-input2").value,
+        };
+      },
+    });
+
+    if (formValues) {
+      if (!formValues.date || !formValues.time) {
+        Swal.fire({
+          icon: "error",
+          title: "Missing info",
+          text: "Both date and time are required.",
+          background: "#111827",
+          color: "#fff",
+        });
+        return;
+      }
+
+      setActionLoading(booking.id);
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/staff/bookings/${booking.id}/action/`,
+          {
+            method: "PATCH",
+            headers: authHeaders(),
+            body: JSON.stringify({
+              status: "rescheduled",
+              date: formValues.date,
+              time: formValues.time,
+            }),
+          },
+        );
+        if (!res.ok) throw new Error();
+        const updated = await res.json();
+        setBookings((prev) =>
+          prev.map((b) => (b.id === updated.id ? updated : b)),
+        );
+        Swal.fire({
+          icon: "success",
+          title: "Rescheduled",
+          text: "The appointment has been rescheduled and the customer will be notified.",
+          timer: 2000,
+          showConfirmButton: false,
+          background: "#111827",
+          color: "#fff",
+        });
+      } catch {
+        Swal.fire({
+          icon: "error",
+          title: "Failed",
+          text: "Failed to reschedule. Please try again.",
+          background: "#111827",
+          color: "#fff",
+        });
+      } finally {
+        setActionLoading(null);
+      }
     }
   };
 
@@ -309,11 +395,10 @@ function StaffAppointments() {
                     <button
                       key={day}
                       onClick={() => setSelectedDate(day)}
-                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                        isSelected
-                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                          : "hover:bg-white/5 text-gray-400 hover:text-white"
-                      }`}
+                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${isSelected
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                        : "hover:bg-white/5 text-gray-400 hover:text-white"
+                        }`}
                     >
                       <span>{day}</span>
                       {dots.length > 0 && (

@@ -201,19 +201,19 @@ const MENU_ITEMS = {
 // ─── Role Labels ──────────────────────────────────────────────────────────────
 
 const ROLE_LABELS = {
-  admin:             { title: "Admin User",         subtitle: "System Administrator" },
-  business_owner:    { title: "Branch Owner",        subtitle: "Business Manager" },
-  branch_manager:    { title: "Manager",             subtitle: "Branch Manager" },
-  staff:             { title: "Staff",               subtitle: "Cashier" },
-  employee:          { title: "Mechanic",            subtitle: "Service Employee" },
-  inventory_manager: { title: "Inventory Manager",   subtitle: "Stock & Supply" },
+  admin: { title: "Admin User", subtitle: "System Administrator" },
+  business_owner: { title: "Branch Owner", subtitle: "Business Manager" },
+  branch_manager: { title: "Manager", subtitle: "Branch Manager" },
+  staff: { title: "Staff", subtitle: "Cashier" },
+  employee: { title: "Mechanic", subtitle: "Service Employee" },
+  inventory_manager: { title: "Inventory Manager", subtitle: "Stock & Supply" },
 };
 
 // ─── Unified Sidebar ──────────────────────────────────────────────────────────
 
 function UnifiedSidebar({ isOpen, onClose }) {
-  const location  = useLocation();
-  const navigate  = useNavigate();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { isAuthenticated, role, user, headers } = useAuth();
 
   const [alertCount, setAlertCount] = useState(null); // null = not yet loaded
@@ -223,7 +223,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
   });
 
   const menuItems = MENU_ITEMS[role] ?? [];
-  const roleLabel = ROLE_LABELS[role]  ?? { title: "User", subtitle: "" };
+  const roleLabel = ROLE_LABELS[role] ?? { title: "User", subtitle: "" };
 
   // Fetch live reorder-alert count
   useEffect(() => {
@@ -287,6 +287,20 @@ function UnifiedSidebar({ isOpen, onClose }) {
   const handleNavClick = () => { if (onClose) onClose(); };
 
   const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: "Confirm Logout",
+      text: "Are you sure you want to log out?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#374151",
+      confirmButtonText: "Yes, logout",
+      background: "linear-gradient(to bottom right, #1f2937, #111827)",
+      color: "#fff",
+    });
+
+    if (!result.isConfirmed) return;
+
     const refresh =
       localStorage.getItem("refresh_token") ||
       sessionStorage.getItem("refresh_token");
@@ -296,10 +310,10 @@ function UnifiedSidebar({ isOpen, onClose }) {
 
     try {
       await fetch(`${API_BASE}/logout/`, {
-        method:  "POST",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization:  `Bearer ${access}`,
+          Authorization: `Bearer ${access}`,
         },
         body: JSON.stringify({ refresh }),
       });
@@ -313,11 +327,11 @@ function UnifiedSidebar({ isOpen, onClose }) {
     });
 
     await Swal.fire({
-      icon:               "success",
-      title:              "Logged Out",
-      text:               "You have been successfully logged out.",
-      background:         "linear-gradient(to bottom right, #1f2937, #111827)",
-      color:              "#fff",
+      icon: "success",
+      title: "Logged Out",
+      text: "You have been successfully logged out.",
+      background: "linear-gradient(to bottom right, #1f2937, #111827)",
+      color: "#fff",
       confirmButtonColor: "#dc2626",
     });
 
@@ -337,16 +351,18 @@ function UnifiedSidebar({ isOpen, onClose }) {
       >
         {/* Logo */}
         <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-          <img src={logo} alt="Otokwikk logo" className="h-16 md:h-20 object-contain" />
-          <button
-            onClick={onClose}
-            className="lg:hidden w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white transition-all duration-200 flex-shrink-0"
-            aria-label="Close sidebar"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <img src={logo} alt="Otokwikk logo" className="h-12 md:h-16 object-contain" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="lg:hidden w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white transition-all duration-200 flex-shrink-0"
+              aria-label="Close sidebar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Nav */}
@@ -423,19 +439,18 @@ function UnifiedSidebar({ isOpen, onClose }) {
               );
             }
 
-            const active     = isActive(item.path);
-            const showBadge  = item.alertBadge && alertCount != null && alertCount > 0;
+            const active = isActive(item.path);
+            const showBadge = item.alertBadge && alertCount != null && alertCount > 0;
 
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={handleNavClick}
-                className={`flex items-center gap-3 px-6 py-3 transition-all duration-200 ${
-                  active
-                    ? "bg-red-600 text-white"
-                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                }`}
+                className={`flex items-center gap-3 px-6 py-3 transition-all duration-200 ${active
+                  ? "bg-red-600 text-white"
+                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                  }`}
               >
                 <svg
                   className="w-5 h-5 flex-shrink-0"
@@ -449,9 +464,8 @@ function UnifiedSidebar({ isOpen, onClose }) {
 
                 {showBadge && (
                   <span
-                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                      active ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400"
-                    }`}
+                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${active ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400"
+                      }`}
                   >
                     {alertCount > 99 ? "99+" : alertCount}
                   </span>

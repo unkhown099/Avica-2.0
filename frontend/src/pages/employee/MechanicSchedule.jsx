@@ -104,7 +104,7 @@ function MechanicSchedule() {
               View your work schedule and assignments
             </p>
           </div>
-          <div className="flex gap-2 bg-gray-800/60 rounded-xl p-1 self-start">
+          <div className="flex gap-2 bg-gray-800/60 rounded-xl p-1 self-start sm:mt-12">
             <button
               onClick={() => setViewMode("week")}
               className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${

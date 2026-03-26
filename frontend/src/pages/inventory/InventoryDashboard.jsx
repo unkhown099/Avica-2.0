@@ -245,16 +245,18 @@ export default function InventoryDashboard() {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">
-            Inventory Dashboard
-          </h1>
-          <p className="text-gray-400 mt-1">
-            {loading
-              ? "Loading…"
-              : isAdmin
-              ? "Stock overview across all branches"
-              : `Stock overview for ${branchName}`}
-          </p>
+          <div>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              Inventory Dashboard
+            </h1>
+            <p className="text-gray-400 mt-1">
+              {loading
+                ? "Loading…"
+                : isAdmin
+                ? "Stock overview across all branches"
+                : `Stock overview for ${branchName}`}
+            </p>
+          </div>
         </div>
 
         {/* Not authenticated */}

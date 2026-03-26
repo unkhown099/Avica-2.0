@@ -695,8 +695,37 @@ function AdminInventory() {
               Track and manage parts and supplies inventory
             </p>
           </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+          <div className="flex gap-2 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-fit">
+            {[
+              { key: "inventory", label: "Inventory" },
+              { key: "transactions", label: "Transaction History" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-5 py-2.5 rounded-lg font-semibold transition-all ${
+                  activeTab === tab.key
+                    ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {tab.label}
+                {tab.key === "inventory" &&
+                  pendingRestock.length > 0 &&
+                  activeTab !== "inventory" && (
+                    <span className="ml-1.5 bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full">
+                      {pendingRestock.length}
+                    </span>
+                  )}
+              </button>
+            ))}
+          </div>
+
           {activeTab === "inventory" && (
-            <div className="flex gap-2 self-start md:self-auto">
+            <div className="flex gap-2 sm:ml-auto">
               <button
                 onClick={() => setShowTransferModal(true)}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-blue-600/30"
@@ -724,32 +753,6 @@ function AdminInventory() {
               </button>
             </div>
           )}
-        </div>
-
-        <div className="flex gap-2 mb-6 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-fit">
-          {[
-            { key: "inventory", label: "Inventory" },
-            { key: "transactions", label: "Transaction History" },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-2.5 rounded-lg font-semibold transition-all ${
-                activeTab === tab.key
-                  ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              {tab.label}
-              {tab.key === "inventory" &&
-                pendingRestock.length > 0 &&
-                activeTab !== "inventory" && (
-                  <span className="ml-1.5 bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full">
-                    {pendingRestock.length}
-                  </span>
-                )}
-            </button>
-          ))}
         </div>
 
         {error && (

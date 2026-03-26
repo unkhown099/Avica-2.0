@@ -1,8 +1,8 @@
 # api/views/dashboard_views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
-from ..models import Booking, Customer, QueueEntry, Rating
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from ..models import Booking, Customer, QueueEntry, Rating, Staff
 from ..serializers.dashboard_serializer import DashboardStatsSerializer, RecentTransactionSerializer
 from django.db.models import Avg, Count, Sum, Value, DecimalField
 from django.utils import timezone
@@ -196,3 +196,85 @@ class AdminDashboardView(APIView):
                 "revenue_by_branch": revenue_by_branch,
             },
         })
+
+
+class ManagerDashboardView(APIView):
+    permission_classes = [IsAuthenticated] # Actually IsAuthenticated + check in get
+
+    def get(self, request):
+        try:
+            staff = getattr(request.user, "staff_profile", None)
+            if not staff or staff.role not in ["Admin", "Branch Manager"]:
+                return Response({"detail": "Permission denied."}, status=403)
+            
+            branch = staff.branch
+            if not branch:
+                return Response({"detail": "No branch assigned to this manager profile."}, status=400)
+
+            now = timezone.now()
+            this_month = now.month
+            this_year = now.year
+            
+            # Simple last month calculation
+            last_month_date = now.replace(day=1) - timedelta(days=1)
+            last_month = last_month_date.month
+            last_month_year = last_month_date.year
+
+            # Stats
+            rev_this = Booking.objects.filter(branch=branch, status="done", date__month=this_month, date__year=this_year).aggregate(t=Sum("price"))["t"] or 0
+            rev_last = Booking.objects.filter(branch=branch, status="done", date__month=last_month, date__year=last_month_year).aggregate(t=Sum("price"))["t"] or 0
+            rev_change = round(((float(rev_this) - float(rev_last)) / float(rev_last)) * 100, 1) if rev_last else 0
+
+            svc_this = Booking.objects.filter(branch=branch, status="done", date__month=this_month, date__year=this_year).count()
+            svc_last = Booking.objects.filter(branch=branch, status="done", date__month=last_month, date__year=last_month_year).count()
+            svc_change = round(((svc_this - svc_last) / svc_last) * 100, 1) if svc_last else 0
+
+            cust_this = Booking.objects.filter(branch=branch, date__month=this_month, date__year=this_year).values("user").distinct().count()
+            cust_last = Booking.objects.filter(branch=branch, date__month=last_month, date__year=last_month_year).values("user").distinct().count()
+            cust_change = round(((cust_this - cust_last) / cust_last) * 100, 1) if cust_last else 0
+
+            sat_this = Rating.objects.filter(booking__branch=branch, created_at__month=this_month, created_at__year=this_year).aggregate(a=Avg("score"))["a"] or 0
+            sat_last = Rating.objects.filter(booking__branch=branch, created_at__month=last_month, created_at__year=last_month_year).aggregate(a=Avg("score"))["a"] or 0
+            sat_pct = round((float(sat_this) / 5) * 100, 1) if sat_this else 0
+            sat_prev = round((float(sat_last) / 5) * 100, 1) if sat_last else 0
+            sat_change = round(sat_pct - sat_prev, 1)
+
+            # Chart Data (Trend)
+            trend = []
+            for i in range(5, -1, -1):
+                d = now.replace(day=1) - timedelta(days=i*30)
+                m = d.month
+                y = d.year
+                qs = Booking.objects.filter(branch=branch, status="done", date__month=m, date__year=y)
+                trend.append({
+                    "label": MONTH_LABELS[m-1],
+                    "revenue": float(qs.aggregate(t=Sum("price"))["t"] or 0),
+                    "services": qs.count()
+                })
+
+            # Service Distribution
+            service_counts = Booking.objects.filter(branch=branch, status="done", date__month=this_month, date__year=this_year).values("service").annotate(count=Count("id")).order_by("-count")
+            total_svc = sum(s["count"] for s in service_counts)
+            distribution = [
+                {
+                    "label": s["service"] or "Other",
+                    "val": s["count"],
+                    "pct": f"{round((s['count']/total_svc)*100)}%" if total_svc else "0%",
+                    "color": ["#ef4444", "#a855f7", "#3b82f6", "#10b981", "#f59e0b"][idx % 5]
+                }
+                for idx, s in enumerate(service_counts[:5])
+            ]
+
+            return Response({
+                "branch_name": branch.name,
+                "stats": [
+                    {"title": "Branch Revenue", "value": f"₱{float(rev_this):,.0f}", "change": f"{'+' if rev_change >= 0 else ''}{rev_change}% from last month"},
+                    {"title": "Services Completed", "value": str(svc_this), "change": f"{'+' if svc_change >= 0 else ''}{svc_change}% from last month"},
+                    {"title": "Active Customers", "value": str(cust_this), "change": f"{'+' if cust_change >= 0 else ''}{cust_change}% from last month"},
+                    {"title": "Customer Satisfaction", "value": f"{sat_pct}%", "change": f"{'+' if sat_change >= 0 else ''}{sat_change}% from last month"},
+                ],
+                "trend": trend,
+                "distribution": distribution
+            })
+        except Exception as e:
+            return Response({"detail": f"Server Error: {str(e)}"}, status=500)

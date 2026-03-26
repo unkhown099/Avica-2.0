@@ -185,7 +185,7 @@ function MechanicInventoryRequests() {
           </div>
           <button
             onClick={() => setShowRequestForm(true)}
-            className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-lg shadow-red-600/30 flex items-center gap-2 self-start"
+            className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-lg shadow-red-600/30 flex items-center gap-2 self-start sm:mt-12"
           >
             <svg
               className="w-5 h-5"

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "./AdminLayout";
 import axios from "axios";
+import { API_BASE } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 
 const getToken = () =>
   localStorage.getItem("access_token") ??
@@ -121,7 +122,7 @@ function ServiceModal({ onClose, onSaved, editService, branches }) {
       setSaving(true);
       const payload = { ...form };
       if (isEdit) {
-        await axios.patch(`${import.meta.env.VITE_API_BASE_URL}/services/${editService.id}/`, payload, {
+        await axios.patch(`${API_BASE}/services/${editService.id}/`, payload, {
           headers: authHeaders(),
         });
       } else {
@@ -451,25 +452,6 @@ function AdminServices() {
               Manage services available at your shop
             </p>
           </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105 self-start md:self-auto"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add New Service
-          </button>
         </div>
 
         {/* Error */}
@@ -529,7 +511,7 @@ function AdminServices() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-center">
           <div className="relative flex-1">
             <svg
               className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
@@ -572,6 +554,25 @@ function AdminServices() {
               <option key={b.id}>{b.name}</option>
             ))}
           </select>
+          <button
+            onClick={openCreate}
+            className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 sm:ml-auto"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Add New Service
+          </button>
         </div>
 
         {/* Grid */}
@@ -676,7 +677,7 @@ function AdminServices() {
                         {service.name}
                       </h3>
                     </div>
-              
+
                   </div>
 
                   <p className="text-gray-400 text-sm mb-4 leading-relaxed flex-1">
@@ -777,11 +778,10 @@ function AdminServices() {
                     </button>
                     <button
                       onClick={() => toggleActive(service)}
-                      className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all border ${
-                        service.is_active
+                      className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all border ${service.is_active
                           ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400"
                           : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"
-                      }`}
+                        }`}
                     >
                       {service.is_active ? "Deactivate" : "Activate"}
                     </button>

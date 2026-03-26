@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE } from "../../hooks/useAuth.js";
 import ManagerLayout from "./ManagerLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
@@ -29,7 +30,7 @@ function ManagerCustomerManagement() {
         const token =
           localStorage.getItem("access_token") ||
           sessionStorage.getItem("access_token");
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/customers/`, {
+        const res = await axios.get(`${API_BASE}/customers/`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const mapped = (Array.isArray(res.data) ? res.data : []).map((c) => ({
