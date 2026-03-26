@@ -33,6 +33,13 @@ class BookingSerializer(serializers.ModelSerializer):
     assigned_employee_id = serializers.SerializerMethodField()
     assigned_employee_name = serializers.SerializerMethodField()
     customer_name = serializers.SerializerMethodField()
+    # 👈 ADD THIS FIELD - make it writeable so frontend can send cancellation reason
+    cancellation_reason = serializers.CharField(
+        required=False, 
+        allow_blank=True, 
+        allow_null=True,
+        write_only=False  # This makes it readable and writable
+    )
 
     class Meta:
         model  = Booking
@@ -45,6 +52,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "customer_name",
             "assigned_employee_id", "assigned_employee_name",
             "created_at",
+            "notes", "status", "staff", "created_at",
+            "cancellation_reason",  # 👈 ADD THIS
         ]
         read_only_fields = ["id", "service_name", "staff", "created_at"]
 
@@ -116,3 +125,9 @@ class BookingSerializer(serializers.ModelSerializer):
         # Remove the write-only field from output (already excluded, just safety)
         rep.pop("price_input", None)
         return rep
+class AvailableSlotsSerializer(serializers.Serializer):
+    """Serializer for available time slots response"""
+    available_slots = serializers.DictField(
+        child=serializers.BooleanField(),
+        help_text="Dictionary of time slots with availability status (true = available, false = unavailable)"
+    )

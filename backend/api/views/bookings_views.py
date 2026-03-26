@@ -1,5 +1,7 @@
 import logging
 from django.db.models import Q
+from datetime import datetime, timedelta
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,6 +21,19 @@ def is_staff_or_above(user):
         return role in ["Admin", "Business Owner", "Branch Manager", "Staff", "Employee"]
     except Exception:
         return False
+
+
+def to_display_time(time_str):
+    """Convert API time format to display format (e.g., 14:30:00 -> 2:30 PM)"""
+    if not time_str:
+        return ""
+    if "AM" in time_str or "PM" in time_str:
+        return time_str
+    try:
+        time_obj = datetime.strptime(time_str, '%H:%M:%S')
+        return time_obj.strftime('%I:%M %p').lstrip('0')
+    except:
+        return time_str
 
 
 # ─── Customer-facing views ────────────────────────────────────────────────────
@@ -62,11 +77,120 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {"detail": "Cancelled bookings cannot be modified."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        # Handle customer cancellation with reason
         if request.data.get("status") == "cancelled":
+            cancellation_reason = request.data.get("cancellation_reason", "")
             booking.status = "cancelled"
+            booking.cancellation_reason = cancellation_reason
             booking.save()
             return Response(self.get_serializer(booking).data)
+        
         return super().partial_update(request, *args, **kwargs)
+
+
+# ─── Available Slots View ────────────────────────────────────────────────────
+
+class AvailableSlotsView(APIView):
+    """
+    Get available time slots for a specific branch and date
+    Query parameters:
+        - branch_id: ID of the branch
+        - date: Date in YYYY-MM-DD format
+    Returns:
+        {
+            "available_slots": {
+                "8:00 AM": true,
+                "9:00 AM": false,
+                ...
+            }
+        }
+    """
+    permission_classes = [IsAuthenticated]
+    
+    # Define the time slots in order
+    TIME_SLOTS = [
+        "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+        "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
+    ]
+    
+    def get(self, request):
+        # Get query parameters
+        branch_id = request.query_params.get('branch_id')
+        date_str = request.query_params.get('date')
+        
+        # Validate parameters
+        if not branch_id:
+            return Response(
+                {"error": "branch_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not date_str:
+            return Response(
+                {"error": "date is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate branch exists
+        try:
+            branch = Branch.objects.get(id=branch_id, is_active=True)
+        except Branch.DoesNotExist:
+            return Response(
+                {"error": "Branch not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Validate date format
+        try:
+            selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if date is tomorrow or later (no same-day bookings)
+        tomorrow = timezone.now().date() + timedelta(days=1)
+        if selected_date < tomorrow:
+            return Response(
+                {"error": "Bookings can only be made for tomorrow or later"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get all confirmed/pending bookings for this branch on this date
+        bookings = Booking.objects.filter(
+            branch=branch,
+            date=selected_date,
+            status__in=['confirmed', 'pending']  # Count both confirmed and pending bookings
+        )
+        
+        # Convert time to display format and count bookings per slot
+        from collections import Counter
+        booked_slots = []
+        for booking in bookings:
+            display_time = to_display_time(booking.time)
+            booked_slots.append(display_time)
+        
+        slot_counts = Counter(booked_slots)
+        
+        # Use branch.slots as max capacity (from your Branch model)
+        max_capacity = branch.slots
+        
+        # Calculate availability for each time slot
+        available_slots = {}
+        for slot in self.TIME_SLOTS:
+            current_bookings = slot_counts.get(slot, 0)
+            is_available = current_bookings < max_capacity
+            available_slots[slot] = is_available
+        
+        # Optional: Add lunch break constraints or branch-specific rules
+        # Example: Make 12:00 PM unavailable for certain branches during lunch
+        if branch.name == "Main Branch":  # You can customize this per branch
+            # available_slots["12:00 PM"] = False  # Uncomment if needed
+            pass
+        
+        return Response({'available_slots': available_slots})
 
 
 # ─── Staff views ──────────────────────────────────────────────────────────────
@@ -212,6 +336,18 @@ class StaffBookingActionView(APIView):
                     or "TBA"
                 )
 
+        # Save cancellation reason if status is cancelled
+        if new_status == "cancelled":
+            cancellation_reason = request.data.get("cancellation_reason", "")
+            booking.cancellation_reason = cancellation_reason
+            booking.status = "cancelled"
+            booking.save()
+            
+            # Return early - no queue entry for cancelled bookings
+            from api.serializers.bookings_serializer import BookingSerializer
+            return Response(BookingSerializer(booking).data)
+
+        # If not cancelled, proceed with normal flow
         booking.status = new_status
         booking.save()
 

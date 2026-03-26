@@ -32,6 +32,7 @@ from api.views.bookings_views import (
     BookingDetailView,
     StaffBookingListView,
     StaffBookingActionView,
+    AvailableSlotsView
 )
 from api.views.queue_views import (
     queue_list,
@@ -90,6 +91,7 @@ urlpatterns = [
     # ── Customer booking endpoints ────────────────────────────────────────────
     path('api/bookings/',          BookingListCreateView.as_view(), name='booking-list-create'),
     path('api/bookings/<int:pk>/', BookingDetailView.as_view(),     name='booking-detail'),
+    path('api/bookings/available-slots/', AvailableSlotsView.as_view(), name='available-slots'),
 
     # ── Staff / Manager booking endpoints ─────────────────────────────────────
     path('api/staff/bookings/',                 StaffBookingListView.as_view(),   name='staff-booking-list'),
