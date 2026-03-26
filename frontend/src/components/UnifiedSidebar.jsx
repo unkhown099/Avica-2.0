@@ -12,6 +12,13 @@ const MENU_ITEMS = {
       name: "Dashboard",
       path: "/admin/dashboard",
       icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
+      children: [
+        { key: "overview", label: "Overview" },
+        { key: "revenue", label: "Revenue" },
+        { key: "customers", label: "Customers" },
+        { key: "inventory", label: "Inventory" },
+        { key: "services", label: "Services" },
+      ],
     },
     {
       name: "Services",
@@ -32,6 +39,7 @@ const MENU_ITEMS = {
       name: "Inventory",
       path: "/admin/inventory",
       icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+      alertBadge: true,
     },
     {
       name: "Appointments",
@@ -65,6 +73,7 @@ const MENU_ITEMS = {
       name: "Inventory",
       path: "/branch-owner/inventory",
       icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+      alertBadge: true,
     },
     {
       name: "Account Management",
@@ -93,6 +102,7 @@ const MENU_ITEMS = {
       name: "Inventory",
       path: "/manager/inventory",
       icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+      alertBadge: true,
     },
     {
       name: "Account Management",
@@ -159,6 +169,7 @@ const MENU_ITEMS = {
       name: "Inventory Requests",
       path: "/mechanic/inventory-requests",
       icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+      alertBadge: true,
     },
   ],
 
@@ -198,9 +209,6 @@ const ROLE_LABELS = {
   inventory_manager: { title: "Inventory Manager", subtitle: "Stock & Supply" },
 };
 
-// ─── Roles whose inventory menu shows a live reorder-alert badge ──────────────
-const ROLES_WITH_ALERT_BADGE = new Set(["inventory", "admin", "business_owner", "branch_manager"]);
-
 // ─── Unified Sidebar ──────────────────────────────────────────────────────────
 
 function UnifiedSidebar({ isOpen, onClose }) {
@@ -209,13 +217,17 @@ function UnifiedSidebar({ isOpen, onClose }) {
   const { isAuthenticated, role, user, headers } = useAuth();
 
   const [alertCount, setAlertCount] = useState(null); // null = not yet loaded
+  const [expandedItems, setExpandedItems] = useState(() => {
+    const initialState = {};
+    return initialState;
+  });
 
   const menuItems = MENU_ITEMS[role] ?? [];
   const roleLabel = ROLE_LABELS[role] ?? { title: "User", subtitle: "" };
 
   // Fetch live reorder-alert count
   useEffect(() => {
-    if (!isAuthenticated || !ROLES_WITH_ALERT_BADGE.has(role)) return;
+    if (!isAuthenticated) return;
 
     let cancelled = false;
 
@@ -228,16 +240,13 @@ function UnifiedSidebar({ isOpen, onClose }) {
       if (!token || cancelled) return;
 
       try {
-        const res = await fetch(
-          `${API_BASE}/inventory/?status=low,out`,
-          {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const res = await fetch(`${API_BASE}/inventory/?status=low,out`, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
         if (cancelled) return;
         if (!res.ok) {
           // Token expired or revoked - clear badge silently
@@ -255,12 +264,29 @@ function UnifiedSidebar({ isOpen, onClose }) {
 
     // Refresh every 2 minutes so the badge stays reasonably current
     const interval = setInterval(fetchCount, 2 * 60 * 1000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [isAuthenticated, role]); // intentionally excludes headers - we read fresh each time
+
+  useEffect(() => {
+    setExpandedItems((prev) => {
+      const updated = { ...prev };
+      menuItems.forEach((item) => {
+        if (item.children && item.path === location.pathname) {
+          updated[item.path] = true;
+        }
+      });
+      return updated;
+    });
+  }, [location.pathname, role]);
 
   const isActive = (path) => location.pathname === path;
 
-  const handleNavClick = () => { if (onClose) onClose(); };
+  const handleNavClick = () => {
+    if (onClose) onClose();
+  };
 
   const handleLogout = async () => {
     const result = await Swal.fire({
@@ -327,15 +353,29 @@ function UnifiedSidebar({ isOpen, onClose }) {
       >
         {/* Logo */}
         <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-          <img src={logo} alt="Otokwikk logo" className="h-12 md:h-16 object-contain" />
+          <img
+            src={logo}
+            alt="Otokwikk logo"
+            className="h-12 md:h-16 object-contain"
+          />
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
               className="lg:hidden w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white transition-all duration-200 flex-shrink-0"
               aria-label="Close sidebar"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -344,18 +384,106 @@ function UnifiedSidebar({ isOpen, onClose }) {
         {/* Nav */}
         <nav className="flex-1 py-6 overflow-y-auto">
           {menuItems.map((item) => {
+            const hasChildren = item.children && item.children.length > 0;
+            const isExpanded = expandedItems[item.path] ?? false;
+
+            if (hasChildren) {
+              const active = location.pathname === item.path;
+
+              return (
+                <div key={item.path}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedItems((prev) => ({
+                        ...prev,
+                        [item.path]: !prev[item.path],
+                      }))
+                    }
+                    className={`w-full flex items-center gap-3 px-6 py-3 transition-all duration-200 ${
+                      active
+                        ? "bg-red-600 text-white"
+                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d={item.icon}
+                      />
+                    </svg>
+                    <span className="font-medium flex-1 text-left">
+                      {item.name}
+                    </span>
+                    <svg
+                      className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="bg-gray-950/60 border-l border-white/5 ml-6">
+                      {item.children.map((child) => {
+                        const childTo = `${item.path}#${child.key}`;
+                        const hashActive =
+                          location.pathname === item.path &&
+                          location.hash === `#${child.key}`;
+                        const activeChild =
+                          location.pathname === item.path &&
+                          ((child.key === "overview" && !location.hash) ||
+                            hashActive);
+
+                        return (
+                          <Link
+                            key={child.key}
+                            to={childTo}
+                            onClick={handleNavClick}
+                            className={`block pl-5 pr-6 py-2.5 text-sm transition-all ${
+                              activeChild
+                                ? "text-red-300 bg-red-500/10"
+                                : "text-gray-500 hover:text-gray-200 hover:bg-white/5"
+                            }`}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             const active = isActive(item.path);
-            const showBadge = item.alertBadge && alertCount != null && alertCount > 0;
+            const showBadge =
+              item.alertBadge && alertCount != null && alertCount > 0;
 
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={handleNavClick}
-                className={`flex items-center gap-3 px-6 py-3 transition-all duration-200 ${active
-                  ? "bg-red-600 text-white"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                  }`}
+                className={`flex items-center gap-3 px-6 py-3 transition-all duration-200 ${
+                  active
+                    ? "bg-red-600 text-white"
+                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                }`}
               >
                 <svg
                   className="w-5 h-5 flex-shrink-0"
@@ -363,14 +491,22 @@ function UnifiedSidebar({ isOpen, onClose }) {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d={item.icon}
+                  />
                 </svg>
                 <span className="font-medium flex-1">{item.name}</span>
 
                 {showBadge && (
                   <span
-                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${active ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400"
-                      }`}
+                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                      active
+                        ? "bg-white/20 text-white"
+                        : "bg-red-500/20 text-red-400"
+                    }`}
                   >
                     {alertCount > 99 ? "99+" : alertCount}
                   </span>
@@ -384,18 +520,25 @@ function UnifiedSidebar({ isOpen, onClose }) {
         <div className="p-4 border-t border-gray-800">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              <svg
+                className="w-6 h-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-sm truncate">
                 {user?.first_name && user?.last_name
                   ? `${user.first_name} ${user.last_name}`
-                  : user?.full_name
-                  ?? user?.name
-                  ?? roleLabel.title}
+                  : (user?.full_name ?? user?.name ?? roleLabel.title)}
               </p>
               <p className="text-gray-400 text-xs truncate">
                 {user?.email || roleLabel.subtitle}
@@ -406,9 +549,18 @@ function UnifiedSidebar({ isOpen, onClose }) {
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-red-600 text-gray-400 hover:text-white rounded-lg transition-all duration-200"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
             </svg>
             <span className="font-medium">Logout</span>
           </button>

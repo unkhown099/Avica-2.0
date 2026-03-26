@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import StaffLayout from "./StaffLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
+import Swal from "sweetalert2";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,6 @@ function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 
-// FIX 1: Added "done" to statusStyle and statusLabel
 const statusStyle = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -48,16 +48,6 @@ const statusLabel = {
   rescheduled: "Rescheduled",
 };
 
-const SERVICES = [
-  "Exterior Detailing",
-  "Interior Detailing",
-  "Full Detailing",
-  "Ceramic Coating",
-  "Paint Correction",
-  "Engine Bay Cleaning",
-  "Other",
-];
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 function StaffAppointments() {
@@ -72,7 +62,8 @@ function StaffAppointments() {
   const [actionLoading, setActionLoading] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [assignedByBooking, setAssignedByBooking] = useState({});
-
+  
+  // Walk-in modal state
   const [showWalkIn, setShowWalkIn] = useState(false);
   const [walkInLoading, setWalkInLoading] = useState(false);
   const [walkInError, setWalkInError] = useState("");
@@ -103,8 +94,7 @@ function StaffAppointments() {
         if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
       })
-      .then((data) =>
-      {
+      .then((data) => {
         const rows = Array.isArray(data) ? data : (data.results ?? []);
         setBookings(rows);
         setAssignedByBooking(
@@ -146,7 +136,6 @@ function StaffAppointments() {
     return bookings.filter((b) => b.date === iso).map((b) => b.status);
   };
 
-  // FIX 2: Stats now include "done" count and correctly count all statuses
   const totalThisMonth = bookings.filter((b) => {
     const d = new Date(b.date + "T00:00:00");
     return d.getFullYear() === year && d.getMonth() === month;
@@ -201,11 +190,20 @@ function StaffAppointments() {
       setBookings((prev) =>
         prev.map((b) => (b.id === updated.id ? updated : b)),
       );
-    } catch {
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: `Booking ${newStatus === "confirmed" ? "approved" : "updated"} successfully.`,
+        timer: 2000,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#fff",
+      });
+    } catch (err) {
       Swal.fire({
         icon: "error",
         title: "Action failed",
-        text: "Please try again.",
+        text: err.message || "Please try again.",
         background: "#111827",
         color: "#fff",
       });
@@ -354,6 +352,15 @@ function StaffAppointments() {
         service: "",
         notes: "",
       });
+      Swal.fire({
+        icon: "success",
+        title: "Walk-in Added",
+        text: "Walk-in appointment has been added successfully.",
+        timer: 2000,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#fff",
+      });
     } catch (err) {
       setWalkInError(err.message);
     } finally {
@@ -368,6 +375,7 @@ function StaffAppointments() {
     } else setMonth((m) => m - 1);
     setSelectedDate(1);
   };
+  
   const nextMonth = () => {
     if (month === 11) {
       setMonth(0);
@@ -376,7 +384,6 @@ function StaffAppointments() {
     setSelectedDate(1);
   };
 
-  // FIX 3: Calendar dot color now handles "done" status
   const dotColor = (s, isSelected) => {
     if (isSelected) return "bg-white/70";
     if (s === "confirmed") return "bg-emerald-400";
@@ -395,31 +402,21 @@ function StaffAppointments() {
               Appointments
             </h1>
             <p className="text-gray-400 mt-1">
-              View appointments and add walk-in customers
+              View and manage appointments
             </p>
           </div>
           <button
             onClick={() => setShowWalkIn(true)}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:scale-105 self-start md:self-auto"
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-blue-600/30"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-              />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
             Add Walk-in
           </button>
         </div>
 
-        {/* FIX 2: Stats grid now 4 columns including "Completed" */}
+        {/* Stats grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {stats.map(({ label, value, color, border }) => (
             <div
@@ -525,7 +522,7 @@ function StaffAppointments() {
               )}
             </div>
 
-            {/* FIX 3: Legend now includes "done" */}
+            {/* Legend */}
             <div className="mt-6 pt-5 border-t border-white/5 space-y-2">
               {[
                 { color: "bg-emerald-400", label: "Confirmed" },
@@ -626,7 +623,6 @@ function StaffAppointments() {
               <div className="space-y-4">
                 {dayBookings.map((b) => {
                   const isWalkIn = b.notes?.toLowerCase().includes("walk-in");
-                  // FIX 1: icon bg also handles "done"
                   const iconBg =
                     b.status === "confirmed"
                       ? "bg-emerald-500/20 text-emerald-400"
@@ -729,55 +725,54 @@ function StaffAppointments() {
                               Boolean(b.assigned_employee_id);
                             return (
                               <>
-                          <div className="md:col-span-2">
-                            <label className="block text-xs font-semibold text-gray-500 mb-1">
-                                {isAssignmentLocked
-                                  ? "Assigned Mechanic (Locked)"
-                                  : "Assign Mechanic"}
-                            </label>
-                            <select
-                              value={assignedByBooking[b.id] ?? ""}
-                              onChange={(e) =>
-                                setAssignedByBooking((prev) => ({
-                                  ...prev,
-                                  [b.id]: e.target.value,
-                                }))
-                              }
-                                disabled={isAssignmentLocked}
-                              className="w-full bg-gray-900/70 border border-white/10 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500/50"
-                            >
-                              <option value="">Unassigned</option>
-                              {employees.map((emp) => (
-                                <option key={emp.id} value={emp.id}>
-                                  {emp.full_name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="flex items-end">
-                            {b.status === "confirmed" && !isAssignmentLocked && (
-                              <button
-                                onClick={() =>
-                                  handleAction(
-                                    b.id,
-                                    "confirmed",
-                                    assignedByBooking[b.id] || null,
-                                  )
-                                }
-                                disabled={actionLoading === b.id}
-                                className="w-full bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
-                              >
-                                Save Assignment
-                              </button>
-                            )}
-                          </div>
-                            </>
-                          );
-                        })()}
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                                    {isAssignmentLocked
+                                      ? "Assigned Mechanic (Locked)"
+                                      : "Assign Mechanic"}
+                                  </label>
+                                  <select
+                                    value={assignedByBooking[b.id] ?? ""}
+                                    onChange={(e) =>
+                                      setAssignedByBooking((prev) => ({
+                                        ...prev,
+                                        [b.id]: e.target.value,
+                                      }))
+                                    }
+                                    disabled={isAssignmentLocked}
+                                    className="w-full bg-gray-900/70 border border-white/10 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500/50"
+                                  >
+                                    <option value="">Unassigned</option>
+                                    {employees.map((emp) => (
+                                      <option key={emp.id} value={emp.id}>
+                                        {emp.full_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="flex items-end">
+                                  {b.status === "confirmed" && !isAssignmentLocked && (
+                                    <button
+                                      onClick={() =>
+                                        handleAction(
+                                          b.id,
+                                          "confirmed",
+                                          assignedByBooking[b.id] || null,
+                                        )
+                                      }
+                                      disabled={actionLoading === b.id}
+                                      className="w-full bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
+                                    >
+                                      Save Assignment
+                                    </button>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
 
-                      {/* FIX 1: Status action footer handles all 4 statuses */}
                       {b.status === "pending" && (
                         <div className="flex gap-2 pt-3 border-t border-white/5">
                           <button
@@ -868,7 +863,6 @@ function StaffAppointments() {
                           Approved
                         </div>
                       )}
-                      {/* FIX 1: "done" status footer */}
                       {b.status === "done" && (
                         <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-blue-400 text-sm">
                           <svg
@@ -912,260 +906,130 @@ function StaffAppointments() {
             )}
           </div>
         </div>
-
-        {/* Walk-in Modal */}
-        {showWalkIn && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40"
-              onClick={() => setShowWalkIn(false)}
-            />
-            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-              <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between p-6 border-b border-white/10 sticky top-0 bg-gray-900 z-10">
-                  <div>
-                    <h2 className="text-xl font-black text-white">
-                      Add Walk-in Customer
-                    </h2>
-                    <p className="text-gray-500 text-sm mt-0.5">
-                      Fill in customer and vehicle details
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowWalkIn(false)}
-                    className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                </div>
-
-                <div className="p-6 space-y-6">
-                  <div>
-                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
-                      Customer Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[
-                        {
-                          label: "Customer Name *",
-                          name: "customerName",
-                          type: "text",
-                          placeholder: "Enter customer name",
-                          required: true,
-                          span: false,
-                        },
-                        {
-                          label: "Phone Number *",
-                          name: "phone",
-                          type: "tel",
-                          placeholder: "0917-XXX-XXXX",
-                          required: true,
-                          span: false,
-                        },
-                        {
-                          label: "Email Address",
-                          name: "email",
-                          type: "email",
-                          placeholder: "customer@email.com",
-                          required: false,
-                          span: true,
-                        },
-                      ].map((f) => (
-                        <div
-                          key={f.name}
-                          className={f.span ? "md:col-span-2" : ""}
-                        >
-                          <label className="block text-sm font-semibold text-gray-400 mb-2">
-                            {f.label}
-                          </label>
-                          <input
-                            type={f.type}
-                            name={f.name}
-                            value={walkInForm[f.name]}
-                            required={f.required}
-                            onChange={(e) =>
-                              setWalkInForm((p) => ({
-                                ...p,
-                                [e.target.name]: e.target.value,
-                              }))
-                            }
-                            placeholder={f.placeholder}
-                            className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 transition-all"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
-                      Vehicle Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[
-                        {
-                          label: "Vehicle *",
-                          name: "vehicle",
-                          placeholder: "e.g. Toyota Vios 2020",
-                          required: true,
-                        },
-                        {
-                          label: "Plate Number *",
-                          name: "plateNumber",
-                          placeholder: "ABC 1234",
-                          required: true,
-                        },
-                      ].map((f) => (
-                        <div key={f.name}>
-                          <label className="block text-sm font-semibold text-gray-400 mb-2">
-                            {f.label}
-                          </label>
-                          <input
-                            type="text"
-                            name={f.name}
-                            value={walkInForm[f.name]}
-                            required={f.required}
-                            onChange={(e) =>
-                              setWalkInForm((p) => ({
-                                ...p,
-                                [e.target.name]: e.target.value,
-                              }))
-                            }
-                            placeholder={f.placeholder}
-                            className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 transition-all"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-4">
-                      Service Information
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-400 mb-2">
-                          Service Required *
-                        </label>
-                        <select
-                          name="service"
-                          value={walkInForm.service}
-                          required
-                          onChange={(e) =>
-                            setWalkInForm((p) => ({
-                              ...p,
-                              service: e.target.value,
-                            }))
-                          }
-                          className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer"
-                        >
-                          <option value="">Select a service</option>
-                          {SERVICES.map((s) => (
-                            <option key={s}>{s}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-400 mb-2">
-                          Additional Notes
-                        </label>
-                        <textarea
-                          name="notes"
-                          value={walkInForm.notes}
-                          rows={3}
-                          onChange={(e) =>
-                            setWalkInForm((p) => ({
-                              ...p,
-                              notes: e.target.value,
-                            }))
-                          }
-                          placeholder="Any additional information..."
-                          className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 transition-all resize-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {walkInError && (
-                    <div className="flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-4 py-3 text-red-400 text-sm">
-                      <svg
-                        className="w-4 h-4 flex-shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      {walkInError}
-                    </div>
-                  )}
-
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowWalkIn(false)}
-                      className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleWalkInSubmit}
-                      disabled={walkInLoading}
-                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold shadow-lg shadow-red-600/30 flex items-center justify-center gap-2"
-                    >
-                      {walkInLoading ? (
-                        <>
-                          <svg
-                            className="w-4 h-4 animate-spin"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                            />
-                          </svg>
-                          Adding...
-                        </>
-                      ) : (
-                        "Add Walk-in Customer"
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
       </div>
+
+      {/* Walk-in Modal */}
+      {showWalkIn && (
+        <>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setShowWalkIn(false)} />
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-2rem)] sm:w-full max-w-md flex flex-col bg-[#0a0a0a] border border-white/8 shadow-2xl rounded-2xl overflow-hidden max-h-[90vh]">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/8 flex-shrink-0">
+              <div>
+                <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                  Add <span className="text-blue-500">Walk-in</span> Customer
+                </h2>
+                <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Create a walk-in appointment</p>
+              </div>
+              <button onClick={() => setShowWalkIn(false)} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleWalkInSubmit} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+              {walkInError && (
+                <div className="bg-red-600/10 border border-red-600/25 rounded-xl px-3 py-2 text-red-400 text-xs">
+                  {walkInError}
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Customer Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={walkInForm.customerName}
+                  onChange={(e) => setWalkInForm({ ...walkInForm, customerName: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Phone Number *</label>
+                <input
+                  type="tel"
+                  required
+                  value={walkInForm.phone}
+                  onChange={(e) => setWalkInForm({ ...walkInForm, phone: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Email (optional)</label>
+                <input
+                  type="email"
+                  value={walkInForm.email}
+                  onChange={(e) => setWalkInForm({ ...walkInForm, email: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Vehicle *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Toyota Vios"
+                  value={walkInForm.vehicle}
+                  onChange={(e) => setWalkInForm({ ...walkInForm, vehicle: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Plate Number *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., ABC 1234"
+                  value={walkInForm.plateNumber}
+                  onChange={(e) => setWalkInForm({ ...walkInForm, plateNumber: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Service *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Oil Change, Tire Rotation"
+                  value={walkInForm.service}
+                  onChange={(e) => setWalkInForm({ ...walkInForm, service: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Notes (optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Additional notes..."
+                  value={walkInForm.notes}
+                  onChange={(e) => setWalkInForm({ ...walkInForm, notes: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+            </form>
+            <div className="flex gap-2 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
+              <button onClick={() => setShowWalkIn(false)} className="flex-1 px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white font-semibold text-sm transition-all">
+                Cancel
+              </button>
+              <button
+                onClick={handleWalkInSubmit}
+                disabled={walkInLoading}
+                className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
+              >
+                {walkInLoading ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Adding...
+                  </>
+                ) : (
+                  "Add Walk-in"
+                )}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </StaffLayout>
   );
 }

@@ -3,7 +3,17 @@ from rest_framework import serializers
 from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
 from datetime import timedelta
+import re
 from ..models import Branch, Booking, Service, InventoryItem, Staff, Rating
+
+
+PREFERRED_EMPLOYEE_PATTERN = re.compile(r"\[preferred_employee_id=(\d+)\]", re.IGNORECASE)
+
+
+def _strip_preferred_employee_marker(notes):
+    raw_notes = notes or ""
+    cleaned = PREFERRED_EMPLOYEE_PATTERN.sub("", raw_notes)
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
 class BranchSummarySerializer(serializers.ModelSerializer):
@@ -116,6 +126,11 @@ class OwnerAppointmentSerializer(serializers.ModelSerializer):
 
     def get_customer_email(self, obj):
         return obj.user.email
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["notes"] = _strip_preferred_employee_marker(instance.notes)
+        return rep
 
 
 class OwnerServiceSerializer(serializers.ModelSerializer):

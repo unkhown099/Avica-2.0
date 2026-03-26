@@ -619,7 +619,7 @@ function AdminServices() {
                       <StatusBadge active={service.is_active} />
                     </div>
                     {/* Actions dropdown */}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <div className="flex items-center gap-1 opacity-100 transition-all">
                       <button
                         onClick={() => openEdit(service)}
                         className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"

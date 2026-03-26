@@ -19,21 +19,21 @@ function BranchOwnerAccountManagement() {
   const [headers, setHeaders] = useState({});
 
   const roleBadge = {
-    "Admin": "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
+    Admin: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
     "Business Owner": "bg-purple-500/20 text-purple-400 border-purple-500/30",
     "Branch Manager": "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    "Staff": "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-    "Employee": "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    "Inventory": "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    Staff: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    Employee: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    Inventory: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   };
 
   const roleColors = {
-    "Admin": "#6366f1",
+    Admin: "#6366f1",
     "Business Owner": "#a855f7",
     "Branch Manager": "#a855f7",
-    "Staff": "#06b6d4",
-    "Employee": "#3b82f6",
-    "Inventory": "#f97316",
+    Staff: "#06b6d4",
+    Employee: "#3b82f6",
+    Inventory: "#f97316",
   };
 
   // All roles from your Staff model
@@ -197,7 +197,7 @@ function BranchOwnerAccountManagement() {
         const updatedStaff = await response.json();
 
         setStaffAccounts((prev) =>
-          prev.map((s) => (s.id === staff.id ? updatedStaff : s))
+          prev.map((s) => (s.id === staff.id ? updatedStaff : s)),
         );
 
         Swal.fire({
@@ -464,10 +464,11 @@ function BranchOwnerAccountManagement() {
                   </div>
                   <div className="col-span-2">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${status === "Active"
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        : "bg-gray-500/20 text-gray-400 border-gray-500/30"
-                        }`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        status === "Active"
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                      }`}
                     >
                       {status}
                     </span>
@@ -475,11 +476,16 @@ function BranchOwnerAccountManagement() {
                   <div className="col-span-1 flex justify-end">
                     <button
                       onClick={() => handleToggleStatus(staff)}
-                      className={`opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${status === "Active"
+                      className={`opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        status === "Active"
                           ? "text-red-400 bg-red-500/10 hover:bg-red-500/20"
                           : "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
-                        }`}
-                      title={status === "Active" ? "Deactivate Account" : "Activate Account"}
+                      }`}
+                      title={
+                        status === "Active"
+                          ? "Deactivate Account"
+                          : "Activate Account"
+                      }
                     >
                       {status === "Active" ? "Deactivate" : "Activate"}
                     </button>
