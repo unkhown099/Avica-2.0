@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout";
+import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
 
 // Auth helpers
@@ -12,7 +13,7 @@ const authHeaders = () => ({
   ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
 });
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 
 function ProfilePage() {
   const sessionUser = getUserFromSession();
@@ -348,13 +349,11 @@ function ProfilePage() {
             <button
               onClick={() => (editing ? handleSave() : setEditing(true))}
               disabled={saving}
-              className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 hover:scale-105 text-sm ${
-                saving ? "opacity-50 cursor-not-allowed" : ""
-              } ${
-                editing
+              className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 hover:scale-105 text-sm ${saving ? "opacity-50 cursor-not-allowed" : ""
+                } ${editing
                   ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/30"
                   : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg shadow-red-600/30"
-              }`}
+                }`}
             >
               {saving ? (
                 <>

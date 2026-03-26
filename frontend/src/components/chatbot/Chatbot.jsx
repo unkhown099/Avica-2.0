@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 const SYSTEM_PROMPT = `You are a helpful customer support assistant for Otokwikk, a premium automotive detailing shop in North Caloocan, Metro Manila.
 
@@ -51,7 +52,7 @@ export default function Chatbot({ onClose }) {
 
     try {
       // Call Django backend
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/chat/`, {
+      const response = await fetch(`${API_BASE}/api/chat/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,9 +66,9 @@ export default function Chatbot({ onClose }) {
       });
 
       const data = await response.json();
-      
+
       console.log("Backend response:", data);
-      
+
       const reply = data.reply || "Sorry, I couldn't process that.";
 
       setMessages((prev) => [
@@ -146,9 +147,8 @@ export default function Chatbot({ onClose }) {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex items-end gap-2 ${
-              msg.role === "user" ? "justify-end" : "justify-start"
-            }`}
+            className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"
+              }`}
           >
             {msg.role === "assistant" && (
               <div className="w-7 h-7 bg-red-600/20 rounded-lg border border-red-600/30 flex items-center justify-center flex-shrink-0 mb-0.5">
@@ -168,11 +168,10 @@ export default function Chatbot({ onClose }) {
               </div>
             )}
             <div
-              className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words font-medium ${
-                msg.role === "user"
+              className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words font-medium ${msg.role === "user"
                   ? "bg-red-600 text-white rounded-br-sm shadow-[0_4px_20px_rgba(220,38,38,0.25)]"
                   : "bg-white/5 backdrop-blur-sm text-gray-200 border border-white/10 rounded-bl-sm"
-              }`}
+                }`}
             >
               {msg.content}
             </div>

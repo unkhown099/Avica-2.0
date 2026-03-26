@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "./AdminLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 import axios from "axios";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 
 const getToken = () =>
   localStorage.getItem("access_token") ??
@@ -62,7 +63,7 @@ function AdminCustomers() {
       try {
         setLoading(true);
         setError(null);
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/customers/`, {
+        const res = await axios.get(`${API_BASE}/customers/`, {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
         setCustomers(res.data);
@@ -158,11 +159,10 @@ function AdminCustomers() {
               onClick={() =>
                 setSegmentFilter(segmentFilter === seg ? "All" : seg)
               }
-              className={`bg-gray-900/60 border rounded-2xl p-4 backdrop-blur-sm transition-all text-left ${
-                segmentFilter === seg
+              className={`bg-gray-900/60 border rounded-2xl p-4 backdrop-blur-sm transition-all text-left ${segmentFilter === seg
                   ? "border-white/20"
                   : "border-white/5 hover:border-white/10"
-              }`}
+                }`}
             >
               <div className="text-2xl font-black text-white mb-1">
                 {loading ? (

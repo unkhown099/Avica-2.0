@@ -1,4 +1,5 @@
 import logging
+import traceback
 from django.db.models import Q
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -6,9 +7,13 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.utils.html import strip_tags
+from ..models import Branch, Booking, Notification
 from ..models import Branch, Booking, Staff
 from ..serializers.bookings_serializer import BranchSerializer, BookingSerializer
-from api.views.queue_views import _booking_to_queue_entry
+from .queue_views import _booking_to_queue_entry
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +243,8 @@ class StaffBookingActionView(APIView):
         except Booking.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        new_status = request.data.get("status")
+        allowed = ["pending", "confirmed", "cancelled", "done", "rescheduled"]
         new_status = request.data.get("status", booking.status)
         assigned_employee_id = request.data.get("assigned_employee_id", None)
         existing_assigned_employee_id = None
@@ -255,6 +262,50 @@ class StaffBookingActionView(APIView):
                 {"detail": f"Invalid status. Allowed: {allowed}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if new_status == "rescheduled":
+            new_date = request.data.get("date")
+            new_time = request.data.get("time")
+            if not new_date or not new_time:
+                return Response(
+                    {"detail": "Date and time are required for rescheduling."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            booking.date = new_date
+            booking.time = new_time
+            
+            # Create Notification
+            try:
+                Notification.objects.create(
+                    user=booking.user,
+                    title="Appointment Rescheduled",
+                    message=f"Your appointment for {booking.service} has been rescheduled to {new_date} at {new_time}.",
+                    notification_type="appointment"
+                )
+            except Exception as e:
+                logger.error(f"Failed to create notification: {e}")
+                print(f"Failed to create notification: {e}")
+
+            # Send Email
+            try:
+                subject = "Appointment Rescheduled - Otokwikk"
+                html_content = f"""
+                <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                    <h2 style="color: #dc2626;">Appointment Rescheduled</h2>
+                    <p>Hi,</p>
+                    <p>Your appointment for <strong>{booking.service}</strong> at Otokwikk has been rescheduled.</p>
+                    <p><strong>New Schedule:</strong> {new_date} at {new_time}</p>
+                    <p>If you have any questions, please contact our branch.</p>
+                    <br>
+                    <p>Best regards,<br>Otokwikk Team</p>
+                </div>
+                """
+                text_content = strip_tags(html_content)
+                msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [booking.user.email])
+                msg.attach_alternative(html_content, "text/html")
+                msg.send()
+            except Exception as e:
+                print(f"Failed to send reschedule email: {e}")
 
         # Enforce assignment before approval.
         if (
@@ -372,7 +423,6 @@ class StaffBookingActionView(APIView):
 
                 print(f"[QUEUE] ✅ Success — queue entry #{entry.id} at position #{entry.position}")
             except Exception as e:
-                import traceback
                 print(f"[QUEUE] ❌ FAILED for booking #{booking.id}: {e}")
                 print(traceback.format_exc())
                 # Return error response so the frontend knows queue creation failed

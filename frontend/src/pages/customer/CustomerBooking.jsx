@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import CustomerLayout from "./CustomerLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,23 @@ function Pagination({ current, total, onChange }) {
               {p}
             </button>
           );
+        }
+        if (!show) return null;
+
+        return (
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${p === current
+              ? "bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-500"
+              : "border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50"
+              }`}
+          >
+            {p}
+          </button>
+        );
+      })}
+
         })}
       </div>
       <button
@@ -152,14 +170,28 @@ function StepIndicator({ current }) {
         return (
           <React.Fragment key={label}>
             <div className="flex flex-col items-center gap-1 flex-shrink-0">
-              <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-black transition-all duration-300 ${done ? "bg-red-600 text-white" : active ? "bg-red-600/20 border-2 border-red-500 text-red-400" : "bg-white/5 border border-white/10 text-gray-600"}`}>
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${done
+                  ? "bg-red-600 text-white"
+                  : active
+                    ? "bg-red-600/20 border-2 border-red-500 text-red-400"
+                    : "bg-white/5 border border-white/10 text-gray-600"
+                  }`}
+              >
                 {done ? (
                   <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (i + 1)}
               </div>
-              <span className={`text-[8px] sm:text-[10px] font-semibold tracking-wide uppercase whitespace-nowrap ${active ? "text-red-400" : done ? "text-gray-400" : "text-gray-600"}`}>
+              <span
+                className={`text-[10px] font-semibold tracking-wide uppercase ${active
+                  ? "text-red-400"
+                  : done
+                    ? "text-gray-400"
+                    : "text-gray-600"
+                  }`}
+              >
                 {label}
               </span>
             </div>
@@ -565,11 +597,13 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
 
   // ── Load user's existing bookings once on mount ──────────────────────────
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, { headers: authHeaders() })
-      .then((r) => r.ok ? r.json() : Promise.reject())
-      .then((data) => {
-        setUserBookings(Array.isArray(data) ? data : (data.results ?? []));
-        setUserBookingsLoaded(true);
+    setServicesLoading(true);
+    fetch(`${API_BASE}/services/`, {
+      headers: authHeaders(),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load services.");
+        return r.json();
       })
       .catch(() => setUserBookingsLoaded(true)); // still mark loaded so we don't block forever
   }, []);
@@ -643,9 +677,16 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   // ── Branches ──────────────────────────────────────────────────────────────
   useEffect(() => {
     setBranchLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/branches/`, { headers: authHeaders() })
-      .then((r) => { if (!r.ok) throw new Error("Failed to load branches."); return r.json(); })
-      .then((data) => setBranches(Array.isArray(data) ? data : (data.results ?? [])))
+    fetch(`${API_BASE}/branches/`, {
+      headers: authHeaders(),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load branches.");
+        return r.json();
+      })
+      .then((data) =>
+        setBranches(Array.isArray(data) ? data : (data.results ?? [])),
+      )
       .catch((err) => setBranchError(err.message))
       .finally(() => setBranchLoading(false));
   }, []);
@@ -742,11 +783,14 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         price: parseFloat(form.service.price_min ?? form.service.price ?? 0),
       };
 
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `${API_BASE}/api/bookings/`,
+        {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        },
+      );
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -757,11 +801,17 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             if (f === "non_field_errors" || f === "detail") em = Array.isArray(e) ? e[0] : e;
             else nfe[f] = Array.isArray(e) ? e[0] : e;
           });
-          if (Object.keys(nfe).length > 0) {
-            setFieldErrors(nfe);
-            throw new Error(Object.values(nfe)[0] || "Please check the form for errors.");
-          } else if (em) throw new Error(em);
-          else throw new Error("Failed to create booking. Please check your input.");
+          if (Object.keys(newFieldErrors).length > 0) {
+            setFieldErrors(newFieldErrors);
+            throw new Error(
+              Object.values(newFieldErrors)[0] ||
+              "Please check the form for errors.",
+            );
+          } else if (errorMessage) throw new Error(errorMessage);
+          else
+            throw new Error(
+              "Failed to create booking. Please check your input.",
+            );
         }
         throw new Error(`Error ${res.status}: Failed to create booking.`);
       }
@@ -829,10 +879,16 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         onClick={() => set("service", s)}
                         className={`p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
                       >
-                        <div className="text-xl sm:text-2xl mb-1 sm:mb-2">{icon}</div>
-                        <div className={`font-bold text-xs sm:text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}>{s.name}</div>
-                        <div className="text-red-400 font-black text-xs sm:text-base">
-                          {s.price_min && s.price_max && s.price_min !== s.price_max
+                        <div className="text-2xl mb-2">{icon}</div>
+                        <div
+                          className={`font-bold text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}
+                        >
+                          {s.name}
+                        </div>
+                        <div className="text-red-400 font-black text-base">
+                          {s.price_min &&
+                            s.price_max &&
+                            s.price_min !== s.price_max
                             ? `₱${parseFloat(s.price_min).toLocaleString()} – ₱${parseFloat(s.price_max).toLocaleString()}`
                             : `₱${parseFloat(s.price_min || s.price || 0).toLocaleString()}`}
                         </div>
@@ -1137,8 +1193,16 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 sm:py-5 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
           <button
             type="button"
-            onClick={step > 0 ? () => { setStep((s) => s - 1); setError(""); setFieldErrors({}); } : onClose}
-            className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:border-white/20 font-semibold text-xs sm:text-sm transition-all"
+            onClick={
+              step > 0
+                ? () => {
+                  setStep((s) => s - 1);
+                  setError("");
+                  setFieldErrors({});
+                }
+                : onClose
+            }
+            className="px-5 py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:border-white/20 font-semibold text-sm transition-all"
           >
             {step > 0 ? "Back" : "Cancel"}
           </button>
@@ -1313,9 +1377,17 @@ function BookingsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, { headers: authHeaders() })
-      .then((r) => { if (!r.ok) throw new Error(`Error ${r.status}: Failed to load bookings.`); return r.json(); })
-      .then((data) => setBookings(Array.isArray(data) ? data : (data.results ?? [])))
+    fetch(`${API_BASE}/api/bookings/`, {
+      headers: authHeaders(),
+    })
+      .then((r) => {
+        if (!r.ok)
+          throw new Error(`Error ${r.status}: Failed to load bookings.`);
+        return r.json();
+      })
+      .then((data) =>
+        setBookings(Array.isArray(data) ? data : (data.results ?? [])),
+      )
       .catch((err) => setFetchError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -1333,11 +1405,14 @@ function BookingsPage() {
     const booking = cancelBooking;
     if (!booking) return;
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/${booking.id}/`, {
-        method: "PATCH",
-        headers: authHeaders(),
-        body: JSON.stringify({ status: "cancelled", cancellation_reason: reason }),
-      });
+      const res = await fetch(
+        `${API_BASE}/api/bookings/${id}/`,
+        {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ status: "cancelled" }),
+        },
+      );
       if (!res.ok) throw new Error();
       setBookings((prev) => prev.map((b) => b.id === booking.id ? { ...b, status: "cancelled" } : b));
       showToast("Booking cancelled successfully.");
@@ -1414,7 +1489,10 @@ function BookingsPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-semibold text-[10px] sm:text-xs capitalize transition-all ${filter === f ? "bg-red-600 text-white shadow-lg shadow-red-600/30" : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40"}`}
+              className={`px-5 py-2 rounded-xl font-semibold text-sm capitalize transition-all ${filter === f
+                ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40"
+                }`}
             >
               {f}
             </button>
@@ -1453,34 +1531,102 @@ function BookingsPage() {
               {fetchError}
             </div>
           )}
-          {!loading && !fetchError && paginated.map((booking) => {
-            const sc = statusConfig[booking.status] || statusConfig.pending;
-            const rawSvc = booking.service;
-            const serviceName =
-              booking.service_name ||
-              booking.service_detail?.name ||
-              (typeof rawSvc === "string" && rawSvc.trim() !== "" && isNaN(rawSvc)
-                ? rawSvc
-                : typeof rawSvc === "number" || (typeof rawSvc === "string" && !isNaN(rawSvc))
-                  ? `Service #${rawSvc}`
-                  : String(rawSvc || "Unknown Service"));
-            const displayTime = toDisplayTime(booking.time);
-            const rawPrice = parseFloat(booking.price);
-            const priceDisplay =
-              !isNaN(rawPrice) && booking.price != null && booking.price !== ""
-                ? rawPrice > 0 ? `₱${rawPrice.toLocaleString("en-PH")}` : "To be assessed"
-                : "—";
 
-            return (
-              <div
-                key={booking.id}
-                className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/30 transition-all duration-300"
-              >
-                <div className="flex flex-col gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 flex-wrap">
-                      <h3 className="text-base sm:text-lg lg:text-xl font-black text-white">{serviceName}</h3>
-                      <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold border ${sc.color}`}>{sc.label}</span>
+          {!loading &&
+            !fetchError &&
+            paginated.map((booking) => {
+              const sc = statusConfig[booking.status] || statusConfig.pending;
+
+              const rawSvc = booking.service;
+              const serviceName =
+                booking.service_name ||
+                booking.service_detail?.name ||
+                (typeof rawSvc === "string" &&
+                  rawSvc.trim() !== "" &&
+                  isNaN(rawSvc)
+                  ? rawSvc
+                  : typeof rawSvc === "number" ||
+                    (typeof rawSvc === "string" && !isNaN(rawSvc))
+                    ? `Service #${rawSvc}`
+                    : String(rawSvc || "Unknown Service"));
+
+              const displayTime = toDisplayTime(booking.time);
+
+              const rawPrice = parseFloat(booking.price);
+              const priceDisplay =
+                !isNaN(rawPrice) &&
+                  booking.price != null &&
+                  booking.price !== ""
+                  ? rawPrice > 0
+                    ? `₱${rawPrice.toLocaleString("en-PH")}`
+                    : "To be assessed"
+                  : "—";
+
+              return (
+                <div
+                  key={booking.id}
+                  className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-6 border border-white/5 hover:border-red-600/30 transition-all duration-300"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        <h3 className="text-xl font-black text-white">
+                          {serviceName}
+                        </h3>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-bold border ${sc.color}`}
+                        >
+                          {sc.label}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-5 gap-y-2 text-gray-400 text-sm">
+                        {[
+                          {
+                            icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+                            text: booking.date,
+                          },
+                          {
+                            icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+                            text: displayTime,
+                          },
+                          booking.staff && {
+                            icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+                            text: booking.staff,
+                          },
+                          booking.branch && {
+                            icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                            text:
+                              typeof booking.branch === "object"
+                                ? booking.branch.name
+                                : booking.branch,
+                          },
+                        ]
+                          .filter(Boolean)
+                          .map(
+                            ({ icon, text }) =>
+                              text && (
+                                <div
+                                  key={icon}
+                                  className="flex items-center gap-2"
+                                >
+                                  <svg
+                                    className="w-4 h-4 text-red-600 flex-shrink-0"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d={icon}
+                                    />
+                                  </svg>
+                                  {text}
+                                </div>
+                              ),
+                          )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-x-4 sm:gap-x-5 gap-y-1.5 sm:gap-y-2 text-gray-400 text-[10px] sm:text-xs">
                       {[

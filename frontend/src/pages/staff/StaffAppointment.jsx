@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import StaffLayout from "./StaffLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -35,14 +36,16 @@ function getDaysInMonth(year, month) {
 const statusStyle = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+  cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
   done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
 const statusLabel = {
   confirmed: "Confirmed",
   pending: "Pending",
   cancelled: "Cancelled",
   done: "Done",
+  rescheduled: "Rescheduled",
 };
 
 const SERVICES = [
@@ -93,7 +96,7 @@ function StaffAppointments() {
   const fetchBookings = useCallback(() => {
     setLoading(true);
     setError("");
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/`, {
+    fetch(`${API_BASE}/api/staff/bookings/`, {
       headers: authHeaders(),
     })
       .then((r) => {
@@ -180,7 +183,7 @@ function StaffAppointments() {
     setActionLoading(id);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/staff/bookings/${id}/action/`,
+        `${API_BASE}/api/staff/bookings/${id}/action/`,
         {
           method: "PATCH",
           headers: authHeaders(),
@@ -198,14 +201,99 @@ function StaffAppointments() {
       setBookings((prev) =>
         prev.map((b) => (b.id === updated.id ? updated : b)),
       );
-      setAssignedByBooking((prev) => ({
-        ...prev,
-        [id]: updated.assigned_employee_id ? String(updated.assigned_employee_id) : "",
-      }));
-    } catch (e) {
-      alert(e.message || "Action failed. Please try again.");
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Action failed",
+        text: "Please try again.",
+        background: "#111827",
+        color: "#fff",
+      });
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleReschedule = async (booking) => {
+    const { value: formValues } = await Swal.fire({
+      title: "Reschedule Appointment",
+      html: `
+        <div class="space-y-4 text-left">
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">New Date</label>
+            <input id="swal-input1" type="date" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" value="${booking.date}">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">New Time</label>
+            <input id="swal-input2" type="text" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="e.g. 10:00 AM" value="${booking.time}">
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Reschedule",
+      confirmButtonColor: "#3b82f6",
+      background: "#111827",
+      color: "#fff",
+      preConfirm: () => {
+        return {
+          date: document.getElementById("swal-input1").value,
+          time: document.getElementById("swal-input2").value,
+        };
+      },
+    });
+
+    if (formValues) {
+      if (!formValues.date || !formValues.time) {
+        Swal.fire({
+          icon: "error",
+          title: "Missing info",
+          text: "Both date and time are required.",
+          background: "#111827",
+          color: "#fff",
+        });
+        return;
+      }
+
+      setActionLoading(booking.id);
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/staff/bookings/${booking.id}/action/`,
+          {
+            method: "PATCH",
+            headers: authHeaders(),
+            body: JSON.stringify({
+              status: "rescheduled",
+              date: formValues.date,
+              time: formValues.time,
+            }),
+          },
+        );
+        if (!res.ok) throw new Error();
+        const updated = await res.json();
+        setBookings((prev) =>
+          prev.map((b) => (b.id === updated.id ? updated : b)),
+        );
+        Swal.fire({
+          icon: "success",
+          title: "Rescheduled",
+          text: "The appointment has been rescheduled and the customer will be notified.",
+          timer: 2000,
+          showConfirmButton: false,
+          background: "#111827",
+          color: "#fff",
+        });
+      } catch {
+        Swal.fire({
+          icon: "error",
+          title: "Failed",
+          text: "Failed to reschedule. Please try again.",
+          background: "#111827",
+          color: "#fff",
+        });
+      } finally {
+        setActionLoading(null);
+      }
     }
   };
 
@@ -215,7 +303,7 @@ function StaffAppointments() {
     setWalkInError("");
     try {
       const branchRes = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/branches/`,
+        `${API_BASE}/branches/`,
         { headers: authHeaders() },
       );
       const branches = await branchRes.json();
@@ -243,7 +331,7 @@ function StaffAppointments() {
       };
 
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/`,
+        `${API_BASE}/api/bookings/`,
         {
           method: "POST",
           headers: authHeaders(),
@@ -415,11 +503,10 @@ function StaffAppointments() {
                     <button
                       key={day}
                       onClick={() => setSelectedDate(day)}
-                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                        isSelected
-                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                          : "hover:bg-white/5 text-gray-400 hover:text-white"
-                      }`}
+                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${isSelected
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                        : "hover:bg-white/5 text-gray-400 hover:text-white"
+                        }`}
                     >
                       <span>{day}</span>
                       {dots.length > 0 && (
@@ -740,6 +827,26 @@ function StaffAppointments() {
                               </svg>
                             )}
                             Approve
+                          </button>
+                          <button
+                            onClick={() => handleReschedule(b)}
+                            disabled={actionLoading === b.id}
+                            className="flex-1 flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            Reschedule
                           </button>
                         </div>
                       )}

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
+import { API_BASE } from "../hooks/useAuth.js";
 
 function SignUpPage() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -166,7 +167,7 @@ function SignUpPage() {
     };
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/signup/`,
+        `${API_BASE}/signup/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -745,9 +746,12 @@ function SignUpPage() {
                     <button
                       type="button"
                       onClick={handlePrevious}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl transition-all duration-300 text-lg"
+                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-black py-4 rounded-2xl transition-all duration-300 text-lg flex items-center justify-center gap-2 border border-white/10 group shadow-lg"
                     >
-                      Previous
+                      <svg className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Back
                     </button>
                   )}
                   {currentStep < 3 ? (

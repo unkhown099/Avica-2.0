@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import AdminLayout from "./AdminLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 import axios from "axios";
 
-const API = import.meta.env.VITE_API_BASE_URL;
+const API = API_BASE;
 const getToken = () =>
   localStorage.getItem("access_token") ??
   sessionStorage.getItem("access_token");
@@ -28,17 +29,23 @@ const DAY_HEADERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const STATUS_STYLE = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+  cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
+  done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
 const STATUS_LABEL = {
   confirmed: "Confirmed",
   pending: "Pending",
   cancelled: "Cancelled",
+  done: "Done",
+  rescheduled: "Rescheduled",
 };
 const STATUS_DOT = {
   confirmed: "bg-emerald-400",
   pending: "bg-amber-400",
   cancelled: "bg-red-400",
+  done: "bg-blue-400",
+  rescheduled: "bg-indigo-400",
 };
 
 function getDaysInMonth(year, month) {
@@ -73,6 +80,154 @@ function SkeletonCard() {
   );
 }
 
+// ── Status Edit Modal ─────────────────────────────────────────────────────────
+function EditModal({ appointment, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    status: appointment.status,
+    staff: appointment.staff ?? "",
+    time: appointment.time ?? "",
+    notes: appointment.notes ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    try {
+      setSaving(true);
+      await axios.patch(`${API}/appointments/${appointment.id}/`, form, {
+        headers: authHeaders(),
+      });
+      onSaved();
+      onClose();
+      Swal.fire({
+        icon: "success",
+        title: "Appointment updated",
+        timer: 1500,
+        showConfirmButton: false,
+        timerProgressBar: true,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: err.response?.data?.detail ?? "Could not update.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls =
+    "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all";
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <div>
+            <h2 className="text-xl font-black text-white">Edit Appointment</h2>
+            <p className="text-gray-500 text-sm mt-0.5">
+              {appointment.customer_name}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-400 mb-2">
+              Status
+            </label>
+            <select
+              className={inputCls}
+              value={form.status}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, status: e.target.value }))
+              }
+            >
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="rescheduled">Rescheduled</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-400 mb-2">
+              Assigned Mechanic
+            </label>
+            <input
+              className={inputCls}
+              placeholder="e.g. Mike Johnson"
+              value={form.staff}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, staff: e.target.value }))
+              }
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-400 mb-2">
+              Time
+            </label>
+            <input
+              className={inputCls}
+              placeholder="e.g. 09:00 AM"
+              value={form.time}
+              onChange={(e) => setForm((p) => ({ ...p, time: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-400 mb-2">
+              Notes
+            </label>
+            <textarea
+              className={`${inputCls} resize-none`}
+              rows={3}
+              value={form.notes}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, notes: e.target.value }))
+              }
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onClose}
+              className="flex-1 border border-white/10 text-gray-400 hover:text-white px-6 py-3 rounded-xl transition-all font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submit}
+              disabled={saving}
+              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold shadow-lg shadow-red-600/30"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function AdminAppointments() {
@@ -328,13 +483,12 @@ function AdminAppointments() {
                     <button
                       key={day}
                       onClick={() => setSelectedDay(day)}
-                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                        isSelected
-                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                          : isToday
-                            ? "border border-red-500/40 text-red-400 hover:bg-red-500/10"
-                            : "hover:bg-white/5 text-gray-400 hover:text-white"
-                      }`}
+                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${isSelected
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                        : isToday
+                          ? "border border-red-500/40 text-red-400 hover:bg-red-500/10"
+                          : "hover:bg-white/5 text-gray-400 hover:text-white"
+                        }`}
                     >
                       <span>{day}</span>
                       {statuses.length > 0 && (

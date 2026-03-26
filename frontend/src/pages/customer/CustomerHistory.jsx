@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -60,11 +61,10 @@ function StarPicker({ value, onChange }) {
           onMouseLeave={() => setHovered(0)}
         >
           <svg
-            className={`w-8 h-8 transition-colors ${
-              s <= (hovered || value)
+            className={`w-8 h-8 transition-colors ${s <= (hovered || value)
                 ? "text-yellow-400"
                 : "text-gray-600 hover:text-yellow-400/50"
-            }`}
+              }`}
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -93,7 +93,7 @@ function ReviewModal({ item, onClose, onSubmitted }) {
     setError("");
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/ratings/`,
+        `${API_BASE}/api/ratings/`,
         {
           method: "POST",
           headers: authHeaders(),
@@ -225,7 +225,7 @@ function HistoryPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/customer/history/`, {
+    fetch(`${API_BASE}/api/customer/history/`, {
       headers: authHeaders(),
     })
       .then((r) => {

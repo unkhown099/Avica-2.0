@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
+import { API_BASE } from "../hooks/useAuth.js";
 
 function VerifyEmail() {
     const [searchParams] = useSearchParams();
@@ -18,7 +19,7 @@ function VerifyEmail() {
             }
 
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/verify-email/`, {
+                const res = await fetch(`${API_BASE}/verify-email/`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ token, uid }),

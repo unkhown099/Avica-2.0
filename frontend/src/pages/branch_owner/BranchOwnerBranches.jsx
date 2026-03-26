@@ -93,6 +93,89 @@ function BranchOwnerBranches() {
     return "bg-gray-500/20 text-gray-400 border-gray-500/30";
   };
 
+  const handleViewDetails = (branch) => {
+    import("sweetalert2").then((m) => {
+      const Swal = m.default;
+      Swal.fire({
+        title: `<span class="text-2xl font-black text-white">${branch.name}</span>`,
+        html: `
+          <div class="text-left space-y-4 mt-4">
+            <div class="bg-gray-800/50 p-4 rounded-xl border border-white/5">
+              <h4 class="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">General Information</h4>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Address</span>
+                  <p class="text-sm text-white font-medium">${branch.address || "N/A"}</p>
+                </div>
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Operating Hours</span>
+                  <p class="text-sm text-white font-medium">${branch.hours || "N/A"}</p>
+                </div>
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Status</span>
+                  <p class="text-sm ${branch.is_active ? "text-emerald-400" : "text-gray-400"} font-medium">
+                    ${branch.is_active ? "Active" : "Inactive"}
+                  </p>
+                </div>
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Service Bays (Slots)</span>
+                  <p class="text-sm text-white font-medium">${branch.slots || 0}</p>
+                </div>
+              </div>
+            </div>
+  
+            <div class="bg-gray-800/50 p-4 rounded-xl border border-white/5">
+              <h4 class="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Personnel</h4>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Branch Manager</span>
+                  <p class="text-sm text-white font-medium">${branch.manager_name || "Unassigned"}</p>
+                </div>
+                <div class="flex items-center gap-6">
+                  <div>
+                    <span class="text-[11px] text-gray-500 uppercase">Staff</span>
+                    <p class="text-sm text-white font-medium">${branch.staff_count || 0}</p>
+                  </div>
+                  <div>
+                    <span class="text-[11px] text-gray-500 uppercase">Mechanics</span>
+                    <p class="text-sm text-white font-medium">${branch.mechanic_count || 0}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+  
+            <div class="bg-gray-800/50 p-4 rounded-xl border border-white/5">
+              <h4 class="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Performance Overview</h4>
+              <div class="grid grid-cols-2 flex-wrap gap-4">
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Services Completed</span>
+                  <p class="text-sm text-white font-medium">${branch.services_completed || 0}</p>
+                </div>
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Monthly Revenue</span>
+                  <p class="text-sm text-emerald-400 font-bold">${formatRevenue(branch.monthly_revenue)}</p>
+                </div>
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Bay Utilization</span>
+                  <p class="text-sm text-white font-medium">${branch.bay_utilization || 0}%</p>
+                </div>
+                <div>
+                  <span class="text-[11px] text-gray-500 uppercase">Satisfaction</span>
+                  <p class="text-sm text-amber-400 font-medium">${branch.satisfaction_pct ? branch.satisfaction_pct + "%" : "No ratings yet"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `,
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
+        confirmButtonColor: "#dc2626",
+        confirmButtonText: "Close",
+        width: '500px',
+      });
+    });
+  };
+
   // If not authenticated, show message
   if (!isAuthenticated && !loading) {
     return (
@@ -384,7 +467,10 @@ function BranchOwnerBranches() {
                     </div>
                   </div>
 
-                  <button className="mt-auto w-full bg-red-600 hover:bg-red-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20">
+                  <button
+                    onClick={() => handleViewDetails(branch)}
+                    className="mt-auto w-full bg-red-600 hover:bg-red-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20"
+                  >
                     View Details
                   </button>
                 </div>

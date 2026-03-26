@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
 import { useNavigate, Link } from "react-router-dom";
 import logo from "../../assets/otokwikklogo.png";
-import { getUserFromSession } from "../../utils/getUser";
+import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import NotificationDropdown from "../NotificationDropdown";
 
 // ── icons ──────────────────────────────────────────────────────────────────
 const IconBell = () => (
@@ -242,8 +243,9 @@ function useOutsideClick(ref, callback) {
 
 // ── main component ─────────────────────────────────────────────────────────
 function Navbar({ user: userProp, setUser }) {
+  const { user: authUser } = useAuth();
   const [localUser, setLocalUser] = useState(
-    () => userProp || getUserFromSession(),
+    () => userProp || authUser,
   );
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -264,8 +266,8 @@ function Navbar({ user: userProp, setUser }) {
 
   useEffect(() => {
     const handleStorage = () => {
-      const derived = getUserFromSession();
-      if (derived) setLocalUser(derived);
+      // In this version we rely more on the auth hook or context if available,
+      // but for legacy we skip direct getUserFromSession.
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
@@ -282,6 +284,20 @@ function Navbar({ user: userProp, setUser }) {
     );
 
   const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: "Confirm Logout",
+      text: "Are you sure you want to log out?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#374151",
+      confirmButtonText: "Yes, logout",
+      background: "linear-gradient(to bottom right, #1f2937, #111827)",
+      color: "#fff",
+    });
+
+    if (!result.isConfirmed) return;
+
     const refresh =
       localStorage.getItem("refresh_token") ||
       sessionStorage.getItem("refresh_token");
@@ -290,7 +306,7 @@ function Navbar({ user: userProp, setUser }) {
       sessionStorage.getItem("access_token");
 
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}logout/`, {
+      await fetch(`${API_BASE}/logout/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

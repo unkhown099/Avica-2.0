@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout.jsx";
+import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
 
 function CustomerDashboard() {
@@ -34,7 +35,7 @@ function CustomerDashboard() {
       setDashboardError(null);
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/api/customer/dashboard/`,
+          `${API_BASE}/api/customer/dashboard/`,
           {
             method: "GET",
             headers: {
@@ -104,7 +105,7 @@ function CustomerDashboard() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}api/car-recognition/`,
+        `${API_BASE}/api/car-recognition/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
@@ -601,11 +602,10 @@ function CustomerDashboard() {
                           {booking.service}
                         </h3>
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                            booking.status === "confirmed"
+                          className={`px-3 py-1 rounded-full text-xs font-semibold border ${booking.status === "confirmed"
                               ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                               : "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                          }`}
+                            }`}
                         >
                           {booking.status.charAt(0).toUpperCase() +
                             booking.status.slice(1)}

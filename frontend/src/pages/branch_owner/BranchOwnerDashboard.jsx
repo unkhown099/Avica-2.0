@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import BranchOwnerLayout from "./BranchOwnerLayout";
+import NotificationDropdown from "../../components/NotificationDropdown";
 import { Line, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -398,15 +399,18 @@ export default function BranchOwnerDashboard() {
   return (
     <BranchOwnerLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">
-            Owner Dashboard
-          </h1>
-          <p className="text-gray-400 mt-1">
-            {loading
-              ? "Loading…"
-              : "Here's what's happening across all your branches."}
-          </p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              Owner Dashboard
+            </h1>
+            <p className="text-gray-400 mt-1">
+              {loading
+                ? "Loading…"
+                : "Here's what's happening across all your branches."}
+            </p>
+          </div>
+          <NotificationDropdown />
         </div>
 
         {error && (

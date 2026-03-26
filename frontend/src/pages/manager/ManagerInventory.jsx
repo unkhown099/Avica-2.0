@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ManagerLayout from "./ManagerLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
 import axios from "axios";
 import Swal from "sweetalert2";
 
@@ -192,17 +193,15 @@ function ManagerInventory() {
     const token = getAuthToken();
 
     const instance = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL.endsWith("/")
-        ? import.meta.env.VITE_API_BASE_URL
-        : `${import.meta.env.VITE_API_BASE_URL}/`,
+      baseURL: API_BASE,
       headers: token
         ? {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        }
         : {
-            "Content-Type": "application/json",
-          },
+          "Content-Type": "application/json",
+        },
     });
 
     // Add request interceptor to ensure token is always fresh
@@ -472,20 +471,20 @@ function ManagerInventory() {
   // Safely calculate low stock items - ensure inventoryItems is array
   const lowStockItems = Array.isArray(inventoryItems)
     ? inventoryItems
-        .filter(
-          (item) => {
-            const key = getInventoryStatusKey(item);
-            return key === "running_low" || key === "reorder_now" || key === "out_of_stock";
-          },
-        )
-        .map((item) => ({
-          originalId: item.originalId,
-          sku: item.sku,
-          name: item.name,
-          current: item.quantity,
-          minimum: item.minimum || 10,
-          unit: item.unit || "Pieces",
-        }))
+      .filter(
+        (item) => {
+          const key = getInventoryStatusKey(item);
+          return key === "running_low" || key === "reorder_now" || key === "out_of_stock";
+        },
+      )
+      .map((item) => ({
+        originalId: item.originalId,
+        sku: item.sku,
+        name: item.name,
+        current: item.quantity,
+        minimum: item.minimum || 10,
+        unit: item.unit || "Pieces",
+      }))
     : [];
 
   const getStatusBadge = (item, isActive = true) => {
@@ -534,29 +533,29 @@ function ManagerInventory() {
   // Safely filter inventory - ensure inventoryItems is array
   const filteredInventory = Array.isArray(inventoryItems)
     ? inventoryItems.filter((item) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          (item.name?.toLowerCase().includes(q) ||
-            item.sku?.toLowerCase().includes(q) ||
-            item.category?.toLowerCase().includes(q)) &&
-          (categoryFilter === "All Categories" ||
-            item.category === categoryFilter) &&
-          (statusFilter === "all" ||
-            getInventoryStatusKey(item) === statusFilter)
-        );
-      })
+      const q = searchQuery.toLowerCase();
+      return (
+        (item.name?.toLowerCase().includes(q) ||
+          item.sku?.toLowerCase().includes(q) ||
+          item.category?.toLowerCase().includes(q)) &&
+        (categoryFilter === "All Categories" ||
+          item.category === categoryFilter) &&
+        (statusFilter === "all" ||
+          getInventoryStatusKey(item) === statusFilter)
+      );
+    })
     : [];
 
   // Safely filter services - ensure services is array
   const filteredServices = Array.isArray(services)
     ? services.filter((service) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          service.name.toLowerCase().includes(q) ||
-          service.category.toLowerCase().includes(q) ||
-          service.description.toLowerCase().includes(q)
-        );
-      })
+      const q = searchQuery.toLowerCase();
+      return (
+        service.name.toLowerCase().includes(q) ||
+        service.category.toLowerCase().includes(q) ||
+        service.description.toLowerCase().includes(q)
+      );
+    })
     : [];
 
   // Helper function to render stats icons
@@ -636,9 +635,9 @@ function ManagerInventory() {
       label: "Inventory Value",
       value: `₱${(Array.isArray(inventoryItems)
         ? inventoryItems.reduce((sum, item) => {
-            const price = parseFloat(item.price?.replace(/[₱,]/g, "") || "0");
-            return sum + price * (item.quantity || 0);
-          }, 0)
+          const price = parseFloat(item.price?.replace(/[₱,]/g, "") || "0");
+          return sum + price * (item.quantity || 0);
+        }, 0)
         : 0
       ).toLocaleString()}`,
       sub: "Total stock value",
@@ -713,21 +712,19 @@ function ManagerInventory() {
         <div className="flex gap-2 mb-8 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-fit">
           <button
             onClick={() => setActiveTab("inventory")}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === "inventory"
+            className={`px-6 py-3 rounded-lg font-semibold transition-all ${activeTab === "inventory"
                 ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
+              }`}
           >
             Inventory
           </button>
           <button
             onClick={() => setActiveTab("services")}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === "services"
+            className={`px-6 py-3 rounded-lg font-semibold transition-all ${activeTab === "services"
                 ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
+              }`}
           >
             Services
           </button>
@@ -847,11 +844,10 @@ function ManagerInventory() {
             </svg>
             <input
               type="text"
-              placeholder={`Search ${
-                activeTab === "inventory"
+              placeholder={`Search ${activeTab === "inventory"
                   ? "by name, SKU, or category..."
                   : "by service name or category..."
-              }`}
+                }`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
@@ -1043,9 +1039,8 @@ function ManagerInventory() {
                     <button
                       onClick={() => toggleServiceStatus(service)}
                       disabled={updatingServiceId === service.originalId}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-                        service.is_active ? "bg-emerald-500" : "bg-gray-600"
-                      } ${updatingServiceId === service.originalId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${service.is_active ? "bg-emerald-500" : "bg-gray-600"
+                        } ${updatingServiceId === service.originalId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                       title={
                         service.is_active
                           ? "Click to deactivate"
@@ -1053,9 +1048,8 @@ function ManagerInventory() {
                       }
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          service.is_active ? "translate-x-6" : "translate-x-1"
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${service.is_active ? "translate-x-6" : "translate-x-1"
+                          }`}
                       />
                     </button>
                   </div>
@@ -1065,24 +1059,24 @@ function ManagerInventory() {
 
             {((activeTab === "inventory" && filteredInventory.length > 0) ||
               (activeTab === "services" && filteredServices.length > 0)) && (
-              <div className="px-6 py-4">
-                <p className="text-gray-500 text-sm">
-                  Showing{" "}
-                  <span className="text-white font-semibold">
-                    {activeTab === "inventory"
-                      ? filteredInventory.length
-                      : filteredServices.length}
-                  </span>{" "}
-                  of{" "}
-                  <span className="text-white font-semibold">
-                    {activeTab === "inventory"
-                      ? inventoryItems.length
-                      : services.length}
-                  </span>{" "}
-                  {activeTab === "inventory" ? "items" : "services"}
-                </p>
-              </div>
-            )}
+                <div className="px-6 py-4">
+                  <p className="text-gray-500 text-sm">
+                    Showing{" "}
+                    <span className="text-white font-semibold">
+                      {activeTab === "inventory"
+                        ? filteredInventory.length
+                        : filteredServices.length}
+                    </span>{" "}
+                    of{" "}
+                    <span className="text-white font-semibold">
+                      {activeTab === "inventory"
+                        ? inventoryItems.length
+                        : services.length}
+                    </span>{" "}
+                    {activeTab === "inventory" ? "items" : "services"}
+                  </p>
+                </div>
+              )}
           </div>
         )}
       </div>
