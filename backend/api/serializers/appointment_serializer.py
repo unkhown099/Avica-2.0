@@ -1,6 +1,16 @@
 from rest_framework import serializers
 from ..models import Booking
 import decimal
+import re
+
+
+PREFERRED_EMPLOYEE_PATTERN = re.compile(r"\[preferred_employee_id=(\d+)\]", re.IGNORECASE)
+
+
+def _strip_preferred_employee_marker(notes):
+    raw_notes = notes or ""
+    cleaned = PREFERRED_EMPLOYEE_PATTERN.sub("", raw_notes)
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -28,3 +38,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
             return float(str(obj.price).replace("₱", "").replace(",", "").strip())
         except Exception:
             return 0.0
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["notes"] = _strip_preferred_employee_marker(instance.notes)
+        return rep

@@ -15,7 +15,7 @@ const TIME_SLOTS = [
   "4:00 PM",
 ];
 
-const STEPS = ["Service", "Branch", "Schedule", "Details"];
+const STEPS = ["Service", "Branch", "Booking Mode", "Schedule", "Details"];
 
 const statusConfig = {
   confirmed: {
@@ -541,7 +541,9 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       ? `Damage detected: ${initialDamageData.damages.map((d) => d.type).join(", ")}. Recommendations: ${initialDamageData.recommendations.join(", ")}`
       : "",
     damageData: initialDamageData,
+    preferredEmployee: null,
   });
+  const [bookingMode, setBookingMode] = useState("general");
 
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(true);
@@ -549,6 +551,9 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   const [branches, setBranches] = useState([]);
   const [branchLoading, setBranchLoading] = useState(true);
   const [branchError, setBranchError] = useState("");
+  const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [employeesError, setEmployeesError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
@@ -558,10 +563,10 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   const [availableSlots, setAvailableSlots] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
 
-  // FIX: Store user bookings separately for duplicate-date check
+  // Store user bookings to enforce one-active-booking rule.
   const [userBookings, setUserBookings] = useState([]);
   const [userBookingsLoaded, setUserBookingsLoaded] = useState(false);
-  const [hasBookingOnSelectedDate, setHasBookingOnSelectedDate] = useState(false);
+  const [hasActiveBooking, setHasActiveBooking] = useState(false);
 
   // ── Load user's existing bookings once on mount ──────────────────────────
   useEffect(() => {
@@ -574,29 +579,26 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       .catch(() => setUserBookingsLoaded(true)); // still mark loaded so we don't block forever
   }, []);
 
-  // ── Check if user already has an active booking on the selected date ─────
+  // ── Check if user already has any active booking (pending/confirmed) ─────
   useEffect(() => {
-    if (!form.date || !userBookingsLoaded) {
-      setHasBookingOnSelectedDate(false);
+    if (!userBookingsLoaded) {
+      setHasActiveBooking(false);
       return;
     }
-    const conflict = userBookings.some(
-      (b) =>
-        b.date === form.date &&
-        b.status !== "cancelled" &&
-        b.status !== "done",
+    const activeExists = userBookings.some(
+      (b) => b.status === "pending" || b.status === "confirmed",
     );
-    setHasBookingOnSelectedDate(conflict);
-    if (conflict) {
+    setHasActiveBooking(activeExists);
+    if (activeExists) {
       setError(
-        "You already have an existing booking on this date. Multiple bookings on the same day are not allowed.",
+        "You already have an active booking. Please complete or cancel it before creating a new one.",
       );
     } else {
       setError((prev) =>
-        prev.includes("already have an existing booking") ? "" : prev,
+        prev.includes("already have an active booking") ? "" : prev,
       );
     }
-  }, [form.date, userBookings, userBookingsLoaded]);
+  }, [userBookings, userBookingsLoaded]);
 
   // ── Fetch available slots whenever date + branch change ──────────────────
   useEffect(() => {
@@ -650,6 +652,42 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       .finally(() => setBranchLoading(false));
   }, []);
 
+  // ── Employees by selected branch (for specific mechanic mode) ───────────
+  useEffect(() => {
+    if (!form.branch?.id) {
+      setEmployees([]);
+      setEmployeesError("");
+      setForm((prev) => ({ ...prev, preferredEmployee: null }));
+      return;
+    }
+
+    setEmployeesLoading(true);
+    setEmployeesError("");
+
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/queue/employees/?branch_id=${form.branch.id}`, {
+      headers: authHeaders(),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load mechanics.");
+        return r.json();
+      })
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : [];
+        setEmployees(rows);
+
+        setForm((prev) => {
+          if (!prev.preferredEmployee?.id) return prev;
+          const stillExists = rows.some((e) => e.id === prev.preferredEmployee.id);
+          return stillExists ? prev : { ...prev, preferredEmployee: null };
+        });
+      })
+      .catch((err) => {
+        setEmployees([]);
+        setEmployeesError(err.message || "Failed to load mechanics.");
+      })
+      .finally(() => setEmployeesLoading(false));
+  }, [form.branch?.id]);
+
   const set = (key, value) => {
     setForm((p) => ({ ...p, [key]: value }));
     setError("");
@@ -675,15 +713,22 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       return true;
     }
     if (step === 2) {
+      if (bookingMode === "specific" && !form.preferredEmployee?.id) {
+        setError("Please select a specific mechanic to continue.");
+        return false;
+      }
+      return true;
+    }
+    if (step === 3) {
       // FIX: Block same-day booking
       if (!form.date) { setError("Please select a date."); return false; }
       if (form.date <= todayISO()) {
         setError("Same-day bookings are not allowed. Please select tomorrow or a later date.");
         return false;
       }
-      // FIX: Block if user already has a booking that day
-      if (hasBookingOnSelectedDate) {
-        setError("You already have a booking on this date. Multiple bookings on the same day are not allowed.");
+      // Block if user already has an active booking.
+      if (hasActiveBooking) {
+        setError("You already have an active booking. Please complete or cancel it before creating a new one.");
         return false;
       }
       if (!form.time) { setError("Please select a time slot."); return false; }
@@ -717,9 +762,9 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         throw new Error("Same-day bookings are not allowed. Please select tomorrow or a later date.");
       }
 
-      // FIX: Duplicate-day guard at submit time
-      if (hasBookingOnSelectedDate) {
-        throw new Error("You already have a booking on this date. Multiple bookings on the same day are not allowed.");
+      // Guard: one active booking at a time.
+      if (hasActiveBooking) {
+        throw new Error("You already have an active booking. Please complete or cancel it before creating a new one.");
       }
 
       // FIX: Slot availability guard at submit time
@@ -731,6 +776,10 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       const plateNumber = (form.plateNumber ?? "").trim();
       if (!vehicle || !plateNumber) throw new Error("Please enter vehicle details");
 
+      if (bookingMode === "specific" && !form.preferredEmployee?.id) {
+        throw new Error("Please select a specific mechanic for this booking type.");
+      }
+
       const payload = {
         service: form.service.name,
         branch_id: parseInt(form.branch.id, 10),
@@ -740,6 +789,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         plate_number: plateNumber,
         notes: form.notes || "",
         price: parseFloat(form.service.price_min ?? form.service.price ?? 0),
+        preferred_employee_id: bookingMode === "specific" ? form.preferredEmployee?.id ?? null : null,
       };
 
       const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, {
@@ -877,7 +927,12 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                       <button
                         key={b.id}
                         type="button"
-                        onClick={() => set("branch", b)}
+                        onClick={() => {
+                          set("branch", b);
+                          if (bookingMode === "specific") {
+                            set("preferredEmployee", null);
+                          }
+                        }}
                         className={`w-full p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-2 sm:gap-4 ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
                       >
                         <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${active ? "bg-red-600" : "bg-white/8"}`}>
@@ -909,8 +964,68 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             </div>
           )}
 
-          {/* ── Step 2: Schedule ── */}
+          {/* ── Step 2: Booking Mode ── */}
           {step === 2 && (
+            <div className="space-y-4 sm:space-y-5">
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">Choose Booking Mode</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBookingMode("general");
+                    set("preferredEmployee", null);
+                  }}
+                  className={`p-3 sm:p-4 rounded-2xl border text-left transition-all ${bookingMode === "general" ? "border-emerald-500 bg-emerald-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
+                >
+                  <div className="text-white font-bold text-sm sm:text-base">General Booking</div>
+                  <div className="text-gray-400 text-[10px] sm:text-xs mt-1">Any available mechanic will be assigned.</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBookingMode("specific")}
+                  className={`p-3 sm:p-4 rounded-2xl border text-left transition-all ${bookingMode === "specific" ? "border-red-500 bg-red-600/12" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
+                >
+                  <div className="text-white font-bold text-sm sm:text-base">Book Specific Mechanic</div>
+                  <div className="text-gray-400 text-[10px] sm:text-xs mt-1">Choose the mechanic you want to handle your service.</div>
+                </button>
+              </div>
+
+              {bookingMode === "specific" && (
+                <div>
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">Select Mechanic</p>
+                  {employeesLoading ? (
+                    <div className="text-gray-500 text-xs sm:text-sm py-8">Loading mechanics...</div>
+                  ) : employeesError ? (
+                    <div className="text-red-400 text-xs sm:text-sm py-8">{employeesError}</div>
+                  ) : employees.length === 0 ? (
+                    <div className="text-gray-500 text-xs sm:text-sm py-8">No active mechanics available for this branch.</div>
+                  ) : (
+                    <div className="space-y-2 sm:space-y-3">
+                      {employees.map((emp) => {
+                        const active = form.preferredEmployee?.id === emp.id;
+                        return (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => set("preferredEmployee", emp)}
+                            className={`w-full p-3 sm:p-4 rounded-2xl border text-left transition-all ${active ? "border-red-500 bg-red-600/12" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
+                          >
+                            <div className="text-white font-semibold text-sm sm:text-base">{emp.full_name}</div>
+                            <div className="text-gray-500 text-[10px] sm:text-xs">Branch: {emp.branch || form.branch?.name || "Unassigned"}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Step 3: Schedule ── */}
+          {step === 3 && (
             <div className="space-y-4 sm:space-y-5">
               {/* Date picker */}
               <div>
@@ -934,10 +1049,10 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                     Same-day bookings are not allowed. Please select tomorrow or a later date.
                   </p>
                 )}
-                {/* FIX: warn about duplicate booking on this date */}
-                {form.date && form.date > todayISO() && hasBookingOnSelectedDate && (
+                {/* Warn if customer already has active booking */}
+                {hasActiveBooking && (
                   <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">
-                    You already have a booking on this date. Please choose a different day.
+                    You already have an active booking. Please complete or cancel it before creating a new one.
                   </p>
                 )}
               </div>
@@ -971,7 +1086,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                       !slotsLoaded ||
                       !slotAvailable ||
                       !dateValid ||
-                      hasBookingOnSelectedDate ||
+                      hasActiveBooking ||
                       checkingAvailability;
 
                     return (
@@ -983,8 +1098,8 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         title={
                           !dateValid
                             ? "Select a valid date first"
-                            : hasBookingOnSelectedDate
-                              ? "You already have a booking on this date"
+                            : hasActiveBooking
+                              ? "You already have an active booking"
                               : !slotsLoaded || checkingAvailability
                                 ? "Loading availability…"
                                 : !slotAvailable
@@ -1001,7 +1116,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                       >
                         {t}
                         {/* FIX: show correct label based on why it's disabled */}
-                        {isDisabled && slotsLoaded && !checkingAvailability && !hasBookingOnSelectedDate && dateValid && (
+                        {isDisabled && slotsLoaded && !checkingAvailability && !hasActiveBooking && dateValid && (
                           <span className="block text-[8px] text-gray-600 font-normal">Fully Booked</span>
                         )}
                         {checkingAvailability && (
@@ -1013,7 +1128,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                 </div>
 
                 {/* Slot count summary */}
-                {form.date && form.date > todayISO() && !checkingAvailability && availableSlots !== null && !hasBookingOnSelectedDate && (
+                {form.date && form.date > todayISO() && !checkingAvailability && availableSlots !== null && !hasActiveBooking && (
                   <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
                     {availableCount > 0
                       ? `${availableCount} time slot${availableCount !== 1 ? "s" : ""} available`
@@ -1038,8 +1153,8 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             </div>
           )}
 
-          {/* ── Step 3: Details ── */}
-          {step === 3 && (
+          {/* ── Step 4: Details ── */}
+          {step === 4 && (
             <div className="space-y-4 sm:space-y-5">
               {form.damageData && (
                 <div className="bg-blue-600/10 border border-blue-600/20 rounded-xl p-3 sm:p-4">
@@ -1080,6 +1195,16 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
               </div>
               <div>
                 <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 sm:mb-2">
+                  Mechanic Assignment
+                </label>
+                <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">
+                  {bookingMode === "specific"
+                    ? (form.preferredEmployee?.full_name || "Specific mechanic selected")
+                    : "General booking (any available mechanic)"}
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 sm:mb-2">
                   Special Requests <span className="text-gray-600 font-normal normal-case">(optional)</span>
                 </label>
                 <textarea
@@ -1096,10 +1221,12 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                 </div>
                 <div className="divide-y divide-white/5">
                   {[
+                    { label: "Booking Type", value: bookingMode === "specific" ? "Specific Mechanic" : "General Booking" },
                     { label: "Service", value: form.service?.name },
                     { label: "Branch", value: form.branch?.name },
                     { label: "Date", value: form.date },
                     { label: "Time", value: form.time },
+                    { label: "Preferred Mechanic", value: form.preferredEmployee?.full_name || "No preference" },
                     {
                       label: "Price Range",
                       value: form.service
@@ -1259,6 +1386,148 @@ function OptionSelectorModal({ onClose, onSelectOption }) {
   );
 }
 
+function BookingTypeModal({ onClose, onSelectType }) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm sm:max-w-md flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/8 flex-shrink-0">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+              Booking <span className="text-red-500">Type</span>
+            </h2>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Choose how you want to book</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="space-y-3 sm:space-y-4">
+            <button
+              onClick={() => onSelectType("general")}
+              className="w-full p-4 sm:p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-black hover:border-white/20 transition-all duration-300 text-left group"
+            >
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl bg-emerald-600/20 group-hover:bg-emerald-600/30 flex items-center justify-center transition-colors">
+                  <svg className="w-5 h-5 sm:w-7 sm:h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base sm:text-xl font-bold text-white mb-1 sm:mb-2">General Booking</h3>
+                  <p className="text-gray-400 text-[10px] sm:text-xs mb-2 sm:mb-3">Book a service without choosing a specific mechanic.</p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => onSelectType("specific")}
+              className="w-full p-4 sm:p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-black hover:border-white/20 transition-all duration-300 text-left group"
+            >
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl bg-red-600/20 group-hover:bg-red-600/30 flex items-center justify-center transition-colors">
+                  <svg className="w-5 h-5 sm:w-7 sm:h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base sm:text-xl font-bold text-white mb-1 sm:mb-2">Book Specific Mechanic</h3>
+                  <p className="text-gray-400 text-[10px] sm:text-xs mb-2 sm:mb-3">Select your preferred mechanic and route the booking to that employee.</p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SpecificMechanicModal({ onClose, onSelectMechanic }) {
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/queue/employees/`, { headers: authHeaders() })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load mechanics.");
+        return r.json();
+      })
+      .then((data) => setEmployees(Array.isArray(data) ? data : []))
+      .catch((err) => setError(err.message || "Failed to load mechanics."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm sm:max-w-md flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/8 flex-shrink-0">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+              Select <span className="text-red-500">Mechanic</span>
+            </h2>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Choose who will handle your service</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 sm:py-8">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 sm:py-16 text-gray-500">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 animate-spin mr-2 sm:mr-3" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Loading mechanics...
+            </div>
+          ) : error ? (
+            <div className="text-center py-12 sm:py-16 text-red-400 text-xs sm:text-sm">{error}</div>
+          ) : employees.length === 0 ? (
+            <div className="text-center py-12 sm:py-16 text-gray-500 text-xs sm:text-sm">No active mechanics available.</div>
+          ) : (
+            <div className="space-y-3 sm:space-y-4">
+              {employees.map((emp) => (
+                <button
+                  key={emp.id}
+                  onClick={() => onSelectMechanic(emp)}
+                  className="w-full p-4 sm:p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-black hover:border-white/20 transition-all duration-300 text-left group"
+                >
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl bg-red-600/20 group-hover:bg-red-600/30 flex items-center justify-center transition-colors">
+                      <svg className="w-5 h-5 sm:w-7 sm:h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-white mb-1 truncate">{emp.full_name}</h3>
+                      <p className="text-gray-400 text-[10px] sm:text-xs">Branch: {emp.branch || "Unassigned"}</p>
+                    </div>
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 group-hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
 function Toast({ message, type = "success", onDismiss }) {
@@ -1359,7 +1628,11 @@ function BookingsPage() {
 
   const handleOptionSelect = (option) => {
     setShowOptionModal(false);
-    option === "booking" ? setShowBookingModal(true) : setShowDamageModal(true);
+    if (option === "booking") {
+      setShowBookingModal(true);
+      return;
+    }
+    setShowDamageModal(true);
   };
 
   const handleDamageComplete = (data) => {
@@ -1537,7 +1810,10 @@ function BookingsPage() {
       {showOptionModal && <OptionSelectorModal onClose={() => setShowOptionModal(false)} onSelectOption={handleOptionSelect} />}
       {showBookingModal && (
         <NewBookingModal
-          onClose={() => { setShowBookingModal(false); setDamageData(null); }}
+          onClose={() => {
+            setShowBookingModal(false);
+            setDamageData(null);
+          }}
           onSuccess={handleBookingSuccess}
           initialDamageData={damageData}
         />

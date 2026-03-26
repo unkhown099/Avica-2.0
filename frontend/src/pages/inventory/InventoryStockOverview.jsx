@@ -701,7 +701,7 @@ function StockOverview() {
                     {/* Restock — opens modal pre-filled with THIS item */}
                     <button
                       onClick={() => setRestockItem(item)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all"
+                      className="opacity-100 p-1.5 text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all"
                       title="Request Restock"
                     >
                       <svg
@@ -721,7 +721,7 @@ function StockOverview() {
                     {isAdmin && (
                       <button
                         onClick={() => setTransferItem(item)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                        className="opacity-100 p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
                         title="Transfer Stock"
                       >
                         <svg

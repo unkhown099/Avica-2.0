@@ -1,5 +1,34 @@
+import re
+
 from rest_framework import serializers
-from ..models import Branch, Booking
+from ..models import Branch, Booking, Staff
+
+
+PREFERRED_EMPLOYEE_PATTERN = re.compile(r"\[preferred_employee_id=(\d+)\]", re.IGNORECASE)
+
+
+def _extract_preferred_employee_id(notes):
+    raw_notes = notes or ""
+    match = PREFERRED_EMPLOYEE_PATTERN.search(raw_notes)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except (TypeError, ValueError):
+        return None
+
+
+def _strip_preferred_employee_marker(notes):
+    raw_notes = notes or ""
+    cleaned = PREFERRED_EMPLOYEE_PATTERN.sub("", raw_notes)
+    # Keep user-facing notes clean after marker removal.
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+
+def _inject_preferred_employee_marker(notes, employee_id):
+    cleaned_notes = _strip_preferred_employee_marker(notes)
+    marker = f"[preferred_employee_id={employee_id}]"
+    return f"{cleaned_notes}\n{marker}".strip() if cleaned_notes else marker
 
 
 class BranchSerializer(serializers.ModelSerializer):
@@ -32,6 +61,8 @@ class BookingSerializer(serializers.ModelSerializer):
 
     assigned_employee_id = serializers.SerializerMethodField()
     assigned_employee_name = serializers.SerializerMethodField()
+    preferred_employee_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    preferred_employee_name = serializers.SerializerMethodField()
     customer_name = serializers.SerializerMethodField()
     # 👈 ADD THIS FIELD - make it writeable so frontend can send cancellation reason
     cancellation_reason = serializers.CharField(
@@ -51,6 +82,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "notes", "status", "staff",
             "customer_name",
             "assigned_employee_id", "assigned_employee_name",
+            "preferred_employee_id", "preferred_employee_name",
             "created_at",
             "notes", "status", "staff", "created_at",
             "cancellation_reason",  # 👈 ADD THIS
@@ -87,6 +119,18 @@ class BookingSerializer(serializers.ModelSerializer):
 
         return "Unknown Customer"
 
+    def get_preferred_employee_name(self, instance):
+        preferred_id = _extract_preferred_employee_id(instance.notes)
+        if not preferred_id:
+            return ""
+
+        try:
+            employee = Staff.objects.get(pk=preferred_id, role="Employee")
+        except Staff.DoesNotExist:
+            return ""
+
+        return f"{employee.first_name} {employee.last_name}".strip()
+
     def get_price(self, instance):
         try:
             return float(
@@ -98,7 +142,57 @@ class BookingSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if not attrs.get("branch"):
             raise serializers.ValidationError({"branch_id": "A valid branch is required."})
+
+        preferred_employee_id = attrs.get("preferred_employee_id", serializers.empty)
+        if preferred_employee_id is not serializers.empty and preferred_employee_id is not None:
+            branch = attrs.get("branch")
+            try:
+                employee = Staff.objects.get(pk=preferred_employee_id, role="Employee", status="Active")
+            except Staff.DoesNotExist:
+                raise serializers.ValidationError({"preferred_employee_id": "Selected mechanic is not available."})
+
+            if branch and employee.branch_id != branch.id:
+                raise serializers.ValidationError(
+                    {"preferred_employee_id": "Selected mechanic must belong to the selected branch."}
+                )
+
         return attrs
+
+    def create(self, validated_data):
+        preferred_employee_id = validated_data.pop("preferred_employee_id", serializers.empty)
+        notes = validated_data.get("notes", "")
+
+        if preferred_employee_id is serializers.empty:
+            validated_data["notes"] = _strip_preferred_employee_marker(notes)
+            return super().create(validated_data)
+
+        if preferred_employee_id is None:
+            validated_data["notes"] = _strip_preferred_employee_marker(notes)
+            validated_data["staff"] = "TBA"
+            return super().create(validated_data)
+
+        employee = Staff.objects.get(pk=preferred_employee_id, role="Employee", status="Active")
+        validated_data["notes"] = _inject_preferred_employee_marker(notes, preferred_employee_id)
+        validated_data["staff"] = f"{employee.first_name} {employee.last_name}".strip() or "TBA"
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        preferred_employee_id = validated_data.pop("preferred_employee_id", serializers.empty)
+        notes = validated_data.get("notes", instance.notes)
+
+        if preferred_employee_id is serializers.empty:
+            validated_data["notes"] = _strip_preferred_employee_marker(notes)
+            return super().update(instance, validated_data)
+
+        if preferred_employee_id is None:
+            validated_data["notes"] = _strip_preferred_employee_marker(notes)
+            validated_data["staff"] = "TBA"
+            return super().update(instance, validated_data)
+
+        employee = Staff.objects.get(pk=preferred_employee_id, role="Employee", status="Active")
+        validated_data["notes"] = _inject_preferred_employee_marker(notes, preferred_employee_id)
+        validated_data["staff"] = f"{employee.first_name} {employee.last_name}".strip() or "TBA"
+        return super().update(instance, validated_data)
 
     def to_internal_value(self, data):
         data = data.copy()
@@ -122,6 +216,7 @@ class BookingSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         rep["branch"] = instance.branch.name if instance.branch else ""
+        rep["notes"] = _strip_preferred_employee_marker(instance.notes)
         # Remove the write-only field from output (already excluded, just safety)
         rep.pop("price_input", None)
         return rep

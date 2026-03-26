@@ -1,8 +1,10 @@
 import logging
+import re
 from django.db.models import Q
 from datetime import datetime, timedelta
 from django.utils import timezone
 from rest_framework import generics, permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -11,6 +13,19 @@ from ..serializers.bookings_serializer import BranchSerializer, BookingSerialize
 from api.views.queue_views import _booking_to_queue_entry
 
 logger = logging.getLogger(__name__)
+
+PREFERRED_EMPLOYEE_PATTERN = re.compile(r"\[preferred_employee_id=(\d+)\]", re.IGNORECASE)
+
+
+def _extract_preferred_employee_id(notes):
+    raw_notes = notes or ""
+    match = PREFERRED_EMPLOYEE_PATTERN.search(raw_notes)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except (TypeError, ValueError):
+        return None
 
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
@@ -56,6 +71,20 @@ class BookingListCreateView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
+        has_active_booking = Booking.objects.filter(
+            user=self.request.user,
+            status__in=["pending", "confirmed"],
+        ).exists()
+
+        if has_active_booking:
+            raise ValidationError(
+                {
+                    "non_field_errors": [
+                        "You already have an active booking. Please complete or cancel it before creating a new one."
+                    ]
+                }
+            )
+
         serializer.save(user=self.request.user, status="pending")
 
 
@@ -248,6 +277,18 @@ class StaffBookingActionView(APIView):
         normalized_assigned_employee_id = assigned_employee_id
         if normalized_assigned_employee_id in ("", "null"):
             normalized_assigned_employee_id = None
+
+        # If customer picked a preferred mechanic, auto-use it when staff confirms
+        # and no manual assignment is provided yet.
+        if (
+            new_status == "confirmed"
+            and normalized_assigned_employee_id is None
+            and existing_assigned_employee_id is None
+        ):
+            preferred_employee_id = _extract_preferred_employee_id(booking.notes)
+            if preferred_employee_id:
+                normalized_assigned_employee_id = preferred_employee_id
+                assigned_employee_id = preferred_employee_id
 
         allowed = ["pending", "confirmed"]
         if new_status not in allowed:

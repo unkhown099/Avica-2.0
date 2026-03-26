@@ -757,7 +757,7 @@ export default function ReorderAlerts() {
                     </button>
                     <button
                       onClick={() => setDismissed((d) => [...d, alert.id])}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-gray-400 hover:bg-gray-800 rounded-lg transition-all"
+                      className="opacity-100 p-1.5 text-gray-600 hover:text-gray-400 hover:bg-gray-800 rounded-lg transition-all"
                       title="Dismiss"
                     >
                       <svg

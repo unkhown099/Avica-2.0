@@ -421,7 +421,7 @@ function BranchOwnerAccountManagement() {
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <button
-                      className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                      className="opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                       title="More options"
                     >
                       <svg

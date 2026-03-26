@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -37,7 +38,8 @@ ChartJS.register(
   Legend,
 );
 
-// ── View definitions ──────────────────────────────────────────────────────────
+const SECTION_KEYS = ["overview", "revenue", "customers", "inventory", "services"];
+
 const VIEWS = [
   {
     key: "overview",
@@ -185,7 +187,9 @@ function normalizeInventoryStatus(status) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
+  const location = useLocation();
   const [activeView, setActiveView] = useState("overview");
+  const [activeExportSection, setActiveExportSection] = useState("overview");
   const [stats, setStats] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [chart, setChart] = useState(null);
@@ -242,6 +246,39 @@ export default function AdminDashboard() {
     fetchDashboard();
   }, []);
 
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (SECTION_KEYS.includes(hash)) {
+      setActiveView(hash);
+      setActiveExportSection(hash);
+      return;
+    }
+    setActiveView("overview");
+    setActiveExportSection("overview");
+  }, []);
+
+  // Watch location.hash for changes (for React Router Link clicks)
+  useEffect(() => {
+    const hash = location.hash.replace("#", "");
+    if (SECTION_KEYS.includes(hash)) {
+      setActiveView(hash);
+      setActiveExportSection(hash);
+    }
+  }, [location.hash]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (SECTION_KEYS.includes(hash)) {
+        setActiveView(hash);
+        setActiveExportSection(hash);
+      }
+    };
+
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
   // Overview hook (used for error banner / refetch)
   const { data, loading: overviewLoading, error: overviewError, refetch } = useOverview();
 
@@ -283,31 +320,31 @@ export default function AdminDashboard() {
   const transactionsPagination = usePagination({
     items: transactions,
     pageSize: 10,
-    resetDeps: [activeView, transactions.length],
+    resetDeps: [transactions.length],
   });
 
   const revenueBranchPagination = usePagination({
     items: revenueByBranch,
     pageSize: 10,
-    resetDeps: [activeView, revenueByBranch.length],
+    resetDeps: [revenueByBranch.length],
   });
 
   const customersPagination = usePagination({
     items: customers,
     pageSize: 10,
-    resetDeps: [activeView, customers.length],
+    resetDeps: [customers.length],
   });
 
   const inventoryPagination = usePagination({
     items: filteredInventoryItems,
     pageSize: 10,
-    resetDeps: [activeView, inventoryBranchFilter, filteredInventoryItems.length],
+    resetDeps: [inventoryBranchFilter, filteredInventoryItems.length],
   });
 
   const servicesPagination = usePagination({
     items: sortedServiceCards,
     pageSize: 10,
-    resetDeps: [activeView, topServiceCards.length],
+    resetDeps: [topServiceCards.length],
   });
 
   // ── Stat cards config ────────────────────────────────────────────────────
@@ -605,26 +642,8 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ── View Toggle Pills ───────────────────────────────────────────── */}
-        <div className="flex items-center gap-1.5 mb-6 p-1 bg-gray-900/60 border border-white/5 rounded-2xl w-fit print:hidden flex-wrap">
-          {VIEWS.map((v) => (
-            <button
-              key={v.key}
-              onClick={() => setActiveView(v.key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                activeView === v.key
-                  ? "bg-red-600 text-white shadow-lg shadow-red-900/30"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              {v.icon}
-              {v.label}
-            </button>
-          ))}
-        </div>
-
         {/* ── Error Banner ────────────────────────────────────────────────── */}
-        {error && activeView === "overview" && (
+        {error && (
           <ErrorBanner message={error} onRetry={refetch} />
         )}
 
@@ -632,7 +651,11 @@ export default function AdminDashboard() {
             VIEW: OVERVIEW
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "overview" && (
-          <>
+        <section id="admin-overview" className="scroll-mt-24 mb-10">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-white">Overview</h2>
+            <p className="text-gray-500 text-sm mt-0.5">Snapshot of daily operations</p>
+          </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
               {loading
                 ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
@@ -760,7 +783,7 @@ export default function AdminDashboard() {
                         </span>
                       </div>
                       <div className="col-span-1 flex justify-end">
-                        <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
+                        <button className="opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
@@ -793,14 +816,18 @@ export default function AdminDashboard() {
                 />
               )}
             </div>
-          </>
+        </section>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
             VIEW: REVENUE
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "revenue" && (
-          <>
+        <section id="admin-revenue" className="scroll-mt-24 mb-10">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-white">Revenue</h2>
+            <p className="text-gray-500 text-sm mt-0.5">Income performance across branches</p>
+          </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {[
                 {
@@ -880,14 +907,18 @@ export default function AdminDashboard() {
                 className="px-6 py-4"
               />
             </div>
-          </>
+        </section>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
             VIEW: CUSTOMERS
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "customers" && (
-          <>
+        <section id="admin-customers" className="scroll-mt-24 mb-10">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-white">Customers</h2>
+            <p className="text-gray-500 text-sm mt-0.5">Customer growth, value, and segments</p>
+          </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {[
                 {
@@ -1015,14 +1046,18 @@ export default function AdminDashboard() {
                 className="px-6 py-4"
               />
             </div>
-          </>
+        </section>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
             VIEW: INVENTORY
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "inventory" && (
-          <>
+        <section id="admin-inventory" className="scroll-mt-24 mb-10">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-white">Inventory</h2>
+            <p className="text-gray-500 text-sm mt-0.5">Stock status and branch-level supplies</p>
+          </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {[
                 {
@@ -1132,14 +1167,18 @@ export default function AdminDashboard() {
                 className="px-6 py-4"
               />
             </div>
-          </>
+        </section>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
             VIEW: SERVICES
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "services" && (
-          <>
+        <section id="admin-services" className="scroll-mt-24">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-white">Services</h2>
+            <p className="text-gray-500 text-sm mt-0.5">Service rankings and contribution</p>
+          </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {[
                 {
@@ -1244,7 +1283,7 @@ export default function AdminDashboard() {
                 />
               )}
             </div>
-          </>
+        </section>
         )}
       </div>
     </AdminLayout>

@@ -385,11 +385,18 @@ def queue_assign(request, pk):
 @permission_classes([IsAuthenticated])
 def queue_employees(request):
     requester_staff = _get_requester_staff(request.user)
+    branch_id = request.query_params.get("branch_id")
+
     employees = Staff.objects.filter(
         role="Employee", status="Active"
     ).select_related("branch").order_by("first_name", "last_name")
 
     employees = _scope_to_requester_branch(employees, requester_staff)
+
+    if branch_id:
+        if not str(branch_id).isdigit():
+            return Response({"detail": "branch_id must be a valid integer."}, status=status.HTTP_400_BAD_REQUEST)
+        employees = employees.filter(branch_id=int(branch_id))
 
     data = [
         {
