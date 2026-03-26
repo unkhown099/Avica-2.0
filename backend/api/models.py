@@ -158,6 +158,7 @@ class Booking(models.Model):
     plate_number = models.CharField(max_length=20,  blank=True, default="")
     notes        = models.TextField(blank=True, default="")
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    cancellation_reason = models.TextField(blank=True, default="", null=True)
     staff        = models.CharField(max_length=100, blank=True, default="TBA")
     created_at   = models.DateTimeField(auto_now_add=True)
 

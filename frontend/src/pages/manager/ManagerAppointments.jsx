@@ -68,6 +68,8 @@ function ManagerAppointments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(null); // booking id being actioned
+  const [employees, setEmployees] = useState([]);
+  const [assignedByBooking, setAssignedByBooking] = useState({});
 
   const monthName = new Date(year, month).toLocaleString("en-PH", {
     month: "long",
@@ -86,8 +88,16 @@ function ManagerAppointments() {
         return r.json();
       })
       .then((data) =>
-        setBookings(Array.isArray(data) ? data : (data.results ?? [])),
-      )
+      {
+        const rows = Array.isArray(data) ? data : (data.results ?? []);
+        setBookings(rows);
+        setAssignedByBooking(
+          rows.reduce((acc, row) => {
+            acc[row.id] = row.assigned_employee_id ? String(row.assigned_employee_id) : "";
+            return acc;
+          }, {}),
+        );
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -95,6 +105,22 @@ function ManagerAppointments() {
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
+
+  const fetchEmployees = useCallback(() => {
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/queue/employees/`, {
+      headers: authHeaders(),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((data) => setEmployees(Array.isArray(data) ? data : (data.results ?? [])))
+      .catch(() => setEmployees([]));
+  }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
 
   // Bookings for selected date
   const selectedISO = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
@@ -111,15 +137,21 @@ function ManagerAppointments() {
   const pending = bookings.filter((b) => b.status === "pending").length;
 
   // Approve / Reject
-  const handleAction = async (id, newStatus) => {
+  const handleAction = async (id, newStatus, assignedEmployeeId = null) => {
     setActionLoading(id);
     try {
       const res = await fetch(`${API_BASE}/api/staff/bookings/${id}/action/`, {
         method: "PATCH",
         headers: authHeaders(),
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({
+          status: newStatus,
+          assigned_employee_id: assignedEmployeeId || null,
+        }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Action failed. Please try again.");
+      }
       const updated = await res.json();
       setBookings((prev) =>
         prev.map((b) => (b.id === updated.id ? updated : b)),
@@ -505,9 +537,11 @@ function ManagerAppointments() {
                         </div>
                         <div>
                           <div className="text-white font-black text-base">
-                            {b.service}
+                            {b.customer_name || "Unknown Customer"}
                           </div>
-                          <div className="text-gray-500 text-xs">{b.time}</div>
+                          <div className="text-gray-500 text-xs">
+                            {b.service} · {b.time}
+                          </div>
                         </div>
                       </div>
                       <span
@@ -521,7 +555,7 @@ function ManagerAppointments() {
                       {[
                         {
                           path: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
-                          label: `Customer #${b.id}`,
+                          label: b.customer_name || "Unknown Customer",
                         },
                         {
                           path: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
@@ -566,12 +600,74 @@ function ManagerAppointments() {
                       </div>
                     )}
 
+                    {(b.status === "pending" || b.status === "confirmed") && (
+                      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2">
+                        {(() => {
+                          const isAssignmentLocked =
+                            b.status === "confirmed" &&
+                            Boolean(b.assigned_employee_id);
+                          return (
+                            <>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">
+                            {isAssignmentLocked
+                              ? "Assigned Mechanic (Locked)"
+                              : "Assign Mechanic"}
+                          </label>
+                          <select
+                            value={assignedByBooking[b.id] ?? ""}
+                            onChange={(e) =>
+                              setAssignedByBooking((prev) => ({
+                                ...prev,
+                                [b.id]: e.target.value,
+                              }))
+                            }
+                            disabled={isAssignmentLocked}
+                            className="w-full bg-gray-900/70 border border-white/10 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500/50"
+                          >
+                            <option value="">Unassigned</option>
+                            {employees.map((emp) => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.full_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-end">
+                          {b.status === "confirmed" && !isAssignmentLocked && (
+                            <button
+                              onClick={() =>
+                                handleAction(
+                                  b.id,
+                                  "confirmed",
+                                  assignedByBooking[b.id] || null,
+                                )
+                              }
+                              disabled={actionLoading === b.id}
+                              className="w-full bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
+                            >
+                              Save Assignment
+                            </button>
+                          )}
+                        </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+
                     {/* Action buttons — only show for pending */}
                     {b.status === "pending" && (
                       <div className="flex gap-2 pt-3 border-t border-white/5">
                         <button
-                          onClick={() => handleAction(b.id, "confirmed")}
-                          disabled={actionLoading === b.id}
+                          onClick={() =>
+                            handleAction(
+                              b.id,
+                              "confirmed",
+                              assignedByBooking[b.id] || null,
+                            )
+                          }
+                          disabled={actionLoading === b.id || !(assignedByBooking[b.id] || "").trim()}
                           className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
                         >
                           {actionLoading === b.id ? (

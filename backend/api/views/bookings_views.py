@@ -1,5 +1,8 @@
 import logging
 import traceback
+from django.db.models import Q
+from datetime import datetime, timedelta
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,6 +11,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils.html import strip_tags
 from ..models import Branch, Booking, Notification
+from ..models import Branch, Booking, Staff
 from ..serializers.bookings_serializer import BranchSerializer, BookingSerializer
 from .queue_views import _booking_to_queue_entry
 
@@ -22,6 +26,19 @@ def is_staff_or_above(user):
         return role in ["Admin", "Business Owner", "Branch Manager", "Staff", "Employee"]
     except Exception:
         return False
+
+
+def to_display_time(time_str):
+    """Convert API time format to display format (e.g., 14:30:00 -> 2:30 PM)"""
+    if not time_str:
+        return ""
+    if "AM" in time_str or "PM" in time_str:
+        return time_str
+    try:
+        time_obj = datetime.strptime(time_str, '%H:%M:%S')
+        return time_obj.strftime('%I:%M %p').lstrip('0')
+    except:
+        return time_str
 
 
 # ─── Customer-facing views ────────────────────────────────────────────────────
@@ -65,11 +82,120 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {"detail": "Cancelled bookings cannot be modified."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        # Handle customer cancellation with reason
         if request.data.get("status") == "cancelled":
+            cancellation_reason = request.data.get("cancellation_reason", "")
             booking.status = "cancelled"
+            booking.cancellation_reason = cancellation_reason
             booking.save()
             return Response(self.get_serializer(booking).data)
+        
         return super().partial_update(request, *args, **kwargs)
+
+
+# ─── Available Slots View ────────────────────────────────────────────────────
+
+class AvailableSlotsView(APIView):
+    """
+    Get available time slots for a specific branch and date
+    Query parameters:
+        - branch_id: ID of the branch
+        - date: Date in YYYY-MM-DD format
+    Returns:
+        {
+            "available_slots": {
+                "8:00 AM": true,
+                "9:00 AM": false,
+                ...
+            }
+        }
+    """
+    permission_classes = [IsAuthenticated]
+    
+    # Define the time slots in order
+    TIME_SLOTS = [
+        "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+        "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
+    ]
+    
+    def get(self, request):
+        # Get query parameters
+        branch_id = request.query_params.get('branch_id')
+        date_str = request.query_params.get('date')
+        
+        # Validate parameters
+        if not branch_id:
+            return Response(
+                {"error": "branch_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not date_str:
+            return Response(
+                {"error": "date is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate branch exists
+        try:
+            branch = Branch.objects.get(id=branch_id, is_active=True)
+        except Branch.DoesNotExist:
+            return Response(
+                {"error": "Branch not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Validate date format
+        try:
+            selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if date is tomorrow or later (no same-day bookings)
+        tomorrow = timezone.now().date() + timedelta(days=1)
+        if selected_date < tomorrow:
+            return Response(
+                {"error": "Bookings can only be made for tomorrow or later"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get all confirmed/pending bookings for this branch on this date
+        bookings = Booking.objects.filter(
+            branch=branch,
+            date=selected_date,
+            status__in=['confirmed', 'pending']  # Count both confirmed and pending bookings
+        )
+        
+        # Convert time to display format and count bookings per slot
+        from collections import Counter
+        booked_slots = []
+        for booking in bookings:
+            display_time = to_display_time(booking.time)
+            booked_slots.append(display_time)
+        
+        slot_counts = Counter(booked_slots)
+        
+        # Use branch.slots as max capacity (from your Branch model)
+        max_capacity = branch.slots
+        
+        # Calculate availability for each time slot
+        available_slots = {}
+        for slot in self.TIME_SLOTS:
+            current_bookings = slot_counts.get(slot, 0)
+            is_available = current_bookings < max_capacity
+            available_slots[slot] = is_available
+        
+        # Optional: Add lunch break constraints or branch-specific rules
+        # Example: Make 12:00 PM unavailable for certain branches during lunch
+        if branch.name == "Main Branch":  # You can customize this per branch
+            # available_slots["12:00 PM"] = False  # Uncomment if needed
+            pass
+        
+        return Response({'available_slots': available_slots})
 
 
 # ─── Staff views ──────────────────────────────────────────────────────────────
@@ -82,7 +208,15 @@ class StaffBookingListView(generics.ListAPIView):
         if not is_staff_or_above(self.request.user):
             return Booking.objects.none()
 
+        requester_staff = getattr(self.request.user, "staff_profile", None)
         qs = Booking.objects.all().select_related("branch", "user")
+
+        # Non-admin users can only see appointments from their own branch.
+        if requester_staff and requester_staff.role != "Admin":
+            if requester_staff.branch_id:
+                qs = qs.filter(branch_id=requester_staff.branch_id)
+            else:
+                return Booking.objects.none()
 
         date_param   = self.request.query_params.get("date")
         status_param = self.request.query_params.get("status")
@@ -111,6 +245,18 @@ class StaffBookingActionView(APIView):
 
         new_status = request.data.get("status")
         allowed = ["pending", "confirmed", "cancelled", "done", "rescheduled"]
+        new_status = request.data.get("status", booking.status)
+        assigned_employee_id = request.data.get("assigned_employee_id", None)
+        existing_assigned_employee_id = None
+        queue_entry = getattr(booking, "queue_entry", None)
+        if queue_entry and queue_entry.assigned_employee_id:
+            existing_assigned_employee_id = queue_entry.assigned_employee_id
+
+        normalized_assigned_employee_id = assigned_employee_id
+        if normalized_assigned_employee_id in ("", "null"):
+            normalized_assigned_employee_id = None
+
+        allowed = ["pending", "confirmed"]
         if new_status not in allowed:
             return Response(
                 {"detail": f"Invalid status. Allowed: {allowed}"},
@@ -161,6 +307,98 @@ class StaffBookingActionView(APIView):
             except Exception as e:
                 print(f"Failed to send reschedule email: {e}")
 
+        # Enforce assignment before approval.
+        if (
+            new_status == "confirmed"
+            and normalized_assigned_employee_id is None
+            and existing_assigned_employee_id is None
+        ):
+            return Response(
+                {"detail": "Assign a staff before approving this appointment."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Once a confirmed booking already has an assigned mechanic, do not allow changing it.
+        if (
+            booking.status == "confirmed"
+            and assigned_employee_id is not None
+            and existing_assigned_employee_id is not None
+        ):
+            normalized_assigned = assigned_employee_id
+            if normalized_assigned in ("", "null", None):
+                normalized_assigned = None
+
+            if normalized_assigned is None or int(normalized_assigned) != int(existing_assigned_employee_id):
+                return Response(
+                    {"detail": "Assigned mechanic is locked after approval and cannot be changed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        assigned_employee = None
+        if assigned_employee_id is not None:
+            assigned_employee_id = normalized_assigned_employee_id
+
+            if assigned_employee_id is None:
+                booking.staff = "TBA"
+            else:
+                try:
+                    assigned_employee = Staff.objects.select_related("branch").get(
+                        pk=assigned_employee_id,
+                        role="Employee",
+                        status="Active",
+                    )
+                except Staff.DoesNotExist:
+                    return Response(
+                        {"detail": "Assigned employee not found."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+
+                if booking.branch_id and assigned_employee.branch_id != booking.branch_id:
+                    return Response(
+                        {"detail": "Assigned employee must belong to the same branch as this booking."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                employee_full_name = (
+                    f"{assigned_employee.first_name} {assigned_employee.last_name}".strip()
+                )
+
+                has_time_conflict = Booking.objects.filter(
+                    date=booking.date,
+                    time=booking.time,
+                    status__in=["pending", "confirmed"],
+                ).exclude(pk=booking.pk).filter(
+                    Q(staff=employee_full_name) | Q(queue_entry__assigned_employee_id=assigned_employee.id)
+                ).exists()
+
+                if has_time_conflict:
+                    return Response(
+                        {
+                            "detail": (
+                                "This employee is already assigned to another appointment "
+                                "at the same date and time."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                booking.staff = (
+                    f"{assigned_employee.first_name} {assigned_employee.last_name}".strip()
+                    or "TBA"
+                )
+
+        # Save cancellation reason if status is cancelled
+        if new_status == "cancelled":
+            cancellation_reason = request.data.get("cancellation_reason", "")
+            booking.cancellation_reason = cancellation_reason
+            booking.status = "cancelled"
+            booking.save()
+            
+            # Return early - no queue entry for cancelled bookings
+            from api.serializers.bookings_serializer import BookingSerializer
+            return Response(BookingSerializer(booking).data)
+
+        # If not cancelled, proceed with normal flow
         booking.status = new_status
         booking.save()
 
@@ -178,6 +416,11 @@ class StaffBookingActionView(APIView):
                     )
                 
                 entry = _booking_to_queue_entry(booking)
+
+                if assigned_employee_id is not None:
+                    entry.assigned_employee = assigned_employee
+                    entry.save(update_fields=["assigned_employee"])
+
                 print(f"[QUEUE] ✅ Success — queue entry #{entry.id} at position #{entry.position}")
             except Exception as e:
                 print(f"[QUEUE] ❌ FAILED for booking #{booking.id}: {e}")
@@ -187,6 +430,11 @@ class StaffBookingActionView(APIView):
                     {"detail": f"Booking confirmed but failed to add to queue: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
+
+        elif assigned_employee_id is not None and hasattr(booking, "queue_entry"):
+            queue_entry = booking.queue_entry
+            queue_entry.assigned_employee = assigned_employee
+            queue_entry.save(update_fields=["assigned_employee"])
 
         from api.serializers.bookings_serializer import BookingSerializer
         return Response(BookingSerializer(booking).data)

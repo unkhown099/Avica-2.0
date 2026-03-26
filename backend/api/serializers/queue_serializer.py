@@ -22,6 +22,8 @@ class QueueEntrySerializer(serializers.ModelSerializer):
     wait_minutes      = serializers.SerializerMethodField()
     assigned_employee = AssignedEmployeeSerializer(read_only=True)
     branch            = serializers.SerializerMethodField()   # ← return name string, not FK int
+    appointment_date  = serializers.SerializerMethodField()
+    appointment_time  = serializers.SerializerMethodField()
 
     class Meta:
         model  = QueueEntry
@@ -39,6 +41,8 @@ class QueueEntrySerializer(serializers.ModelSerializer):
             "status",
             "position",
             "assigned_employee",
+            "appointment_date",
+            "appointment_time",
             "queued_at",
             "service_started_at",
             "completed_at",
@@ -62,6 +66,16 @@ class QueueEntrySerializer(serializers.ModelSerializer):
             status="waiting", position__lt=obj.position
         ).count()
         return ahead * 30
+
+    def get_appointment_date(self, obj):
+        if not obj.booking_id or not obj.booking or not obj.booking.date:
+            return None
+        return obj.booking.date.isoformat()
+
+    def get_appointment_time(self, obj):
+        if not obj.booking_id or not obj.booking or not obj.booking.time:
+            return None
+        return str(obj.booking.time)
 
 
 class QueueEntryCreateSerializer(serializers.ModelSerializer):

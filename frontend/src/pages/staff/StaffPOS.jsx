@@ -807,11 +807,6 @@ function StaffPOS() {
                   {[
                     { key: "name", placeholder: "Name *", type: "text" },
                     { key: "phone", placeholder: "Phone", type: "tel" },
-                    {
-                      key: "vehicle",
-                      placeholder: "Vehicle (optional)",
-                      type: "text",
-                    },
                   ].map((f) => (
                     <input
                       key={f.key}
@@ -1023,7 +1018,6 @@ function StaffPOS() {
                   {[
                     { key: "cash", label: "Cash", icon: "💵" },
                     { key: "gcash", label: "GCash", icon: "📱" },
-                    { key: "card", label: "Card", icon: "💳" },
                   ].map((m) => (
                     <button
                       key={m.key}
@@ -1052,27 +1046,7 @@ function StaffPOS() {
                       onChange={(e) => setAmountGiven(e.target.value)}
                       className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-red-500/50 transition-all"
                     />
-                    {presets.length > 0 && (
-                      <div className="flex gap-1.5">
-                        {presets.map((p) => (
-                          <button
-                            key={p}
-                            onClick={() => setAmountGiven(String(p))}
-                            className="flex-1 py-1 text-[10px] font-bold bg-gray-800 hover:bg-gray-700 border border-white/5 text-gray-400 hover:text-white rounded-lg transition-all"
-                          >
-                            ₱{p.toLocaleString()}
-                          </button>
-                        ))}
-                        <button
-                          onClick={() =>
-                            setAmountGiven(String(Math.ceil(total)))
-                          }
-                          className="flex-1 py-1 text-[10px] font-bold bg-gray-800 hover:bg-gray-700 border border-white/5 text-gray-400 hover:text-white rounded-lg transition-all"
-                        >
-                          Exact
-                        </button>
-                      </div>
-                    )}
+            
                   </div>
                 )}
               </div>

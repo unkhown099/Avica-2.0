@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import AdminLayout from "./AdminLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
 import axios from "axios";
-import Swal from "sweetalert2";
 
 const API = API_BASE;
 const getToken = () =>
@@ -241,7 +240,6 @@ function AdminAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editItem, setEditItem] = useState(null);
 
   // ── Fetch ───────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -268,34 +266,6 @@ function AdminAppointments() {
     fetchData();
   }, [fetchData]);
 
-  // ── Delete ───────────────────────────────────────────────────────────────
-  const deleteAppointment = async (apt) => {
-    const result = await Swal.fire({
-      title: "Cancel appointment?",
-      text: `This will delete the booking for ${apt.customer_name}.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Delete",
-      confirmButtonColor: "#ef4444",
-      background: "#111827",
-      color: "#f9fafb",
-    });
-    if (!result.isConfirmed) return;
-    try {
-      await axios.delete(`${API}/appointments/${apt.id}/`, {
-        headers: authHeaders(),
-      });
-      setAppointments((prev) => prev.filter((a) => a.id !== apt.id));
-    } catch {
-      Swal.fire({
-        icon: "error",
-        title: "Failed",
-        text: "Could not delete appointment.",
-        background: "#111827",
-        color: "#f9fafb",
-      });
-    }
-  };
 
   // ── Calendar helpers ──────────────────────────────────────────────────────
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
@@ -676,20 +646,8 @@ function AdminAppointments() {
                           </div>
                         )}
 
-                        {/* Actions */}
-                        <div className="flex gap-2 pt-3 border-t border-white/5">
-                          <button
-                            onClick={() => setEditItem(apt)}
-                            className="flex-1 text-center text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2 rounded-xl transition-all"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => deleteAppointment(apt)}
-                            className="flex-1 text-center text-sm font-semibold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 py-2 rounded-xl transition-all"
-                          >
-                            Cancel
-                          </button>
+                        <div className="pt-3 border-t border-white/5 text-xs text-gray-500 font-medium">
+                          View-only appointment record
                         </div>
                       </div>
                     );
@@ -700,14 +658,6 @@ function AdminAppointments() {
           </div>
         </div>
       </div>
-
-      {editItem && (
-        <EditModal
-          appointment={editItem}
-          onClose={() => setEditItem(null)}
-          onSaved={fetchData}
-        />
-      )}
     </AdminLayout>
   );
 }

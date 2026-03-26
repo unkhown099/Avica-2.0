@@ -30,6 +30,17 @@ class BookingSerializer(serializers.ModelSerializer):
         write_only=True, required=False, source="price"
     )
 
+    assigned_employee_id = serializers.SerializerMethodField()
+    assigned_employee_name = serializers.SerializerMethodField()
+    customer_name = serializers.SerializerMethodField()
+    # 👈 ADD THIS FIELD - make it writeable so frontend can send cancellation reason
+    cancellation_reason = serializers.CharField(
+        required=False, 
+        allow_blank=True, 
+        allow_null=True,
+        write_only=False  # This makes it readable and writable
+    )
+
     class Meta:
         model  = Booking
         fields = [
@@ -37,9 +48,44 @@ class BookingSerializer(serializers.ModelSerializer):
             "price", "price_input",
             "branch_id", "branch_detail",
             "date", "time", "vehicle", "plate_number",
+            "notes", "status", "staff",
+            "customer_name",
+            "assigned_employee_id", "assigned_employee_name",
+            "created_at",
             "notes", "status", "staff", "created_at",
+            "cancellation_reason",  # 👈 ADD THIS
         ]
         read_only_fields = ["id", "service_name", "staff", "created_at"]
+
+    def get_assigned_employee_id(self, instance):
+        queue_entry = getattr(instance, "queue_entry", None)
+        if queue_entry and queue_entry.assigned_employee_id:
+            return queue_entry.assigned_employee_id
+        return None
+
+    def get_assigned_employee_name(self, instance):
+        queue_entry = getattr(instance, "queue_entry", None)
+        if queue_entry and queue_entry.assigned_employee:
+            return f"{queue_entry.assigned_employee.first_name} {queue_entry.assigned_employee.last_name}".strip()
+        if instance.staff and instance.staff != "TBA":
+            return instance.staff
+        return ""
+
+    def get_customer_name(self, instance):
+        profile = getattr(instance.user, "customer_profile", None)
+        if profile:
+            full_name = f"{profile.first_name} {profile.last_name}".strip()
+            if full_name:
+                return full_name
+
+        notes = (instance.notes or "").strip()
+        if notes.lower().startswith("[walk-in]"):
+            walkin_payload = notes[len("[walk-in]"):].strip()
+            name_part = walkin_payload.split("|")[0].strip()
+            if name_part:
+                return name_part
+
+        return "Unknown Customer"
 
     def get_price(self, instance):
         try:
@@ -79,3 +125,9 @@ class BookingSerializer(serializers.ModelSerializer):
         # Remove the write-only field from output (already excluded, just safety)
         rep.pop("price_input", None)
         return rep
+class AvailableSlotsSerializer(serializers.Serializer):
+    """Serializer for available time slots response"""
+    available_slots = serializers.DictField(
+        child=serializers.BooleanField(),
+        help_text="Dictionary of time slots with availability status (true = available, false = unavailable)"
+    )

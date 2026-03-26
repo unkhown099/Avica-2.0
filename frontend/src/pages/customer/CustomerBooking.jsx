@@ -44,9 +44,15 @@ const CATEGORY_ICON = {
   Cosmetic: "✨",
 };
 
-const PAGE_SIZE = 10; // bookings per page
+const PAGE_SIZE = 10;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+
+function tomorrowISO() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split("T")[0];
+}
 
 function todayISO() {
   return new Date().toISOString().split("T")[0];
@@ -87,50 +93,40 @@ function toDisplayTime(t) {
   return `${h}:${m} ${period}`;
 }
 
-// ─── Pagination Controls ──────────────────────────────────────────────────────
+// ─── Pagination ───────────────────────────────────────────────────────────────
 
 function Pagination({ current, total, onChange }) {
   if (total <= 1) return null;
-
-  const pages = [];
-  for (let i = 1; i <= total; i++) pages.push(i);
-
+  const pages = Array.from({ length: total }, (_, i) => i + 1);
   return (
-    <div className="flex items-center justify-center gap-1 mt-8">
+    <div className="flex items-center justify-center gap-1 mt-8 flex-wrap">
       <button
         onClick={() => onChange(current - 1)}
         disabled={current === 1}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
       >
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 19l-7-7 7-7"
-          />
+        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-
-      {pages.map((p) => {
-        // Show first, last, current, and neighbours; collapse others with ellipsis
-        const show = p === 1 || p === total || Math.abs(p - current) <= 1;
-        const ellipsisBefore = p === current - 2 && current > 3;
-        const ellipsisAfter = p === current + 2 && current < total - 2;
-
-        if (ellipsisBefore || ellipsisAfter) {
+      <div className="flex items-center gap-1 flex-wrap">
+        {pages.map((p) => {
+          const show = p === 1 || p === total || Math.abs(p - current) <= 1;
+          const ellipsisBefore = p === current - 2 && current > 3;
+          const ellipsisAfter = p === current + 2 && current < total - 2;
+          if (ellipsisBefore || ellipsisAfter)
+            return (
+              <span key={`dots-${p}`} className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-gray-600 text-xs sm:text-sm">…</span>
+            );
+          if (!show) return null;
           return (
-            <span
-              key={`dots-${p}`}
-              className="w-9 h-9 flex items-center justify-center text-gray-600 text-sm"
+            <button
+              key={p}
+              onClick={() => onChange(p)}
+              className={`w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl text-xs sm:text-sm font-bold transition-all ${p === current ? "bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-500" : "border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50"}`}
             >
-              …
-            </span>
+              {p}
+            </button>
           );
         }
         if (!show) return null;
@@ -149,23 +145,15 @@ function Pagination({ current, total, onChange }) {
         );
       })}
 
+        })}
+      </div>
       <button
         onClick={() => onChange(current + 1)}
         disabled={current === total}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
       >
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 5l7 7-7 7"
-          />
+        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </button>
     </div>
@@ -176,10 +164,9 @@ function Pagination({ current, total, onChange }) {
 
 function StepIndicator({ current }) {
   return (
-    <div className="flex items-center px-6 py-4 border-b border-white/8 flex-shrink-0">
+    <div className="flex items-center px-3 sm:px-6 py-3 sm:py-4 border-b border-white/8 flex-shrink-0 overflow-x-auto">
       {STEPS.map((label, i) => {
-        const done = i < current;
-        const active = i === current;
+        const done = i < current, active = i === current;
         return (
           <React.Fragment key={label}>
             <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -192,22 +179,10 @@ function StepIndicator({ current }) {
                   }`}
               >
                 {done ? (
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M5 13l4 4L19 7"
-                    />
+                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
-                ) : (
-                  i + 1
-                )}
+                ) : (i + 1)}
               </div>
               <span
                 className={`text-[10px] font-semibold tracking-wide uppercase ${active
@@ -221,14 +196,159 @@ function StepIndicator({ current }) {
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div
-                className={`h-px flex-1 mx-2 mb-4 transition-all duration-500 ${done ? "bg-red-600" : "bg-white/8"}`}
-              />
+              <div className={`h-px flex-1 mx-1 sm:mx-2 mb-3 sm:mb-4 transition-all duration-500 ${done ? "bg-red-600" : "bg-white/8"}`} />
             )}
           </React.Fragment>
         );
       })}
     </div>
+  );
+}
+
+// ─── Cancel Booking Modal ─────────────────────────────────────────────────────
+
+function CancelBookingModal({ booking, onClose, onConfirm }) {
+  const [reason, setReason] = useState("");
+  const [otherReason, setOtherReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const cancelReasons = [
+    "Change of plans",
+    "Found a better service provider",
+    "Schedule conflict",
+    "Vehicle not available",
+    "Emergency",
+    "Other",
+  ];
+
+  const handleSubmit = async () => {
+    const finalReason = reason === "Other" ? otherReason : reason;
+    if (!finalReason.trim()) return;
+    setLoading(true);
+    await onConfirm(finalReason);
+    setLoading(false);
+  };
+
+  const rawSvc = booking.service;
+  const serviceName =
+    booking.service_name ||
+    booking.service_detail?.name ||
+    (typeof rawSvc === "string" && rawSvc.trim() !== "" && isNaN(rawSvc)
+      ? rawSvc
+      : `Service #${rawSvc}`);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-2rem)] sm:w-full max-w-md flex flex-col bg-[#0a0a0a] border border-white/8 shadow-2xl rounded-2xl overflow-hidden max-h-[90vh]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/8 flex-shrink-0">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+              Cancel <span className="text-red-500">Appointment</span>
+            </h2>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5 truncate max-w-[200px] sm:max-w-[280px]">{serviceName}</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+          <div className="bg-red-600/10 rounded-xl border border-red-600/20 px-3 sm:px-4 py-2.5 sm:py-3 flex items-start gap-2 sm:gap-3">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-red-600/20 flex items-center justify-center shrink-0 mt-0.5">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-red-400 text-xs sm:text-sm font-semibold mb-0.5 sm:mb-1">This action cannot be undone</p>
+              <p className="text-gray-400 text-[10px] sm:text-xs">Please help us improve by letting us know why you're cancelling.</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
+              Reason for cancellation <span className="text-red-500">*</span>
+            </p>
+            <div className="space-y-1.5 sm:space-y-2">
+              {cancelReasons.map((r) => (
+                <label key={r} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border border-white/10 bg-white/3 hover:bg-white/5 cursor-pointer transition-all">
+                  <input
+                    type="radio"
+                    name="cancelReason"
+                    value={r}
+                    checked={reason === r}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 bg-white/5 border-white/20 focus:ring-red-500 focus:ring-offset-0"
+                  />
+                  <span className="text-white text-xs sm:text-sm">{r}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          {reason === "Other" && (
+            <div>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 sm:mb-2">Please specify</p>
+              <textarea
+                rows={3}
+                placeholder="Tell us more about why you're cancelling..."
+                value={otherReason}
+                onChange={(e) => setOtherReason(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors resize-none"
+              />
+            </div>
+          )}
+          <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
+            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Booking Details</p>
+            <div className="space-y-1 text-xs sm:text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Date:</span>
+                <span className="text-white font-semibold">{booking.date}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Time:</span>
+                <span className="text-white font-semibold">{toDisplayTime(booking.time)}</span>
+              </div>
+              {booking.branch && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Branch:</span>
+                  <span className="text-white font-semibold text-right">
+                    {typeof booking.branch === "object" ? booking.branch.name : booking.branch}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 sm:py-5 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
+          <button onClick={onClose} className="flex-1 px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:border-white/20 font-semibold text-xs sm:text-sm transition-all">
+            Keep Booking
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !reason || (reason === "Other" && !otherReason.trim())}
+            className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-600/25 transition-all flex items-center justify-center gap-1 sm:gap-2"
+          >
+            {loading ? (
+              <>
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Cancelling...
+              </>
+            ) : (
+              <>
+                Confirm Cancellation
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -244,11 +364,7 @@ function DamageDetectionModal({ onClose, onBack }) {
     const files = Array.from(e.target.files);
     setImages((prev) => [
       ...prev,
-      ...files.map((file) => ({
-        file,
-        preview: URL.createObjectURL(file),
-        name: file.name,
-      })),
+      ...files.map((file) => ({ file, preview: URL.createObjectURL(file), name: file.name })),
     ]);
     setError("");
   };
@@ -263,10 +379,7 @@ function DamageDetectionModal({ onClose, onBack }) {
   };
 
   const analyzeDamage = async () => {
-    if (images.length === 0) {
-      setError("Please upload at least one image");
-      return;
-    }
+    if (images.length === 0) { setError("Please upload at least one image"); return; }
     setUploading(true);
     setError("");
     try {
@@ -275,24 +388,9 @@ function DamageDetectionModal({ onClose, onBack }) {
         damageDetected: true,
         confidence: 0.92,
         damages: [
-          {
-            type: "Scratch",
-            location: "Front bumper",
-            severity: "Minor",
-            confidence: 0.95,
-          },
-          {
-            type: "Dent",
-            location: "Driver's door",
-            severity: "Moderate",
-            confidence: 0.88,
-          },
-          {
-            type: "Paint chip",
-            location: "Hood",
-            severity: "Minor",
-            confidence: 0.93,
-          },
+          { type: "Scratch", location: "Front bumper", severity: "Minor", confidence: 0.95 },
+          { type: "Dent", location: "Driver's door", severity: "Moderate", confidence: 0.88 },
+          { type: "Paint chip", location: "Hood", severity: "Minor", confidence: 0.93 },
         ],
         recommendations: [
           "Paint touch-up recommended for scratches",
@@ -310,116 +408,47 @@ function DamageDetectionModal({ onClose, onBack }) {
 
   return (
     <>
-      <div
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40"
-        onClick={onClose}
-      />
-      <div
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-lg flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden"
-        style={{ animation: "drawerIn 0.32s cubic-bezier(0.16,1,0.3,1)" }}
-      >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 flex-shrink-0">
+      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm sm:max-w-lg flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/8 flex-shrink-0">
           <div>
-            <h2 className="text-xl font-black text-white tracking-tight">
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
               <span className="text-red-500">AI Damage</span> Detection
             </h2>
-            <p className="text-gray-500 text-xs mt-0.5">
-              Upload photos for AI analysis
-            </p>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Upload photos for AI analysis</p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+          <button onClick={onClose} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
           {!analysisResult ? (
             <>
-              <div className="mb-6">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-                  Upload Vehicle Photos
-                </p>
-                <div
-                  className="border-2 border-dashed border-white/10 rounded-2xl p-6 text-center hover:border-red-500/50 transition-colors cursor-pointer"
-                  onClick={() =>
-                    document.getElementById("damage-images").click()
-                  }
-                >
-                  <input
-                    type="file"
-                    id="damage-images"
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                  />
-                  <div className="w-16 h-16 bg-red-600/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg
-                      className="w-8 h-8 text-red-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
+              <div className="mb-4 sm:mb-6">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 sm:mb-4">Upload Vehicle Photos</p>
+                <div className="border-2 border-dashed border-white/10 rounded-2xl p-4 sm:p-6 text-center hover:border-red-500/50 transition-colors cursor-pointer" onClick={() => document.getElementById("damage-images").click()}>
+                  <input type="file" id="damage-images" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-600/10 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                    <svg className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <p className="text-white font-semibold mb-1">
-                    Click to upload photos
-                  </p>
-                  <p className="text-gray-600 text-xs">
-                    Supported: JPG, PNG, HEIC (max 10MB each)
-                  </p>
+                  <p className="text-white font-semibold text-xs sm:text-sm mb-1">Click to upload photos</p>
+                  <p className="text-gray-600 text-[10px] sm:text-xs">Supported: JPG, PNG, HEIC (max 10MB each)</p>
                 </div>
               </div>
               {images.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                    Uploaded Photos ({images.length})
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="mb-4 sm:mb-6">
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">Uploaded Photos ({images.length})</p>
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
                     {images.map((img, i) => (
                       <div key={i} className="relative group">
-                        <img
-                          src={img.preview}
-                          alt={`Damage ${i + 1}`}
-                          className="w-full h-32 object-cover rounded-xl border border-white/10"
-                        />
-                        <button
-                          onClick={() => removeImage(i)}
-                          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg
-                            className="w-3 h-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
+                        <img src={img.preview} alt={`Damage ${i + 1}`} className="w-full h-24 sm:h-32 object-cover rounded-xl border border-white/10" />
+                        <button onClick={() => removeImage(i)} className="absolute top-1 right-1 sm:top-2 sm:right-2 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
                       </div>
@@ -427,187 +456,99 @@ function DamageDetectionModal({ onClose, onBack }) {
                   </div>
                 </div>
               )}
-              <div className="bg-white/4 rounded-xl p-4 border border-white/8">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                  Tips for best results
-                </p>
-                <ul className="space-y-2 text-sm text-gray-400">
-                  {[
-                    "Take photos in good lighting",
-                    "Capture damages from multiple angles",
-                    "Include a reference object for scale",
-                    "Avoid blurry or dark images",
-                  ].map((t) => (
-                    <li key={t} className="flex items-start gap-2">
-                      <span className="text-red-500">•</span>
-                      {t}
+              <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">Tips for best results</p>
+                <ul className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-sm text-gray-400">
+                  {["Take photos in good lighting", "Capture damages from multiple angles", "Include a reference object for scale", "Avoid blurry or dark images"].map((t) => (
+                    <li key={t} className="flex items-start gap-1 sm:gap-2">
+                      <span className="text-red-500 text-xs sm:text-sm">•</span>
+                      <span className="text-xs sm:text-sm">{t}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             </>
           ) : (
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-green-600/20 flex items-center justify-center">
-                  <svg
-                    className="w-6 h-6 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
+            <div className="mb-4 sm:mb-6">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-600/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-white font-bold text-lg">
-                    Analysis Complete
-                  </p>
-                  <p className="text-gray-500 text-sm">
-                    Confidence: {(analysisResult.confidence * 100).toFixed(0)}%
-                  </p>
+                  <p className="text-white font-bold text-base sm:text-lg">Analysis Complete</p>
+                  <p className="text-gray-500 text-[10px] sm:text-xs">Confidence: {(analysisResult.confidence * 100).toFixed(0)}%</p>
                 </div>
               </div>
-              <div className="space-y-3 mb-6">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                  Detected Damages
-                </p>
+              <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">Detected Damages</p>
                 {analysisResult.damages.map((d, i) => (
-                  <div
-                    key={i}
-                    className="bg-white/4 rounded-xl p-4 border border-white/8"
-                  >
+                  <div key={i} className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-white font-semibold">{d.type}</span>
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${d.severity === "Minor" ? "bg-yellow-600/20 text-yellow-400" : d.severity === "Moderate" ? "bg-orange-600/20 text-orange-400" : "bg-red-600/20 text-red-400"}`}
-                      >
+                      <span className="text-white font-semibold text-xs sm:text-sm">{d.type}</span>
+                      <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${d.severity === "Minor" ? "bg-yellow-600/20 text-yellow-400" : d.severity === "Moderate" ? "bg-orange-600/20 text-orange-400" : "bg-red-600/20 text-red-400"}`}>
                         {d.severity}
                       </span>
                     </div>
-                    <p className="text-gray-400 text-sm">
-                      Location: {d.location}
-                    </p>
-                    <p className="text-gray-500 text-xs">
-                      Confidence: {(d.confidence * 100).toFixed(0)}%
-                    </p>
+                    <p className="text-gray-400 text-[10px] sm:text-xs">Location: {d.location}</p>
+                    <p className="text-gray-500 text-[8px] sm:text-[10px]">Confidence: {(d.confidence * 100).toFixed(0)}%</p>
                   </div>
                 ))}
               </div>
-              <div className="mb-6">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                  Recommendations
-                </p>
-                <ul className="space-y-2">
+              <div className="mb-4 sm:mb-6">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">Recommendations</p>
+                <ul className="space-y-1.5 sm:space-y-2">
                   {analysisResult.recommendations.map((r, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-2 text-gray-300 text-sm"
-                    >
-                      <span className="text-red-500">•</span>
-                      {r}
+                    <li key={i} className="flex items-start gap-1 sm:gap-2 text-gray-300 text-[10px] sm:text-xs">
+                      <span className="text-red-500 text-xs sm:text-sm">•</span>
+                      <span>{r}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-red-600/10 rounded-xl p-4 border border-red-600/20">
-                <p className="text-gray-400 text-sm mb-1">
-                  Estimated Repair Cost
-                </p>
-                <p className="text-2xl font-black text-white">
-                  {analysisResult.estimatedCost}
-                </p>
-                <p className="text-gray-500 text-xs mt-2">
-                  *Final cost may vary after physical inspection
-                </p>
+              <div className="bg-red-600/10 rounded-xl p-3 sm:p-4 border border-red-600/20">
+                <p className="text-gray-400 text-[10px] sm:text-xs mb-1">Estimated Repair Cost</p>
+                <p className="text-xl sm:text-2xl font-black text-white">{analysisResult.estimatedCost}</p>
+                <p className="text-gray-500 text-[8px] sm:text-[10px] mt-1 sm:mt-2">*Final cost may vary after physical inspection</p>
               </div>
             </div>
           )}
           {error && (
-            <div className="mt-4 flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-4 py-3 text-red-400 text-sm">
-              <svg
-                className="w-4 h-4 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
+            <div className="mt-3 sm:mt-4 flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-red-400 text-[10px] sm:text-xs">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {error}
             </div>
           )}
         </div>
-
-        <div className="flex gap-3 px-6 py-5 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
-          <button
-            onClick={onClose}
-            className="px-5 py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white font-semibold text-sm transition-all"
-          >
-            Cancel
-          </button>
+        <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 sm:py-5 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
+          <button onClick={onClose} className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white font-semibold text-xs sm:text-sm transition-all">Cancel</button>
           {!analysisResult ? (
             <button
               onClick={analyzeDamage}
               disabled={images.length === 0 || uploading}
-              className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1 sm:gap-2"
             >
               {uploading ? (
                 <>
-                  <svg
-                    className="w-4 h-4 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Analyzing...
                 </>
-              ) : (
-                "Analyze Damage"
-              )}
+              ) : "Analyze Damage"}
             </button>
           ) : (
             <button
-              onClick={() =>
-                onBack({ type: "booking", damageData: analysisResult })
-              }
-              className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
+              onClick={() => onBack({ type: "booking", damageData: analysisResult })}
+              className="flex-1 py-2 sm:py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1 sm:gap-2"
             >
               Proceed to Booking
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </button>
           )}
@@ -637,7 +578,24 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState("");
+  const [branches, setBranches] = useState([]);
+  const [branchLoading, setBranchLoading] = useState(true);
+  const [branchError, setBranchError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
+  // FIX: Use null to mean "not yet loaded", true/false/undefined for each slot
+  // null = loading, {} with keys = loaded
+  const [availableSlots, setAvailableSlots] = useState(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  // FIX: Store user bookings separately for duplicate-date check
+  const [userBookings, setUserBookings] = useState([]);
+  const [userBookingsLoaded, setUserBookingsLoaded] = useState(false);
+  const [hasBookingOnSelectedDate, setHasBookingOnSelectedDate] = useState(false);
+
+  // ── Load user's existing bookings once on mount ──────────────────────────
   useEffect(() => {
     setServicesLoading(true);
     fetch(`${API_BASE}/services/`, {
@@ -647,21 +605,76 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         if (!r.ok) throw new Error("Failed to load services.");
         return r.json();
       })
-      .then((data) =>
-        setServices(
-          (Array.isArray(data) ? data : (data.results ?? [])).filter(
-            (s) => s.is_active !== false,
-          ),
-        ),
-      )
+      .catch(() => setUserBookingsLoaded(true)); // still mark loaded so we don't block forever
+  }, []);
+
+  // ── Check if user already has an active booking on the selected date ─────
+  useEffect(() => {
+    if (!form.date || !userBookingsLoaded) {
+      setHasBookingOnSelectedDate(false);
+      return;
+    }
+    const conflict = userBookings.some(
+      (b) =>
+        b.date === form.date &&
+        b.status !== "cancelled" &&
+        b.status !== "done",
+    );
+    setHasBookingOnSelectedDate(conflict);
+    if (conflict) {
+      setError(
+        "You already have an existing booking on this date. Multiple bookings on the same day are not allowed.",
+      );
+    } else {
+      setError((prev) =>
+        prev.includes("already have an existing booking") ? "" : prev,
+      );
+    }
+  }, [form.date, userBookings, userBookingsLoaded]);
+
+  // ── Fetch available slots whenever date + branch change ──────────────────
+  useEffect(() => {
+    if (!form.date || !form.branch) {
+      setAvailableSlots(null);
+      return;
+    }
+
+    // FIX: Immediately clear selected time when date changes so user must re-pick
+    setForm((prev) => ({ ...prev, time: "" }));
+    setAvailableSlots(null); // show loading state
+    setCheckingAvailability(true);
+
+    fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/api/bookings/available-slots/?branch_id=${form.branch.id}&date=${form.date}`,
+      { headers: authHeaders() },
+    )
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((data) => {
+        // FIX: API returns { available_slots: { "8:00 AM": true, "9:00 AM": false, ... } }
+        // We store exactly this — slots not in the object default to unavailable
+        setAvailableSlots(data.available_slots ?? {});
+      })
+      .catch(() => {
+        // Fallback: all slots available if API unreachable
+        const fallback = {};
+        TIME_SLOTS.forEach((s) => { fallback[s] = true; });
+        setAvailableSlots(fallback);
+      })
+      .finally(() => setCheckingAvailability(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.date, form.branch]);
+
+  // ── Services ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    setServicesLoading(true);
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/services/`, { headers: authHeaders() })
+      .then((r) => { if (!r.ok) throw new Error("Failed to load services."); return r.json(); })
+      .then((data) => setServices((Array.isArray(data) ? data : (data.results ?? [])).filter((s) => s.is_active !== false)))
       .catch((err) => setServicesError(err.message))
       .finally(() => setServicesLoading(false));
   }, []);
 
-  const [branches, setBranches] = useState([]);
-  const [branchLoading, setBranchLoading] = useState(true);
-  const [branchError, setBranchError] = useState("");
-
+  // ── Branches ──────────────────────────────────────────────────────────────
   useEffect(() => {
     setBranchLoading(true);
     fetch(`${API_BASE}/branches/`, {
@@ -678,29 +691,56 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       .finally(() => setBranchLoading(false));
   }, []);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({});
-
   const set = (key, value) => {
     setForm((p) => ({ ...p, [key]: value }));
     setError("");
-    setFieldErrors((prev) => ({ ...prev, [key]: null }));
+    setFieldErrors((p) => ({ ...p, [key]: null }));
   };
 
+  // ── Helper: is a given slot truly available? ─────────────────────────────
+  // FIX: returns false if slots not yet loaded (null) or slot explicitly false
+  const isSlotAvailable = (slot) => {
+    if (availableSlots === null) return false; // still loading
+    return availableSlots[slot] === true;
+  };
+
+  // ── Validate current step before advancing ────────────────────────────────
   const canAdvance = () => {
-    if (step === 0) return !!form.service;
-    if (step === 1) return !!form.branch;
-    if (step === 2) return !!form.date && !!form.time;
+    setError("");
+    if (step === 0) {
+      if (!form.service) { setError("Please select a service to continue."); return false; }
+      return true;
+    }
+    if (step === 1) {
+      if (!form.branch) { setError("Please select a branch to continue."); return false; }
+      return true;
+    }
+    if (step === 2) {
+      // FIX: Block same-day booking
+      if (!form.date) { setError("Please select a date."); return false; }
+      if (form.date <= todayISO()) {
+        setError("Same-day bookings are not allowed. Please select tomorrow or a later date.");
+        return false;
+      }
+      // FIX: Block if user already has a booking that day
+      if (hasBookingOnSelectedDate) {
+        setError("You already have a booking on this date. Multiple bookings on the same day are not allowed.");
+        return false;
+      }
+      if (!form.time) { setError("Please select a time slot."); return false; }
+      // FIX: Verify slot is still available at the moment of advancing
+      if (!isSlotAvailable(form.time)) {
+        setError("The selected time slot is no longer available. Please choose another.");
+        setForm((p) => ({ ...p, time: "" }));
+        return false;
+      }
+      return true;
+    }
     return true;
   };
 
   const handleNext = () => {
-    if (!canAdvance()) {
-      setError("Please complete this step before continuing.");
-      return;
-    }
-    setError("");
+    if (!canAdvance()) return;
     setStep((s) => s + 1);
   };
 
@@ -711,12 +751,26 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     try {
       if (!form.service?.id) throw new Error("Please select a service");
       if (!form.branch?.id) throw new Error("Please select a branch");
-      if (!form.date || !form.time)
-        throw new Error("Please select date and time");
+      if (!form.date || !form.time) throw new Error("Please select date and time");
+
+      // FIX: Same-day guard at submit time
+      if (form.date <= todayISO()) {
+        throw new Error("Same-day bookings are not allowed. Please select tomorrow or a later date.");
+      }
+
+      // FIX: Duplicate-day guard at submit time
+      if (hasBookingOnSelectedDate) {
+        throw new Error("You already have a booking on this date. Multiple bookings on the same day are not allowed.");
+      }
+
+      // FIX: Slot availability guard at submit time
+      if (!isSlotAvailable(form.time)) {
+        throw new Error("This time slot is no longer available. Please go back and select another time.");
+      }
+
       const vehicle = (form.vehicle ?? "").trim();
       const plateNumber = (form.plateNumber ?? "").trim();
-      if (!vehicle || !plateNumber)
-        throw new Error("Please enter vehicle details");
+      if (!vehicle || !plateNumber) throw new Error("Please enter vehicle details");
 
       const payload = {
         service: form.service.name,
@@ -741,15 +795,11 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         if (errorData && typeof errorData === "object") {
-          const newFieldErrors = {};
-          let errorMessage = "";
-          Object.entries(errorData).forEach(([field, errors]) => {
-            if (field === "non_field_errors" || field === "detail")
-              errorMessage = Array.isArray(errors) ? errors[0] : errors;
-            else
-              newFieldErrors[field] = Array.isArray(errors)
-                ? errors[0]
-                : errors;
+          const nfe = {};
+          let em = "";
+          Object.entries(errorData).forEach(([f, e]) => {
+            if (f === "non_field_errors" || f === "detail") em = Array.isArray(e) ? e[0] : e;
+            else nfe[f] = Array.isArray(e) ? e[0] : e;
           });
           if (Object.keys(newFieldErrors).length > 0) {
             setFieldErrors(newFieldErrors);
@@ -765,7 +815,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         }
         throw new Error(`Error ${res.status}: Failed to create booking.`);
       }
-
       onSuccess(await res.json());
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
@@ -774,87 +823,52 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     }
   };
 
+  // ── Count available slots for display ────────────────────────────────────
+  const availableCount = availableSlots
+    ? Object.values(availableSlots).filter((v) => v === true).length
+    : 0;
+
   return (
     <>
-      <div
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40"
-        onClick={onClose}
-      />
-      <div
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-lg flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden"
-        style={{ animation: "drawerIn 0.32s cubic-bezier(0.16,1,0.3,1)" }}
-      >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 flex-shrink-0">
+      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm sm:max-w-lg flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/8 flex-shrink-0">
           <div>
-            <h2 className="text-xl font-black text-white tracking-tight">
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
               Book an <span className="text-red-500">Appointment</span>
             </h2>
-            <p className="text-gray-500 text-xs mt-0.5">
-              Step {step + 1} of {STEPS.length}
-            </p>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Step {step + 1} of {STEPS.length}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+          <button onClick={onClose} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         <StepIndicator current={step} />
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {/* STEP 0 — Service */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
+
+          {/* ── Step 0: Service ── */}
           {step === 0 && (
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-                Choose a Service
-              </p>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 sm:mb-4">Choose a Service</p>
               {servicesLoading ? (
-                <div className="flex items-center justify-center py-16 text-gray-500">
-                  <svg
-                    className="w-5 h-5 animate-spin mr-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                <div className="flex items-center justify-center py-12 sm:py-16 text-gray-500">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 animate-spin mr-2 sm:mr-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Loading services…
                 </div>
               ) : servicesError ? (
-                <div className="text-center py-16 text-red-400 text-sm">
-                  {servicesError}
-                </div>
+                <div className="text-center py-12 sm:py-16 text-red-400 text-xs sm:text-sm">{servicesError}</div>
               ) : services.length === 0 ? (
-                <div className="text-center py-16 text-gray-500">
-                  No services available.
-                </div>
+                <div className="text-center py-12 sm:py-16 text-gray-500 text-xs sm:text-sm">No services available.</div>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {services.map((s) => {
                     const active = form.service?.id === s.id;
                     const icon = CATEGORY_ICON[s.category] ?? "🔧";
@@ -863,7 +877,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         key={s.id}
                         type="button"
                         onClick={() => set("service", s)}
-                        className={`p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
+                        className={`p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
                       >
                         <div className="text-2xl mb-2">{icon}</div>
                         <div
@@ -878,30 +892,12 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                             ? `₱${parseFloat(s.price_min).toLocaleString()} – ₱${parseFloat(s.price_max).toLocaleString()}`
                             : `₱${parseFloat(s.price_min || s.price || 0).toLocaleString()}`}
                         </div>
-                        {s.duration && (
-                          <div className="text-gray-600 text-xs mt-1">
-                            ⏱ {s.duration}
-                          </div>
-                        )}
-                        {s.category && (
-                          <div className="text-gray-600 text-xs">
-                            {s.category}
-                          </div>
-                        )}
+                        {s.duration && <div className="text-gray-600 text-[8px] sm:text-[10px] mt-1">⏱ {s.duration}</div>}
+                        {s.category && <div className="text-gray-600 text-[8px] sm:text-[10px]">{s.category}</div>}
                         {active && (
-                          <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-red-600 flex items-center justify-center">
-                            <svg
-                              className="w-3 h-3 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={3}
-                                d="M5 13l4 4L19 7"
-                              />
+                          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-600 flex items-center justify-center">
+                            <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
                         )}
@@ -913,45 +909,24 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             </div>
           )}
 
-          {/* STEP 1 — Branch */}
+          {/* ── Step 1: Branch ── */}
           {step === 1 && (
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
-                Choose a Branch
-              </p>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 sm:mb-4">Choose a Branch</p>
               {branchLoading ? (
-                <div className="flex items-center justify-center py-16 text-gray-500">
-                  <svg
-                    className="w-5 h-5 animate-spin mr-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                <div className="flex items-center justify-center py-12 sm:py-16 text-gray-500">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 animate-spin mr-2 sm:mr-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Loading branches…
                 </div>
               ) : branchError ? (
-                <div className="text-center py-16 text-red-400 text-sm">
-                  {branchError}
-                </div>
+                <div className="text-center py-12 sm:py-16 text-red-400 text-xs sm:text-sm">{branchError}</div>
               ) : branches.length === 0 ? (
-                <div className="text-center py-16 text-gray-500">
-                  No branches available.
-                </div>
+                <div className="text-center py-12 sm:py-16 text-gray-500 text-xs sm:text-sm">No branches available.</div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {branches.map((b) => {
                     const active = form.branch?.id === b.id;
                     return (
@@ -959,63 +934,26 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         key={b.id}
                         type="button"
                         onClick={() => set("branch", b)}
-                        className={`w-full p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-4 ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
+                        className={`w-full p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-2 sm:gap-4 ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
                       >
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${active ? "bg-red-600" : "bg-white/8"}`}
-                        >
-                          <svg
-                            className={`w-4 h-4 ${active ? "text-white" : "text-gray-500"}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
+                        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${active ? "bg-red-600" : "bg-white/8"}`}>
+                          <svg className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${active ? "text-white" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div
-                            className={`font-bold text-sm mb-0.5 ${active ? "text-white" : "text-gray-200"}`}
-                          >
-                            {b.name}
-                          </div>
-                          <div className="text-gray-500 text-xs mb-1 truncate">
-                            {b.address}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-gray-600 text-xs">
-                              {b.hours}
-                            </span>
-                            <span className="text-green-400 text-xs font-semibold">
-                              {b.slots} slots open
-                            </span>
+                          <div className={`font-bold text-xs sm:text-sm mb-0.5 ${active ? "text-white" : "text-gray-200"}`}>{b.name}</div>
+                          <div className="text-gray-500 text-[8px] sm:text-[10px] mb-1 truncate">{b.address}</div>
+                          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                            <span className="text-gray-600 text-[8px] sm:text-[10px]">{b.hours}</span>
+                            <span className="text-green-400 text-[8px] sm:text-[10px] font-semibold">{b.slots} slots open</span>
                           </div>
                         </div>
                         {active && (
-                          <div className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0 mt-1">
-                            <svg
-                              className="w-3 h-3 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={3}
-                                d="M5 13l4 4L19 7"
-                              />
+                          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
                         )}
@@ -1027,65 +965,128 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             </div>
           )}
 
-          {/* STEP 2 — Schedule */}
+          {/* ── Step 2: Schedule ── */}
           {step === 2 && (
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
+              {/* Date picker */}
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                  Pick a Date
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
+                  Pick a Date{" "}
+                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Tomorrow or later only)</span>
                 </p>
                 <input
                   type="date"
-                  min={todayISO()}
+                  min={tomorrowISO()}
                   value={form.date}
-                  onChange={(e) => set("date", e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
+                  onChange={(e) => {
+                    // FIX: use set() so error is cleared, time reset happens in the useEffect
+                    set("date", e.target.value);
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
                 />
+                {/* FIX: warn if user somehow picks today (browser may allow it on some devices) */}
+                {form.date && form.date <= todayISO() && (
+                  <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
+                    Same-day bookings are not allowed. Please select tomorrow or a later date.
+                  </p>
+                )}
+                {/* FIX: warn about duplicate booking on this date */}
+                {form.date && form.date > todayISO() && hasBookingOnSelectedDate && (
+                  <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">
+                    You already have a booking on this date. Please choose a different day.
+                  </p>
+                )}
               </div>
+
+              {/* Time slots */}
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
                   Pick a Time Slot
+                  {checkingAvailability && (
+                    <span className="ml-2 text-gray-500 font-normal normal-case">(Checking availability…)</span>
+                  )}
                 </p>
-                <div className="grid grid-cols-3 gap-2">
+
+                {/* FIX: show skeleton/loading state while slots are null */}
+                {form.date && availableSlots === null && !checkingAvailability && (
+                  <p className="text-gray-500 text-[10px] sm:text-xs mb-2">Select a date and branch to see available slots.</p>
+                )}
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
                   {TIME_SLOTS.map((t) => {
                     const active = form.time === t;
+                    // FIX: a slot is only clickable if:
+                    //  1. slots have been loaded (availableSlots !== null)
+                    //  2. the slot is explicitly true in the response
+                    //  3. the date is valid (tomorrow or later)
+                    //  4. user doesn't already have a booking that day
+                    const slotsLoaded = availableSlots !== null;
+                    const slotAvailable = slotsLoaded && availableSlots[t] === true;
+                    const dateValid = form.date && form.date > todayISO();
+                    const isDisabled =
+                      !slotsLoaded ||
+                      !slotAvailable ||
+                      !dateValid ||
+                      hasBookingOnSelectedDate ||
+                      checkingAvailability;
+
                     return (
                       <button
                         key={t}
                         type="button"
-                        onClick={() => set("time", t)}
-                        className={`py-3 rounded-xl border text-sm font-bold transition-all duration-200 ${active ? "border-red-500 bg-red-600/15 text-white shadow-md shadow-red-600/10" : "border-white/8 bg-white/3 text-gray-400 hover:border-white/20 hover:text-white"}`}
+                        onClick={() => { if (!isDisabled) set("time", t); }}
+                        disabled={isDisabled}
+                        title={
+                          !dateValid
+                            ? "Select a valid date first"
+                            : hasBookingOnSelectedDate
+                              ? "You already have a booking on this date"
+                              : !slotsLoaded || checkingAvailability
+                                ? "Loading availability…"
+                                : !slotAvailable
+                                  ? "This slot is fully booked"
+                                  : ""
+                        }
+                        className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${
+                          active && !isDisabled
+                            ? "border-red-500 bg-red-600/15 text-white shadow-md shadow-red-600/10"
+                            : isDisabled
+                              ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
+                              : "border-white/8 bg-white/3 text-gray-400 hover:border-white/20 hover:text-white cursor-pointer"
+                        }`}
                       >
                         {t}
+                        {/* FIX: show correct label based on why it's disabled */}
+                        {isDisabled && slotsLoaded && !checkingAvailability && !hasBookingOnSelectedDate && dateValid && (
+                          <span className="block text-[8px] text-gray-600 font-normal">Fully Booked</span>
+                        )}
+                        {checkingAvailability && (
+                          <span className="block text-[8px] text-gray-600 font-normal">Loading…</span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
+
+                {/* Slot count summary */}
+                {form.date && form.date > todayISO() && !checkingAvailability && availableSlots !== null && !hasBookingOnSelectedDate && (
+                  <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
+                    {availableCount > 0
+                      ? `${availableCount} time slot${availableCount !== 1 ? "s" : ""} available`
+                      : "No time slots available for this date. Please choose another day."}
+                  </p>
+                )}
               </div>
+
+              {/* Selected summary pill */}
               {form.date && form.time && (
-                <div className="flex items-center gap-3 bg-white/4 rounded-xl px-4 py-3 border border-white/8">
-                  <svg
-                    className="w-4 h-4 text-red-500 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
+                <div className="flex items-center gap-2 sm:gap-3 bg-white/4 rounded-xl px-3 sm:px-4 py-2 sm:py-3 border border-white/8">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-gray-300 text-sm">
-                    <span className="text-white font-semibold">
-                      {form.date}
-                    </span>{" "}
-                    at{" "}
-                    <span className="text-white font-semibold">
-                      {form.time}
-                    </span>
-                    {" · "}
+                  <span className="text-gray-300 text-[10px] sm:text-xs">
+                    <span className="text-white font-semibold">{form.date}</span>{" "}at{" "}
+                    <span className="text-white font-semibold">{form.time}</span>{" "}·{" "}
                     <span className="text-gray-500">{form.branch?.name}</span>
                   </span>
                 </div>
@@ -1093,36 +1094,22 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             </div>
           )}
 
-          {/* STEP 3 — Details */}
+          {/* ── Step 3: Details ── */}
           {step === 3 && (
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               {form.damageData && (
-                <div className="bg-blue-600/10 border border-blue-600/20 rounded-xl p-4">
+                <div className="bg-blue-600/10 border border-blue-600/20 rounded-xl p-3 sm:p-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <svg
-                      className="w-5 h-5 text-blue-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-blue-400 font-semibold text-sm">
-                      Damage Detection Data Included
-                    </span>
+                    <span className="text-blue-400 font-semibold text-[10px] sm:text-xs">Damage Detection Data Included</span>
                   </div>
-                  <p className="text-gray-400 text-xs">
-                    AI analysis results will be attached to your booking
-                  </p>
+                  <p className="text-gray-400 text-[8px] sm:text-[10px]">AI analysis results will be attached to your booking</p>
                 </div>
               )}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 sm:mb-2">
                   Vehicle Type <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1130,16 +1117,12 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   placeholder="e.g. Toyota Vios, Honda Civic..."
                   value={form.vehicle}
                   onChange={(e) => set("vehicle", e.target.value)}
-                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${fieldErrors.vehicle ? "border-red-500" : "border-white/10"}`}
+                  className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${fieldErrors.vehicle ? "border-red-500" : "border-white/10"}`}
                 />
-                {fieldErrors.vehicle && (
-                  <p className="text-red-400 text-xs mt-1">
-                    {fieldErrors.vehicle}
-                  </p>
-                )}
+                {fieldErrors.vehicle && <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">{fieldErrors.vehicle}</p>}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 sm:mb-2">
                   Plate Number <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1147,34 +1130,25 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   placeholder="e.g. ABC 1234"
                   value={form.plateNumber}
                   onChange={(e) => set("plateNumber", e.target.value)}
-                  className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${fieldErrors.plate_number ? "border-red-500" : "border-white/10"}`}
+                  className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors ${fieldErrors.plate_number ? "border-red-500" : "border-white/10"}`}
                 />
-                {fieldErrors.plate_number && (
-                  <p className="text-red-400 text-xs mt-1">
-                    {fieldErrors.plate_number}
-                  </p>
-                )}
+                {fieldErrors.plate_number && <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">{fieldErrors.plate_number}</p>}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Special Requests{" "}
-                  <span className="text-gray-600 font-normal normal-case">
-                    (optional)
-                  </span>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 sm:mb-2">
+                  Special Requests <span className="text-gray-600 font-normal normal-case">(optional)</span>
                 </label>
                 <textarea
                   rows={3}
                   placeholder="Specific areas of concern, access instructions..."
                   value={form.notes}
                   onChange={(e) => set("notes", e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors resize-none"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 transition-colors resize-none"
                 />
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
-                <div className="px-4 py-3 border-b border-white/8">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                    Booking Summary
-                  </p>
+                <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-white/8">
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">Booking Summary</p>
                 </div>
                 <div className="divide-y divide-white/5">
                   {[
@@ -1185,23 +1159,16 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                     {
                       label: "Price Range",
                       value: form.service
-                        ? form.service.price_min &&
-                          form.service.price_max &&
-                          form.service.price_min !== form.service.price_max
+                        ? form.service.price_min && form.service.price_max && form.service.price_min !== form.service.price_max
                           ? `₱${parseFloat(form.service.price_min).toLocaleString()} – ₱${parseFloat(form.service.price_max).toLocaleString()}`
                           : `₱${parseFloat(form.service.price_min || form.service.price || 0).toLocaleString()}`
                         : "—",
                       highlight: true,
                     },
                   ].map(({ label, value, highlight }) => (
-                    <div
-                      key={label}
-                      className="flex items-center justify-between px-4 py-2.5"
-                    >
-                      <span className="text-gray-500 text-sm">{label}</span>
-                      <span
-                        className={`text-sm font-semibold ${highlight ? "text-red-400 text-base font-black" : "text-white"}`}
-                      >
+                    <div key={label} className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5">
+                      <span className="text-gray-500 text-[10px] sm:text-xs">{label}</span>
+                      <span className={`text-[10px] sm:text-xs font-semibold ${highlight ? "text-red-400 text-xs sm:text-base font-black" : "text-white"}`}>
                         {value || "—"}
                       </span>
                     </div>
@@ -1211,27 +1178,19 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             </div>
           )}
 
+          {/* Error banner */}
           {error && (
-            <div className="mt-4 flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-4 py-3 text-red-400 text-sm">
-              <svg
-                className="w-4 h-4 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
+            <div className="mt-3 sm:mt-4 flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-red-400 text-[10px] sm:text-xs">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {error}
             </div>
           )}
         </div>
 
-        <div className="flex gap-3 px-6 py-5 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
+        {/* Footer buttons */}
+        <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 sm:py-5 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
           <button
             type="button"
             onClick={
@@ -1251,21 +1210,11 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
             <button
               type="button"
               onClick={handleNext}
-              className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-lg shadow-red-600/25 transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-600/25 transition-all flex items-center justify-center gap-1 sm:gap-2"
             >
               Continue
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           ) : (
@@ -1273,46 +1222,21 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm shadow-lg shadow-red-600/25 transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-600/25 transition-all flex items-center justify-center gap-1 sm:gap-2"
             >
               {loading ? (
                 <>
-                  <svg
-                    className="w-4 h-4 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Submitting...
                 </>
               ) : (
                 <>
                   Confirm Booking
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </>
               )}
@@ -1320,7 +1244,6 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
           )}
         </div>
       </div>
-      <style>{`@keyframes drawerIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
     </>
   );
 }
@@ -1330,50 +1253,31 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
 function OptionSelectorModal({ onClose, onSelectOption }) {
   return (
     <>
-      <div
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40"
-        onClick={onClose}
-      />
-      <div
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-md flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden"
-        style={{ animation: "drawerIn 0.32s cubic-bezier(0.16,1,0.3,1)" }}
-      >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 flex-shrink-0">
+      <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm sm:max-w-md flex flex-col bg-[#0a0a0a] border-l border-white/8 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/8 flex-shrink-0">
           <div>
-            <h2 className="text-xl font-black text-white tracking-tight">
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
               Choose <span className="text-red-500">Option</span>
             </h2>
-            <p className="text-gray-500 text-xs mt-0.5">
-              Select what you'd like to do
-            </p>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Select what you'd like to do</p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+          <button onClick={onClose} className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-8">
-          <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="space-y-3 sm:space-y-4">
             {[
               {
                 key: "booking",
                 title: "Book an Appointment",
                 desc: "Schedule a service for your vehicle",
-                accent: "red",
+                iconBg: "bg-red-600/20 group-hover:bg-red-600/30",
+                iconColor: "text-red-500",
+                ctaColor: "text-red-400",
                 icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
                 cta: "Get started",
               },
@@ -1381,55 +1285,31 @@ function OptionSelectorModal({ onClose, onSelectOption }) {
                 key: "damage",
                 title: "Damage Detection",
                 desc: "Use AI to analyze vehicle damage before booking",
-                accent: "blue",
+                iconBg: "bg-blue-600/20 group-hover:bg-blue-600/30",
+                iconColor: "text-blue-500",
+                ctaColor: "text-blue-400",
                 icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z",
                 cta: "Upload photos",
               },
-            ].map(({ key, title, desc, accent, icon, cta }) => (
+            ].map(({ key, title, desc, iconBg, iconColor, ctaColor, icon, cta }) => (
               <button
                 key={key}
                 onClick={() => onSelectOption(key)}
-                className={`w-full p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-${accent}-950/10 hover:border-${accent}-500 hover:bg-${accent}-600/5 transition-all duration-300 text-left group`}
+                className="w-full p-4 sm:p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-black hover:border-white/20 transition-all duration-300 text-left group"
               >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`w-14 h-14 rounded-xl bg-${accent}-600/20 flex items-center justify-center group-hover:bg-${accent}-600/30 transition-colors`}
-                  >
-                    <svg
-                      className={`w-7 h-7 text-${accent}-500`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d={icon}
-                      />
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl ${iconBg} flex items-center justify-center transition-colors`}>
+                    <svg className={`w-5 h-5 sm:w-7 sm:h-7 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-white mb-2">
-                      {title}
-                    </h3>
-                    <p className="text-gray-400 text-sm mb-3">{desc}</p>
-                    <div
-                      className={`flex items-center gap-2 text-${accent}-400 text-sm font-semibold`}
-                    >
+                    <h3 className="text-base sm:text-xl font-bold text-white mb-1 sm:mb-2">{title}</h3>
+                    <p className="text-gray-400 text-[10px] sm:text-xs mb-2 sm:mb-3">{desc}</p>
+                    <div className={`flex items-center gap-1 sm:gap-2 ${ctaColor} text-[10px] sm:text-xs font-semibold`}>
                       {cta}
-                      <svg
-                        className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
+                      <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
                   </div>
@@ -1443,49 +1323,33 @@ function OptionSelectorModal({ onClose, onSelectOption }) {
   );
 }
 
-// ─── Success Toast ─────────────────────────────────────────────────────────────
+// ─── Toast ────────────────────────────────────────────────────────────────────
 
-function SuccessToast({ message, onDismiss }) {
+function Toast({ message, type = "success", onDismiss }) {
+  const isSuccess = type === "success";
   return (
     <div
-      className="fixed bottom-6 right-6 z-[60] flex items-center gap-3 bg-green-600 text-white px-5 py-4 rounded-2xl shadow-2xl shadow-green-600/40"
+      className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60] flex items-center gap-2 sm:gap-3 ${isSuccess ? "bg-green-600 shadow-green-600/40" : "bg-red-600 shadow-red-600/40"} text-white px-3 sm:px-5 py-2 sm:py-4 rounded-2xl shadow-2xl max-w-[calc(100%-2rem)] sm:max-w-md`}
       style={{ animation: "toastUp 0.3s ease-out" }}
     >
-      <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2.5}
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
+      <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+        {isSuccess ? (
+          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        )}
       </div>
-      <span className="font-semibold text-sm">{message}</span>
+      <span className="font-semibold text-[10px] sm:text-xs">{message}</span>
       <button onClick={onDismiss} className="ml-1 opacity-70 hover:opacity-100">
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
+        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
-      <style>{`
-        @keyframes toastUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes drawerIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-      `}</style>
+      <style>{`@keyframes toastUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
     </div>
   );
 }
@@ -1503,7 +1367,13 @@ function BookingsPage() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [damageData, setDamageData] = useState(null);
+  const [cancelBooking, setCancelBooking] = useState(null);
   const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4500);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -1522,21 +1392,18 @@ function BookingsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Reset to page 1 whenever filter changes
-  useEffect(() => {
-    setPage(1);
-  }, [filter]);
+  useEffect(() => { setPage(1); }, [filter]);
 
   const filtered = useMemo(
-    () =>
-      filter === "all" ? bookings : bookings.filter((b) => b.status === filter),
+    () => filter === "all" ? bookings : bookings.filter((b) => b.status === filter),
     [bookings, filter],
   );
-
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const handleCancel = async (id) => {
+  const handleCancelConfirm = async (reason) => {
+    const booking = cancelBooking;
+    if (!booking) return;
     try {
       const res = await fetch(
         `${API_BASE}/api/bookings/${id}/`,
@@ -1547,12 +1414,12 @@ function BookingsPage() {
         },
       );
       if (!res.ok) throw new Error();
-      setBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: "cancelled" } : b)),
-      );
+      setBookings((prev) => prev.map((b) => b.id === booking.id ? { ...b, status: "cancelled" } : b));
+      showToast("Booking cancelled successfully.");
+      setCancelBooking(null);
     } catch {
-      setToast("Failed to cancel booking. Please try again.");
-      setTimeout(() => setToast(null), 4000);
+      showToast("Failed to cancel booking. Please try again.", "error");
+      setCancelBooking(null);
     }
   };
 
@@ -1562,8 +1429,7 @@ function BookingsPage() {
     setShowDamageModal(false);
     setDamageData(null);
     setPage(1);
-    setToast("Your booking was submitted successfully!");
-    setTimeout(() => setToast(null), 4500);
+    showToast("Your booking was submitted successfully!");
   };
 
   const handleOptionSelect = (option) => {
@@ -1581,75 +1447,44 @@ function BookingsPage() {
 
   return (
     <CustomerLayout>
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/30 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/30 p-3 sm:p-4 lg:p-6 xl:p-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-1">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-1">
               My <span className="text-red-600">Bookings</span>
             </h1>
-            <p className="text-gray-400">
-              Manage and track all your appointments.
-            </p>
+            <p className="text-gray-400 text-xs sm:text-sm">Manage and track all your appointments.</p>
           </div>
           <button
             onClick={() => setShowOptionModal(true)}
-            className="self-start sm:self-auto bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-xl shadow-red-600/30 flex items-center gap-2"
+            className="self-start sm:self-auto bg-red-600 hover:bg-red-700 text-white font-bold px-4 sm:px-6 py-2 sm:py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-xl shadow-red-600/30 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             New Booking
           </button>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8">
           {[
             { label: "Total", value: bookings.length, color: "text-white" },
-            {
-              label: "Confirmed",
-              value: bookings.filter((b) => b.status === "confirmed").length,
-              color: "text-green-400",
-            },
-            {
-              label: "Pending",
-              value: bookings.filter((b) => b.status === "pending").length,
-              color: "text-yellow-400",
-            },
-            {
-              label: "Completed",
-              value: bookings.filter((b) => b.status === "done").length,
-              color: "text-blue-400",
-            },
-            {
-              label: "Cancelled",
-              value: bookings.filter((b) => b.status === "cancelled").length,
-              color: "text-red-400",
-            },
+            { label: "Confirmed", value: bookings.filter((b) => b.status === "confirmed").length, color: "text-green-400" },
+            { label: "Pending", value: bookings.filter((b) => b.status === "pending").length, color: "text-yellow-400" },
+            { label: "Completed", value: bookings.filter((b) => b.status === "done").length, color: "text-blue-400" },
+            { label: "Cancelled", value: bookings.filter((b) => b.status === "cancelled").length, color: "text-red-400" },
           ].map(({ label, value, color }) => (
-            <div
-              key={label}
-              className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-5 border border-white/5 text-center"
-            >
-              <div className={`text-3xl font-black ${color} mb-1`}>{value}</div>
-              <div className="text-sm text-gray-500">{label}</div>
+            <div key={label} className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-3 sm:p-5 border border-white/5 text-center">
+              <div className={`text-xl sm:text-2xl lg:text-3xl font-black ${color} mb-0.5 sm:mb-1`}>{value}</div>
+              <div className="text-[10px] sm:text-xs text-gray-500">{label}</div>
             </div>
           ))}
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
+        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-6 flex-wrap">
           {["all", "confirmed", "pending", "done", "cancelled"].map((f) => (
             <button
               key={f}
@@ -1666,66 +1501,32 @@ function BookingsPage() {
 
         {/* Results meta */}
         {!loading && !fetchError && filtered.length > 0 && (
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-500">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <p className="text-[10px] sm:text-xs text-gray-500">
               Showing{" "}
-              <span className="text-white font-semibold">
-                {(page - 1) * PAGE_SIZE + 1}–
-                {Math.min(page * PAGE_SIZE, filtered.length)}
-              </span>{" "}
-              of{" "}
-              <span className="text-white font-semibold">
-                {filtered.length}
-              </span>{" "}
-              bookings
+              <span className="text-white font-semibold">{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)}</span>
+              {" "}of{" "}
+              <span className="text-white font-semibold">{filtered.length}</span> bookings
             </p>
-            <p className="text-sm text-gray-600">
-              Page {page} of {totalPages}
-            </p>
+            <p className="text-[10px] sm:text-xs text-gray-600">Page {page} of {totalPages}</p>
           </div>
         )}
 
         {/* Bookings List */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {loading && (
-            <div className="flex items-center justify-center py-24 text-gray-500">
-              <svg
-                className="w-6 h-6 animate-spin mr-3"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
+            <div className="flex items-center justify-center py-16 sm:py-24 text-gray-500">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 animate-spin mr-2 sm:mr-3" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
               Loading your bookings…
             </div>
           )}
-
           {!loading && fetchError && (
-            <div className="flex items-center gap-3 bg-red-600/10 border border-red-600/25 rounded-2xl px-6 py-5 text-red-400">
-              <svg
-                className="w-5 h-5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
+            <div className="flex items-center gap-2 sm:gap-3 bg-red-600/10 border border-red-600/25 rounded-2xl px-4 sm:px-6 py-3 sm:py-5 text-red-400 text-[10px] sm:text-xs">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {fetchError}
             </div>
@@ -1827,79 +1628,69 @@ function BookingsPage() {
                           )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="text-2xl font-black text-white">
-                        {priceDisplay}
-                      </div>
-                      {booking.status !== "cancelled" &&
-                        booking.status !== "done" && (
-                          <div className="flex gap-2">
-                            <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-sm font-semibold transition-colors">
-                              Reschedule
-                            </button>
-                            <button
-                              onClick={() => handleCancel(booking.id)}
-                              className="px-4 py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-xl text-sm font-semibold transition-all duration-200"
-                            >
-                              Cancel
-                            </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-x-4 sm:gap-x-5 gap-y-1.5 sm:gap-y-2 text-gray-400 text-[10px] sm:text-xs">
+                      {[
+                        { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", text: booking.date },
+                        { icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", text: displayTime },
+                        booking.staff && { icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z", text: booking.staff },
+                        booking.branch && {
+                          icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                          text: typeof booking.branch === "object" ? booking.branch.name : booking.branch,
+                        },
+                      ].filter(Boolean).map(({ icon, text }) =>
+                        text && (
+                          <div key={icon} className="flex items-center gap-1 sm:gap-2">
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
+                            </svg>
+                            <span className="truncate">{text}</span>
                           </div>
-                        )}
+                        )
+                      )}
                     </div>
                   </div>
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-wrap">
+                    <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">{priceDisplay}</div>
+                    {booking.status !== "cancelled" && booking.status !== "done" && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCancelBooking(booking)}
+                          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
-
+              </div>
+            );
+          })}
           {!loading && !fetchError && filtered.length === 0 && (
-            <div className="text-center py-24 text-gray-500">
-              <svg
-                className="w-16 h-16 mx-auto mb-4 opacity-20"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
+            <div className="text-center py-16 sm:py-24 text-gray-500">
+              <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p className="text-lg font-semibold">No bookings found</p>
+              <p className="text-base sm:text-lg font-semibold">No bookings found</p>
             </div>
           )}
         </div>
 
-        {/* Pagination */}
         <Pagination current={page} total={totalPages} onChange={setPage} />
       </div>
 
-      {showOptionModal && (
-        <OptionSelectorModal
-          onClose={() => setShowOptionModal(false)}
-          onSelectOption={handleOptionSelect}
-        />
-      )}
+      {/* Modals */}
+      {showOptionModal && <OptionSelectorModal onClose={() => setShowOptionModal(false)} onSelectOption={handleOptionSelect} />}
       {showBookingModal && (
         <NewBookingModal
-          onClose={() => {
-            setShowBookingModal(false);
-            setDamageData(null);
-          }}
+          onClose={() => { setShowBookingModal(false); setDamageData(null); }}
           onSuccess={handleBookingSuccess}
           initialDamageData={damageData}
         />
       )}
-      {showDamageModal && (
-        <DamageDetectionModal
-          onClose={() => setShowDamageModal(false)}
-          onBack={handleDamageComplete}
-        />
-      )}
-      {toast && (
-        <SuccessToast message={toast} onDismiss={() => setToast(null)} />
-      )}
+      {showDamageModal && <DamageDetectionModal onClose={() => setShowDamageModal(false)} onBack={handleDamageComplete} />}
+      {cancelBooking && <CancelBookingModal booking={cancelBooking} onClose={() => setCancelBooking(null)} onConfirm={handleCancelConfirm} />}
+      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </CustomerLayout>
   );
 }
