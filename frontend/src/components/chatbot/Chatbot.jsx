@@ -1,17 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { API_BASE } from "../../hooks/useAuth.js";
 
-const SYSTEM_PROMPT = `You are a helpful customer support assistant for Otokwikk, a premium automotive detailing shop in North Caloocan, Metro Manila.
-
-About Otokwikk:
-- Services: Exterior detailing (multi-stage wash, clay bar, machine polish), Interior detailing (steam cleaning, leather conditioning, deep extraction), and Protection packages (Ceramic coating 9H hardness, PPF applications).
-- Location: Lot 1 Block 1, Camarin Road, North Caloocan, Metro Manila
-- Hours: Monday - Sunday, 8:00 AM - 7:00 PM
-- Contact: +63 9XX XXX XXXX | info@otokwikk.com
-- Stats: 10,000+ premium clients served, 5.0 average rating, 15+ years expertise
-
-Be concise, warm, and professional. Help customers with bookings, service inquiries, pricing, and general support. If you cannot answer something specific, invite them to call or visit the shop.`;
-
 const suggestedQuestions = [
   "What services do you offer?",
   "How do I book an appointment?",
@@ -58,10 +47,10 @@ export default function Chatbot({ onClose }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...updatedMessages.map(({ role, content }) => ({ role, content })),
-          ],
+          messages: updatedMessages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
         }),
       });
 
@@ -147,8 +136,9 @@ export default function Chatbot({ onClose }) {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
+            className={`flex items-end gap-2 ${
+              msg.role === "user" ? "justify-end" : "justify-start"
+            }`}
           >
             {msg.role === "assistant" && (
               <div className="w-7 h-7 bg-red-600/20 rounded-lg border border-red-600/30 flex items-center justify-center flex-shrink-0 mb-0.5">
@@ -168,10 +158,11 @@ export default function Chatbot({ onClose }) {
               </div>
             )}
             <div
-              className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words font-medium ${msg.role === "user"
+              className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words font-medium ${
+                msg.role === "user"
                   ? "bg-red-600 text-white rounded-br-sm shadow-[0_4px_20px_rgba(220,38,38,0.25)]"
                   : "bg-white/5 backdrop-blur-sm text-gray-200 border border-white/10 rounded-bl-sm"
-                }`}
+              }`}
             >
               {msg.content}
             </div>
