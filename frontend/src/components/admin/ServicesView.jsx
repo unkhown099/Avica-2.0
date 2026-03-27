@@ -16,18 +16,18 @@ export default function ServicesView() {
 
   const items = services ?? [];
 
-  // Sort by price_max descending (proxy for revenue potential)
+  // Sort by price descending (proxy for revenue potential)
   const sorted = useMemo(
     () =>
       [...items].sort(
-        (a, b) => Number(b.price_max ?? 0) - Number(a.price_max ?? 0),
+        (a, b) => Number(b.price ?? 0) - Number(a.price ?? 0),
       ),
     [items],
   );
 
   const totalServices = items.filter((s) => s.is_active !== false).length;
 
-  const totalPriceMax = items.reduce((a, s) => a + Number(s.price_max ?? 0), 0);
+  const totalPrice = items.reduce((a, s) => a + Number(s.price ?? 0), 0);
 
   const topService = sorted[0] ?? null;
 
@@ -64,7 +64,7 @@ export default function ServicesView() {
       title: "Top Service",
       value: topService?.name ?? "—",
       sub: topService
-        ? `Up to ₱${Number(topService.price_max).toLocaleString()}`
+        ? `₱${Number(topService.price).toLocaleString()}`
         : "",
       accentBg: "bg-red-500/10",
       accentText: "text-red-400",
@@ -86,8 +86,8 @@ export default function ServicesView() {
       ),
     },
     {
-      title: "Combined Max Price",
-      value: `₱${totalPriceMax.toLocaleString()}`,
+      title: "Combined Price",
+      value: `₱${totalPrice.toLocaleString()}`,
       accentBg: "bg-emerald-500/10",
       accentText: "text-emerald-400",
       border: "border-emerald-500/20",
@@ -127,15 +127,13 @@ export default function ServicesView() {
       <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
         <div className="px-6 py-4 border-b border-white/5">
           <h3 className="text-lg font-black text-white">Service Catalog</h3>
-          <p className="text-gray-500 text-sm mt-0.5">
-            All service types sorted by price
-          </p>
+          <p className="text-gray-500 text-sm mt-0.5">All service types sorted by price</p>
         </div>
         <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
           <div className="col-span-4">Service</div>
           <div className="col-span-2">Category</div>
           <div className="col-span-2">Duration</div>
-          <div className="col-span-2">Price Range</div>
+          <div className="col-span-2">Price</div>
           <div className="col-span-1">Status</div>
           <div className="col-span-1">Share</div>
         </div>
@@ -146,8 +144,8 @@ export default function ServicesView() {
         ) : (
           sorted.map((s, i) => {
             const pct =
-              totalPriceMax > 0
-                ? ((Number(s.price_max) / totalPriceMax) * 100).toFixed(1)
+              totalPrice > 0
+                ? ((Number(s.price) / totalPrice) * 100).toFixed(1)
                 : "0.0";
             const color = SERVICE_COLORS[i % SERVICE_COLORS.length];
             return (
@@ -182,8 +180,7 @@ export default function ServicesView() {
                   {s.duration || "—"}
                 </div>
                 <div className="col-span-2 text-white font-bold text-sm">
-                  ₱{Number(s.price_min).toLocaleString()} – ₱
-                  {Number(s.price_max).toLocaleString()}
+                  ₱{Number(s.price ?? 0).toLocaleString()}
                 </div>
                 <div className="col-span-1">
                   <span

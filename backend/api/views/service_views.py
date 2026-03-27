@@ -2,8 +2,28 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework import status
-from ..models import Service
+from ..models import Service, ServiceCategory
 from ..serializers.service_serializer import ServiceSerializer
+from ..serializers.service_category_serializer import ServiceCategorySerializer
+
+
+class ServiceCategoryListCreateView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
+    def get(self, request):
+        qs = ServiceCategory.objects.filter(is_active=True).order_by("name")
+        serializer = ServiceCategorySerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = ServiceCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ServiceListCreateView(APIView):

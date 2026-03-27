@@ -32,46 +32,13 @@ function getMe() {
 }
 
 const API = API_BASE;
-
-// ─── Confirmation Modal Component ────────────────────────────────────────────
-
-function ConfirmationModal({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  message,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
-  isLoading = false,
-}) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-        <h3 className="text-white font-black text-lg mb-2">{title}</h3>
-        <p className="text-gray-400 text-sm mb-6">{message}</p>
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2.5 border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-semibold rounded-xl transition-all text-sm disabled:opacity-50"
-          >
-            {cancelText}
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isLoading ? <Spinner /> : confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const VEHICLE_TYPES = [
+  { value: "motor", label: "Motor" },
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+  { value: "xl", label: "XL" },
+];
 
 // ─── Column config ─────────────────────────────────────────────────────────
 
@@ -171,25 +138,14 @@ function Spinner({ className = "w-4 h-4" }) {
 
 // ─── Job Card ──────────────────────────────────────────────────────────────
 
-function JobCard({
-  entry,
-  col,
-  isDragging,
-  isSelected,
-  onDragStart,
-  onDragEnd,
-  onClick,
-}) {
+function JobCard({ entry, col, isSelected, onClick, onEditDetails }) {
   return (
     <div
-      draggable
-      onDragStart={(e) => onDragStart(e, entry)}
-      onDragEnd={onDragEnd}
       onClick={() => onClick(entry)}
       className={`
-        relative rounded-xl border p-4 cursor-grab active:cursor-grabbing
+        relative rounded-xl border p-4 cursor-pointer
         transition-all duration-200 select-none group
-        ${isDragging ? "opacity-25 scale-95 rotate-1 shadow-2xl" : "hover:-translate-y-0.5 hover:shadow-lg"}
+        hover:-translate-y-0.5 hover:shadow-lg
         ${isSelected
           ? `${col.cardSelectedBorder} ${col.cardSelectedBg} shadow-md`
           : `${col.cardBorder} bg-gray-900/70 hover:bg-gray-800/60 hover:border-white/15`
@@ -299,23 +255,36 @@ function JobCard({
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-2">
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${col.statusBadge}`}
-        >
+        <div className="flex items-center gap-2">
           <span
-            className={`w-1.5 h-1.5 rounded-full ${col.dotColor} ${col.dotPulse ? "animate-pulse" : ""}`}
-          />
-          {col.label}
-        </span>
-        <span
-          className={`px-2.5 py-1 rounded-full text-xs font-semibold border
-          ${entry.source === "walk_in"
-              ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
-              : "bg-violet-500/15 text-violet-300 border-violet-500/30"
-            }`}
-        >
-          {entry.source === "walk_in" ? "Walk-in" : "Booking"}
-        </span>
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${col.statusBadge}`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${col.dotColor} ${col.dotPulse ? "animate-pulse" : ""}`}
+            />
+            {col.label}
+          </span>
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold border
+            ${entry.source === "walk_in"
+                ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                : "bg-violet-500/15 text-violet-300 border-violet-500/30"
+              }`}
+          >
+            {entry.source === "walk_in" ? "Walk-in" : "Booking"}
+          </span>
+        </div>
+        {entry.status === "in_service" && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditDetails(entry);
+            }}
+            className="px-2.5 py-1 rounded-lg text-xs font-bold border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 transition-all"
+          >
+            Edit Service Details
+          </button>
+        )}
       </div>
     </div>
   );
@@ -326,15 +295,9 @@ function JobCard({
 function KanbanColumn({
   col,
   entries,
-  draggingId,
-  isOver,
   selectedId,
-  onDragOver,
-  onDrop,
-  onDragLeave,
-  onCardDragStart,
-  onCardDragEnd,
   onCardClick,
+  onEditDetails,
 }) {
   return (
     <div className="flex flex-col">
@@ -359,14 +322,8 @@ function KanbanColumn({
 
       {/* Drop zone */}
       <div
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-        onDragLeave={onDragLeave}
         style={{ minHeight: 260 }}
-        className={`
-          flex-1 rounded-xl border-2 border-dashed p-3 transition-all duration-200
-          ${isOver ? `${col.dropActiveBg} scale-[1.015]` : "border-white/6 bg-transparent"}
-        `}
+        className="flex-1 rounded-xl border-2 border-dashed p-3 transition-all duration-200 border-white/6 bg-transparent"
       >
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 opacity-25 py-12">
@@ -393,11 +350,9 @@ function KanbanColumn({
                 key={entry.id}
                 entry={entry}
                 col={col}
-                isDragging={draggingId === entry.id}
                 isSelected={selectedId === entry.id}
-                onDragStart={onCardDragStart}
-                onDragEnd={onCardDragEnd}
                 onClick={onCardClick}
+                onEditDetails={onEditDetails}
               />
             ))}
           </div>
@@ -409,10 +364,9 @@ function KanbanColumn({
 
 // ─── Detail Modal ──────────────────────────────────────────────────────────
 
-function DetailPanel({ entry, onClose, actionLoading, onActionClick }) {
+function DetailPanel({ entry, onClose }) {
   if (!entry) return null;
   const col = COLUMNS.find((c) => c.id === entry.status) || COLUMNS[0];
-  const isLoading = actionLoading === entry.id;
 
   return (
     <div
@@ -557,80 +511,227 @@ function DetailPanel({ entry, onClose, actionLoading, onActionClick }) {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="space-y-2.5">
-            {entry.status === "waiting" && (
-              <button
-                onClick={() =>
-                  onActionClick(entry.id, "in_service", "Start Service")
-                }
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-400 hover:text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <Spinner />
-                ) : (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                )}
-                Start Service
-              </button>
-            )}
-
-            {entry.status === "in_service" && (
-              <button
-                onClick={() => onActionClick(entry.id, "done", "Mark as Done")}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-50 shadow-lg shadow-emerald-600/20"
-              >
-                {isLoading ? (
-                  <Spinner />
-                ) : (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                )}
-                Mark as Done
-              </button>
-            )}
-
-            {(entry.status === "waiting" || entry.status === "in_service") && (
-              <button
-                onClick={() => onActionClick(entry.id, "skipped", "Skip Job")}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 text-gray-500 hover:text-gray-300 font-semibold py-2.5 rounded-xl transition-all text-sm disabled:opacity-50"
-              >
-                Skip this job
-              </button>
-            )}
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+            Queue flow is managed by staff. Mechanics can view status updates here.
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditServiceDetailsModal({ entry, onClose, onEntryUpdated }) {
+  if (!entry) return null;
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [vehicleType, setVehicleType] = useState(entry.vehicle_type || "small");
+  const [requiredItems, setRequiredItems] = useState([{ productId: "", quantity: 1 }]);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [productError, setProductError] = useState("");
+  const [productSuccess, setProductSuccess] = useState("");
+
+  const refreshProducts = useCallback(async () => {
+    setLoadingProducts(true);
+    setProductError("");
+    try {
+      const res = await fetch(`${API}/api/queue/${entry.id}/products/`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to load products.");
+      }
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : [];
+      setProducts(rows);
+      if (rows.length > 0) {
+        setRequiredItems((prev) => {
+          if (!prev.length) return [{ productId: String(rows[0].id), quantity: 1 }];
+          return prev.map((item, idx) =>
+            idx === 0 && !item.productId
+              ? { ...item, productId: String(rows[0].id) }
+              : item,
+          );
+        });
+      }
+    } catch (e) {
+      setProductError(e.message || "Failed to load products.");
+      setProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [entry.id]);
+
+  useEffect(() => {
+    refreshProducts();
+  }, [refreshProducts]);
+
+  const setRequiredItem = (index, patch) => {
+    setRequiredItems((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, ...patch } : item)),
+    );
+  };
+
+  const addRequiredItemRow = () => {
+    setRequiredItems((prev) => [...prev, { productId: "", quantity: 1 }]);
+  };
+
+  const removeRequiredItemRow = (index) => {
+    setRequiredItems((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const saveServiceDetails = async () => {
+    const normalizedItems = requiredItems
+      .filter((r) => r.productId)
+      .map((r) => ({
+        inventory_item_id: Number(r.productId),
+        quantity: Number(r.quantity),
+      }));
+
+    const invalidQty = normalizedItems.some(
+      (r) => !Number.isInteger(r.quantity) || r.quantity <= 0,
+    );
+    if (invalidQty) {
+      setProductError("All required product quantities must be greater than 0.");
+      return;
+    }
+
+    setSavingDetails(true);
+    setProductError("");
+    setProductSuccess("");
+    try {
+      const res = await fetch(`${API}/api/queue/${entry.id}/service-details/`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          vehicle_type: vehicleType,
+          items: normalizedItems,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to update service details.");
+      }
+      const data = await res.json();
+      if (data?.entry) {
+        onEntryUpdated(data.entry);
+      }
+      setProductSuccess(`Updated. New total: PHP ${Number(data?.entry?.price ?? 0).toFixed(2)}`);
+      await refreshProducts();
+    } catch (e) {
+      setProductError(e.message || "Failed to update service details.");
+    } finally {
+      setSavingDetails(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 sticky top-0 bg-gray-900 z-10">
+          <div>
+            <p className="text-white font-black text-sm uppercase tracking-wider">Edit Service Details</p>
+            <p className="text-gray-500 text-xs mt-1">{entry.customer_name} · Queue #{entry.position}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
+            <span className="text-xs text-emerald-300 font-semibold">
+              Current Total: PHP {Number(entry.price ?? 0).toFixed(2)}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Vehicle Type</label>
+            <select
+              value={vehicleType}
+              onChange={(e) => setVehicleType(e.target.value)}
+              className="w-full bg-gray-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-400/50"
+            >
+              {VEHICLE_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-300 uppercase tracking-wide">Required Products</label>
+              <button
+                type="button"
+                onClick={addRequiredItemRow}
+                className="px-2 py-1 rounded-md border border-emerald-500/40 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/15"
+              >
+                + Add Row
+              </button>
+            </div>
+
+            {requiredItems.map((row, idx) => (
+              <div
+                key={`${idx}-${row.productId}`}
+                className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_88px_auto] gap-2"
+              >
+                <select
+                  value={row.productId}
+                  onChange={(e) => setRequiredItem(idx, { productId: e.target.value })}
+                  disabled={loadingProducts || savingDetails || products.length === 0}
+                  className="w-full min-w-0 bg-gray-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-400/50"
+                >
+                  <option value="">Select product</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (PHP {Number(p.price ?? 0).toFixed(2)}) - stock {p.quantity}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="number"
+                  min="1"
+                  value={row.quantity}
+                  onChange={(e) => setRequiredItem(idx, { quantity: Number(e.target.value || 1) })}
+                  disabled={savingDetails || products.length === 0}
+                  className="w-full bg-gray-800/80 border border-white/10 rounded-lg px-2 py-2 text-sm text-white text-center focus:outline-none focus:border-emerald-400/50"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => removeRequiredItemRow(idx)}
+                  disabled={requiredItems.length === 1}
+                  className="w-full sm:w-auto px-3 py-2 rounded-lg border border-red-500/30 text-red-300 text-xs font-bold disabled:opacity-40"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={saveServiceDetails}
+              disabled={savingDetails}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-50"
+            >
+              {savingDetails ? "Saving..." : "Save Details"}
+            </button>
+          </div>
+
+          {productError && <p className="text-red-300 text-xs">{productError}</p>}
+          {productSuccess && <p className="text-emerald-300 text-xs">{productSuccess}</p>}
         </div>
       </div>
     </div>
@@ -643,31 +744,27 @@ export default function MechanicActiveJobs() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [actionLoading, setActionLoading] = useState(null);
   const [selectedEntry, setSelectedEntry] = useState(null);
-  const [draggingEntry, setDraggingEntry] = useState(null);
-  const [overColumn, setOverColumn] = useState(null);
+  const [editModalEntry, setEditModalEntry] = useState(null);
   const [staffId, setStaffId] = useState(null);
-
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    entryId: null,
-    newStatus: null,
-    actionName: "",
-  });
+  const [staffResolved, setStaffResolved] = useState(false);
 
   useEffect(() => {
     const me = getMe();
     if (me?.staff_profile?.id) {
       setStaffId(me.staff_profile.id);
+      setStaffResolved(true);
       return;
     }
     fetch(`${API}/me/`, { headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.staff_profile?.id) setStaffId(d.staff_profile.id);
+        setStaffResolved(true);
       })
-      .catch(() => { });
+      .catch(() => {
+        setStaffResolved(true);
+      });
   }, []);
 
   const fetchEntries = useCallback(async () => {
@@ -702,122 +799,22 @@ export default function MechanicActiveJobs() {
 
   const myEntries = staffId
     ? entries.filter((e) => e.assigned_employee?.id === staffId)
-    : entries;
+    : [];
 
-  const byCol = (id) => myEntries.filter((e) => e.status === id);
+  const inProgressEntries = myEntries.filter((e) => e.status === "in_service");
+  const inProgressColumn = COLUMNS.find((c) => c.id === "in_service");
 
-  const onDragStart = (e, entry) => {
-    setDraggingEntry(entry);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(entry.id));
+
+  const totalInProgress = inProgressEntries.length;
+
+  const handleEntryUpdated = (updated) => {
+    if (!updated?.id) return;
+    setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    setSelectedEntry((prev) => (prev?.id === updated.id ? updated : prev));
   };
-  const onDragEnd = () => {
-    setDraggingEntry(null);
-    setOverColumn(null);
-  };
-  const onDragOver = (e, colId) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setOverColumn(colId);
-  };
-  const onDragLeave = (e) => {
-    if (!e.currentTarget.contains(e.relatedTarget)) setOverColumn(null);
-  };
-
-  const onDrop = (e, colId) => {
-    e.preventDefault();
-    setOverColumn(null);
-    if (!draggingEntry || draggingEntry.status === colId) return;
-
-    const actionName =
-      colId === "in_service"
-        ? "Start Service"
-        : colId === "done"
-          ? "Mark as Done"
-          : colId === "skipped"
-            ? "Skip Job"
-            : "Move Job";
-
-    setConfirmModal({
-      isOpen: true,
-      entryId: draggingEntry.id,
-      newStatus: colId,
-      actionName,
-    });
-  };
-
-  const handleActionClick = (entryId, newStatus, actionName) => {
-    setConfirmModal({
-      isOpen: true,
-      entryId,
-      newStatus,
-      actionName,
-    });
-  };
-
-  const executeAction = async () => {
-    const { entryId, newStatus } = confirmModal;
-    setActionLoading(entryId);
-    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-
-    try {
-      const res = await fetch(`${API}/api/queue/${entryId}/action/`, {
-        method: "PATCH",
-        headers: authHeaders(),
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error();
-      const updated = await res.json();
-      setEntries((prev) =>
-        prev.map((e) => (e.id === updated.id ? updated : e)),
-      );
-      setSelectedEntry((prev) => (prev?.id === updated.id ? updated : prev));
-    } catch {
-      alert("Action failed. Please try again.");
-    } finally {
-      setActionLoading(null);
-      setConfirmModal({
-        isOpen: false,
-        entryId: null,
-        newStatus: null,
-        actionName: "",
-      });
-    }
-  };
-
-  const closeConfirmModal = () => {
-    setConfirmModal({
-      isOpen: false,
-      entryId: null,
-      newStatus: null,
-      actionName: "",
-    });
-    setDraggingEntry(null);
-  };
-
-  const totalActive = myEntries.filter(
-    (e) => e.status === "waiting" || e.status === "in_service",
-  ).length;
-  const totalDone = myEntries.filter((e) => e.status === "done").length;
-
-  const confirmEntry = confirmModal.entryId
-    ? myEntries.find((e) => e.id === confirmModal.entryId)
-    : null;
 
   return (
     <MechanicLayout>
-      {/* Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={confirmModal.isOpen}
-        onClose={closeConfirmModal}
-        onConfirm={executeAction}
-        title={`${confirmModal.actionName}?`}
-        message={`Are you sure you want to ${confirmModal.actionName.toLowerCase()} for ${confirmEntry?.customer_name || "this job"}?`}
-        confirmText="Yes, proceed"
-        cancelText="Cancel"
-        isLoading={actionLoading === confirmModal.entryId}
-      />
-
       {/* Detail Modal */}
       {selectedEntry && (
         <DetailPanel
@@ -825,8 +822,16 @@ export default function MechanicActiveJobs() {
             myEntries.find((e) => e.id === selectedEntry.id) ?? selectedEntry
           }
           onClose={() => setSelectedEntry(null)}
-          onActionClick={handleActionClick}
-          actionLoading={actionLoading}
+        />
+      )}
+
+      {editModalEntry && (
+        <EditServiceDetailsModal
+          entry={
+            myEntries.find((e) => e.id === editModalEntry.id) ?? editModalEntry
+          }
+          onClose={() => setEditModalEntry(null)}
+          onEntryUpdated={handleEntryUpdated}
         />
       )}
 
@@ -838,22 +843,16 @@ export default function MechanicActiveJobs() {
               My Jobs
             </h1>
             <p className="text-gray-500 mt-1 text-sm">
-              Drag cards between columns · click a card to see details
+              Staff manages queue flow · only in-progress jobs are shown
             </p>
           </div>
           <div className="flex items-center gap-3 md:mt-12">
             <div className="flex gap-2">
-              <div className="bg-gray-900/80 border border-amber-500/20 rounded-xl px-5 py-2.5 text-center">
+              <div className="bg-gray-900/80 border border-emerald-500/20 rounded-xl px-5 py-2.5 text-center">
                 <p className="text-2xl font-black text-white leading-none">
-                  {totalActive}
+                  {totalInProgress}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Active</p>
-              </div>
-              <div className="bg-gray-900/80 border border-white/8 rounded-xl px-5 py-2.5 text-center">
-                <p className="text-2xl font-black text-white leading-none">
-                  {totalDone}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Done</p>
+                <p className="text-xs text-gray-500 mt-1">In Progress</p>
               </div>
             </div>
             <button
@@ -897,11 +896,11 @@ export default function MechanicActiveJobs() {
           </div>
         )}
 
-        {loading ? (
+        {loading || !staffResolved ? (
           <div className="flex items-center justify-center py-24 text-gray-500">
             <Spinner className="w-5 h-5 mr-3" /> Loading your jobs…
           </div>
-        ) : myEntries.length === 0 ? (
+        ) : inProgressEntries.length === 0 ? (
           <div className="bg-gray-900/60 border border-white/5 rounded-2xl py-24 text-center">
             <div className="w-16 h-16 bg-gray-800/80 rounded-2xl flex items-center justify-center mx-auto mb-5">
               <svg
@@ -918,26 +917,20 @@ export default function MechanicActiveJobs() {
                 />
               </svg>
             </div>
-            <p className="text-white font-bold text-lg">No jobs assigned yet</p>
+            <p className="text-white font-bold text-lg">No jobs in progress</p>
             <p className="text-gray-500 text-sm mt-2">
-              Jobs assigned to you by staff will appear here
+              Waiting and completed jobs are managed by staff
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {COLUMNS.map((col) => (
+          <div className="grid grid-cols-1 gap-5">
+            {[inProgressColumn].filter(Boolean).map((col) => (
               <KanbanColumn
                 key={col.id}
                 col={col}
-                entries={byCol(col.id)}
-                draggingId={draggingEntry?.id}
-                isOver={overColumn === col.id}
+                entries={inProgressEntries}
                 selectedId={selectedEntry?.id}
-                onDragOver={(e) => onDragOver(e, col.id)}
-                onDrop={(e) => onDrop(e, col.id)}
-                onDragLeave={onDragLeave}
-                onCardDragStart={onDragStart}
-                onCardDragEnd={onDragEnd}
+                onEditDetails={(entry) => setEditModalEntry(entry)}
                 onCardClick={(entry) =>
                   setSelectedEntry((prev) =>
                     prev?.id === entry.id ? null : entry,

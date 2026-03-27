@@ -92,6 +92,23 @@ class Branch(models.Model):
         db_table = "branches"
 
 
+class BranchScheduleConfig(models.Model):
+    branch = models.OneToOneField(
+        Branch,
+        on_delete=models.CASCADE,
+        related_name="schedule_config",
+    )
+    config = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "branch_schedule_configs"
+
+    def __str__(self):
+        return f"Schedule Config - {self.branch.name}"
+
+
 # ── Staff ─────────────────────────────────────────────────────────────────────
 class Staff(models.Model):
     ROLE_CHOICES = [
@@ -204,6 +221,14 @@ class QueueEntry(models.Model):
         ("walk_in", "Walk-in"),
     ]
 
+    VEHICLE_TYPE_CHOICES = [
+        ("motor", "Motor"),
+        ("small", "Small"),
+        ("medium", "Medium"),
+        ("large", "Large"),
+        ("xl", "XL"),
+    ]
+
     booking = models.OneToOneField(
         Booking,
         null=True,
@@ -224,6 +249,7 @@ class QueueEntry(models.Model):
     customer_name = models.CharField(max_length=200)
     phone         = models.CharField(max_length=50,  blank=True, default="")
     vehicle       = models.CharField(max_length=200, blank=True, default="")
+    vehicle_type  = models.CharField(max_length=20, choices=VEHICLE_TYPE_CHOICES, blank=True, default="")
     plate_number  = models.CharField(max_length=50,  blank=True, default="")
     service       = models.CharField(max_length=200)
     notes         = models.TextField(blank=True, default="")
@@ -254,6 +280,7 @@ class QueueEntry(models.Model):
     queued_at          = models.DateTimeField(default=timezone.now)
     service_started_at = models.DateTimeField(null=True, blank=True)
     completed_at       = models.DateTimeField(null=True, blank=True)
+    service_base_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     price          = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_status = models.CharField(
         max_length=20,
@@ -280,25 +307,31 @@ class QueueEntry(models.Model):
 
 # ── Service ───────────────────────────────────────────────────────────────────
 class Service(models.Model):
-    CATEGORY_CHOICES = [
-        ("Maintenance", "Maintenance"),
-        ("Repair",      "Repair"),
-        ("Diagnostic",  "Diagnostic"),
-        ("Cosmetic",    "Cosmetic"),
-    ]
-
     name        = models.CharField(max_length=100)
-    category    = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    category    = models.CharField(max_length=100)
     description = models.TextField(blank=True, default="")
     duration    = models.CharField(max_length=50, blank=True, default="")
-    price_min   = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    price_max   = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    price       = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    price_list  = models.JSONField(blank=True, default=dict)
     is_active   = models.BooleanField(default=True)
     branches    = models.ManyToManyField(Branch, related_name="services", blank=True)
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "services"
+
+    def __str__(self):
+        return self.name
+
+
+class ServiceCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "service_categories"
+        ordering = ["name"]
 
     def __str__(self):
         return self.name

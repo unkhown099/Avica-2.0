@@ -2,8 +2,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from ..models import Booking, Customer, QueueEntry, Rating, Staff
+from ..models import Booking, BranchScheduleConfig, Customer, QueueEntry, Rating, Staff
 from ..serializers.dashboard_serializer import DashboardStatsSerializer, RecentTransactionSerializer
+from ..serializers.manager_schedule_serializer import ManagerScheduleConfigSerializer
 from django.db.models import Avg, Count, Sum, Value, DecimalField
 from django.utils import timezone
 from django.db.models.functions import Coalesce
@@ -12,6 +13,58 @@ from datetime import timedelta
 
 MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+WEEK_DAYS = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+]
+
+
+def default_manager_schedule_config():
+    days = {}
+    for day in WEEK_DAYS:
+        days[day] = {
+            "enabled": day != "Sunday",
+            "start": "08:00",
+            "end": "17:00",
+            "hasBreak": True,
+            "breakStart": "12:00",
+            "breakEnd": "13:00",
+        }
+
+    return {
+        "recurringWeekly": True,
+        "slotDuration": "30",
+        "maxPatientsPerDay": 35,
+        "days": days,
+        "assignments": {},
+        "exceptions": [],
+    }
+
+
+def merge_manager_schedule_config(raw):
+    base = default_manager_schedule_config()
+    if not isinstance(raw, dict):
+        return base
+
+    merged = {**base, **raw}
+
+    raw_days = raw.get("days") if isinstance(raw.get("days"), dict) else {}
+    merged_days = {}
+    for day in WEEK_DAYS:
+        default_day = base["days"][day]
+        custom_day = raw_days.get(day) if isinstance(raw_days.get(day), dict) else {}
+        merged_days[day] = {**default_day, **custom_day}
+
+    merged["days"] = merged_days
+    merged["assignments"] = raw.get("assignments") if isinstance(raw.get("assignments"), dict) else {}
+    merged["exceptions"] = raw.get("exceptions") if isinstance(raw.get("exceptions"), list) else []
+    return merged
 
 def clean_price(value):
     """Strip currency symbols and commas, return float."""
@@ -29,9 +82,19 @@ class AdminDashboardView(APIView):
         current_year = now.year
 
         # ── Stats ────────────────────────────────────────────────────────────
-        total_revenue = sum(
+        booking_revenue = sum(
             clean_price(b.price) for b in Booking.objects.only("price")
         )
+        walk_in_revenue = float(
+            QueueEntry.objects.filter(source="walk_in", payment_status="paid").aggregate(
+                t=Coalesce(
+                    Sum("price"),
+                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                )
+            )["t"]
+            or 0
+        )
+        total_revenue = booking_revenue + walk_in_revenue
         total_customers = Customer.objects.count()
         services_completed = QueueEntry.objects.filter(status="done").count()
         try:
@@ -48,11 +111,21 @@ class AdminDashboardView(APIView):
 
         # ── Monthly Chart Data (current year) ────────────────────────────────
         bookings_this_year = Booking.objects.filter(created_at__year=current_year)
+        walk_ins_this_year = QueueEntry.objects.filter(
+            source="walk_in",
+            payment_status="paid",
+            completed_at__year=current_year,
+        )
 
         monthly_revenue = defaultdict(float)
         for b in bookings_this_year.only("price", "created_at"):
             month = b.created_at.month  # 1–12
             monthly_revenue[month] += clean_price(b.price)
+        for q in walk_ins_this_year.only("price", "completed_at"):
+            if not q.completed_at:
+                continue
+            month = q.completed_at.month
+            monthly_revenue[month] += clean_price(q.price)
 
         monthly_services = defaultdict(int)
         queue_this_year = QueueEntry.objects.filter(
@@ -134,7 +207,9 @@ class AdminDashboardView(APIView):
             for row in top_services_qs[:6]
         ]
 
-        revenue_by_branch_qs = (
+        revenue_by_branch_map = defaultdict(float)
+
+        booking_branch_revenue = (
             Booking.objects.values("branch__name")
             .annotate(
                 revenue=Coalesce(
@@ -142,14 +217,33 @@ class AdminDashboardView(APIView):
                     Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
                 )
             )
-            .order_by("-revenue")
         )
+        for row in booking_branch_revenue:
+            branch_name = row["branch__name"] or "Unassigned"
+            revenue_by_branch_map[branch_name] += float(row["revenue"] or 0)
+
+        walk_in_branch_revenue = (
+            QueueEntry.objects.filter(source="walk_in", payment_status="paid")
+            .values("branch__name", "branch_name")
+            .annotate(
+                revenue=Coalesce(
+                    Sum("price"),
+                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                )
+            )
+        )
+        for row in walk_in_branch_revenue:
+            branch_name = row["branch__name"] or row["branch_name"] or "Unassigned"
+            revenue_by_branch_map[branch_name] += float(row["revenue"] or 0)
+
         revenue_by_branch = [
             {
-                "branch": row["branch__name"] or "Unassigned",
-                "revenue": round(float(row["revenue"] or 0), 2),
+                "branch": branch,
+                "revenue": round(revenue, 2),
             }
-            for row in revenue_by_branch_qs[:8]
+            for branch, revenue in sorted(
+                revenue_by_branch_map.items(), key=lambda item: item[1], reverse=True
+            )[:8]
         ]
 
         # ── Recent Transactions ───────────────────────────────────────────────
@@ -174,7 +268,33 @@ class AdminDashboardView(APIView):
                 "service": b.service,
                 "amount": clean_price(b.price),
                 "status": b.status,
+                "_ts": b.created_at,
             })
+
+        recent_walkins = QueueEntry.objects.filter(
+            source="walk_in",
+            payment_status="paid",
+        ).order_by("-completed_at", "-queued_at")[:5]
+        for q in recent_walkins:
+            recent_transactions.append(
+                {
+                    "customer_name": q.customer_name or "Walk-in Customer",
+                    "service": q.service or "Walk-in Service",
+                    "amount": clean_price(q.price),
+                    "status": "paid",
+                    "_ts": q.completed_at or q.queued_at,
+                }
+            )
+
+        recent_transactions = sorted(
+            recent_transactions,
+            key=lambda tx: tx.get("_ts") or now,
+            reverse=True,
+        )[:5]
+
+        recent_transactions = [
+            {k: v for k, v in tx.items() if k != "_ts"} for tx in recent_transactions
+        ]
 
         recent_transactions = RecentTransactionSerializer(recent_transactions, many=True).data
 
@@ -278,3 +398,58 @@ class ManagerDashboardView(APIView):
             })
         except Exception as e:
             return Response({"detail": f"Server Error: {str(e)}"}, status=500)
+
+
+class ManagerScheduleConfigView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_staff_branch(self, request):
+        staff = getattr(request.user, "staff_profile", None)
+        if not staff or staff.role not in ["Admin", "Branch Manager"]:
+            return None, None
+        return staff, staff.branch
+
+    def get(self, request):
+        staff, branch = self._get_staff_branch(request)
+        if not staff:
+            return Response({"detail": "Permission denied."}, status=403)
+        if not branch:
+            return Response({"detail": "No branch assigned to this manager profile."}, status=400)
+
+        schedule_obj, _ = BranchScheduleConfig.objects.get_or_create(
+            branch=branch,
+            defaults={"config": default_manager_schedule_config()},
+        )
+
+        config = merge_manager_schedule_config(schedule_obj.config)
+        return Response(
+            {
+                "branch_id": branch.id,
+                "branch_name": branch.name,
+                "config": config,
+            }
+        )
+
+    def put(self, request):
+        staff, branch = self._get_staff_branch(request)
+        if not staff:
+            return Response({"detail": "Permission denied."}, status=403)
+        if not branch:
+            return Response({"detail": "No branch assigned to this manager profile."}, status=400)
+
+        serializer = ManagerScheduleConfigSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        config = merge_manager_schedule_config(serializer.validated_data["config"])
+
+        schedule_obj, _ = BranchScheduleConfig.objects.get_or_create(branch=branch)
+        schedule_obj.config = config
+        schedule_obj.save(update_fields=["config", "updated_at"])
+
+        return Response(
+            {
+                "detail": "Schedule configuration saved.",
+                "branch_id": branch.id,
+                "branch_name": branch.name,
+                "config": config,
+            }
+        )

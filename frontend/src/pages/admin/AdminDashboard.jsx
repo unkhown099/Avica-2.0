@@ -361,6 +361,7 @@ export default function AdminDashboard() {
       accentBg: "bg-red-500/10",
       accentText: "text-red-400",
       border: "border-red-500/20",
+      sub: "Includes appointments and walk-ins",
     },
     {
       title: "Total Customers",
@@ -669,7 +670,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="text-lg font-black text-white">Revenue & Services Trend</h3>
-                    <p className="text-gray-500 text-sm mt-0.5">{chartSubtitle}</p>
+                    <p className="text-gray-500 text-sm mt-0.5">{chartSubtitle} · includes walk-ins</p>
                   </div>
                 </div>
                 {loading ? (
@@ -732,7 +733,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
                 <div>
                   <h3 className="text-lg font-black text-white">Recent Transactions</h3>
-                  <p className="text-gray-500 text-sm mt-0.5">Latest service activity</p>
+                  <p className="text-gray-500 text-sm mt-0.5">Latest paid activity (appointments + walk-ins)</p>
                 </div>
                 <button className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors">
                   View all →
@@ -837,6 +838,7 @@ export default function AdminDashboard() {
                   accentBg: "bg-red-500/10",
                   accentText: "text-red-400",
                   border: "border-red-500/20",
+                  sub: "Appointments + walk-ins",
                   icon: (
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -875,7 +877,7 @@ export default function AdminDashboard() {
 
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm mb-6">
               <h3 className="text-lg font-black text-white mb-1">Revenue by Branch</h3>
-              <p className="text-gray-500 text-sm mb-6">Live totals from all bookings</p>
+              <p className="text-gray-500 text-sm mb-6">Live totals from appointments and paid walk-ins</p>
               <div className="h-72">
                 <Bar data={revenueBarData} options={revenueBarOptions} />
               </div>

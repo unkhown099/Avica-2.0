@@ -16,6 +16,17 @@ const API = API_BASE;
 const fmt = (n) =>
   Number(n ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 
+const normalizeServiceName = (name = "") => String(name).trim().toLowerCase();
+
+const getServiceCatalogPrice = (serviceName, services) => {
+  const normalized = normalizeServiceName(serviceName);
+  if (!normalized || !Array.isArray(services) || services.length === 0) return 0;
+  const matched = services.find(
+    (s) => normalizeServiceName(s?.name) === normalized && s?.is_active !== false,
+  );
+  return parseFloat(matched?.price ?? 0) || 0;
+};
+
 // ── Skeleton cards ────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
@@ -222,14 +233,24 @@ function StaffPOS() {
 
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setUnpaidEntries(Array.isArray(data) ? data : (data.results ?? []));
+      const rows = Array.isArray(data) ? data : (data.results ?? []);
+      const withResolvedPrice = rows.map((entry) => {
+        const basePrice = parseFloat(entry.price ?? 0) || 0;
+        const fallbackPrice = getServiceCatalogPrice(entry.service, services);
+        const effectivePrice = basePrice > 0 ? basePrice : fallbackPrice;
+        return {
+          ...entry,
+          _resolvedPrice: effectivePrice,
+        };
+      });
+      setUnpaidEntries(withResolvedPrice);
     } catch (err) {
       console.error("Error fetching unpaid queue:", err);
       setUnpaidEntries([]);
     } finally {
       setLoadingUnpaid(false);
     }
-  }, []);
+  }, [services]);
 
   // Use a ref to store the interval ID
   const intervalRef = useRef(null);
@@ -276,7 +297,7 @@ function StaffPOS() {
     }
     const price =
       type === "service"
-        ? parseFloat(item.price_min ?? item.price ?? 0)
+        ? parseFloat(item.price ?? 0)
         : parseFloat(item.price ?? 0);
 
     setCart((prev) => {
@@ -292,7 +313,9 @@ function StaffPOS() {
   };
 
   const pullFromQueue = (entry) => {
-    const price = parseFloat(entry.price ?? 0);
+    const rawPrice = parseFloat(entry.price ?? 0) || 0;
+    const fallbackPrice = getServiceCatalogPrice(entry.service, services);
+    const price = rawPrice > 0 ? rawPrice : fallbackPrice;
     if (cart.length === 0) {
       setCustomerInfo({
         name: entry.customer_name ?? "",
@@ -313,7 +336,7 @@ function StaffPOS() {
           type: "queue",
           _price: price,
           _entryId: entry.id,
-          _needsPrice: price === 0,
+          _needsPrice: false,
         },
       ];
     });
@@ -564,7 +587,7 @@ function StaffPOS() {
                     </div>
                   ) : (
                     filteredServices.map((service) => {
-                      const price = parseFloat(service.price_min ?? 0);
+                      const price = parseFloat(service.price ?? 0);
                       const inCart = cart.find(
                         (c) => c.id === service.id && c.type === "service",
                       );
@@ -594,15 +617,6 @@ function StaffPOS() {
                           )}
                           <div className="text-lg font-black text-red-400">
                             ₱{price.toLocaleString()}
-                            {service.price_max &&
-                              parseFloat(service.price_max) !== price && (
-                                <span className="text-xs text-gray-500 font-normal ml-1">
-                                  – ₱
-                                  {parseFloat(
-                                    service.price_max,
-                                  ).toLocaleString()}
-                                </span>
-                              )}
                           </div>
                         </button>
                       );
@@ -730,7 +744,8 @@ function StaffPOS() {
                       </div>
                     ) : (
                       unpaidEntries.map((entry) => {
-                        const price = parseFloat(entry.price ?? 0);
+                        const price =
+                          parseFloat(entry._resolvedPrice ?? entry.price ?? 0) || 0;
                         const alreadyIn = cart.some(
                           (c) => c._queueId === entry.id,
                         );
@@ -967,6 +982,7 @@ function StaffPOS() {
                               onChange={(e) =>
                                 updatePrice(item.id, item.type, e.target.value)
                               }
+                              readOnly={item.type === "queue"}
                               placeholder={
                                 item.type === "queue" ? "Enter price" : ""
                               }
@@ -997,7 +1013,7 @@ function StaffPOS() {
                                 d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
                               />
                             </svg>
-                            Enter the service price to continue
+                            Price unresolved for this queue service
                           </div>
                         )}
                       </div>
@@ -1092,7 +1108,7 @@ function StaffPOS() {
                       d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
                     />
                   </svg>
-                  Enter price for all queue items first
+                  Some queue services have unresolved prices
                 </div>
               )}
               {error && (

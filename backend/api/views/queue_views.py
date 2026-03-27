@@ -2,14 +2,16 @@ import logging
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+from decimal import Decimal
 from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from api.models import QueueEntry, Booking, Staff
+from api.models import QueueEntry, Booking, Staff, InventoryItem, Service
 from api.serializers.queue_serializer import (
     QueueEntrySerializer,
     QueueEntryCreateSerializer,
@@ -18,6 +20,7 @@ from api.serializers.queue_serializer import (
 )
 
 logger = logging.getLogger(__name__)
+VEHICLE_TYPE_KEYS = {"motor", "small", "medium", "large", "xl"}
 
 
 # ─── Shared helper ────────────────────────────────────────────────────────────
@@ -219,7 +222,21 @@ def queue_walk_in(request):
     requester_staff = _get_requester_staff(request.user)
     serializer = QueueEntryCreateSerializer(data=request.data)
     if serializer.is_valid():
-        price = request.data.get('price', 0)
+        service_name = (serializer.validated_data.get("service") or "").strip()
+        raw_price = request.data.get("price")
+
+        try:
+            price = Decimal(str(raw_price)) if raw_price not in (None, "") else None
+        except Exception:
+            price = None
+
+        if price is None and service_name:
+            service = Service.objects.filter(name__iexact=service_name, is_active=True).first()
+            if service:
+                price = service.price or Decimal("0.00")
+
+        if price is None:
+            price = Decimal("0.00")
 
         save_kwargs = {
             "source": "walk_in",
@@ -293,16 +310,32 @@ def queue_action(request, pk):
     if new_status == "in_service" and entry.source == "booking" and entry.booking_id:
         scheduled_at = _get_booking_scheduled_datetime(entry.booking)
         now = timezone.localtime(timezone.now())
-        if scheduled_at and now < scheduled_at:
-            return Response(
-                {
-                    "detail": (
-                        f"Cannot start this queue yet. "
-                        f"Scheduled appointment starts at {scheduled_at.strftime('%Y-%m-%d %I:%M %p')}."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if scheduled_at:
+            start_window_open = scheduled_at - timedelta(minutes=10)
+            no_show_deadline = scheduled_at + timedelta(minutes=10)
+
+            if now < start_window_open:
+                return Response(
+                    {
+                        "detail": (
+                            "Cannot start this queue yet. "
+                            f"You can start 10 minutes before the appointment time ({scheduled_at.strftime('%Y-%m-%d %I:%M %p')})."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if now > no_show_deadline:
+                entry.status = "skipped"
+                entry.completed_at = timezone.now()
+                entry.save(update_fields=["status", "completed_at"])
+                return Response(
+                    {
+                        "detail": "Appointment exceeded the 10-minute grace period and was marked as no-show.",
+                        "entry": QueueEntrySerializer(entry).data,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
     entry.status = new_status
 
@@ -358,11 +391,11 @@ def queue_assign(request, pk):
 
         busy_entry_exists = QueueEntry.objects.filter(
             assigned_employee_id=employee.id,
-            status__in=["waiting", "in_service"],
+            status="in_service",
         ).exclude(pk=entry.pk).exists()
         if busy_entry_exists:
             return Response(
-                {"detail": "This employee already has an active queue assignment."},
+                {"detail": "This employee is currently in progress on another queue."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -464,3 +497,276 @@ def queue_mark_paid(request, pk):
         entry.price = request.data["price"]
     entry.save()
     return Response(QueueEntrySerializer(entry).data)
+
+
+# ── GET  /api/queue/<id>/products/ ──────────────────────────────────────────
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def queue_available_products(request, pk):
+    requester_staff = _get_requester_staff(request.user)
+    if not requester_staff or requester_staff.role != "Employee":
+        return Response({"detail": "Only employees can access this endpoint."}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        entry = QueueEntry.objects.select_related("branch").get(pk=pk)
+    except QueueEntry.DoesNotExist:
+        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if entry.status != "in_service":
+        return Response({"detail": "Products can only be added while job is in progress."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if entry.assigned_employee_id != requester_staff.id:
+        return Response({"detail": "You can only manage products for your assigned job."}, status=status.HTTP_403_FORBIDDEN)
+
+    if not entry.branch_id:
+        return Response({"detail": "Queue entry has no branch assigned."}, status=status.HTTP_400_BAD_REQUEST)
+
+    items = InventoryItem.objects.filter(
+        branch_id=entry.branch_id,
+        is_active=True,
+        quantity__gt=0,
+    ).order_by("name")
+
+    data = [
+        {
+            "id": i.id,
+            "name": i.name,
+            "price": str(i.price),
+            "quantity": i.quantity,
+            "unit": i.unit,
+            "category": i.category,
+        }
+        for i in items
+    ]
+    return Response(data)
+
+
+# ── PATCH  /api/queue/<id>/add-products/ ────────────────────────────────────
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def queue_add_products(request, pk):
+    requester_staff = _get_requester_staff(request.user)
+    if not requester_staff or requester_staff.role != "Employee":
+        return Response({"detail": "Only employees can add products."}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        entry = QueueEntry.objects.select_related("branch").get(pk=pk)
+    except QueueEntry.DoesNotExist:
+        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if entry.status != "in_service":
+        return Response({"detail": "Products can only be added while job is in progress."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if entry.assigned_employee_id != requester_staff.id:
+        return Response({"detail": "You can only add products to your assigned job."}, status=status.HTTP_403_FORBIDDEN)
+
+    if not entry.branch_id:
+        return Response({"detail": "Queue entry has no branch assigned."}, status=status.HTTP_400_BAD_REQUEST)
+
+    items = request.data.get("items")
+    if not isinstance(items, list) or len(items) == 0:
+        return Response({"detail": "items must be a non-empty list."}, status=status.HTTP_400_BAD_REQUEST)
+
+    normalized = []
+    for row in items:
+        if not isinstance(row, dict):
+            return Response({"detail": "Each item must be an object."}, status=status.HTTP_400_BAD_REQUEST)
+
+        item_id = row.get("inventory_item_id")
+        qty = row.get("quantity")
+        try:
+            item_id = int(item_id)
+            qty = int(qty)
+        except (TypeError, ValueError):
+            return Response({"detail": "inventory_item_id and quantity must be integers."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if qty <= 0:
+            return Response({"detail": "quantity must be greater than 0."}, status=status.HTTP_400_BAD_REQUEST)
+
+        normalized.append((item_id, qty))
+
+    added_total = Decimal("0.00")
+    added_rows = []
+
+    with transaction.atomic():
+        for item_id, qty in normalized:
+            try:
+                inv = InventoryItem.objects.select_for_update().get(
+                    pk=item_id,
+                    branch_id=entry.branch_id,
+                    is_active=True,
+                )
+            except InventoryItem.DoesNotExist:
+                return Response({"detail": f"Inventory item {item_id} not found in this branch."}, status=status.HTTP_404_NOT_FOUND)
+
+            if inv.quantity < qty:
+                return Response(
+                    {"detail": f"Insufficient stock for {inv.name}. Available: {inv.quantity}."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            inv.quantity -= qty
+            inv.save(update_fields=["quantity", "updated_at"])
+
+            line_total = (inv.price or Decimal("0.00")) * qty
+            added_total += line_total
+            added_rows.append({
+                "inventory_item_id": inv.id,
+                "name": inv.name,
+                "quantity": qty,
+                "unit_price": str(inv.price),
+                "line_total": str(line_total),
+            })
+
+        entry.price = (entry.price or Decimal("0.00")) + added_total
+        existing_notes = entry.notes or ""
+        appended = ", ".join([f"{r['name']} x{r['quantity']}" for r in added_rows])
+        note_line = f"[Products Added] {appended} (+{added_total})"
+        entry.notes = f"{existing_notes}\n{note_line}".strip()
+        entry.save(update_fields=["price", "notes"])
+
+    return Response(
+        {
+            "detail": "Products added successfully.",
+            "added_total": str(added_total),
+            "added_items": added_rows,
+            "entry": QueueEntrySerializer(entry).data,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+# ── PATCH  /api/queue/<id>/service-details/ ────────────────────────────────
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def queue_edit_service_details(request, pk):
+    requester_staff = _get_requester_staff(request.user)
+    if not requester_staff or requester_staff.role != "Employee":
+        return Response({"detail": "Only employees can edit service details."}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        entry = QueueEntry.objects.select_related("branch").get(pk=pk)
+    except QueueEntry.DoesNotExist:
+        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if entry.status != "in_service":
+        return Response({"detail": "Service details can only be edited while job is in progress."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if entry.assigned_employee_id != requester_staff.id:
+        return Response({"detail": "You can only edit details for your assigned job."}, status=status.HTTP_403_FORBIDDEN)
+
+    if not entry.branch_id:
+        return Response({"detail": "Queue entry has no branch assigned."}, status=status.HTTP_400_BAD_REQUEST)
+
+    vehicle_type = (request.data.get("vehicle_type") or "").strip().lower()
+    if vehicle_type and vehicle_type not in VEHICLE_TYPE_KEYS:
+        return Response(
+            {"detail": f"Invalid vehicle_type. Allowed: {sorted(VEHICLE_TYPE_KEYS)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    items = request.data.get("items", [])
+    if items is None:
+        items = []
+    if not isinstance(items, list):
+        return Response({"detail": "items must be a list."}, status=status.HTTP_400_BAD_REQUEST)
+
+    normalized = []
+    for row in items:
+        if not isinstance(row, dict):
+            return Response({"detail": "Each item must be an object."}, status=status.HTTP_400_BAD_REQUEST)
+
+        item_id = row.get("inventory_item_id")
+        qty = row.get("quantity")
+        try:
+            item_id = int(item_id)
+            qty = int(qty)
+        except (TypeError, ValueError):
+            return Response({"detail": "inventory_item_id and quantity must be integers."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if qty <= 0:
+            return Response({"detail": "quantity must be greater than 0."}, status=status.HTTP_400_BAD_REQUEST)
+
+        normalized.append((item_id, qty))
+
+    service_obj = Service.objects.filter(name__iexact=(entry.service or "").strip()).first()
+    base_price = Decimal(str(service_obj.price if service_obj else 0))
+    if service_obj and vehicle_type:
+        tier_prices = service_obj.price_list if isinstance(service_obj.price_list, dict) else {}
+        tier_value = tier_prices.get(vehicle_type)
+        if tier_value not in (None, ""):
+            try:
+                base_price = Decimal(str(tier_value))
+            except Exception:
+                pass
+
+    previous_base = Decimal(str(entry.service_base_price or 0))
+    previous_total = Decimal(str(entry.price or 0))
+    previous_products_total = previous_total - previous_base
+    if previous_products_total < Decimal("0.00"):
+        previous_products_total = Decimal("0.00")
+
+    added_total = Decimal("0.00")
+    added_rows = []
+
+    with transaction.atomic():
+        for item_id, qty in normalized:
+            try:
+                inv = InventoryItem.objects.select_for_update().get(
+                    pk=item_id,
+                    branch_id=entry.branch_id,
+                    is_active=True,
+                )
+            except InventoryItem.DoesNotExist:
+                return Response({"detail": f"Inventory item {item_id} not found in this branch."}, status=status.HTTP_404_NOT_FOUND)
+
+            if inv.quantity < qty:
+                return Response(
+                    {"detail": f"Insufficient stock for {inv.name}. Available: {inv.quantity}."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            inv.quantity -= qty
+            inv.save(update_fields=["quantity", "updated_at"])
+
+            line_total = (inv.price or Decimal("0.00")) * qty
+            added_total += line_total
+            added_rows.append(
+                {
+                    "inventory_item_id": inv.id,
+                    "name": inv.name,
+                    "quantity": qty,
+                    "unit_price": str(inv.price),
+                    "line_total": str(line_total),
+                }
+            )
+
+        new_total = previous_products_total + base_price + added_total
+        entry.service_base_price = base_price
+        if vehicle_type:
+            entry.vehicle_type = vehicle_type
+        entry.price = new_total
+
+        existing_notes = entry.notes or ""
+        note_lines = []
+        if vehicle_type:
+            note_lines.append(f"[Service Details] Vehicle type set to {vehicle_type.upper()} (base: {base_price})")
+        if added_rows:
+            appended = ", ".join([f"{r['name']} x{r['quantity']}" for r in added_rows])
+            note_lines.append(f"[Required Products] {appended} (+{added_total})")
+        if note_lines:
+            entry.notes = f"{existing_notes}\n" + "\n".join(note_lines) if existing_notes else "\n".join(note_lines)
+
+        entry.save(update_fields=["service_base_price", "vehicle_type", "price", "notes"])
+
+    return Response(
+        {
+            "detail": "Service details updated successfully.",
+            "vehicle_type": entry.vehicle_type,
+            "service_base_price": str(base_price),
+            "added_total": str(added_total),
+            "added_items": added_rows,
+            "entry": QueueEntrySerializer(entry).data,
+        },
+        status=status.HTTP_200_OK,
+    )

@@ -700,10 +700,10 @@ function ManagerInventory() {
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tight">
-              Inventory & Services
+              Inventory Management
             </h1>
             <p className="text-gray-400 mt-1">
-              Track and manage inventory and services for San Mateo Rizal branch
+              Track and manage inventory for San Mateo Rizal branch. Services are now managed in the Dashboard.
             </p>
           </div>
         </div>
@@ -718,15 +718,6 @@ function ManagerInventory() {
               }`}
           >
             Inventory
-          </button>
-          <button
-            onClick={() => setActiveTab("services")}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${activeTab === "services"
-                ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-          >
-            Services
           </button>
         </div>
 

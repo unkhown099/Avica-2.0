@@ -66,7 +66,7 @@ import MechanicDashboard from "./pages/employee/MechanicDashboard.jsx";
 import MechanicSchedule from "./pages/employee/MechanicSchedule.jsx";
 import MechanicActiveJobs from "./pages/employee/MechanicActiveJobs.jsx";
 import MechanicJobHistory from "./pages/employee/MechanicJobHistory.jsx";
-import MechanicInventoryRequest from "./pages/employee/MechanicInventoryRequest.jsx";
+
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
@@ -416,14 +416,6 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["employee"]}>
               <MechanicJobHistory />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/mechanic/inventory-requests"
-          element={
-            <ProtectedRoute allowedRoles={["employee"]}>
-              <MechanicInventoryRequest />
             </ProtectedRoute>
           }
         />

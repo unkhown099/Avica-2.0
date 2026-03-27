@@ -141,7 +141,7 @@ class OwnerServiceSerializer(serializers.ModelSerializer):
         model  = Service
         fields = [
             "id", "name", "category", "description",
-            "duration", "price_min", "price_max",
+            "duration", "price",
             "price_range", "is_active", "branch_names",
         ]
 
@@ -149,8 +149,13 @@ class OwnerServiceSerializer(serializers.ModelSerializer):
         return list(obj.branches.values_list("name", flat=True))
 
     def get_price_range(self, obj):
-        lo = int(obj.price_min)
-        hi = int(obj.price_max)
+        lo = int(obj.price or 0)
+        hi = lo
+        if isinstance(obj.price_list, dict) and obj.price_list:
+            values = [float(v) for v in obj.price_list.values() if v is not None]
+            if values:
+                lo = int(min(values))
+                hi = int(max(values))
         if lo == hi:
             return f"₱{lo:,}"
         return f"₱{lo:,} – ₱{hi:,}"

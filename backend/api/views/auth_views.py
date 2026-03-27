@@ -286,9 +286,35 @@ class LogoutView(APIView):
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def _profile_payload(self, user):
+        payload = {
+            "staff_profile": None,
+            "customer_profile": None,
+        }
+        try:
+            staff = Staff.objects.get(user=user)
+            payload["staff_profile"] = {
+                "id": staff.id,
+                "role": staff.role,
+                "branch_id": staff.branch_id,
+            }
+            return payload
+        except Staff.DoesNotExist:
+            pass
+
+        try:
+            customer = Customer.objects.get(user=user)
+            payload["customer_profile"] = {
+                "id": customer.id,
+            }
+        except Customer.DoesNotExist:
+            pass
+        return payload
+
     def get(self, request):
         user = request.user
         user_role, first_name, last_name, suffix, phone, profile_picture = _get_profile_data(user)
+        profile_payload = self._profile_payload(user)
  
         return Response({
             "id":         user.id,
@@ -299,6 +325,7 @@ class MeView(APIView):
             "suffix":     suffix,
             "phone":      phone,
             "profile_picture": profile_picture,
+            **profile_payload,
         })
     
     # Add this PUT method for updating profile
@@ -331,6 +358,7 @@ class MeView(APIView):
         
         # Return updated data
         user_role, first_name, last_name, suffix, phone, profile_picture = _get_profile_data(user)
+        profile_payload = self._profile_payload(user)
         
         return Response({
             "id":         user.id,
@@ -341,6 +369,7 @@ class MeView(APIView):
             "suffix":     suffix,
             "phone":      phone,
             "profile_picture": profile_picture,
+            **profile_payload,
         })
 
 class GoogleLoginView(APIView):

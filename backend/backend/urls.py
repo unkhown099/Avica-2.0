@@ -13,8 +13,8 @@ from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
 from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
-from api.views.dashboard_views import AdminDashboardView, ManagerDashboardView
-from api.views.service_views import ServiceListCreateView, ServiceDetailView
+from api.views.dashboard_views import AdminDashboardView, ManagerDashboardView, ManagerScheduleConfigView
+from api.views.service_views import ServiceListCreateView, ServiceDetailView, ServiceCategoryListCreateView
 from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView
 from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
 from api.views.inventory_views import (
@@ -41,7 +41,10 @@ from api.views.queue_views import (
     queue_employees,
     queue_remove,
     queue_history,
-    queue_mark_paid
+    queue_mark_paid,
+    queue_available_products,
+    queue_add_products,
+    queue_edit_service_details,
 )
 from api.views.customer_history import CustomerHistoryAPIView
 from api.views.ratings_views import RatingCreateView
@@ -111,6 +114,9 @@ urlpatterns = [
     path('api/queue/<int:pk>/assign/',    queue_assign,       name='queue-assign'),
     path('api/queue/<int:pk>/',           queue_remove,       name='queue-remove'),
     path('api/queue/<int:pk>/mark-paid/', queue_mark_paid,    name='queue-mark-paid'),
+    path('api/queue/<int:pk>/products/', queue_available_products, name='queue-products'),
+    path('api/queue/<int:pk>/add-products/', queue_add_products, name='queue-add-products'),
+    path('api/queue/<int:pk>/service-details/', queue_edit_service_details, name='queue-service-details'),
 
     # ── Customer dashboard & history ──────────────────────────────────────────
     path('api/customer/dashboard/', CustomerDashboardAPIView.as_view(), name='customer-dashboard'),
@@ -125,6 +131,7 @@ urlpatterns = [
     path('dashboard/',             AdminDashboardView.as_view(),        name='admin-dashboard'),
     path('services/',              ServiceListCreateView.as_view(),     name='service-list'),
     path('services/<int:pk>/',     ServiceDetailView.as_view(),         name='service-detail'),
+    path('services/categories/',   ServiceCategoryListCreateView.as_view(), name='service-categories'),
     path('customers/',             AdminCustomerListView.as_view(),     name='admin-customers'),
     path('inventory/',             InventoryListCreateView.as_view(),   name='inventory-list'),
     path('inventory/<int:pk>/',    InventoryDetailView.as_view(),       name='inventory-detail'),
@@ -149,6 +156,7 @@ urlpatterns = [
 
     # ── Manager endpoints ─────────────────────────────────────────────────────
     path("api/manager/dashboard/",        ManagerDashboardView.as_view()),
+    path("api/manager/schedule-config/",  ManagerScheduleConfigView.as_view()),
 
     # ── Notification endpoints ───────────────────────────────────────────────
     path("api/notifications/",                NotificationListView.as_view(), name="notification-list"),

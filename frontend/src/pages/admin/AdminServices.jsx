@@ -15,7 +15,14 @@ const authHeaders = () => ({
 });
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const CATEGORIES = ["Maintenance", "Repair", "Diagnostic", "Cosmetic"];
+const FALLBACK_CATEGORIES = ["Maintenance", "Repair", "Diagnostic", "Cosmetic"];
+const PRICE_TIERS = [
+  { key: "motor", label: "Motor" },
+  { key: "small", label: "Small" },
+  { key: "medium", label: "Medium" },
+  { key: "large", label: "Large" },
+  { key: "xl", label: "XL" },
+];
 
 const CATEGORY_COLORS = {
   Maintenance: {
@@ -84,18 +91,35 @@ const inputCls =
   "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all";
 
 // ── Create / Edit Modal ──────────────────────────────────────────────────────
-function ServiceModal({ onClose, onSaved, editService, branches }) {
+function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
   const isEdit = !!editService;
+  const editPriceList =
+    editService?.price_list && typeof editService.price_list === "object"
+      ? editService.price_list
+      : {};
   const [form, setForm] = useState({
     name: editService?.name ?? "",
-    category: editService?.category ?? CATEGORIES[0],
+    category: editService?.category ?? categories?.[0]?.name ?? "",
     description: editService?.description ?? "",
     duration: editService?.duration ?? "",
-    price_min: editService?.price_min ?? "",
-    price_max: editService?.price_max ?? "",
+    price: editService?.price ?? "",
+    use_price_list: Object.keys(editPriceList).length > 0,
+    price_list: {
+      motor: editPriceList?.motor ?? "",
+      small: editPriceList?.small ?? "",
+      medium: editPriceList?.medium ?? "",
+      large: editPriceList?.large ?? "",
+      xl: editPriceList?.xl ?? "",
+    },
     branch_ids: editService?.branches?.map((b) => b.id) ?? [],
   });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!form.category && categories?.length > 0) {
+      set("category", categories[0].name);
+    }
+  }, [categories]);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -106,6 +130,24 @@ function ServiceModal({ onClose, onSaved, editService, branches }) {
         ? form.branch_ids.filter((b) => b !== id)
         : [...form.branch_ids, id],
     );
+
+  const setTierPrice = (tier, value) =>
+    set("price_list", {
+      ...form.price_list,
+      [tier]: value,
+    });
+
+  const buildPriceListPayload = () => {
+    const payload = {};
+    for (const tier of PRICE_TIERS) {
+      const raw = form.price_list[tier.key];
+      if (raw === "" || raw == null) continue;
+      const num = Number(raw);
+      if (Number.isNaN(num) || num < 0) continue;
+      payload[tier.key] = num;
+    }
+    return payload;
+  };
 
   const submit = async () => {
     if (!form.name || !form.category) {
@@ -121,6 +163,31 @@ function ServiceModal({ onClose, onSaved, editService, branches }) {
     try {
       setSaving(true);
       const payload = { ...form };
+      if (form.use_price_list) {
+        const listPayload = buildPriceListPayload();
+        if (Object.keys(listPayload).length === 0) {
+          Swal.fire({
+            icon: "warning",
+            title: "Missing tier prices",
+            text: "Add at least one price in the price list.",
+            background: "#111827",
+            color: "#f9fafb",
+          });
+          setSaving(false);
+          return;
+        }
+        payload.price_list = listPayload;
+        const values = Object.values(listPayload);
+        if (values.length > 0) {
+          payload.price = Math.min(...values);
+        }
+      } else {
+        payload.price_list = {};
+        const singlePrice = Number(form.price);
+        payload.price = Number.isNaN(singlePrice) ? 0 : singlePrice;
+      }
+
+      delete payload.use_price_list;
       if (isEdit) {
         await axios.patch(`${API_BASE}/services/${editService.id}/`, payload, {
           headers: authHeaders(),
@@ -210,8 +277,8 @@ function ServiceModal({ onClose, onSaved, editService, branches }) {
                 value={form.category}
                 onChange={(e) => set("category", e.target.value)}
               >
-                {CATEGORIES.map((c) => (
-                  <option key={c}>{c}</option>
+                {(categories?.length > 0 ? categories : FALLBACK_CATEGORIES.map((name) => ({ name }))).map((c) => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
                 ))}
               </select>
             </Field>
@@ -229,7 +296,7 @@ function ServiceModal({ onClose, onSaved, editService, branches }) {
           </Field>
 
           {/* Duration + Price */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Duration">
               <select
                 className={inputCls}
@@ -242,24 +309,54 @@ function ServiceModal({ onClose, onSaved, editService, branches }) {
                 <option value="1 hour">1 hour</option>
               </select>
             </Field>
-            <Field label="Min Price (₱)">
+            <Field label="Price (₱)">
               <input
                 type="number"
                 className={inputCls}
                 placeholder="1500"
-                value={form.price_min}
-                onChange={(e) => set("price_min", e.target.value)}
+                disabled={form.use_price_list}
+                value={form.price}
+                onChange={(e) => set("price", e.target.value)}
               />
             </Field>
-            <Field label="Max Price (₱)">
-              <input
-                type="number"
-                className={inputCls}
-                placeholder="2500"
-                value={form.price_max}
-                onChange={(e) => set("price_max", e.target.value)}
-              />
-            </Field>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">Use Tiered Price List</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Set different prices by vehicle size (Motor, Small, Medium, Large, XL).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => set("use_price_list", !form.use_price_list)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${form.use_price_list
+                    ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                    : "bg-gray-800 border-white/10 text-gray-400"
+                  }`}
+              >
+                {form.use_price_list ? "Enabled" : "Disabled"}
+              </button>
+            </div>
+
+            {form.use_price_list && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {PRICE_TIERS.map((tier) => (
+                  <Field key={tier.key} label={`${tier.label} Price (₱)`}>
+                    <input
+                      type="number"
+                      min="0"
+                      className={inputCls}
+                      placeholder="0"
+                      value={form.price_list[tier.key]}
+                      onChange={(e) => setTierPrice(tier.key, e.target.value)}
+                    />
+                  </Field>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Branches */}
@@ -312,9 +409,96 @@ function ServiceModal({ onClose, onSaved, editService, branches }) {
   );
 }
 
+function CategoryModal({ onClose, onCreated }) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(
+        `${API}/services/categories/`,
+        { name: trimmed },
+        { headers: authHeaders() },
+      );
+      onCreated?.(res.data);
+      onClose();
+      Swal.fire({
+        icon: "success",
+        title: "Category added",
+        timer: 1200,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: err.response?.data?.name?.[0] ?? err.response?.data?.detail ?? "Could not add category.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <div>
+            <h2 className="text-lg font-black text-white">Add Category</h2>
+            <p className="text-gray-500 text-xs mt-1">Create a configurable service category</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <Field label="Category Name">
+            <input
+              className={inputCls}
+              placeholder="e.g. Electrical"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving || !name.trim()}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold"
+            >
+              {saving ? "Saving..." : "Add Category"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 function AdminServices() {
   const [services, setServices] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -322,6 +506,7 @@ function AdminServices() {
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [branchFilter, setBranchFilter] = useState("All Branches");
   const [showModal, setShowModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editService, setEditService] = useState(null);
 
   // ── Fetch services ───────────────────────────────────────────────────────
@@ -329,12 +514,14 @@ function AdminServices() {
     try {
       setLoading(true);
       setError(null);
-      const [svcRes, branchRes] = await Promise.all([
+      const [svcRes, branchRes, catRes] = await Promise.all([
         axios.get(`${API}/services/`, { headers: authHeaders() }),
         axios.get(`${API}/branches/`, { headers: authHeaders() }),
+        axios.get(`${API}/services/categories/`, { headers: authHeaders() }),
       ]);
       setServices(svcRes.data);
       setBranches(branchRes.data);
+      setCategories(Array.isArray(catRes.data) ? catRes.data : []);
     } catch (err) {
       setError("Failed to load services. Please try again.");
     } finally {
@@ -425,7 +612,23 @@ function AdminServices() {
     return matchSearch && matchCat && matchBranch;
   });
 
-  const categoryCounts = CATEGORIES.reduce((acc, c) => {
+  const categoryNames =
+    categories.length > 0
+      ? categories.map((c) => c.name)
+      : Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
+
+  const visibleCategoryNames =
+    categoryNames.length > 0 ? categoryNames : FALLBACK_CATEGORIES;
+
+  const handleCategoryCreated = (category) => {
+    if (!category?.name) return;
+    setCategories((prev) => {
+      if (prev.some((c) => c.name === category.name)) return prev;
+      return [...prev, category].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  };
+
+  const dynamicCategoryCounts = visibleCategoryNames.reduce((acc, c) => {
     acc[c] = services.filter((s) => s.category === c).length;
     return acc;
   }, {});
@@ -482,7 +685,7 @@ function AdminServices() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {CATEGORIES.map((label) => (
+          {visibleCategoryNames.map((label) => (
             <div
               key={label}
               className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all"
@@ -491,7 +694,7 @@ function AdminServices() {
                 {loading ? (
                   <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
                 ) : (
-                  (categoryCounts[label] ?? 0)
+                  (dynamicCategoryCounts[label] ?? 0)
                 )}
               </div>
               <div className="text-xs text-gray-400 font-medium">{label}</div>
@@ -500,7 +703,7 @@ function AdminServices() {
                   className="h-1 rounded-full transition-all duration-700"
                   style={{
                     width: services.length
-                      ? `${((categoryCounts[label] ?? 0) / services.length) * 100}%`
+                      ? `${((dynamicCategoryCounts[label] ?? 0) / services.length) * 100}%`
                       : "0%",
                     backgroundColor: CATEGORY_COLORS[label]?.accent,
                   }}
@@ -536,13 +739,21 @@ function AdminServices() {
           </div>
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "__add_category__") {
+                setShowCategoryModal(true);
+                return;
+              }
+              setCategoryFilter(value);
+            }}
             className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[160px]"
           >
             <option value="All Categories">All Categories</option>
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+            {visibleCategoryNames.map((c) => (
+              <option key={c} value={c}>{c}</option>
             ))}
+            <option value="__add_category__">+ Add Category...</option>
           </select>
           <select
             value={branchFilter}
@@ -734,6 +945,22 @@ function AdminServices() {
                         </span>
                       </span>
                     </div>
+                    {service.price_list && Object.keys(service.price_list).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {PRICE_TIERS.map((tier) => {
+                          const value = service.price_list?.[tier.key];
+                          if (value == null || value === "") return null;
+                          return (
+                            <span
+                              key={tier.key}
+                              className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] rounded-md"
+                            >
+                              {tier.label}: ₱{Number(value).toLocaleString()}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Branches */}
@@ -811,6 +1038,14 @@ function AdminServices() {
           onSaved={fetchServices}
           editService={editService}
           branches={branches}
+          categories={visibleCategoryNames.map((name) => ({ name }))}
+        />
+      )}
+
+      {showCategoryModal && (
+        <CategoryModal
+          onClose={() => setShowCategoryModal(false)}
+          onCreated={handleCategoryCreated}
         />
       )}
     </AdminLayout>

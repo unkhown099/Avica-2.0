@@ -83,13 +83,13 @@ const DARK_SWAL = {
 };
 
 const SERVICES = [
-  "Exterior Detailing",
-  "Interior Detailing",
-  "Full Detailing",
-  "Ceramic Coating",
-  "Paint Correction",
-  "Engine Bay Cleaning",
-  "Other",
+  { name: "Exterior Detailing", price: 0 },
+  { name: "Interior Detailing", price: 0 },
+  { name: "Full Detailing", price: 0 },
+  { name: "Ceramic Coating", price: 0 },
+  { name: "Paint Correction", price: 0 },
+  { name: "Engine Bay Cleaning", price: 0 },
+  { name: "Other", price: 0 },
 ];
 
 function todayDateValue() {
@@ -98,6 +98,98 @@ function todayDateValue() {
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function toDateValue(date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function parseEntryScheduleDate(entry) {
+  if (
+    entry?.source === "booking" &&
+    entry?.appointment_date &&
+    entry?.appointment_time
+  ) {
+    const dt = new Date(`${entry.appointment_date}T${entry.appointment_time}`);
+    if (!Number.isNaN(dt.getTime())) return dt;
+  }
+
+  if (entry?.source === "booking" && entry?.appointment_date) {
+    const dt = new Date(`${entry.appointment_date}T00:00:00`);
+    if (!Number.isNaN(dt.getTime())) return dt;
+  }
+
+  const fallbackRaw =
+    entry?.queued_at ||
+    entry?.created_at ||
+    entry?.service_started_at ||
+    entry?.completed_at;
+  if (!fallbackRaw) return null;
+
+  const fallback = new Date(fallbackRaw);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function formatTime(date) {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+
+function getEntryScheduleDisplay(entry) {
+  if (entry?.source === "booking") {
+    const timeText = entry?.appointment_time
+      ? entry.appointment_time.slice(0, 5)
+      : "No time";
+    return {
+      time: timeText,
+      compact: timeText,
+    };
+  }
+
+  const dt = parseEntryScheduleDate(entry);
+  if (!dt) {
+    return {
+      time: "No time",
+      compact: "No time",
+    };
+  }
+
+  const timeText = formatTime(dt);
+  return {
+    time: timeText,
+    compact: `Queued: ${timeText}`,
+  };
+}
+
+function sortEntriesBySchedule(entries) {
+  return [...entries].sort((a, b) => {
+    const aDate = parseEntryScheduleDate(a);
+    const bDate = parseEntryScheduleDate(b);
+    const aTs = aDate ? aDate.getTime() : Number.MAX_SAFE_INTEGER;
+    const bTs = bDate ? bDate.getTime() : Number.MAX_SAFE_INTEGER;
+    if (aTs !== bTs) return aTs - bTs;
+    return (a?.position ?? 0) - (b?.position ?? 0);
+  });
+}
+
+function isEntryForDate(entry, dateValue) {
+  if (!entry) return false;
+  if (entry.source === "booking" && entry.appointment_date) {
+    return entry.appointment_date === dateValue;
+  }
+  const dt = parseEntryScheduleDate(entry);
+  if (!dt) return false;
+  return toDateValue(dt) === dateValue;
 }
 
 const STATUS_META = {
@@ -126,6 +218,39 @@ const STATUS_META = {
     glow: "",
   },
 };
+
+const KANBAN_COLUMNS = [
+  {
+    id: "waiting",
+    label: "Waiting",
+    emptyText: "No jobs waiting",
+    headerBg: "bg-amber-500/10 border-amber-500/25",
+    dotColor: "bg-amber-400",
+    dotPulse: false,
+    countBg: "bg-amber-500/20 text-amber-300",
+    dropActiveBg: "bg-amber-500/6 border-amber-400/50",
+  },
+  {
+    id: "in_service",
+    label: "In Progress",
+    emptyText: "No jobs in progress",
+    headerBg: "bg-emerald-500/10 border-emerald-500/25",
+    dotColor: "bg-emerald-400",
+    dotPulse: true,
+    countBg: "bg-emerald-500/20 text-emerald-300",
+    dropActiveBg: "bg-emerald-500/6 border-emerald-400/50",
+  },
+  {
+    id: "done",
+    label: "Done",
+    emptyText: "No completed jobs",
+    headerBg: "bg-white/5 border-white/10",
+    dotColor: "bg-gray-500",
+    dotPulse: false,
+    countBg: "bg-white/10 text-gray-400",
+    dropActiveBg: "bg-white/5 border-white/25",
+  },
+];
 
 function elapsed(startedAt) {
   if (!startedAt) return null;
@@ -298,15 +423,10 @@ function AssignDropdown({ entry, employees, onAssign, assigning }) {
 
 function QueueCard({
   entry,
-  employees,
-  onAction,
-  onAssign,
-  actionLoading,
-  assignLoading,
+  onOpenDetails,
 }) {
   const meta = STATUS_META[entry.status] || STATUS_META.waiting;
-  const isActive = actionLoading === entry.id;
-  const isAssigning = assignLoading === entry.id;
+  const schedule = getEntryScheduleDisplay(entry);
 
   const sourceColor =
     entry.source === "walk_in"
@@ -315,89 +435,53 @@ function QueueCard({
 
   return (
     <div
-      className={`bg-gray-900/70 border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all shadow-lg ${meta.glow}`}
+      onClick={() => onOpenDetails(entry)}
+      className={`bg-gray-900/70 border border-white/5 rounded-xl p-3 hover:border-white/10 transition-all shadow-lg cursor-pointer ${meta.glow}`}
     >
-      {/* Top row */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gray-800 border border-white/8 flex items-center justify-center text-xl font-black text-white shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-gray-800 border border-white/8 flex items-center justify-center text-sm font-black text-white shrink-0">
             {entry.position}
           </div>
-          <div>
-            <div className="text-white font-black text-base leading-tight">
+          <div className="min-w-0">
+            <div className="text-white font-bold text-sm leading-tight truncate max-w-[180px]">
               {entry.customer_name}
             </div>
-            <div className="text-gray-500 text-xs mt-0.5">{entry.phone}</div>
+            <div className="text-gray-500 text-xs mt-0.5 truncate max-w-[180px]">
+              {entry.service}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
           <span
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${sourceColor}`}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${sourceColor}`}
           >
             {entry.source === "walk_in" ? "Walk-in" : "Booking"}
           </span>
-          <span
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${meta.badge}`}
-          >
+          {entry.status !== "waiting" && (
             <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${meta.dot} mr-1.5`}
-            />
-            {meta.label}
-          </span>
+              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${meta.badge}`}
+            >
+              <span
+                className={`inline-block w-1.5 h-1.5 rounded-full ${meta.dot} mr-1.5`}
+              />
+              {meta.label}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Details grid */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
-        {[
-          {
-            icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
-            text: entry.vehicle || "—",
-          },
-          {
-            icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
-            text: entry.service,
-          },
-          entry.plate_number && {
-            icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
-            text: entry.plate_number,
-          },
-          entry.wait_minutes != null && {
-            icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-            text: `~${entry.wait_minutes} min wait`,
-          },
-          entry.source === "booking" &&
-            (entry.appointment_date || entry.appointment_time) && {
-              icon: "M8 7V3m8 4V3m-9 8h10m-13 9h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v11a2 2 0 002 2z",
-              text: `Appointment: ${entry.appointment_date || "-"} ${entry.appointment_time || ""}`.trim(),
-            },
-        ]
-          .filter(Boolean)
-          .map((row, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <svg
-                className="w-3.5 h-3.5 text-gray-600 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d={row.icon}
-                />
-              </svg>
-              <span className="text-gray-400 truncate text-xs">{row.text}</span>
-            </div>
-          ))}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-gray-400 truncate">
+          {schedule.compact}
+        </p>
+        <span className="text-[10px] text-gray-600">Tap for details</span>
       </div>
 
-      {/* Service timer */}
       {entry.status === "in_service" && entry.service_started_at && (
-        <div className="mb-4 flex items-center gap-2 text-emerald-400 text-xs font-semibold bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+        <div className="mt-2 flex items-center gap-2 text-emerald-400 text-[11px] font-semibold bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2.5 py-1.5">
           <svg
-            className="w-3.5 h-3.5 animate-pulse"
+            className="w-3 h-3 animate-pulse"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -412,126 +496,162 @@ function QueueCard({
           Service time: <Ticker startedAt={entry.service_started_at} />
         </div>
       )}
+    </div>
+  );
+}
+
+function QueueDetailModal({
+  entry,
+  onClose,
+  employees,
+  onAction,
+  onAssign,
+  actionLoading,
+  assignLoading,
+}) {
+  if (!entry) return null;
+
+  const isActive = actionLoading === entry.id;
+  const isAssigning = assignLoading === entry.id;
+  const meta = STATUS_META[entry.status] || STATUS_META.waiting;
+  const schedule = getEntryScheduleDisplay(entry);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 sticky top-0 bg-gray-900">
+          <h3 className="text-white font-black text-sm uppercase tracking-wider">Queue Details</h3>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-white font-black text-xl leading-tight">{entry.customer_name}</p>
+              <p className="text-gray-500 text-sm mt-1">Queue #{entry.position}</p>
+            </div>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${meta.badge}`}>
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${meta.dot} mr-1.5`} />
+              {meta.label}
+            </span>
+          </div>
+
+          <div className="rounded-xl border border-white/8 divide-y divide-white/5 overflow-hidden">
+            {[
+              ["Phone", entry.phone || "-"],
+              ["Service", entry.service || "-"],
+              ["Appointment Time", schedule.time],
+              ["Plate", entry.plate_number || "-"],
+              ["Source", entry.source === "walk_in" ? "Walk-in" : "Booking"],
+              ["Branch", entry.branch || "-"],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-start justify-between gap-4 px-4 py-3 bg-white/2">
+                <span className="text-gray-500 text-xs">{label}</span>
+                <span className="text-gray-200 text-sm font-semibold text-right leading-snug">{value}</span>
+              </div>
+            ))}
+          </div>
 
       {entry.notes && (
-        <div className="mb-4 bg-white/3 border border-white/5 rounded-lg px-3 py-2 text-gray-500 text-xs">
+        <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-2 text-gray-500 text-xs">
           📝 {entry.notes}
         </div>
       )}
 
-      {/* Assign mechanic — shown for waiting and in_service */}
-      {(entry.status === "waiting" || entry.status === "in_service") && (
-        <div className="mb-3">
+          {(entry.status === "waiting" || entry.status === "in_service") && (
+            <div>
           <AssignDropdown
             entry={entry}
             employees={employees}
             onAssign={onAssign}
             assigning={isAssigning}
           />
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* Action buttons */}
-      <div className="pt-3 border-t border-white/5 flex gap-2">
-        {entry.status === "waiting" && (
-          <button
-            onClick={() => onAction(entry.id, "in_service")}
-            disabled={isActive || !entry.assigned_employee}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={!entry.assigned_employee ? "Assign a mechanic first" : ""}
-          >
-            {isActive ? (
-              <svg
-                className="w-3.5 h-3.5 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
+          <div className="pt-1 flex gap-2">
+            {entry.status === "waiting" && (
+              <button
+                onClick={() => onAction(entry.id, "in_service")}
+                disabled={isActive || !entry.assigned_employee}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!entry.assigned_employee ? "Assign a mechanic first" : ""}
               >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+                {entry.assigned_employee ? "Start Service" : "Assign Mechanic First"}
+              </button>
             )}
-            {entry.assigned_employee ? "Start Service" : "Assign Mechanic First"}
-          </button>
-        )}
-        {entry.status === "in_service" && (
-          <button
-            onClick={() => onAction(entry.id, "done")}
-            disabled={isActive}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
-          >
-            {isActive ? (
-              <svg
-                className="w-3.5 h-3.5 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
+            {entry.status === "in_service" && (
+              <button
+                onClick={() => onAction(entry.id, "done")}
+                disabled={isActive}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
               >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+                Mark as Done
+              </button>
             )}
-            Mark as Done
-          </button>
-        )}
-        {entry.status === "done" && (
-          <div className="flex items-center gap-2 text-gray-500 text-xs">
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QueueKanbanColumn({
+  col,
+  entries,
+  draggingId,
+  isOver,
+  onDragOver,
+  onDrop,
+  onDragLeave,
+  onCardDragStart,
+  onCardDragEnd,
+  onOpenDetails,
+}) {
+  return (
+    <div className="flex flex-col">
+      <div
+        className={`flex items-center justify-between px-4 py-3 rounded-xl mb-3 border ${col.headerBg}`}
+      >
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`w-2 h-2 rounded-full ${col.dotColor} ${col.dotPulse ? "animate-pulse" : ""}`}
+          />
+          <span className="text-white font-black text-sm tracking-tight">
+            {col.label}
+          </span>
+        </div>
+        <span
+          className={`min-w-[26px] h-6 px-2 rounded-full flex items-center justify-center text-xs font-black ${col.countBg}`}
+        >
+          {entries.length}
+        </span>
+      </div>
+
+      <div
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragLeave={onDragLeave}
+        style={{ minHeight: 260 }}
+        className={`
+          flex-1 rounded-xl border-2 border-dashed p-3 transition-all duration-200
+          ${isOver ? `${col.dropActiveBg} scale-[1.015]` : "border-white/6 bg-transparent"}
+        `}
+      >
+        {entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-2 opacity-25 py-12">
             <svg
-              className="w-4 h-4 text-emerald-500"
+              className="w-9 h-9 text-gray-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -539,16 +659,31 @@ function QueueCard({
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                strokeWidth={1.5}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
               />
             </svg>
-            Completed
-            {entry.assigned_employee && (
-              <span className="text-gray-600">
-                · {entry.assigned_employee.full_name}
-              </span>
-            )}
+            <p className="text-gray-600 text-xs font-medium">{col.emptyText}</p>
+            <p className="text-gray-700 text-xs">Drop here</p>
+          </div>
+        ) : (
+          <div
+            className={`space-y-3 ${entries.length >= 5 ? "max-h-[520px] overflow-y-auto pr-1" : ""}`}
+          >
+            {entries.map((entry) => (
+              <div
+                key={entry.id}
+                draggable={entry.status !== "done"}
+                onDragStart={(e) => onCardDragStart(e, entry)}
+                onDragEnd={onCardDragEnd}
+                className={`${draggingId === entry.id ? "opacity-30 scale-95" : ""}`}
+              >
+                <QueueCard
+                  entry={entry}
+                  onOpenDetails={onOpenDetails}
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -591,9 +726,11 @@ function WalkInModal({ onClose, onAdded }) {
         const data = await res.json();
         const rows = Array.isArray(data) ? data : (data.results ?? []);
         const activeServices = rows
-          .filter((s) => s?.is_active !== false)
-          .map((s) => s?.name)
-          .filter(Boolean);
+          .filter((s) => s?.is_active !== false && s?.name)
+          .map((s) => ({
+            name: s.name,
+            price: Number(s.price ?? 0),
+          }));
         if (active) {
           setServices(activeServices.length > 0 ? activeServices : SERVICES);
         }
@@ -646,6 +783,9 @@ function WalkInModal({ onClose, onAdded }) {
 
   const serviceOptions = services.length > 0 ? services : SERVICES;
 
+  const selectedService = serviceOptions.find((s) => s.name === form.service);
+  const selectedServicePrice = Number(selectedService?.price ?? 0);
+
   const selectCustomer = (customer) => {
     const fullName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
     setForm((prev) => ({
@@ -673,6 +813,7 @@ function WalkInModal({ onClose, onAdded }) {
           vehicle: form.vehicle,
           plate_number: form.plateNumber,
           service: form.service,
+          price: selectedServicePrice,
           notes: form.notes,
           source: "walk_in",
         }),
@@ -819,10 +960,20 @@ function WalkInModal({ onClose, onAdded }) {
                   {loadingServices ? "Loading services..." : "Select a service"}
                 </option>
                 {serviceOptions.map((s) => (
-                  <option key={s}>{s}</option>
+                  <option key={s.name} value={s.name}>
+                    {s.name}
+                    {Number.isFinite(Number(s.price))
+                      ? ` - PHP ${Number(s.price).toFixed(2)}`
+                      : ""}
+                  </option>
                 ))}
               </select>
             </div>
+            {form.service && (
+              <p className="text-xs text-emerald-400/90 font-semibold">
+                Service price: PHP {selectedServicePrice.toFixed(2)}
+              </p>
+            )}
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
                 Notes
@@ -899,17 +1050,19 @@ function StaffQueue() {
   const [assignLoading, setAssignLoading] = useState(null);
   const [showWalkIn, setShowWalkIn] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [activeQueueTab, setActiveQueueTab] = useState("waiting");
-  const [selectedDate, setSelectedDate] = useState(todayDateValue);
+  const [draggingEntry, setDraggingEntry] = useState(null);
+  const [overColumn, setOverColumn] = useState(null);
+  const [selectedEntry, setSelectedEntry] = useState(null);
+  const todayOnly = todayDateValue();
 
   const fetchQueue = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const qs = new URLSearchParams();
-      if (selectedDate) qs.set("date", selectedDate);
+      qs.set("date", todayOnly);
       const [qRes, hRes] = await Promise.all([
-        authFetch(`${API}/api/queue/?${qs.toString()}`),
+        authFetch(`${API}/api/queue/`),
         authFetch(`${API}/api/queue/history/?${qs.toString()}`),
       ]);
       if (!qRes.ok || !hRes.ok) {
@@ -926,7 +1079,7 @@ function StaffQueue() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [todayOnly]);
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -951,6 +1104,17 @@ function StaffQueue() {
   }, [fetchQueue]);
 
   const handleAction = async (id, newStatus) => {
+    const current = queue.find((q) => q.id === id);
+    if (newStatus === "done" && current?.status !== "in_service") {
+      await Swal.fire({
+        icon: "warning",
+        title: "Invalid status flow",
+        text: "Queue entries must be moved to In Progress before marking as Done.",
+        ...DARK_SWAL,
+      });
+      return;
+    }
+
     setActionLoading(id);
     try {
       const res = await authFetch(`${API}/api/queue/${id}/action/`, {
@@ -989,14 +1153,17 @@ function StaffQueue() {
         method: "PATCH",
         body: JSON.stringify({ employee_id: employeeId }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to assign employee.");
+      }
       const updated = await res.json();
       setQueue((prev) => prev.map((q) => (q.id === updated.id ? updated : q)));
-    } catch {
+    } catch (e) {
       await Swal.fire({
         icon: "error",
         title: "Assignment failed",
-        text: "Failed to assign employee.",
+        text: e.message || "Failed to assign employee.",
         ...DARK_SWAL,
       });
     } finally {
@@ -1004,14 +1171,95 @@ function StaffQueue() {
     }
   };
 
-  const waiting = queue.filter((q) => q.status === "waiting");
-  const inService = queue.filter((q) => q.status === "in_service");
-  const activeQueueRows = activeQueueTab === "waiting" ? waiting : inService;
+  const waiting = sortEntriesBySchedule(
+    queue.filter((q) => q.status === "waiting" && isEntryForDate(q, todayOnly)),
+  );
+  const inService = sortEntriesBySchedule(
+    queue.filter((q) => q.status === "in_service" && isEntryForDate(q, todayOnly)),
+  );
+  const doneRows = sortEntriesBySchedule(
+    history.filter((h) => h.status === "done"),
+  );
   const doneToday = history.filter((h) => h.status === "done").length;
   const unassigned = queue.filter(
     (q) =>
       !q.assigned_employee && q.status !== "done" && q.status !== "skipped",
   ).length;
+
+  const entriesByColumn = {
+    waiting,
+    in_service: inService,
+    done: doneRows,
+  };
+
+  const onDragStart = (e, entry) => {
+    if (entry.status === "done") return;
+    setDraggingEntry(entry);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(entry.id));
+  };
+
+  const onDragEnd = () => {
+    setDraggingEntry(null);
+    setOverColumn(null);
+  };
+
+  const onDragOver = (e, colId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setOverColumn(colId);
+  };
+
+  const onDragLeave = (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setOverColumn(null);
+  };
+
+  const onDrop = async (e, colId) => {
+    e.preventDefault();
+    setOverColumn(null);
+    if (!draggingEntry || draggingEntry.status === colId) return;
+
+    if (draggingEntry.status === "waiting" && colId === "in_service" && !draggingEntry.assigned_employee) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Assign a mechanic first",
+        text: "You need to assign a mechanic before starting service.",
+        ...DARK_SWAL,
+      });
+      return;
+    }
+
+    if (colId === "done" && draggingEntry.status !== "in_service") {
+      await Swal.fire({
+        icon: "warning",
+        title: "Invalid status flow",
+        text: "Queue entries must be moved to In Progress before marking as Done.",
+        ...DARK_SWAL,
+      });
+      return;
+    }
+
+    const actionName =
+      colId === "in_service"
+        ? "Start service"
+        : colId === "done"
+          ? "Mark as done"
+          : "Move to waiting";
+
+    const confirmed = await Swal.fire({
+      icon: "question",
+      title: `${actionName}?`,
+      text: `Apply this action for ${draggingEntry.customer_name}?`,
+      showCancelButton: true,
+      confirmButtonText: "Yes",
+      cancelButtonText: "Cancel",
+      ...DARK_SWAL,
+    });
+
+    if (confirmed.isConfirmed) {
+      await handleAction(draggingEntry.id, colId);
+    }
+  };
 
   return (
     <StaffLayout title="" subtitle="">
@@ -1023,22 +1271,10 @@ function StaffQueue() {
               Queue
             </h1>
             <p className="text-gray-400 mt-1 text-sm">
-              Approved appointments are added automatically · auto-refreshes
-              every 30s
+              Showing today's queue only · auto-refreshes every 30s
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap md:mt-12">
-            <div className="flex items-center gap-2 bg-gray-900/70 border border-white/10 text-gray-300 rounded-xl px-3 py-2.5">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Date
-              </span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value || todayDateValue())}
-                className="bg-transparent text-sm text-white outline-none [color-scheme:dark]"
-              />
-            </div>
             <button
               onClick={() => setShowHistory((p) => !p)}
               className="flex items-center gap-2 border border-white/10 hover:border-white/20 text-gray-400 hover:text-white font-semibold px-4 py-2.5 rounded-xl transition-all text-sm"
@@ -1143,38 +1379,15 @@ function StaffQueue() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* ── Active Queue ─────────────────────────────────── */}
-          <div className="xl:col-span-2 space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-2">
+          <div className="xl:col-span-3 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-black text-white">Active Queue</h2>
                 <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-black flex items-center justify-center">
-                  {queue.length}
+                  {waiting.length + inService.length}
                 </span>
-              </div>
-
-              <div className="flex items-center gap-2 md:ml-auto">
-                <button
-                  onClick={() => setActiveQueueTab("waiting")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    activeQueueTab === "waiting"
-                      ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-                      : "bg-gray-800/60 border-white/10 text-gray-400 hover:text-white"
-                  }`}
-                >
-                  Waiting ({waiting.length})
-                </button>
-                <button
-                  onClick={() => setActiveQueueTab("in_service")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    activeQueueTab === "in_service"
-                      ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-                      : "bg-gray-800/60 border-white/10 text-gray-400 hover:text-white"
-                  }`}
-                >
-                  Now Serving ({inService.length})
-                </button>
               </div>
             </div>
 
@@ -1227,55 +1440,29 @@ function StaffQueue() {
               </div>
             )}
 
-            {!loading && queue.length > 0 && activeQueueRows.length === 0 && (
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl py-10 text-center backdrop-blur-sm">
-                <p className="text-gray-400 font-semibold">
-                  {activeQueueTab === "waiting"
-                    ? "No waiting entries"
-                    : "No ongoing services"}
-                </p>
-              </div>
-            )}
-
-            {!loading && activeQueueRows.length > 0 && (
-              <div>
-                <p
-                  className={`text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2 ${
-                    activeQueueTab === "waiting"
-                      ? "text-amber-400"
-                      : "text-emerald-400"
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      activeQueueTab === "waiting"
-                        ? "bg-amber-400"
-                        : "bg-emerald-400 animate-pulse"
-                    }`}
+            {!loading && queue.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {KANBAN_COLUMNS.map((col) => (
+                  <QueueKanbanColumn
+                    key={col.id}
+                    col={col}
+                    entries={entriesByColumn[col.id] ?? []}
+                    draggingId={draggingEntry?.id ?? null}
+                    isOver={overColumn === col.id}
+                    onDragOver={(e) => onDragOver(e, col.id)}
+                    onDrop={(e) => onDrop(e, col.id)}
+                    onDragLeave={onDragLeave}
+                    onCardDragStart={onDragStart}
+                    onCardDragEnd={onDragEnd}
+                    onOpenDetails={(entry) => setSelectedEntry(entry)}
                   />
-                  {activeQueueTab === "waiting"
-                    ? `Waiting (${waiting.length})`
-                    : `Now Serving (${inService.length})`}
-                </p>
-                <div className="space-y-3">
-                  {activeQueueRows.map((e) => (
-                    <QueueCard
-                      key={e.id}
-                      entry={e}
-                      employees={employees}
-                      onAction={handleAction}
-                      onAssign={handleAssign}
-                      actionLoading={actionLoading}
-                      assignLoading={assignLoading}
-                    />
-                  ))}
-                </div>
+                ))}
               </div>
             )}
           </div>
 
           {/* ── Right sidebar ─────────────────────────────────── */}
-          <div className="space-y-6">
+          <div className="space-y-5 xl:max-w-[320px] w-full xl:justify-self-end">
             {/* Mechanics overview */}
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-4">
@@ -1292,12 +1479,11 @@ function StaffQueue() {
               ) : (
                 <div className="space-y-2">
                   {employees.map((emp) => {
-                    const activeJobs = queue.filter(
+                    const currentlyServing = queue.find(
                       (q) =>
                         q.assigned_employee?.id === emp.id &&
-                        q.status !== "done" &&
-                        q.status !== "skipped",
-                    ).length;
+                        q.status === "in_service",
+                    );
                     return (
                       <div
                         key={emp.id}
@@ -1311,19 +1497,18 @@ function StaffQueue() {
                             {emp.full_name}
                           </div>
                           <div className="text-gray-600 text-xs truncate">
-                            {emp.branch}
+                            {currentlyServing
+                              ? `Serving: ${currentlyServing.customer_name}`
+                              : emp.branch}
                           </div>
                         </div>
-                        <span
-                          className={`text-xs font-black px-2 py-0.5 rounded-lg text-center min-w-[68px] ${activeJobs > 0
-                            ? "bg-amber-500/20 text-amber-400"
-                            : "bg-emerald-500/20 text-emerald-400"
-                            }`}
-                        >
-                          {activeJobs > 0
-                            ? `${activeJobs} job${activeJobs > 1 ? "s" : ""}`
-                            : "Free"}
-                        </span>
+                        {currentlyServing ? (
+                          <span className="text-xs font-black px-2 py-0.5 rounded-lg text-center min-w-[88px] bg-emerald-500/20 text-emerald-400">
+                            In Progress
+                          </span>
+                        ) : (
+                          <span className="min-w-[88px]" />
+                        )}
                       </div>
                     );
                   })}
@@ -1382,6 +1567,16 @@ function StaffQueue() {
           onAdded={(entry) => setQueue((prev) => [...prev, entry])}
         />
       )}
+
+      <QueueDetailModal
+        entry={selectedEntry}
+        onClose={() => setSelectedEntry(null)}
+        employees={employees}
+        onAction={handleAction}
+        onAssign={handleAssign}
+        actionLoading={actionLoading}
+        assignLoading={assignLoading}
+      />
     </StaffLayout>
   );
 }

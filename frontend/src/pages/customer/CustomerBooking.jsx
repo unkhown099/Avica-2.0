@@ -790,7 +790,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         vehicle,
         plate_number: plateNumber,
         notes: form.notes || "",
-        price: parseFloat(form.service.price_min ?? form.service.price ?? 0),
+        price: parseFloat(form.service.price ?? 0),
         preferred_employee_id: bookingMode === "specific" ? form.preferredEmployee?.id ?? null : null,
       };
 
@@ -884,9 +884,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                         <div className="text-xl sm:text-2xl mb-1 sm:mb-2">{icon}</div>
                         <div className={`font-bold text-xs sm:text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}>{s.name}</div>
                         <div className="text-red-400 font-black text-xs sm:text-base">
-                          {s.price_min && s.price_max && s.price_min !== s.price_max
-                            ? `₱${parseFloat(s.price_min).toLocaleString()} – ₱${parseFloat(s.price_max).toLocaleString()}`
-                            : `₱${parseFloat(s.price_min || s.price || 0).toLocaleString()}`}
+                          ₱{parseFloat(s.price || 0).toLocaleString()}
                         </div>
                         {s.duration && <div className="text-gray-600 text-[8px] sm:text-[10px] mt-1">⏱ {s.duration}</div>}
                         {s.category && <div className="text-gray-600 text-[8px] sm:text-[10px]">{s.category}</div>}
@@ -1230,11 +1228,9 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                     { label: "Time", value: form.time },
                     { label: "Preferred Mechanic", value: form.preferredEmployee?.full_name || "No preference" },
                     {
-                      label: "Price Range",
+                      label: "Price",
                       value: form.service
-                        ? form.service.price_min && form.service.price_max && form.service.price_min !== form.service.price_max
-                          ? `₱${parseFloat(form.service.price_min).toLocaleString()} – ₱${parseFloat(form.service.price_max).toLocaleString()}`
-                          : `₱${parseFloat(form.service.price_min || form.service.price || 0).toLocaleString()}`
+                        ? `₱${parseFloat(form.service.price || 0).toLocaleString()}`
                         : "—",
                       highlight: true,
                     },
