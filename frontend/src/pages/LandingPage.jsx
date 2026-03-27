@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Landing/LandingNav.jsx";
 import logo from "../assets/otokwikklogo.png";
-import shopBg from "../assets/otosaranay.png";
 import bg1 from "../assets/bg1.jpg";
 import bg2 from "../assets/bg2.jpg";
 import bg3 from "../assets/bg3.jpg";
 import bg4 from "../assets/bg4.jpg";
 import { useNavigate } from "react-router-dom";
-import Footer from "../components/customer/CustomerFooter.jsx";
 
 function getToken() {
   return (
@@ -74,17 +72,30 @@ const feedbacks = [
 
 function LandingPage() {
   const navigate = useNavigate();
-  const [scrolled, setScrolled] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [user, setUser] = useState(null);
   const [activeBranch, setActiveBranch] = useState(branches[0]);
   const [bgIndex, setBgIndex] = useState(0);
   const heroBgs = [bg1, bg2, bg3, bg4];
 
+  const siteMapLinks = [
+    { label: "Homepage", href: "#" },
+    { label: "Services", href: "#" },
+    { label: "Branches", href: "#" },
+    { label: "Client Reviews", href: "#" },
+    { label: "Facebook Pages", href: "#" },
+    { label: "Sign In", href: "/signin" },
+    { label: "Sign Up", href: "/signup" },
+  ];
+
+  const legalLinks = [
+    { label: "Privacy Policy", href: "#" },
+    { label: "Terms of Service", href: "#" },
+    { label: "Cookie Policy", href: "#" },
+  ];
+
   useEffect(() => {
     setUser(getUser());
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", handleScroll);
 
     // Scroll Animation Observer
     const observer = new IntersectionObserver((entries) => {
@@ -103,7 +114,6 @@ function LandingPage() {
     }, 6000);
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
       observer.disconnect();
       clearInterval(bgInterval);
     };
@@ -117,6 +127,10 @@ function LandingPage() {
     } else {
       navigate("/signup");
     }
+  };
+
+  const handleBackToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -370,7 +384,70 @@ function LandingPage() {
         </div>
       </section>
 
-      <Footer />
+      <footer className="relative overflow-hidden bg-black text-white border-t border-white/10">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -right-16 -top-28 h-[420px] w-[420px] rotate-[24deg] border border-red-500/20" />
+          <div className="absolute right-40 top-32 h-[420px] w-[420px] rotate-[24deg] border border-white/10" />
+          <div className="absolute right-20 bottom-[-240px] h-[460px] w-[460px] rotate-[24deg] border border-red-500/15" />
+        </div>
+
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-14 px-6 py-20 lg:flex-row lg:justify-between">
+          <div className="max-w-md">
+            <div className="mb-8 flex items-center gap-3">
+              <img src={logo} alt="Otokwikk logo" className="h-12 w-auto object-contain drop-shadow-[0_0_22px_rgba(220,38,38,0.25)]" />
+            </div>
+
+            <p className="max-w-sm text-2xl leading-relaxed text-gray-200">
+              Empowering car owners with precision care and premium detailing that protects every drive.
+            </p>
+
+            
+
+            <button
+              onClick={handleBackToTop}
+              className="mt-10 inline-flex items-center gap-3 border border-red-500/60 bg-red-600/10 px-6 py-3 text-sm font-semibold tracking-[0.16em] text-white transition hover:bg-red-600/20"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                <path d="M12 19V6" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="m6 12 6-6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              BACK TO TOP
+            </button>
+          </div>
+
+          <div className="grid gap-12 md:grid-cols-2 lg:gap-20">
+            <div>
+              <h3 className="mb-6 text-lg font-semibold text-white">Site Map</h3>
+              <ul className="space-y-4 text-lg text-gray-300">
+                {siteMapLinks.map((item) => (
+                  <li key={item.label}>
+                    <a href={item.href} className="underline-offset-4 transition hover:text-red-400 hover:underline">
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="mb-6 text-lg font-semibold text-white">Legal</h3>
+              <ul className="space-y-4 text-lg text-gray-300">
+                {legalLinks.map((item) => (
+                  <li key={item.label}>
+                    <a href={item.href} className="underline-offset-4 transition hover:text-red-400 hover:underline">
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 bg-[#7f1d1d] px-6 py-2.5 text-center text-xs font-semibold tracking-wide text-white/90">
+          Copyright © 2026, otokwikk. All Rights Reserved.
+        </div>
+      </footer>
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(-20px); }

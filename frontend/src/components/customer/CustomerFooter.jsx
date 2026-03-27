@@ -2,47 +2,112 @@ import React from "react";
 import logo from "../../assets/otokwikklogo.png";
 
 function Footer() {
+  const legalLinks = [
+    { label: "Privacy Policy", href: "#" },
+    { label: "Terms of Service", href: "#" },
+    { label: "Cookie Policy", href: "#" },
+  ];
+
+  const handleBackToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <footer className="bg-black text-white py-24 border-t border-white/5 relative">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid md:grid-cols-4 gap-16 mb-20">
-          <div className="md:col-span-2">
-            <img src={logo} alt="Otokwikk" className="h-16 mb-8 filter brightness-110" />
-            <p className="text-gray-500 text-lg font-medium max-w-sm leading-relaxed">
-              Professional auto detailing services across Metro Manila. We bring
-              showroom shine to your doorstep with precision and excellence.
-            </p>
+    <footer className="relative overflow-hidden bg-black text-white border-t border-white/10">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -right-16 -top-28 h-[420px] w-[420px] rotate-[24deg] border border-red-500/20" />
+        <div className="absolute right-40 top-32 h-[420px] w-[420px] rotate-[24deg] border border-white/10" />
+        <div className="absolute right-20 bottom-[-240px] h-[460px] w-[460px] rotate-[24deg] border border-red-500/15" />
+      </div>
+
+      <div className="relative mx-auto flex max-w-7xl flex-col gap-14 px-6 py-20 lg:flex-row lg:justify-between">
+        <div className="max-w-md">
+          <div className="mb-8 flex items-center gap-3">
+            <img src={logo} alt="Otokwikk logo" className="h-12 w-auto object-contain drop-shadow-[0_0_22px_rgba(220,38,38,0.25)]" />
           </div>
 
-          <div>
-            <h3 className="text-white font-black uppercase tracking-widest mb-8 opacity-50 text-sm">SOCIALS</h3>
-            <div className="flex gap-4">
-              <a
-                href="#"
-                className="w-14 h-14 bg-white/5 hover:bg-red-600 rounded-2xl flex items-center justify-center transition-all group border border-white/10 shadow-xl"
-              >
-                <svg className="w-6 h-6 transform group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-              </a>
-              <a
-                href="#"
-                className="w-14 h-14 bg-white/5 hover:bg-red-600 rounded-2xl flex items-center justify-center transition-all group border border-white/10 shadow-xl"
-              >
-                <svg className="w-6 h-6 transform group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.166.054 1.798.249 2.22.413.56.216.958.477 1.38.898.42.42.681.818.897 1.379.164.422.359 1.054.413 2.22.058 1.266.07 1.645.07 4.85s-.012 3.584-.07 4.85c-.054 1.166-.249 1.798-.413 2.22-.216.561-.477.957-.898 1.378-.42.42-.818.681-1.379.897-.422.164-1.054.359-2.22.413-1.266.058-1.645.07-4.85.07s-3.584-.012-4.85-.07c-1.166-.054-1.798-.249-2.22-.413-.561-.216-.957-.477-1.378-.898-.42-.42-.818-.681-1.38-.897-.421-.164-1.053-.359-2.219-.413-1.266-.058-1.645-.07-4.85-.07s-3.584.012-4.85.07c-1.166.054-1.798.249-2.22.413-.56.216-.958.477-1.38.898-.42.42-.681.818-.897 1.379-.164.422-.359 1.054-.413 2.22-.058 1.266-.07 1.645-.07 4.85s.012 3.584.07 4.85c.054 1.166.249 1.798.413 2.22.216.56.477.958.898 1.38.42.42.818.681 1.379.897.422.164 1.054.359 2.22.413 1.266.058 1.645.07 4.85.07s3.584-.012 4.85-.07c1.166-.054 1.798-.249 2.22-.413.561-.216.957-.477 1.378-.898.42-.42.818-.681 1.38-.897.42-.164 1.054-.359 2.22-.413 1.266-.058 1.645-.07 4.85-.07zM12 0c-3.259 0-3.668.014-4.947.072-1.277.06-2.148.261-2.913.558-.788.305-1.458.715-2.126 1.383-.668.667-1.078 1.338-1.383 2.126-.297.765-.499 1.636-.558 2.913-.06 1.28-.072 1.688-.072 4.947s.012 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.305.788.715 1.459 1.383 2.126.667.668 1.338 1.078 2.126 1.383.765.297 1.636.499 2.913.558 1.28.06 1.688.072 4.947.072s3.667-.012 4.947-.072c1.277-.06 2.148-.261 2.913-.558.788-.305 1.459-.715 2.126-1.383.668-.667 1.078-1.338 1.383-2.126.297-.765.499-1.636.558-2.913.06-1.28.072-1.688.072-4.947s-.012-3.667-.072-4.947c-.06-1.277-.261-2.148-.558-2.913-.305-.788-.715-1.459-1.383-2.126-.667-.668-1.338-1.078-2.126-1.383-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zM12 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.162 6.162 6.162 6.162-2.759 6.162-6.162-2.759-6.162-6.162-6.162zM12 16c-2.209 0-4-1.791-4-4s1.791-4 4-4 4 1.791 4 4-1.791 4-4 4zM18.406 4.154c.795 0 1.439.644 1.439 1.439s-.644 1.439-1.439 1.439-1.439-.644-1.439-1.439.644-1.439 1.439-1.439z" />
-                </svg>
-              </a>
-            </div>
+          <p className="max-w-sm text-2xl leading-relaxed text-gray-200">
+            Professional auto detailing services across Metro Manila with precision, consistency, and premium care.
+          </p>
+
+          <div className="mt-10 flex items-center gap-4 text-white/90">
+            <a
+              href="https://x.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="X"
+              className="rounded-md border border-white/10 p-2 transition hover:border-red-500/50 hover:bg-red-600/10"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M18.901 1.154h3.68l-8.03 9.178L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.471l8.59-9.816L0 1.154h7.594l5.24 6.932L18.901 1.154zm-1.29 19.492h2.04L6.486 3.24H4.298l13.313 17.406z" />
+              </svg>
+            </a>
+            <a
+              href="https://www.linkedin.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="LinkedIn"
+              className="rounded-md border border-white/10 p-2 transition hover:border-red-500/50 hover:bg-red-600/10"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4.98 3.5C4.98 4.88 3.86 6 2.48 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8h4V24h-4V8zm7 0h3.84v2.18h.06c.53-1.01 1.84-2.18 3.79-2.18C19.24 8 21 10.05 21 13.76V24h-4v-8.93c0-2.13-.04-4.87-2.97-4.87-2.97 0-3.43 2.32-3.43 4.72V24h-4V8z" />
+              </svg>
+            </a>
+            <a
+              href="https://www.instagram.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+              className="rounded-md border border-white/10 p-2 transition hover:border-red-500/50 hover:bg-red-600/10"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M7.75 2h8.5A5.75 5.75 0 0122 7.75v8.5A5.75 5.75 0 0116.25 22h-8.5A5.75 5.75 0 012 16.25v-8.5A5.75 5.75 0 017.75 2zm0 1.5A4.25 4.25 0 003.5 7.75v8.5A4.25 4.25 0 007.75 20.5h8.5a4.25 4.25 0 004.25-4.25v-8.5a4.25 4.25 0 00-4.25-4.25h-8.5zm8.88 1.62a1.1 1.1 0 110 2.2 1.1 1.1 0 010-2.2zM12 7a5 5 0 110 10 5 5 0 010-10zm0 1.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" />
+              </svg>
+            </a>
+            <a
+              href="https://www.facebook.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Facebook"
+              className="rounded-md border border-white/10 p-2 transition hover:border-red-500/50 hover:bg-red-600/10"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M13.5 22v-8.2h2.8l.42-3.2H13.5V8.57c0-.93.26-1.56 1.62-1.56h1.73V4.15c-.3-.04-1.33-.13-2.52-.13-2.49 0-4.2 1.52-4.2 4.31v2.41H7.3v3.2h2.83V22h3.37z" />
+              </svg>
+            </a>
           </div>
+
+          <button
+            onClick={handleBackToTop}
+            className="mt-10 inline-flex items-center gap-3 border border-red-500/60 bg-red-600/10 px-6 py-3 text-sm font-semibold tracking-[0.16em] text-white transition hover:bg-red-600/20"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+              <path d="M12 19V6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="m6 12 6-6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            BACK TO TOP
+          </button>
         </div>
-        <div className="border-t border-white/10 pt-10 flex flex-col md:flex-row justify-between items-center gap-6 opacity-30">
-          <p className="font-bold text-sm tracking-widest">&copy; 2026 OTOKWIKK. ALL RIGHTS RESERVED.</p>
-          <div className="flex gap-8 text-xs font-black tracking-widest uppercase">
-            <a href="#" className="hover:text-red-500 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-red-500 transition-colors">Terms</a>
-          </div>
+
+        <div>
+          <h3 className="mb-6 text-lg font-semibold text-white">Legal</h3>
+          <ul className="space-y-4 text-lg text-gray-300">
+            {legalLinks.map((item) => (
+              <li key={item.label}>
+                <a
+                  href={item.href}
+                  className="underline-offset-4 transition hover:text-red-400 hover:underline"
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
+      </div>
+
+      <div className="border-t border-white/10 bg-[#7f1d1d] px-6 py-2.5 text-center text-xs font-semibold tracking-wide text-white/90">
+        Copyright © 2026, otokwikk. All Rights Reserved.
       </div>
     </footer>
   );

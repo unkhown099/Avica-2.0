@@ -1,25 +1,55 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import CustomerLayout from "./CustomerLayout.jsx";
 import { API_BASE } from "../../hooks/useAuth.js";
-
-const categories = [
-  "All",
-  "Exterior",
-  "Interior",
-  "Protection",
-  "Correction",
-  "Full Package",
-];
 
 const SERVICE_ICON =
   "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z";
 
 function ServicesPage() {
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [services, setServices] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const authHeaderValue =
+    localStorage.getItem("access_token") ||
+    sessionStorage.getItem("access_token");
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        setCategoriesError(null);
+
+        const res = await fetch(`${API_BASE}/services/categories/`, {
+          headers: {
+            Authorization: `Bearer ${authHeaderValue}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error(`Failed to fetch categories (${res.status})`);
+        }
+
+        const data = await res.json();
+        const rows = Array.isArray(data) ? data : data.results || [];
+        setCategories(rows.map((c) => c.name).filter(Boolean));
+      } catch (err) {
+        setCategoriesError(err.message || "Failed to load categories.");
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, [authHeaderValue]);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -33,7 +63,7 @@ function ServicesPage() {
 
         const res = await fetch(`${API_BASE}/services/?${params.toString()}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${authHeaderValue}`,
             "Content-Type": "application/json",
           },
         });
@@ -42,7 +72,7 @@ function ServicesPage() {
           throw new Error(`Failed to fetch services (${res.status})`);
 
         const data = await res.json();
-        setServices(data);
+        setServices(Array.isArray(data) ? data : data.results || []);
       } catch (err) {
         setError(err.message || "Something went wrong.");
       } finally {
@@ -52,7 +82,15 @@ function ServicesPage() {
 
     const debounce = setTimeout(fetchServices, 300);
     return () => clearTimeout(debounce);
-  }, [activeCategory, search]);
+  }, [activeCategory, search, authHeaderValue]);
+
+  const categoryOptions = [
+    "All",
+    ...new Set([
+      ...categories,
+      ...services.map((s) => s.category).filter(Boolean),
+    ]),
+  ];
 
   return (
     <CustomerLayout>
@@ -93,7 +131,7 @@ function ServicesPage() {
             />
           </div>
           <div className="flex gap-2 flex-wrap">
-            {categories.map((cat) => (
+            {categoryOptions.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
@@ -107,6 +145,12 @@ function ServicesPage() {
             ))}
           </div>
         </div>
+
+        {!categoriesLoading && categoriesError && (
+          <p className="mb-4 text-xs text-yellow-500">
+            {categoriesError} Using detected categories from available services.
+          </p>
+        )}
 
         {/* Loading */}
         {loading && (
@@ -182,7 +226,17 @@ function ServicesPage() {
                       {service.duration}
                     </div>
                   </div>
-                  <button className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-red-600/20 text-sm">
+                  <button
+                    onClick={() =>
+                      navigate("/bookings", {
+                        state: {
+                          openBooking: true,
+                          prefillServiceId: service.id,
+                        },
+                      })
+                    }
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-red-600/20 text-sm"
+                  >
                     Book Now
                   </button>
                 </div>

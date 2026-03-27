@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import CustomerLayout from "./CustomerLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
 
@@ -530,7 +531,7 @@ function DamageDetectionModal({ onClose, onBack }) {
 
 // ─── New Booking Modal ────────────────────────────────────────────────────────
 
-function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
+function NewBookingModal({ onClose, onSuccess, initialDamageData, initialServiceId = null }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     service: null,
@@ -550,6 +551,10 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [branches, setBranches] = useState([]);
   const [branchLoading, setBranchLoading] = useState(true);
   const [branchError, setBranchError] = useState("");
@@ -649,6 +654,28 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       .finally(() => setServicesLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!initialServiceId || services.length === 0) return;
+
+    const matched = services.find(
+      (s) => String(s.id) === String(initialServiceId),
+    );
+    if (!matched) return;
+
+    setForm((prev) => ({ ...prev, service: matched }));
+    setStep((prev) => (prev < 1 ? 1 : prev));
+  }, [initialServiceId, services]);
+
+  // ── Service categories ───────────────────────────────────────────────────
+  useEffect(() => {
+    setCategoriesLoading(true);
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/services/categories/`, { headers: authHeaders() })
+      .then((r) => { if (!r.ok) throw new Error("Failed to load categories."); return r.json(); })
+      .then((data) => setCategories(Array.isArray(data) ? data : (data.results ?? [])))
+      .catch((err) => setCategoriesError(err.message))
+      .finally(() => setCategoriesLoading(false));
+  }, []);
+
   // ── Branches ──────────────────────────────────────────────────────────────
   useEffect(() => {
     setBranchLoading(true);
@@ -722,6 +749,32 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
       formatTimeForAPI(a).localeCompare(formatTimeForAPI(b)),
     );
   }, [availableSlots]);
+
+  const categoryOptions = useMemo(() => {
+    const fromApi = categories
+      .map((c) => (typeof c === "string" ? c : c?.name))
+      .filter(Boolean);
+    const fromServices = services.map((s) => s.category).filter(Boolean);
+    const merged = [...new Set([...fromApi, ...fromServices])];
+    return merged;
+  }, [categories, services]);
+
+  const filteredServices = useMemo(() => {
+    if (selectedCategory === "all") return services;
+    return services.filter(
+      (s) => String(s.category || "").toLowerCase() === String(selectedCategory).toLowerCase(),
+    );
+  }, [services, selectedCategory]);
+
+  useEffect(() => {
+    if (selectedCategory === "all") return;
+    const exists = categoryOptions.some(
+      (name) => String(name).toLowerCase() === String(selectedCategory).toLowerCase(),
+    );
+    if (!exists) {
+      setSelectedCategory("all");
+    }
+  }, [categoryOptions, selectedCategory]);
 
   const scheduleWindowText = useMemo(() => {
     if (!availabilityMeta || !form.date) return "";
@@ -895,6 +948,49 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
           {step === 0 && (
             <div>
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 sm:mb-4">Choose a Service</p>
+              {!servicesLoading && !servicesError && (
+                <div className="mb-3 sm:mb-4">
+                  <p className="text-[9px] sm:text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">Categories</p>
+                  {categoriesLoading ? (
+                    <div className="text-[10px] sm:text-xs text-gray-500">Loading categories…</div>
+                  ) : categoryOptions.length === 0 ? (
+                    <div className="text-[10px] sm:text-xs text-gray-500">No categories found.</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategory("all")}
+                        className={`px-2.5 sm:px-3 py-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all ${selectedCategory === "all" ? "border-red-500 bg-red-600/15 text-red-300" : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/20"}`}
+                      >
+                        All
+                      </button>
+                      {categoryOptions.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            if (
+                              form.service &&
+                              String(form.service.category || "").toLowerCase() !== String(cat).toLowerCase()
+                            ) {
+                              set("service", null);
+                            }
+                          }}
+                          className={`px-2.5 sm:px-3 py-1.5 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all ${String(selectedCategory).toLowerCase() === String(cat).toLowerCase() ? "border-red-500 bg-red-600/15 text-red-300" : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/20"}`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {categoriesError && (
+                    <p className="mt-2 text-[10px] sm:text-xs text-yellow-500">
+                      {categoriesError} Showing categories from available services.
+                    </p>
+                  )}
+                </div>
+              )}
               {servicesLoading ? (
                 <div className="flex items-center justify-center py-12 sm:py-16 text-gray-500">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 animate-spin mr-2 sm:mr-3" fill="none" viewBox="0 0 24 24">
@@ -905,11 +1001,11 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                 </div>
               ) : servicesError ? (
                 <div className="text-center py-12 sm:py-16 text-red-400 text-xs sm:text-sm">{servicesError}</div>
-              ) : services.length === 0 ? (
+              ) : filteredServices.length === 0 ? (
                 <div className="text-center py-12 sm:py-16 text-gray-500 text-xs sm:text-sm">No services available.</div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                  {services.map((s) => {
+                  {filteredServices.map((s) => {
                     const active = form.service?.id === s.id;
                     const icon = CATEGORY_ICON[s.category] ?? "🔧";
                     return (
@@ -1609,6 +1705,8 @@ function Toast({ message, type = "success", onDismiss }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 function BookingsPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
@@ -1618,6 +1716,7 @@ function BookingsPage() {
   const [showOptionModal, setShowOptionModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showDamageModal, setShowDamageModal] = useState(false);
+  const [prefillServiceId, setPrefillServiceId] = useState(null);
   const [damageData, setDamageData] = useState(null);
   const [cancelBooking, setCancelBooking] = useState(null);
   const [toast, setToast] = useState(null);
@@ -1635,6 +1734,21 @@ function BookingsPage() {
       .catch((err) => setFetchError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const openBooking = location.state?.openBooking;
+    const serviceId = location.state?.prefillServiceId;
+
+    if (!openBooking) return;
+
+    setShowOptionModal(false);
+    setShowDamageModal(false);
+    setDamageData(null);
+    setPrefillServiceId(serviceId ?? null);
+    setShowBookingModal(true);
+
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => { setPage(1); }, [filter]);
 
@@ -1669,6 +1783,7 @@ function BookingsPage() {
     setShowBookingModal(false);
     setShowDamageModal(false);
     setDamageData(null);
+    setPrefillServiceId(null);
     setPage(1);
     showToast("Your booking was submitted successfully!");
   };
@@ -1676,6 +1791,7 @@ function BookingsPage() {
   const handleOptionSelect = (option) => {
     setShowOptionModal(false);
     if (option === "booking") {
+      setPrefillServiceId(null);
       setShowBookingModal(true);
       return;
     }
@@ -1860,9 +1976,11 @@ function BookingsPage() {
           onClose={() => {
             setShowBookingModal(false);
             setDamageData(null);
+            setPrefillServiceId(null);
           }}
           onSuccess={handleBookingSuccess}
           initialDamageData={damageData}
+          initialServiceId={prefillServiceId}
         />
       )}
       {showDamageModal && <DamageDetectionModal onClose={() => setShowDamageModal(false)} onBack={handleDamageComplete} />}
