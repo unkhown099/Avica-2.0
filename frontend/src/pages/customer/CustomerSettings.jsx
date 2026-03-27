@@ -189,7 +189,19 @@ function SettingsPage() {
       // Clear all storage and redirect to login
       localStorage.clear();
       sessionStorage.clear();
-      window.location.href = "/login";
+      import("sweetalert2").then((swal) => {
+        swal.default.fire({
+          title: "Account Deleted!",
+          text: "Your account has been successfully deleted.",
+          icon: "success",
+          confirmButtonText: "Okay",
+          background: "linear-gradient(to bottom right, #1f2937, #111827)",
+          color: "#fff",
+          confirmButtonColor: "#dc2626"
+        }).then(() => {
+          window.location.href = "/";
+        });
+      });
     } catch (err) {
       console.error("Error deleting account:", err);
       setError(err.message || "Failed to delete account");

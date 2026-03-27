@@ -66,6 +66,7 @@ class Customer(models.Model):
     first_name     = models.CharField(max_length=100)
     last_name      = models.CharField(max_length=100)
     suffix = models.CharField(max_length=10, blank=True, null=True)
+    birth_date = models.DateField(null=True, blank=True)
     phone          = models.CharField(max_length=20, blank=True, null=True)
     loyalty_points = models.IntegerField(default=0)
     profile_picture = models.ImageField(upload_to="profile_pictures/", blank=True, null=True)

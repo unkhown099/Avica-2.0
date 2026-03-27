@@ -27,9 +27,8 @@ class SignupView(APIView):
         if serializer.is_valid():
             user = serializer.save()
 
-            # Keep customer accounts active right after signup so they can log in.
-            # Email verification can still be used as a separate flag.
-            user.is_active = True
+            # Keep user inactive until email verification
+            user.is_active = False
             user.save(update_fields=["is_active"])
 
             Customer.objects.create(
@@ -37,6 +36,7 @@ class SignupView(APIView):
                 first_name=request.data.get("first_name"),
                 last_name=request.data.get("last_name"),
                 suffix=request.data.get("suffix"),
+                birth_date=request.data.get("birth_date"),
                 phone=request.data.get("phone"),
                 loyalty_points=0,
             )
@@ -110,7 +110,7 @@ class SignupView(APIView):
                 {
                     "success": True,
                     "title": "Account Created!",
-                    "message": "Account created successfully. You can now log in.",
+                    "message": "Please check your email to verify your account before logging in.",
                 },
                 status=status.HTTP_201_CREATED,
             )
@@ -377,6 +377,7 @@ class GoogleLoginView(APIView):
 
     def post(self, request):
         token = request.data.get("token")
+        is_signup = request.data.get("is_signup", False)
         if not token:
             return Response({"success": False, "message": "Token is required"}, status=400)
 
@@ -389,23 +390,49 @@ class GoogleLoginView(APIView):
             last_name = idinfo.get("family_name", "")
             picture = idinfo.get("picture", "")
 
-            user, created = User.objects.get_or_create(email=email)
-            if created:
+            user = User.objects.filter(email=email).first()
+            if not user:
+                if not is_signup:
+                    return Response({
+                        "success": False,
+                        "requires_signup": True,
+                        "email": email,
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "picture": picture
+                    }, status=200)
+
                 # Random password since they login via Google
+                user = User.objects.create(email=email)
                 user.set_unusable_password()
                 user.is_active = True  # Google accounts are pre-verified
                 user.email_verified = True
                 user.save()
                 
+                fname = request.data.get("first_name", first_name)
+                lname = request.data.get("last_name", last_name)
+                suffix = request.data.get("suffix", "")
+                age = request.data.get("age", None)
+                phone = request.data.get("phone", "")
+
                 # Create customer profile if new user
                 Customer.objects.create(
                     user=user,
-                    first_name=first_name,
-                    last_name=last_name,
+                    first_name=fname,
+                    last_name=lname,
+                    suffix=suffix,
+                    age=age,
+                    phone=phone,
                     profile_picture=picture,
                     loyalty_points=0
                 )
             else:
+                if not user.is_active:
+                    return Response({
+                        "success": False, 
+                        "message": "Please verify your email before logging in. If you signed up, an email was sent to you."
+                    }, status=401)
+                    
                 # Update picture if it changed
                 try:
                     profile = Customer.objects.get(user=user)
@@ -569,3 +596,15 @@ class ResetPasswordView(APIView):
             return Response({"success": True, "message": "Password updated successfully!"}, status=200)
         else:
             return Response({"success": False, "message": "Invalid or expired token"}, status=400)
+
+
+class DeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        try:
+            user.delete()
+            return Response({"success": True, "message": "Account deleted successfully."}, status=200)
+        except Exception as e:
+            return Response({"success": False, "message": str(e)}, status=500)

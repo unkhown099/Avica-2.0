@@ -171,6 +171,21 @@ function SignIn() {
       );
 
       const data = await res.json();
+      if (data.requires_signup) {
+        swal.fire({
+          icon: "info",
+          title: "Account Not Found",
+          text: "You haven't signed up yet. Please create an account first.",
+          timer: 3000,
+          timerProgressBar: true,
+          showConfirmButton: true,
+          ...DARK_SWAL,
+        }).then(() => {
+          navigate("/signup");
+        });
+        return;
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Google Login failed");
       }

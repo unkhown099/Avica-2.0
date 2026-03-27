@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
 import { API_BASE } from "../hooks/useAuth.js";
+import { GoogleLogin } from "@react-oauth/google";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 function SignUpPage() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -10,6 +13,7 @@ function SignUpPage() {
     firstName: "",
     lastName: "",
     suffix: "",
+    birthDate: "",
     email: "",
     countryCode: "+63",
     phone: "",
@@ -23,6 +27,9 @@ function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showCookieModal, setShowCookieModal] = useState(false);
+  const [isGoogleSignup, setIsGoogleSignup] = useState(false);
+  const [googleToken, setGoogleToken] = useState(null);
   const [errors, setErrors] = useState({});
   const [passwordStrength, setPasswordStrength] = useState({
     score: 0,
@@ -69,6 +76,38 @@ function SignUpPage() {
     else return { score: 3, text: "Strong", color: "bg-green-600" };
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const base64Url = credentialResponse.credential.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const payload = JSON.parse(jsonPayload);
+
+      setFormData(prev => ({
+        ...prev,
+        firstName: payload.given_name || "",
+        lastName: payload.family_name || "",
+        email: payload.email || "",
+      }));
+      setIsGoogleSignup(true);
+      setGoogleToken(credentialResponse.credential);
+      setCurrentStep(1);
+
+      swal.fire({
+        title: "Almost there!",
+        text: "Please complete the remaining details like Birth Date, Suffix, and your custom password to finish your sign up.",
+        icon: "info",
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
+        confirmButtonColor: "#dc2626",
+      });
+    } catch (e) {
+      console.error("Token parsing error:", e);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (name === "phone") {
@@ -99,6 +138,19 @@ function SignUpPage() {
         newErrors.lastName = "Last name is required";
       else if (!/^[a-zA-Z\s]+$/.test(formData.lastName))
         newErrors.lastName = "Last name can only contain letters and spaces";
+      if (!formData.birthDate) {
+        newErrors.birthDate = "Birth date is required";
+      } else {
+        const birthDate = new Date(formData.birthDate);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        if (age < 18) newErrors.birthDate = "You must be at least 18 years old";
+        else if (age > 100) newErrors.birthDate = "You must be 100 years old or younger";
+      }
     } else if (step === 2) {
       if (!formData.email.trim()) newErrors.email = "Email address is required";
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
@@ -162,6 +214,7 @@ function SignUpPage() {
       first_name: formData.firstName,
       last_name: formData.lastName,
       suffix: formData.suffix,
+      birth_date: formData.birthDate,
       phone: cleanedPhone ? `${formData.countryCode}${cleanedPhone}` : null,
       role: formData.role,
     };
@@ -305,6 +358,23 @@ function SignUpPage() {
     </div>
   );
 
+
+  const CookieContent = () => (
+    <div className="space-y-6">
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">1. WHAT ARE COOKIES?</h4>
+        <p>Cookies are small pieces of text sent to your web browser by a website you visit. They help the website remember information about your visit.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">2. HOW WE USE COOKIES</h4>
+        <p>We use cookies to maintain your session (so you don't have to keep logging in), track your settings, and improve our platform's performance based on your usage.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">3. YOUR CHOICES</h4>
+        <p>You can choose to disable cookies through your browser settings, although this may affect the availability and functionality of some features on our platform.</p>
+      </section>
+    </div>
+  );
   const PrivacyContent = () => (
     <div className="space-y-6">
       <section>
@@ -535,6 +605,34 @@ function SignUpPage() {
                         <option value="IV">IV</option>
                       </select>
                     </div>
+                    <div>
+                      <label
+                        htmlFor="birthDate"
+                        className="block text-base font-semibold text-gray-300 mb-2"
+                      >
+                        Birth Date <span className="text-red-600">*</span>
+                      </label>
+                      <DatePicker
+                        selected={formData.birthDate ? new Date(formData.birthDate) : null}
+                        onChange={(date) => {
+                          const dateString = date ? date.toISOString().split('T')[0] : "";
+                          handleChange({ target: { name: 'birthDate', value: dateString } });
+                        }}
+                        maxDate={new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                        minDate={new Date(new Date().setFullYear(new Date().getFullYear() - 100))}
+                        showYearDropdown
+                        showMonthDropdown
+                        dropdownMode="select"
+                        placeholderText="Select your birth date"
+                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.birthDate ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                        wrapperClassName="w-full"
+                      />
+                      {errors.birthDate && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {errors.birthDate}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -555,7 +653,8 @@ function SignUpPage() {
                         value={formData.email}
                         onChange={handleChange}
                         autoComplete="off"
-                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                        disabled={isGoogleSignup}
+                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 ${isGoogleSignup ? 'opacity-50 cursor-not-allowed' : ''}`}
                         placeholder="john.doe@example.com"
                       />
                       {errors.email && (
@@ -729,6 +828,14 @@ function SignUpPage() {
                           >
                             Privacy Policy
                           </button>
+                          , and{" "}
+                          <button
+                            type="button"
+                            onClick={() => setShowCookieModal(true)}
+                            className="text-red-600 hover:text-red-500 font-semibold"
+                          >
+                            Cookie Policy
+                          </button>
                         </label>
                       </div>
                       {errors.agreeToTerms && (
@@ -774,6 +881,27 @@ function SignUpPage() {
 
                 {/* Sign In Link */}
                 <div className="text-center">
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-700" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-gray-900 text-gray-400">
+                        Or sign up with
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-center mb-6">
+                    <GoogleLogin
+                      onSuccess={handleGoogleSuccess}
+                      onError={() => console.log('Login Failed')}
+                      useOneTap
+                      theme="filled_black"
+                      shape="pill"
+                      size="large"
+                      width="100%"
+                    />
+                  </div>
                   <p className="text-gray-400 text-lg">
                     Already have an account?{" "}
                     <Link
@@ -798,7 +926,82 @@ function SignUpPage() {
         <PrivacyContent />
       </Modal>
 
+      <Modal isOpen={showCookieModal} onClose={() => setShowCookieModal(false)} title="Cookie Policy">
+        <CookieContent />
+      </Modal>
+
       <style>{`
+        .react-datepicker-wrapper {
+          width: 100%;
+        }
+        .react-datepicker {
+          font-family: inherit;
+          background-color: #111827;
+          border: 1px solid #374151;
+          border-radius: 1rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          color: #fff;
+          padding: 10px;
+        }
+        .react-datepicker__header {
+          background-color: transparent;
+          border-bottom: 1px solid #374151;
+          padding-top: 10px;
+        }
+        .react-datepicker__current-month, .react-datepicker-time__header, .react-datepicker-year-header {
+          color: #fff;
+          font-weight: 700;
+          font-size: 1.1rem;
+        }
+        .react-datepicker__day-name, .react-datepicker__day, .react-datepicker__time-name {
+          color: #d1d5db;
+          width: 2.5rem;
+          line-height: 2.5rem;
+          margin: 0.2rem;
+          border-radius: 0.5rem;
+          transition: all 0.2s;
+        }
+        .react-datepicker__day:hover, .react-datepicker__month-text:hover, .react-datepicker__quarter-text:hover, .react-datepicker__year-text:hover {
+          background-color: #374151;
+          color: #fff;
+        }
+        .react-datepicker__day--selected, .react-datepicker__day--in-selecting-range, .react-datepicker__day--in-range {
+          background-color: #dc2626 !important;
+          color: #fff !important;
+          font-weight: bold;
+        }
+        .react-datepicker__day--keyboard-selected {
+          background-color: #b91c1c;
+        }
+        .react-datepicker__triangle {
+          display: none;
+        }
+        .react-datepicker__navigation-icon::before {
+          border-color: #9ca3af;
+        }
+        .react-datepicker__navigation:hover *::before {
+          border-color: #fff;
+        }
+        .react-datepicker__month-select, .react-datepicker__year-select {
+          background-color: #1f2937;
+          color: #fff;
+          border: 1px solid #4b5563;
+          border-radius: 0.5rem;
+          padding: 4px 8px;
+          outline: none;
+          cursor: pointer;
+        }
+        .react-datepicker__month-select:focus, .react-datepicker__year-select:focus {
+          border-color: #dc2626;
+        }
+        .react-datepicker__day--disabled {
+          color: #4b5563 !important;
+        }
+        .react-datepicker__day--disabled:hover {
+          background-color: transparent !important;
+          color: #4b5563 !important;
+        }
+
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
         }
@@ -817,6 +1020,7 @@ function SignUpPage() {
           background-color: #dc2626;
           border-color: #dc2626;
         }
+
       `}</style>
     </div>
   );
