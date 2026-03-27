@@ -67,10 +67,23 @@ function ManagerAppointments() {
 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(null); // booking id being actioned
   const [employees, setEmployees] = useState([]);
   const [assignedByBooking, setAssignedByBooking] = useState({});
+
+  const notify = (icon, title) => {
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      timer: 2200,
+      timerProgressBar: true,
+      showConfirmButton: false,
+      icon,
+      title,
+      background: "#111827",
+      color: "#f9fafb",
+    });
+  };
 
   const monthName = new Date(year, month).toLocaleString("en-PH", {
     month: "long",
@@ -82,7 +95,6 @@ function ManagerAppointments() {
   // Fetch ALL bookings for this month
   const fetchBookings = useCallback(() => {
     setLoading(true);
-    setError("");
     fetch(`${API_BASE}/api/staff/bookings/`, { headers: authHeaders() })
       .then((r) => {
         if (!r.ok) throw new Error(`Error ${r.status}`);
@@ -99,7 +111,7 @@ function ManagerAppointments() {
           }, {}),
         );
       })
-      .catch((err) => setError(err.message))
+        .catch((err) => notify("error", err.message || "Failed to load appointments."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -162,92 +174,9 @@ function ManagerAppointments() {
         [id]: updated.assigned_employee_id ? String(updated.assigned_employee_id) : "",
       }));
     } catch (e) {
-      alert(e.message || "Action failed. Please try again.");
+      notify("error", e.message || "Action failed. Please try again.");
     } finally {
       setActionLoading(null);
-    }
-  };
-
-  const handleReschedule = async (booking) => {
-    const { value: formValues } = await Swal.fire({
-      title: "Reschedule Appointment",
-      html: `
-        <div class="space-y-4 text-left">
-          <div>
-            <label class="block text-sm font-medium text-gray-400 mb-1">New Date</label>
-            <input id="swal-input1" type="date" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" value="${booking.date}">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-400 mb-1">New Time</label>
-            <input id="swal-input2" type="text" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="e.g. 10:00 AM" value="${booking.time}">
-          </div>
-        </div>
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: "Reschedule",
-      confirmButtonColor: "#3b82f6",
-      background: "#111827",
-      color: "#fff",
-      preConfirm: () => {
-        return {
-          date: document.getElementById("swal-input1").value,
-          time: document.getElementById("swal-input2").value,
-        };
-      },
-    });
-
-    if (formValues) {
-      if (!formValues.date || !formValues.time) {
-        Swal.fire({
-          icon: "error",
-          title: "Missing info",
-          text: "Both date and time are required.",
-          background: "#111827",
-          color: "#fff",
-        });
-        return;
-      }
-
-      setActionLoading(booking.id);
-      try {
-        const res = await fetch(
-          `${API_BASE}/api/staff/bookings/${booking.id}/action/`,
-          {
-            method: "PATCH",
-            headers: authHeaders(),
-            body: JSON.stringify({
-              status: "rescheduled",
-              date: formValues.date,
-              time: formValues.time,
-            }),
-          },
-        );
-        if (!res.ok) throw new Error();
-        const updated = await res.json();
-        setBookings((prev) =>
-          prev.map((b) => (b.id === updated.id ? updated : b)),
-        );
-        Swal.fire({
-          icon: "success",
-          title: "Rescheduled",
-          text: "The appointment has been rescheduled and the customer will be notified.",
-          timer: 2000,
-          showConfirmButton: false,
-          background: "#111827",
-          color: "#fff",
-        });
-      } catch {
-        Swal.fire({
-          icon: "error",
-          title: "Failed",
-          text: "Failed to reschedule. Please try again.",
-          background: "#111827",
-          color: "#fff",
-        });
-      } finally {
-        setActionLoading(null);
-      }
     }
   };
 
@@ -443,26 +372,6 @@ function ManagerAppointments() {
               </p>
             </div>
 
-            {/* Error */}
-            {error && (
-              <div className="flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-4 py-3 text-red-400 text-sm mb-4">
-                <svg
-                  className="w-4 h-4 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                {error}
-              </div>
-            )}
-
             {/* Loading */}
             {loading && (
               <div className="flex items-center justify-center py-16 text-gray-500">
@@ -490,7 +399,7 @@ function ManagerAppointments() {
             )}
 
             {/* Empty */}
-            {!loading && !error && dayBookings.length === 0 && (
+            {!loading && dayBookings.length === 0 && (
               <div className="py-16 text-center">
                 <svg
                   className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -513,7 +422,7 @@ function ManagerAppointments() {
             )}
 
             {/* Booking cards */}
-            {!loading && !error && dayBookings.length > 0 && (
+            {!loading && dayBookings.length > 0 && (
               <div className="space-y-4">
                 {dayBookings.map((b) => (
                   <div
@@ -655,9 +564,9 @@ function ManagerAppointments() {
                       </div>
                     )}
 
-                    {/* Action buttons — only show for pending */}
+                    {/* Action button — only show for pending */}
                     {b.status === "pending" && (
-                      <div className="flex gap-2 pt-3 border-t border-white/5">
+                      <div className="pt-3 border-t border-white/5">
                         <button
                           onClick={() =>
                             handleAction(
@@ -667,7 +576,7 @@ function ManagerAppointments() {
                             )
                           }
                           disabled={actionLoading === b.id || !(assignedByBooking[b.id] || "").trim()}
-                          className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                          className="w-full flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
                         >
                           {actionLoading === b.id ? (
                             <svg
@@ -705,26 +614,6 @@ function ManagerAppointments() {
                             </svg>
                           )}
                           Approve
-                        </button>
-                        <button
-                          onClick={() => handleReschedule(b)}
-                          disabled={actionLoading === b.id}
-                          className="flex-1 flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                          Reschedule
                         </button>
                       </div>
                     )}

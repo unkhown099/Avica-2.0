@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 from calendar import month_abbr
 
-from ..models import Branch, Booking, Service, InventoryItem, Staff, Rating
+from ..models import Branch, Booking, QueueEntry, Service, InventoryItem, Staff, Rating
 from ..serializers.business_owner_serializers import (
     BranchSummarySerializer,
     OwnerAppointmentSerializer,
@@ -57,14 +57,15 @@ class OwnerDashboardStatsView(APIView):
             last_month  = _month_start(1)
 
             # Revenue
-            rev_this = Booking.objects.filter(
-                status="done", date__gte=this_month
+            rev_this = QueueEntry.objects.filter(
+                payment_status="paid",
+                completed_at__date__gte=this_month,
             ).aggregate(t=Sum("price"))["t"] or 0
 
-            rev_last = Booking.objects.filter(
-                status="done",
-                date__gte=last_month,
-                date__lt=this_month,
+            rev_last = QueueEntry.objects.filter(
+                payment_status="paid",
+                completed_at__date__gte=last_month,
+                completed_at__date__lt=this_month,
             ).aggregate(t=Sum("price"))["t"] or 0
 
             rev_change = (
@@ -130,9 +131,15 @@ class OwnerRevenueTrendView(APIView):
                 start = _month_start(offset)
                 end   = _month_start(offset - 1) if offset > 0 else timezone.now().date() + timedelta(days=1)
 
-                qs = Booking.objects.filter(status="done", date__gte=start, date__lt=end)
-                rev = qs.aggregate(t=Sum("price"))["t"] or 0
-                cnt = qs.count()
+                rev_qs = QueueEntry.objects.filter(
+                    payment_status="paid",
+                    completed_at__date__gte=start,
+                    completed_at__date__lt=end,
+                )
+                rev = rev_qs.aggregate(t=Sum("price"))["t"] or 0
+
+                svc_qs = Booking.objects.filter(status="done", date__gte=start, date__lt=end)
+                cnt = svc_qs.count()
 
                 points.append({
                     "label":    f"{month_abbr[start.month]} {start.year}",
@@ -162,8 +169,10 @@ class OwnerBranchRevenueView(APIView):
             branches = Branch.objects.filter(is_active=True)
             data = []
             for b in branches:
-                rev = Booking.objects.filter(
-                    branch=b, status="done", date__gte=this_month
+                rev = QueueEntry.objects.filter(
+                    branch=b,
+                    payment_status="paid",
+                    completed_at__date__gte=this_month,
                 ).aggregate(t=Sum("price"))["t"] or 0
                 data.append({"id": b.id, "name": b.name, "revenue": float(rev)})
 

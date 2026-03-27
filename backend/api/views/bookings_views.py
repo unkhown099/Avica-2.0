@@ -9,7 +9,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from ..models import Branch, Booking, Staff
+from ..models import Branch, Booking, BranchScheduleConfig, Staff
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils.html import strip_tags
@@ -20,6 +20,74 @@ from .queue_views import _booking_to_queue_entry
 logger = logging.getLogger(__name__)
 
 PREFERRED_EMPLOYEE_PATTERN = re.compile(r"\[preferred_employee_id=(\d+)\]", re.IGNORECASE)
+WEEK_DAYS = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+]
+
+
+def default_manager_schedule_config():
+    days = {}
+    for day in WEEK_DAYS:
+        days[day] = {
+            "enabled": day != "Sunday",
+            "start": "08:00",
+            "end": "17:00",
+            "hasBreak": True,
+            "breakStart": "12:00",
+            "breakEnd": "13:00",
+        }
+
+    return {
+        "recurringWeekly": True,
+        "slotDuration": "30",
+        "maxPatientsPerDay": 35,
+        "days": days,
+        "assignments": {},
+        "exceptions": [],
+    }
+
+
+def merge_manager_schedule_config(raw):
+    base = default_manager_schedule_config()
+    if not isinstance(raw, dict):
+        return base
+
+    merged = {**base, **raw}
+
+    raw_days = raw.get("days") if isinstance(raw.get("days"), dict) else {}
+    merged_days = {}
+    for day in WEEK_DAYS:
+        default_day = base["days"][day]
+        custom_day = raw_days.get(day) if isinstance(raw_days.get(day), dict) else {}
+        merged_days[day] = {**default_day, **custom_day}
+
+    merged["days"] = merged_days
+    merged["assignments"] = raw.get("assignments") if isinstance(raw.get("assignments"), dict) else {}
+    merged["exceptions"] = raw.get("exceptions") if isinstance(raw.get("exceptions"), list) else []
+    return merged
+
+
+def _parse_hhmm(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value), "%H:%M").time()
+    except ValueError:
+        return None
+
+
+def _slot_overlaps(window_start, window_end, slot_start, slot_end):
+    return slot_start < window_end and slot_end > window_start
+
+
+def _format_display_time(time_obj):
+    return time_obj.strftime("%I:%M %p").lstrip("0")
 
 
 def _extract_preferred_employee_id(notes):
@@ -141,12 +209,29 @@ class AvailableSlotsView(APIView):
         }
     """
     permission_classes = [IsAuthenticated]
-    
-    # Define the time slots in order
-    TIME_SLOTS = [
-        "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-        "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
-    ]
+
+    def _build_meta(
+        self,
+        *,
+        day_name,
+        slot_duration,
+        open_start=None,
+        open_end=None,
+        break_start=None,
+        break_end=None,
+        closed=False,
+        closure_reason="",
+    ):
+        return {
+            "day": day_name,
+            "slot_duration": slot_duration,
+            "open_start": _format_display_time(open_start) if open_start else None,
+            "open_end": _format_display_time(open_end) if open_end else None,
+            "break_start": _format_display_time(break_start) if break_start else None,
+            "break_end": _format_display_time(break_end) if break_end else None,
+            "closed": bool(closed),
+            "closure_reason": closure_reason or "",
+        }
     
     def get(self, request):
         # Get query parameters
@@ -192,6 +277,150 @@ class AvailableSlotsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Resolve branch schedule config (from manager contents settings).
+        schedule_obj = BranchScheduleConfig.objects.filter(branch=branch).first()
+        schedule_config = merge_manager_schedule_config(
+            schedule_obj.config if schedule_obj else {}
+        )
+
+        day_name = selected_date.strftime("%A")
+        day_cfg = schedule_config.get("days", {}).get(day_name, {})
+
+        slot_duration = 30
+        try:
+            slot_duration = int(schedule_config.get("slotDuration", 30))
+        except (TypeError, ValueError):
+            slot_duration = 30
+        if slot_duration <= 0:
+            slot_duration = 30
+
+        # Day disabled in schedule => no available slots.
+        if not bool(day_cfg.get("enabled", False)):
+            return Response(
+                {
+                    "available_slots": {},
+                    "meta": self._build_meta(
+                        day_name=day_name,
+                        slot_duration=slot_duration,
+                        closed=True,
+                        closure_reason="Closed on this day.",
+                    ),
+                }
+            )
+
+        open_start = _parse_hhmm(day_cfg.get("start"))
+        open_end = _parse_hhmm(day_cfg.get("end"))
+        if not open_start or not open_end or open_start >= open_end:
+            return Response(
+                {
+                    "available_slots": {},
+                    "meta": self._build_meta(
+                        day_name=day_name,
+                        slot_duration=slot_duration,
+                        closed=True,
+                        closure_reason="Invalid schedule window.",
+                    ),
+                }
+            )
+
+        break_start = None
+        break_end = None
+        if bool(day_cfg.get("hasBreak", False)):
+            break_start = _parse_hhmm(day_cfg.get("breakStart"))
+            break_end = _parse_hhmm(day_cfg.get("breakEnd"))
+            if not break_start or not break_end or break_start >= break_end:
+                break_start = None
+                break_end = None
+
+        max_patients_per_day = schedule_config.get("maxPatientsPerDay", 35)
+        try:
+            max_patients_per_day = int(max_patients_per_day)
+        except (TypeError, ValueError):
+            max_patients_per_day = 35
+        if max_patients_per_day <= 0:
+            max_patients_per_day = 35
+
+        date_key = selected_date.isoformat()
+        matching_exceptions = [
+            item
+            for item in schedule_config.get("exceptions", [])
+            if isinstance(item, dict) and str(item.get("date", "")) == date_key
+        ]
+
+        # Full-day closures from exceptions.
+        for item in matching_exceptions:
+            ex_type = str(item.get("type", "")).strip().lower()
+            if ex_type in {"holiday", "emergency_closure"}:
+                reason = "Holiday" if ex_type == "holiday" else "Emergency closure"
+                return Response(
+                    {
+                        "available_slots": {},
+                        "meta": self._build_meta(
+                            day_name=day_name,
+                            slot_duration=slot_duration,
+                            closed=True,
+                            closure_reason=reason,
+                        ),
+                    }
+                )
+
+        # Half-day override uses explicit start/end in exception for that date.
+        for item in matching_exceptions:
+            ex_type = str(item.get("type", "")).strip().lower()
+            if ex_type != "half_day":
+                continue
+            ex_start = _parse_hhmm(item.get("start"))
+            ex_end = _parse_hhmm(item.get("end"))
+            if ex_start and ex_end and ex_start < ex_end:
+                open_start = ex_start
+                open_end = ex_end
+
+        schedule_meta = self._build_meta(
+            day_name=day_name,
+            slot_duration=slot_duration,
+            open_start=open_start,
+            open_end=open_end,
+            break_start=break_start,
+            break_end=break_end,
+            closed=False,
+        )
+
+        # Additional closure windows from exceptions with start/end.
+        blocked_windows = []
+        for item in matching_exceptions:
+            ex_start = _parse_hhmm(item.get("start"))
+            ex_end = _parse_hhmm(item.get("end"))
+            if ex_start and ex_end and ex_start < ex_end:
+                blocked_windows.append((ex_start, ex_end))
+
+        # Build slots from schedule windows.
+        slots = []
+        cursor = datetime.combine(selected_date, open_start)
+        close_dt = datetime.combine(selected_date, open_end)
+        while cursor + timedelta(minutes=slot_duration) <= close_dt:
+            slot_start = cursor.time()
+            slot_end = (cursor + timedelta(minutes=slot_duration)).time()
+
+            # Exclude configured break window.
+            if break_start and break_end and _slot_overlaps(break_start, break_end, slot_start, slot_end):
+                cursor += timedelta(minutes=slot_duration)
+                continue
+
+            # Exclude exception closure windows.
+            blocked = any(
+                _slot_overlaps(win_start, win_end, slot_start, slot_end)
+                for (win_start, win_end) in blocked_windows
+            )
+            if blocked:
+                cursor += timedelta(minutes=slot_duration)
+                continue
+
+            slots.append(_format_display_time(slot_start))
+            cursor += timedelta(minutes=slot_duration)
+
+        if not slots:
+            return Response({"available_slots": {}, "meta": schedule_meta})
+
         # Get all confirmed/pending bookings for this branch on this date
         bookings = Booking.objects.filter(
             branch=branch,
@@ -208,23 +437,21 @@ class AvailableSlotsView(APIView):
         
         slot_counts = Counter(booked_slots)
         
-        # Use branch.slots as max capacity (from your Branch model)
-        max_capacity = branch.slots
+        # Capacity per slot still follows branch slot capacity.
+        max_capacity = max(int(branch.slots or 1), 1)
+
+        # Daily cap from manager schedule settings.
+        total_bookings_for_day = bookings.count()
+        daily_limit_reached = total_bookings_for_day >= max_patients_per_day
         
-        # Calculate availability for each time slot
+        # Calculate availability for each generated slot
         available_slots = {}
-        for slot in self.TIME_SLOTS:
+        for slot in slots:
             current_bookings = slot_counts.get(slot, 0)
-            is_available = current_bookings < max_capacity
+            is_available = (not daily_limit_reached) and (current_bookings < max_capacity)
             available_slots[slot] = is_available
-        
-        # Optional: Add lunch break constraints or branch-specific rules
-        # Example: Make 12:00 PM unavailable for certain branches during lunch
-        if branch.name == "Main Branch":  # You can customize this per branch
-            # available_slots["12:00 PM"] = False  # Uncomment if needed
-            pass
-        
-        return Response({'available_slots': available_slots})
+
+        return Response({'available_slots': available_slots, 'meta': schedule_meta})
 
 
 # ─── Staff views ──────────────────────────────────────────────────────────────

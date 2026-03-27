@@ -82,11 +82,8 @@ class AdminDashboardView(APIView):
         current_year = now.year
 
         # ── Stats ────────────────────────────────────────────────────────────
-        booking_revenue = sum(
-            clean_price(b.price) for b in Booking.objects.only("price")
-        )
-        walk_in_revenue = float(
-            QueueEntry.objects.filter(source="walk_in", payment_status="paid").aggregate(
+        paid_revenue = float(
+            QueueEntry.objects.filter(payment_status="paid").aggregate(
                 t=Coalesce(
                     Sum("price"),
                     Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
@@ -94,7 +91,7 @@ class AdminDashboardView(APIView):
             )["t"]
             or 0
         )
-        total_revenue = booking_revenue + walk_in_revenue
+        total_revenue = paid_revenue
         total_customers = Customer.objects.count()
         services_completed = QueueEntry.objects.filter(status="done").count()
         try:
@@ -110,18 +107,13 @@ class AdminDashboardView(APIView):
         }).data
 
         # ── Monthly Chart Data (current year) ────────────────────────────────
-        bookings_this_year = Booking.objects.filter(created_at__year=current_year)
-        walk_ins_this_year = QueueEntry.objects.filter(
-            source="walk_in",
+        paid_entries_this_year = QueueEntry.objects.filter(
             payment_status="paid",
             completed_at__year=current_year,
         )
 
         monthly_revenue = defaultdict(float)
-        for b in bookings_this_year.only("price", "created_at"):
-            month = b.created_at.month  # 1–12
-            monthly_revenue[month] += clean_price(b.price)
-        for q in walk_ins_this_year.only("price", "completed_at"):
+        for q in paid_entries_this_year.only("price", "completed_at"):
             if not q.completed_at:
                 continue
             month = q.completed_at.month
@@ -187,7 +179,7 @@ class AdminDashboardView(APIView):
         ]
 
         top_services_qs = (
-            QueueEntry.objects.filter(status="done")
+            QueueEntry.objects.filter(status="done", payment_status="paid")
             .values("service")
             .annotate(
                 count=Count("id"),
@@ -209,21 +201,8 @@ class AdminDashboardView(APIView):
 
         revenue_by_branch_map = defaultdict(float)
 
-        booking_branch_revenue = (
-            Booking.objects.values("branch__name")
-            .annotate(
-                revenue=Coalesce(
-                    Sum("price"),
-                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
-                )
-            )
-        )
-        for row in booking_branch_revenue:
-            branch_name = row["branch__name"] or "Unassigned"
-            revenue_by_branch_map[branch_name] += float(row["revenue"] or 0)
-
-        walk_in_branch_revenue = (
-            QueueEntry.objects.filter(source="walk_in", payment_status="paid")
+        paid_branch_revenue = (
+            QueueEntry.objects.filter(payment_status="paid")
             .values("branch__name", "branch_name")
             .annotate(
                 revenue=Coalesce(
@@ -232,7 +211,7 @@ class AdminDashboardView(APIView):
                 )
             )
         )
-        for row in walk_in_branch_revenue:
+        for row in paid_branch_revenue:
             branch_name = row["branch__name"] or row["branch_name"] or "Unassigned"
             revenue_by_branch_map[branch_name] += float(row["revenue"] or 0)
 
@@ -247,35 +226,11 @@ class AdminDashboardView(APIView):
         ]
 
         # ── Recent Transactions ───────────────────────────────────────────────
-        recent_bookings = Booking.objects.select_related(
-            "user", "user__customer_profile", "user__staff_profile"
-        ).order_by("-created_at")[:5]
-
         recent_transactions = []
-        for b in recent_bookings:
-            try:
-                p = b.user.customer_profile
-                name = f"{p.first_name} {p.last_name}".strip()
-            except Exception:
-                try:
-                    p = b.user.staff_profile
-                    name = f"{p.first_name} {p.last_name}".strip()
-                except Exception:
-                    name = b.user.email
-
-            recent_transactions.append({
-                "customer_name": name,
-                "service": b.service,
-                "amount": clean_price(b.price),
-                "status": b.status,
-                "_ts": b.created_at,
-            })
-
-        recent_walkins = QueueEntry.objects.filter(
-            source="walk_in",
+        recent_paid_entries = QueueEntry.objects.filter(
             payment_status="paid",
         ).order_by("-completed_at", "-queued_at")[:5]
-        for q in recent_walkins:
+        for q in recent_paid_entries:
             recent_transactions.append(
                 {
                     "customer_name": q.customer_name or "Walk-in Customer",
@@ -341,8 +296,18 @@ class ManagerDashboardView(APIView):
             last_month_year = last_month_date.year
 
             # Stats
-            rev_this = Booking.objects.filter(branch=branch, status="done", date__month=this_month, date__year=this_year).aggregate(t=Sum("price"))["t"] or 0
-            rev_last = Booking.objects.filter(branch=branch, status="done", date__month=last_month, date__year=last_month_year).aggregate(t=Sum("price"))["t"] or 0
+            rev_this = QueueEntry.objects.filter(
+                branch=branch,
+                payment_status="paid",
+                completed_at__month=this_month,
+                completed_at__year=this_year,
+            ).aggregate(t=Sum("price"))["t"] or 0
+            rev_last = QueueEntry.objects.filter(
+                branch=branch,
+                payment_status="paid",
+                completed_at__month=last_month,
+                completed_at__year=last_month_year,
+            ).aggregate(t=Sum("price"))["t"] or 0
             rev_change = round(((float(rev_this) - float(rev_last)) / float(rev_last)) * 100, 1) if rev_last else 0
 
             svc_this = Booking.objects.filter(branch=branch, status="done", date__month=this_month, date__year=this_year).count()
@@ -365,7 +330,12 @@ class ManagerDashboardView(APIView):
                 d = now.replace(day=1) - timedelta(days=i*30)
                 m = d.month
                 y = d.year
-                qs = Booking.objects.filter(branch=branch, status="done", date__month=m, date__year=y)
+                qs = QueueEntry.objects.filter(
+                    branch=branch,
+                    payment_status="paid",
+                    completed_at__month=m,
+                    completed_at__year=y,
+                )
                 trend.append({
                     "label": MONTH_LABELS[m-1],
                     "revenue": float(qs.aggregate(t=Sum("price"))["t"] or 0),

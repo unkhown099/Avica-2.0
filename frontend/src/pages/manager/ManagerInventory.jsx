@@ -8,16 +8,28 @@ function ManagerInventory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("inventory");
+  const activeTab = "inventory";
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
 
   // State for API data - initialize as empty arrays
   const [services, setServices] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [updatingServiceId, setUpdatingServiceId] = useState(null);
   const [requestingRestockId, setRequestingRestockId] = useState(null);
+
+  const notify = (icon, title) => {
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      timer: 2200,
+      timerProgressBar: true,
+      showConfirmButton: false,
+      icon,
+      title,
+      background: "#111827",
+      color: "#f9fafb",
+    });
+  };
 
   // Categories for services
   const serviceCategories = [
@@ -249,11 +261,10 @@ function ManagerInventory() {
 
   const fetchServices = async () => {
     setLoading(true);
-    setError(null);
     try {
       const token = getAuthToken();
       if (!token) {
-        setError("Please login to continue");
+        notify("error", "Please login to continue");
         setLoading(false);
         return;
       }
@@ -297,7 +308,7 @@ function ManagerInventory() {
         err,
         "Failed to load services. Please try again.",
       );
-      setError(errorMessage);
+      notify("error", errorMessage);
       setServices([]);
     } finally {
       setLoading(false);
@@ -306,11 +317,10 @@ function ManagerInventory() {
 
   const fetchInventory = async () => {
     setLoading(true);
-    setError(null);
     try {
       const token = getAuthToken();
       if (!token) {
-        setError("Please login to continue");
+        notify("error", "Please login to continue");
         setLoading(false);
         return;
       }
@@ -353,7 +363,7 @@ function ManagerInventory() {
         err,
         "Failed to load inventory. Please try again.",
       );
-      setError(errorMessage);
+      notify("error", errorMessage);
       setInventoryItems([]);
     } finally {
       setLoading(false);
@@ -362,7 +372,7 @@ function ManagerInventory() {
 
   const requestRestock = async (item) => {
     if (!item?.originalId) {
-      setError("Unable to request restock for this item.");
+      notify("error", "Unable to request restock for this item.");
       return;
     }
 
@@ -409,14 +419,13 @@ function ManagerInventory() {
         quantity_requested: Number(qtyPrompt.value),
         notes: notePrompt.value || "",
       });
-      setSuccessMessage(`Restock request submitted for "${item.name}".`);
-      setTimeout(() => setSuccessMessage(null), 3000);
+      notify("success", `Restock request submitted for "${item.name}".`);
     } catch (err) {
       const errorMessage = handleApiError(
         err,
         "Failed to submit restock request. Please try again.",
       );
-      setError(errorMessage);
+      notify("error", errorMessage);
     } finally {
       setRequestingRestockId(null);
     }
@@ -424,12 +433,11 @@ function ManagerInventory() {
 
   const toggleServiceStatus = async (service) => {
     setUpdatingServiceId(service.originalId);
-    setError(null);
 
     try {
       const token = getAuthToken();
       if (!token) {
-        setError("Please login to continue");
+        notify("error", "Please login to continue");
         setUpdatingServiceId(null);
         return;
       }
@@ -451,18 +459,16 @@ function ManagerInventory() {
         ),
       );
 
-      setSuccessMessage(
+      notify(
+        "success",
         `Service "${service.name}" ${newStatus ? "activated" : "deactivated"} successfully!`,
       );
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       const errorMessage = handleApiError(
         err,
         "Failed to update service status. Please try again.",
       );
-      setError(errorMessage);
+      notify("error", errorMessage);
     } finally {
       setUpdatingServiceId(null);
     }
@@ -683,42 +689,15 @@ function ManagerInventory() {
   return (
     <ManagerLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
-        {/* Success Message */}
-        {successMessage && (
-          <div className="mb-4 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl">
-            {successMessage}
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-4 bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl">
-            {error}
-          </div>
-        )}
-
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tight">
               Inventory Management
             </h1>
             <p className="text-gray-400 mt-1">
-              Track and manage inventory for San Mateo Rizal branch. Services are now managed in the Dashboard.
+              Track and manage inventory for San Mateo Rizal branch.
             </p>
           </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-fit">
-          <button
-            onClick={() => setActiveTab("inventory")}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${activeTab === "inventory"
-                ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-          >
-            Inventory
-          </button>
         </div>
 
         {/* Stats */}

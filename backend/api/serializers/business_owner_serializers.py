@@ -4,7 +4,7 @@ from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
 from datetime import timedelta
 import re
-from ..models import Branch, Booking, Service, InventoryItem, Staff, Rating
+from ..models import Branch, Booking, QueueEntry, Service, InventoryItem, Staff, Rating
 
 
 PREFERRED_EMPLOYEE_PATTERN = re.compile(r"\[preferred_employee_id=(\d+)\]", re.IGNORECASE)
@@ -59,10 +59,10 @@ class BranchSummarySerializer(serializers.ModelSerializer):
         ).count()
 
     def get_monthly_revenue(self, obj):
-        result = Booking.objects.filter(
+        result = QueueEntry.objects.filter(
             branch=obj,
-            status="done",
-            date__gte=self._month_start(),
+            payment_status="paid",
+            completed_at__date__gte=self._month_start(),
         ).aggregate(total=Sum("price"))
         return float(result["total"] or 0)
 

@@ -43,6 +43,7 @@ import BranchOwnerBranches from "./pages/branch_owner/BranchOwnerBranches.jsx";
 
 // Manager Imports
 import ManagerDashboard from "./pages/manager/ManagerDashboard.jsx";
+import ManagerContents from "./pages/manager/ManagerContents.jsx";
 import ManagerAppointments from "./pages/manager/ManagerAppointments.jsx";
 import ManagerInventory from "./pages/manager/ManagerInventory.jsx";
 import ManagerAccountManagement from "./pages/manager/ManagerAccountManagement.jsx";
@@ -282,6 +283,14 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["branch_manager"]}>
               <ManagerAppointments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/contents"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ManagerContents />
             </ProtectedRoute>
           }
         />

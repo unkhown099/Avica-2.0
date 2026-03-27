@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from ..models import Customer, Booking, Rating
-from django.db.models import Sum, Count, Avg
+from ..models import Customer, Booking, QueueEntry, Rating
+from django.db.models import Sum, Avg
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -17,15 +17,16 @@ class CustomerSerializer(serializers.ModelSerializer):
             "loyalty_points", "total_spent", "visits", "avg_rating", "segment",
         ]
 
-    def _clean_price(self, value):
-        try:
-            return float(str(value).replace("₱", "").replace(",", "").strip())
-        except (ValueError, TypeError):
-            return 0.0
+    def _paid_completed_entries(self, obj):
+        return QueueEntry.objects.filter(
+            booking__user=obj.user,
+            status="done",
+            payment_status="paid",
+        )
 
     def get_total_spent(self, obj):
-        bookings = Booking.objects.filter(user=obj.user)
-        return sum(self._clean_price(b.price) for b in bookings)
+        total = self._paid_completed_entries(obj).aggregate(total=Sum("price"))["total"]
+        return float(total or 0)
 
     def get_visits(self, obj):
         return Booking.objects.filter(user=obj.user).count()
@@ -36,9 +37,8 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def get_segment(self, obj):
         visits = Booking.objects.filter(user=obj.user).count()
-        total  = sum(
-            self._clean_price(b.price)
-            for b in Booking.objects.filter(user=obj.user).only("price")
+        total = float(
+            self._paid_completed_entries(obj).aggregate(total=Sum("price"))["total"] or 0
         )
         if total >= 50000 or visits >= 15:
             return "High Value"

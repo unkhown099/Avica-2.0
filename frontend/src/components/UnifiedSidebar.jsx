@@ -119,6 +119,16 @@ const MENU_ITEMS = {
       path: "/manager/customers",
       icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
     },
+        {
+      name: "Contents",
+      path: "/manager/contents",
+      icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+      children: [
+        { key: "schedule", label: "Schedule" },
+        { key: "exceptions", label: "Exceptions" },
+        { key: "services", label: "Services" },
+      ],
+    },
   ],
 
   staff: [
@@ -392,7 +402,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                     </svg>
-                    <span className="font-medium flex-1 text-left">{item.name}</span>
+                    <span className="font-medium text-sm flex-1 text-left">{item.name}</span>
                     <svg
                       className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}
                       fill="none"
@@ -404,24 +414,24 @@ function UnifiedSidebar({ isOpen, onClose }) {
                   </button>
 
                   {isExpanded && (
-                    <div className="bg-gray-950/60 border-l border-white/5 ml-6">
-                      {item.children.map((child) => {
+                    <div className="ml-6 mt-1 space-y-1">
+                      {item.children.map((child, idx) => {
                         const childTo = `${item.path}#${child.key}`;
                         const hashActive =
                           location.pathname === item.path && location.hash === `#${child.key}`;
                         const activeChild =
                           location.pathname === item.path &&
-                          ((child.key === "overview" && !location.hash) || hashActive);
+                          ((!location.hash && idx === 0) || hashActive);
 
                         return (
                           <Link
                             key={child.key}
                             to={childTo}
                             onClick={handleNavClick}
-                            className={`block pl-5 pr-6 py-2.5 text-sm transition-all ${
+                            className={`block pl-5 pr-6 py-2.5 text-xs rounded-l-lg transition-all ${
                               activeChild
-                                ? "text-red-300 bg-red-500/10"
-                                : "text-gray-500 hover:text-gray-200 hover:bg-white/5"
+                                ? "text-red-300 bg-red-500/10 border-l border-red-500/30"
+                                : "text-gray-500 hover:text-gray-200 hover:bg-white/5 border-l border-transparent"
                             }`}
                           >
                             {child.label}
@@ -455,7 +465,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                 </svg>
-                <span className="font-medium flex-1">{item.name}</span>
+                <span className="font-medium text-sm flex-1">{item.name}</span>
 
                 {showBadge && (
                   <span

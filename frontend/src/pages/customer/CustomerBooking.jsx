@@ -564,6 +564,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   // null = loading, {} with keys = loaded
   const [availableSlots, setAvailableSlots] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [availabilityMeta, setAvailabilityMeta] = useState(null);
 
   // Store user bookings to enforce one-active-booking rule.
   const [userBookings, setUserBookings] = useState([]);
@@ -606,12 +607,14 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
   useEffect(() => {
     if (!form.date || !form.branch) {
       setAvailableSlots(null);
+      setAvailabilityMeta(null);
       return;
     }
 
     // FIX: Immediately clear selected time when date changes so user must re-pick
     setForm((prev) => ({ ...prev, time: "" }));
     setAvailableSlots(null); // show loading state
+    setAvailabilityMeta(null);
     setCheckingAvailability(true);
 
     fetch(
@@ -623,12 +626,14 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
         // FIX: API returns { available_slots: { "8:00 AM": true, "9:00 AM": false, ... } }
         // We store exactly this — slots not in the object default to unavailable
         setAvailableSlots(data.available_slots ?? {});
+        setAvailabilityMeta(data.meta ?? null);
       })
       .catch(() => {
         // Fallback: all slots available if API unreachable
         const fallback = {};
         TIME_SLOTS.forEach((s) => { fallback[s] = true; });
         setAvailableSlots(fallback);
+        setAvailabilityMeta(null);
       })
       .finally(() => setCheckingAvailability(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -702,6 +707,39 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
     if (availableSlots === null) return false; // still loading
     return availableSlots[slot] === true;
   };
+
+  const visibleTimeSlots = useMemo(() => {
+    if (!availableSlots || typeof availableSlots !== "object") {
+      return TIME_SLOTS;
+    }
+
+    const dynamic = Object.keys(availableSlots);
+    if (dynamic.length === 0) {
+      return [];
+    }
+
+    return dynamic.sort((a, b) =>
+      formatTimeForAPI(a).localeCompare(formatTimeForAPI(b)),
+    );
+  }, [availableSlots]);
+
+  const scheduleWindowText = useMemo(() => {
+    if (!availabilityMeta || !form.date) return "";
+    if (availabilityMeta.closed) {
+      return availabilityMeta.closure_reason || "This branch is closed on the selected date.";
+    }
+
+    if (!availabilityMeta.open_start || !availabilityMeta.open_end) return "";
+
+    let text = `Operating window: ${availabilityMeta.open_start} - ${availabilityMeta.open_end}`;
+    if (availabilityMeta.break_start && availabilityMeta.break_end) {
+      text += ` (break ${availabilityMeta.break_start} - ${availabilityMeta.break_end})`;
+    }
+    if (availabilityMeta.slot_duration) {
+      text += ` · ${availabilityMeta.slot_duration}-minute slots`;
+    }
+    return text;
+  }, [availabilityMeta, form.date]);
 
   // ── Validate current step before advancing ────────────────────────────────
   const canAdvance = () => {
@@ -1055,6 +1093,11 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                     You already have an active booking. Please complete or cancel it before creating a new one.
                   </p>
                 )}
+                {scheduleWindowText && (
+                  <p className="text-gray-500 text-[8px] sm:text-[10px] mt-1">
+                    {scheduleWindowText}
+                  </p>
+                )}
               </div>
 
               {/* Time slots */}
@@ -1071,8 +1114,14 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData }) {
                   <p className="text-gray-500 text-[10px] sm:text-xs mb-2">Select a date and branch to see available slots.</p>
                 )}
 
+                {availableSlots !== null && visibleTimeSlots.length === 0 && (
+                  <p className="text-gray-500 text-[10px] sm:text-xs mb-2">
+                    No available slots for this date based on the branch schedule.
+                  </p>
+                )}
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
-                  {TIME_SLOTS.map((t) => {
+                  {visibleTimeSlots.map((t) => {
                     const active = form.time === t;
                     // FIX: a slot is only clickable if:
                     //  1. slots have been loaded (availableSlots !== null)
