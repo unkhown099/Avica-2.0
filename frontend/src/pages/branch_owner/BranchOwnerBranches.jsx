@@ -350,12 +350,13 @@ function BranchOwnerBranches() {
           </div>
         ) : (
           !loading && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {branchesPagination.paginatedItems.map((branch) => (
-                <div
-                  key={branch.id}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all flex flex-col"
-                >
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {branchesPagination.paginatedItems.map((branch) => (
+                  <div
+                    key={branch.id}
+                    className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all flex flex-col"
+                  >
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-black text-white">
@@ -481,17 +482,18 @@ function BranchOwnerBranches() {
                   >
                     View Details
                   </button>
-                </div>
-              ))}
-            </div>
-            {branchesPagination.totalPages > 1 && (
-              <Pagination
-                current={branchesPagination.currentPage}
-                total={branchesPagination.totalPages}
-                onChange={branchesPagination.setCurrentPage}
-                className="px-1 py-4"
-              />
-            )}
+                  </div>
+                ))}
+              </div>
+              {branchesPagination.totalPages > 1 && (
+                <Pagination
+                  current={branchesPagination.currentPage}
+                  total={branchesPagination.totalPages}
+                  onChange={branchesPagination.setCurrentPage}
+                  className="px-1 py-4"
+                />
+              )}
+            </>
           )
         )}
       </div>
