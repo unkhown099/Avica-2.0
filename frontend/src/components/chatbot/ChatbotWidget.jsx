@@ -45,7 +45,7 @@ export default function ChatbotWidget() {
         target.closest("textarea") ||
         target.closest('[role="button"]') ||
         target.closest("a") ||
-        target.closest(".close-button"); // Add any specific close button class
+        target.closest(".close-button");
 
       if (isInteractive) return;
 
@@ -62,45 +62,64 @@ export default function ChatbotWidget() {
     [onMouseMove, onMouseUp],
   );
 
-  // Touch drag
-  const onTouchStart = useCallback((e) => {
-    const target = e.target;
-    const isInteractive =
-      target.closest("button") ||
-      target.closest("input") ||
-      target.closest("textarea") ||
-      target.closest('[role="button"]') ||
-      target.closest("a") ||
-      target.closest(".close-button");
-
-    if (isInteractive) return;
-
-    const touch = e.touches[0];
-    dragging.current = true;
-    const rect = windowRef.current.getBoundingClientRect();
-    dragOffset.current = {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top,
-    };
-  }, []);
-
-  const onTouchMove = useCallback((e) => {
-    if (!dragging.current) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const x = touch.clientX - dragOffset.current.x;
-    const y = touch.clientY - dragOffset.current.y;
-    const w = windowRef.current?.offsetWidth || 360;
-    const h = windowRef.current?.offsetHeight || 520;
-    setPos({
-      x: Math.max(8, Math.min(window.innerWidth - w - 8, x)),
-      y: Math.max(8, Math.min(window.innerHeight - h - 8, y)),
-    });
-  }, []);
-
+  // Touch drag using useEffect approach
   const onTouchEnd = useCallback(() => {
     dragging.current = false;
   }, []);
+
+  // Apply the touch event listeners via useEffect
+  useEffect(() => {
+    const touchMoveHandler = (e) => {
+      if (!dragging.current) return;
+      e.preventDefault(); // now works
+      const touch = e.touches[0];
+      const x = touch.clientX - dragOffset.current.x;
+      const y = touch.clientY - dragOffset.current.y;
+      const w = windowRef.current?.offsetWidth || 360;
+      const h = windowRef.current?.offsetHeight || 520;
+      setPos({
+        x: Math.max(8, Math.min(window.innerWidth - w - 8, x)),
+        y: Math.max(8, Math.min(window.innerHeight - h - 8, y)),
+      });
+    };
+
+    const onTouchStartHandler = (e) => {
+      // Check if windowRef exists before proceeding
+      if (!windowRef.current) return;
+      
+      const target = e.target;
+      const isInteractive =
+        target.closest("button") ||
+        target.closest("input") ||
+        target.closest("textarea") ||
+        target.closest('[role="button"]') ||
+        target.closest("a") ||
+        target.closest(".close-button");
+
+      if (isInteractive) return;
+
+      const touch = e.touches[0];
+      dragging.current = true;
+      const rect = windowRef.current.getBoundingClientRect();
+      dragOffset.current = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
+      };
+    };
+
+    // Only add touch listeners if the widget is open
+    if (isOpen) {
+      document.addEventListener("touchstart", onTouchStartHandler);
+      document.addEventListener("touchmove", touchMoveHandler, { passive: false });
+      document.addEventListener("touchend", onTouchEnd);
+    }
+
+    return () => {
+      document.removeEventListener("touchstart", onTouchStartHandler);
+      document.removeEventListener("touchmove", touchMoveHandler);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [onTouchEnd, isOpen]); // Add isOpen to dependencies
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -118,20 +137,17 @@ export default function ChatbotWidget() {
       {isOpen && (
         <div
           ref={windowRef}
-          className="fixed w-[calc(100vw-40px)] sm:w-[360px] max-h-[80vh] rounded-2xl z-[9999] shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(220,38,38,0.1)] border border-white/10 overflow-hidden select-none flex flex-col"
+          className="fixed w-[calc(100vw-32px)] sm:w-[360px] h-[450px] max-h-[70vh] rounded-2xl z-[9999] shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(220,38,38,0.1)] border border-white/10 overflow-hidden select-none flex flex-col"
           style={{
             ...(pos
               ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
-              : { bottom: "96px", right: "20px" }),
+              : { bottom: "80px", right: "16px" }),
             animation: "otoChatSlideUp 0.25s cubic-bezier(0.2,0.8,0.2,1) both",
           }}
           onMouseDown={onMouseDown}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
         >
           {/* Draggable indicator */}
-          <div className="absolute top-0 left-0 right-0 h-8 flex items-center justify-center pointer-events-none">
+          <div className="absolute top-0 left-0 right-0 h-8 flex items-center justify-center pointer-events-none z-20">
             <div className="flex gap-[3px] opacity-25">
               {[...Array(6)].map((_, i) => (
                 <span
@@ -143,7 +159,7 @@ export default function ChatbotWidget() {
           </div>
 
           {/* Chatbot component */}
-          <div className="relative z-10 flex-1 overflow-y-auto">
+          <div className="relative z-10 flex-1 min-h-0 overflow-hidden">
             <Chatbot onClose={handleClose} />
           </div>
         </div>
@@ -152,7 +168,7 @@ export default function ChatbotWidget() {
       {!isOpen && (
         <button
           onClick={handleOpen}
-          className={`fixed bottom-6 right-5 sm:right-6 w-14 h-14 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center z-[9999] transition-all duration-300 hover:scale-110 border border-red-500/50 ${
+          className={`fixed bottom-5 right-4 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center z-[9999] transition-all duration-300 hover:scale-110 border border-red-500/50 ${
             pulseActive
               ? "shadow-[0_0_0_0_rgba(220,38,38,0.5)]"
               : "shadow-[0_4px_24px_rgba(220,38,38,0.35)]"
@@ -161,7 +177,7 @@ export default function ChatbotWidget() {
           aria-label="Open chat support"
         >
           <svg
-            className="w-6 h-6 text-white"
+            className="w-5 h-5 sm:w-6 sm:h-6 text-white"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -175,7 +191,7 @@ export default function ChatbotWidget() {
           </svg>
 
           {hasUnread && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-red-600 text-xs font-black rounded-full flex items-center justify-center border-2 border-red-600 shadow-lg">
+            <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-white text-red-600 text-[10px] sm:text-xs font-black rounded-full flex items-center justify-center border-2 border-red-600 shadow-lg">
               1
             </span>
           )}
