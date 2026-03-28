@@ -126,7 +126,8 @@ AUTHENTICATION_BACKENDS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Keep queue/appointment time checks aligned to PH local business time by default.
+TIME_ZONE = os.getenv("TIME_ZONE", "Asia/Manila")
 
 USE_I18N = True
 

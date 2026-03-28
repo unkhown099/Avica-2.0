@@ -32,9 +32,17 @@ const statusConfig = {
     label: "Cancelled",
     color: "bg-red-600/20 text-red-400 border-red-600/30",
   },
+  no_show: {
+    label: "No Show",
+    color: "bg-red-600/20 text-red-300 border-red-600/30",
+  },
   done: {
     label: "Completed",
     color: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+  },
+  rescheduled: {
+    label: "Reschedule Proposed",
+    color: "bg-indigo-600/20 text-indigo-300 border-indigo-600/30",
   },
 };
 
@@ -813,10 +821,10 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData, initialService
       return true;
     }
     if (step === 3) {
-      // FIX: Block same-day booking
+      // Allow same-day booking; only block past dates.
       if (!form.date) { setError("Please select a date."); return false; }
-      if (form.date <= todayISO()) {
-        setError("Same-day bookings are not allowed. Please select tomorrow or a later date.");
+      if (form.date < todayISO()) {
+        setError("Past dates are not allowed. Please select today or a later date.");
         return false;
       }
       // Block if user already has an active booking.
@@ -850,9 +858,9 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData, initialService
       if (!form.branch?.id) throw new Error("Please select a branch");
       if (!form.date || !form.time) throw new Error("Please select date and time");
 
-      // FIX: Same-day guard at submit time
-      if (form.date <= todayISO()) {
-        throw new Error("Same-day bookings are not allowed. Please select tomorrow or a later date.");
+      // Allow same-day booking; only block past dates.
+      if (form.date < todayISO()) {
+        throw new Error("Past dates are not allowed. Please select today or a later date.");
       }
 
       // Guard: one active booking at a time.
@@ -1165,11 +1173,11 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData, initialService
               <div>
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
                   Pick a Date{" "}
-                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Tomorrow or later only)</span>
+                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Today onward)</span>
                 </p>
                 <input
                   type="date"
-                  min={tomorrowISO()}
+                  min={todayISO()}
                   value={form.date}
                   onChange={(e) => {
                     // FIX: use set() so error is cleared, time reset happens in the useEffect
@@ -1177,10 +1185,10 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData, initialService
                   }}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
                 />
-                {/* FIX: warn if user somehow picks today (browser may allow it on some devices) */}
-                {form.date && form.date <= todayISO() && (
+                {/* Warn if user selects a past date */}
+                {form.date && form.date < todayISO() && (
                   <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
-                    Same-day bookings are not allowed. Please select tomorrow or a later date.
+                    Past dates are not allowed. Please select today or a later date.
                   </p>
                 )}
                 {/* Warn if customer already has active booking */}
@@ -1222,11 +1230,11 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData, initialService
                     // FIX: a slot is only clickable if:
                     //  1. slots have been loaded (availableSlots !== null)
                     //  2. the slot is explicitly true in the response
-                    //  3. the date is valid (tomorrow or later)
+                    //  3. the date is valid (today onward)
                     //  4. user doesn't already have a booking that day
                     const slotsLoaded = availableSlots !== null;
                     const slotAvailable = slotsLoaded && availableSlots[t] === true;
-                    const dateValid = form.date && form.date > todayISO();
+                    const dateValid = form.date && form.date >= todayISO();
                     const isDisabled =
                       !slotsLoaded ||
                       !slotAvailable ||
@@ -1273,7 +1281,7 @@ function NewBookingModal({ onClose, onSuccess, initialDamageData, initialService
                 </div>
 
                 {/* Slot count summary */}
-                {form.date && form.date > todayISO() && !checkingAvailability && availableSlots !== null && !hasActiveBooking && (
+                {form.date && form.date >= todayISO() && !checkingAvailability && availableSlots !== null && !hasActiveBooking && (
                   <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
                     {availableCount > 0
                       ? `${availableCount} time slot${availableCount !== 1 ? "s" : ""} available`
@@ -1719,6 +1727,7 @@ function BookingsPage() {
   const [prefillServiceId, setPrefillServiceId] = useState(null);
   const [damageData, setDamageData] = useState(null);
   const [cancelBooking, setCancelBooking] = useState(null);
+  const [rescheduleBooking, setRescheduleBooking] = useState(null);
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = "success") => {
@@ -1775,6 +1784,32 @@ function BookingsPage() {
     } catch {
       showToast("Failed to cancel booking. Please try again.", "error");
       setCancelBooking(null);
+    }
+  };
+
+  const handleRescheduleDecision = async (booking, decision, selectedOption = null) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/reschedule-response/`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          decision,
+          selected_option: selectedOption,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to submit response.");
+      }
+      setBookings((prev) => prev.map((b) => (b.id === data.id ? data : b)));
+      setRescheduleBooking(null);
+      showToast(
+        decision === "accept"
+          ? "Reschedule accepted successfully."
+          : "Reschedule declined. Our team will follow up.",
+      );
+    } catch (e) {
+      showToast(e.message || "Failed to submit response.", "error");
     }
   };
 
@@ -1836,6 +1871,7 @@ function BookingsPage() {
             { label: "Pending", value: bookings.filter((b) => b.status === "pending").length, color: "text-yellow-400" },
             { label: "Completed", value: bookings.filter((b) => b.status === "done").length, color: "text-blue-400" },
             { label: "Cancelled", value: bookings.filter((b) => b.status === "cancelled").length, color: "text-red-400" },
+            { label: "No Show", value: bookings.filter((b) => b.status === "no_show").length, color: "text-red-300" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-3 sm:p-5 border border-white/5 text-center">
               <div className={`text-xl sm:text-2xl lg:text-3xl font-black ${color} mb-0.5 sm:mb-1`}>{value}</div>
@@ -1846,7 +1882,7 @@ function BookingsPage() {
 
         {/* Filter Tabs */}
         <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-6 flex-wrap">
-          {["all", "confirmed", "pending", "done", "cancelled"].map((f) => (
+          {["all", "confirmed", "pending", "rescheduled", "done", "cancelled", "no_show"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -1941,7 +1977,7 @@ function BookingsPage() {
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-wrap">
                     <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">{priceDisplay}</div>
-                    {booking.status !== "cancelled" && booking.status !== "done" && (
+                    {booking.status !== "cancelled" && booking.status !== "done" && booking.status !== "no_show" && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => setCancelBooking(booking)}
@@ -1949,9 +1985,35 @@ function BookingsPage() {
                         >
                           Cancel
                         </button>
+                        {booking.status === "rescheduled" &&
+                          booking.reschedule_status === "pending_customer" && (
+                            <button
+                              onClick={() => setRescheduleBooking(booking)}
+                              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
+                            >
+                              Review Options
+                            </button>
+                          )}
                       </div>
                     )}
                   </div>
+                  {booking.status === "rescheduled" &&
+                    booking.reschedule_status === "pending_customer" &&
+                    Array.isArray(booking.reschedule_options) &&
+                    booking.reschedule_options.length > 0 && (
+                      <div className="mt-3 bg-indigo-600/10 border border-indigo-600/30 rounded-xl p-3">
+                        <p className="text-indigo-200 text-xs font-semibold mb-2">
+                          Proposed options:
+                        </p>
+                        <ul className="space-y-1 text-[11px] sm:text-xs text-indigo-100">
+                          {booking.reschedule_options.map((opt, idx) => (
+                            <li key={`${booking.id}-opt-${idx}`}>
+                              • {opt.date} at {opt.time}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                 </div>
               </div>
             );
@@ -1985,6 +2047,41 @@ function BookingsPage() {
       )}
       {showDamageModal && <DamageDetectionModal onClose={() => setShowDamageModal(false)} onBack={handleDamageComplete} />}
       {cancelBooking && <CancelBookingModal booking={cancelBooking} onClose={() => setCancelBooking(null)} onConfirm={handleCancelConfirm} />}
+      {rescheduleBooking && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-gradient-to-br from-gray-900 to-indigo-950/30 border border-indigo-600/30 rounded-2xl p-5">
+            <h3 className="text-white text-lg font-bold mb-2">Reschedule Proposal</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Please choose one option to accept, or decline the proposal.
+            </p>
+            <div className="space-y-2 mb-4">
+              {(rescheduleBooking.reschedule_options || []).map((opt, idx) => (
+                <button
+                  key={`accept-${rescheduleBooking.id}-${idx}`}
+                  onClick={() => handleRescheduleDecision(rescheduleBooking, "accept", opt)}
+                  className="w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-indigo-600/20 border border-white/10 hover:border-indigo-500/50 text-white text-sm transition-all"
+                >
+                  Accept: {opt.date} at {opt.time}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setRescheduleBooking(null)}
+                className="px-4 py-2 rounded-xl border border-white/10 text-gray-300 hover:text-white"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => handleRescheduleDecision(rescheduleBooking, "decline")}
+                className="px-4 py-2 rounded-xl bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-300 hover:text-white"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </CustomerLayout>
   );

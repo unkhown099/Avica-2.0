@@ -159,7 +159,16 @@ class Booking(models.Model):
         ("pending",   "Pending"),
         ("confirmed", "Confirmed"),
         ("cancelled", "Cancelled"),
-        ("done", "Done")
+        ("no_show", "No Show"),
+        ("done", "Done"),
+        ("rescheduled", "Rescheduled"),
+    ]
+
+    RESCHEDULE_STATUS_CHOICES = [
+        ("none", "None"),
+        ("pending_customer", "Pending Customer Response"),
+        ("accepted", "Accepted"),
+        ("declined", "Declined"),
     ]
 
     user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bookings")
@@ -177,6 +186,22 @@ class Booking(models.Model):
     notes        = models.TextField(blank=True, default="")
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     cancellation_reason = models.TextField(blank=True, default="", null=True)
+    reschedule_status = models.CharField(
+        max_length=30,
+        choices=RESCHEDULE_STATUS_CHOICES,
+        default="none",
+    )
+    reschedule_previous_status = models.CharField(max_length=20, default="confirmed")
+    reschedule_options = models.JSONField(blank=True, default=list)
+    reschedule_selected_option = models.JSONField(blank=True, null=True, default=None)
+    reschedule_note = models.TextField(blank=True, default="")
+    reschedule_proposed_by = models.ForeignKey(
+        "Staff",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proposed_reschedules",
+    )
     staff        = models.CharField(max_length=100, blank=True, default="TBA")
     created_at   = models.DateTimeField(auto_now_add=True)
 

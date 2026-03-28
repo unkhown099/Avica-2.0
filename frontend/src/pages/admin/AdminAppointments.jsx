@@ -29,16 +29,19 @@ const STATUS_STYLE = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   cancelled: "bg-red-500/20 text-red-400 border-red-500/30",
+  no_show: "bg-red-500/20 text-red-300 border-red-500/30",
 };
 const STATUS_LABEL = {
   confirmed: "Confirmed",
   pending: "Pending",
   cancelled: "Cancelled",
+  no_show: "No Show",
 };
 const STATUS_DOT = {
   confirmed: "bg-emerald-400",
   pending: "bg-amber-400",
   cancelled: "bg-red-400",
+  no_show: "bg-red-300",
 };
 
 function getDaysInMonth(year, month) {

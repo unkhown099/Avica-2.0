@@ -428,7 +428,6 @@ function SignIn() {
                         ...DARK_SWAL,
                       })
                     }
-                    useOneTap
                     theme="filled_black"
                     shape="pill"
                     size="large"

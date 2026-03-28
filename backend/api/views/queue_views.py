@@ -62,6 +62,22 @@ def _get_booking_scheduled_datetime(booking):
     return scheduled
 
 
+def _notify_booking_no_show(booking_id):
+    if not booking_id:
+        return
+    try:
+        booking = Booking.objects.select_related("user", "branch").get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return
+
+    try:
+        # Lazy import avoids module import cycle (bookings_views imports queue_views).
+        from api.views.bookings_views import _notify_customer_booking_status
+        _notify_customer_booking_status(booking, "no_show")
+    except Exception:
+        logger.exception("Failed to send no-show notification for booking_id=%s", booking_id)
+
+
 def _auto_mark_no_show_entries(queryset):
     now = timezone.localtime(timezone.now())
     for entry in queryset.filter(source="booking", status="waiting").select_related("booking"):
@@ -70,10 +86,17 @@ def _auto_mark_no_show_entries(queryset):
             continue
 
         no_show_deadline = scheduled_at + timedelta(minutes=10)
-        if now >= no_show_deadline:
+        # Allow service start up to and including the 10-minute mark.
+        if now > no_show_deadline:
             entry.status = "skipped"
             entry.completed_at = timezone.now()
             entry.save(update_fields=["status", "completed_at"])
+            if entry.booking_id:
+                Booking.objects.filter(pk=entry.booking_id).update(
+                    status="no_show",
+                    cancellation_reason="Marked as no-show: service was not started within 10 minutes of schedule.",
+                )
+                _notify_booking_no_show(entry.booking_id)
 
 def _booking_to_queue_entry(booking):
     """
@@ -311,7 +334,7 @@ def queue_action(request, pk):
         scheduled_at = _get_booking_scheduled_datetime(entry.booking)
         now = timezone.localtime(timezone.now())
         if scheduled_at:
-            start_window_open = scheduled_at - timedelta(minutes=10)
+            start_window_open = scheduled_at
             no_show_deadline = scheduled_at + timedelta(minutes=10)
 
             if now < start_window_open:
@@ -319,7 +342,8 @@ def queue_action(request, pk):
                     {
                         "detail": (
                             "Cannot start this queue yet. "
-                            f"You can start 10 minutes before the appointment time ({scheduled_at.strftime('%Y-%m-%d %I:%M %p')})."
+                            f"You can only start at the appointment time and within 10 minutes after "
+                            f"({scheduled_at.strftime('%Y-%m-%d %I:%M %p')} to {no_show_deadline.strftime('%I:%M %p')})."
                         )
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -329,6 +353,11 @@ def queue_action(request, pk):
                 entry.status = "skipped"
                 entry.completed_at = timezone.now()
                 entry.save(update_fields=["status", "completed_at"])
+                Booking.objects.filter(pk=entry.booking_id).update(
+                    status="no_show",
+                    cancellation_reason="Marked as no-show: service was not started within 10 minutes of schedule.",
+                )
+                _notify_booking_no_show(entry.booking_id)
                 return Response(
                     {
                         "detail": "Appointment exceeded the 10-minute grace period and was marked as no-show.",
@@ -458,8 +487,14 @@ def queue_remove(request, pk):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def queue_history(request):
-    requester_staff = getattr(request.user, "staff_profile", None)
+    requester_staff = _get_requester_staff(request.user)
     date_param = request.query_params.get('date')
+
+    # Ensure auto no-shows are reflected immediately in today's history.
+    base_scope = QueueEntry.objects.all().select_related("booking")
+    base_scope = _scope_to_requester_branch(base_scope, requester_staff)
+    _auto_mark_no_show_entries(base_scope)
+
     entries = QueueEntry.objects.filter(
         status__in=["done", "skipped"]
     ).select_related("assigned_employee", "branch", "booking")
@@ -476,7 +511,10 @@ def queue_history(request):
             selected_date = date.fromisoformat(date_param)
         except ValueError:
             return Response({"detail": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
-        entries = entries.filter(completed_at__date=selected_date)
+        entries = entries.filter(
+            Q(completed_at__date=selected_date)
+            | Q(status="skipped", source="booking", booking__date=selected_date)
+        )
 
     entries = entries.order_by("-completed_at")[:50]
     return Response(QueueEntrySerializer(entries, many=True).data)

@@ -29,6 +29,20 @@ function formatDate(dateStr) {
   });
 }
 
+function toApiTime(timeInput) {
+  if (!timeInput) return "";
+  const value = String(timeInput).trim();
+  if (value.includes("AM") || value.includes("PM")) return value;
+  const parts = value.split(":");
+  if (parts.length < 2) return value;
+  const h = parseInt(parts[0], 10);
+  const m = parts[1];
+  if (Number.isNaN(h)) return value;
+  const period = h >= 12 ? "PM" : "AM";
+  const normalizedHour = h % 12 === 0 ? 12 : h % 12;
+  return `${normalizedHour}:${m} ${period}`;
+}
+
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
@@ -38,6 +52,7 @@ const statusStyle = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
+  no_show: "bg-red-500/20 text-red-300 border-red-500/30",
   done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
@@ -45,6 +60,7 @@ const statusLabel = {
   confirmed: "Confirmed",
   pending: "Pending",
   cancelled: "Cancelled",
+  no_show: "No Show",
   done: "Done",
 };
 
@@ -191,43 +207,60 @@ function StaffAppointments() {
 
   const handleReschedule = async (booking) => {
     const { value: formValues } = await Swal.fire({
-      title: "Reschedule Appointment",
+      title: "Propose Reschedule Options",
       html: `
         <div class="space-y-4 text-left">
           <div>
-            <label class="block text-sm font-medium text-gray-400 mb-1">New Date</label>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Option 1 Date</label>
             <input id="swal-input1" type="date" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" value="${booking.date}">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-400 mb-1">New Time</label>
-            <input id="swal-input2" type="text" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="e.g. 10:00 AM" value="${booking.time}">
+            <label class="block text-sm font-medium text-gray-400 mb-1">Option 1 Time (24h)</label>
+            <input id="swal-input2" type="time" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Option 2 Date (optional)</label>
+            <input id="swal-input3" type="date" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Option 2 Time (24h, optional)</label>
+            <input id="swal-input4" type="time" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white">
           </div>
         </div>
       `,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: "Reschedule",
+      confirmButtonText: "Send Proposal",
       confirmButtonColor: "#3b82f6",
       background: "#111827",
       color: "#fff",
       preConfirm: () => {
         return {
-          date: document.getElementById("swal-input1").value,
-          time: document.getElementById("swal-input2").value,
+          date1: document.getElementById("swal-input1").value,
+          time1: document.getElementById("swal-input2").value,
+          date2: document.getElementById("swal-input3").value,
+          time2: document.getElementById("swal-input4").value,
         };
       },
     });
 
     if (formValues) {
-      if (!formValues.date || !formValues.time) {
+      if (!formValues.date1 || !formValues.time1) {
         Swal.fire({
           icon: "error",
           title: "Missing info",
-          text: "Both date and time are required.",
+          text: "Option 1 date and time are required.",
           background: "#111827",
           color: "#fff",
         });
         return;
+      }
+
+      const options = [
+        { date: formValues.date1, time: toApiTime(formValues.time1) },
+      ];
+      if (formValues.date2 && formValues.time2) {
+        options.push({ date: formValues.date2, time: toApiTime(formValues.time2) });
       }
 
       setActionLoading(booking.id);
@@ -238,9 +271,8 @@ function StaffAppointments() {
             method: "PATCH",
             headers: authHeaders(),
             body: JSON.stringify({
-              status: "rescheduled",
-              date: formValues.date,
-              time: formValues.time,
+              action: "propose_reschedule",
+              options,
             }),
           },
         );
@@ -251,8 +283,8 @@ function StaffAppointments() {
         );
         Swal.fire({
           icon: "success",
-          title: "Rescheduled",
-          text: "The appointment has been rescheduled and the customer will be notified.",
+          title: "Proposal Sent",
+          text: "Reschedule options were sent to the customer.",
           timer: 2000,
           showConfirmButton: false,
           background: "#111827",
@@ -262,7 +294,7 @@ function StaffAppointments() {
         Swal.fire({
           icon: "error",
           title: "Failed",
-          text: "Failed to reschedule. Please try again.",
+          text: "Failed to send reschedule proposal. Please try again.",
           background: "#111827",
           color: "#fff",
         });
@@ -722,7 +754,7 @@ function StaffAppointments() {
                           </button>
                         </div>
                       )}
-                      {b.status === "confirmed" && (
+                      {(b.status === "confirmed" || b.status === "rescheduled") && (
                         <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-emerald-400 text-sm">
                           <svg
                             className="w-4 h-4"
@@ -737,7 +769,18 @@ function StaffAppointments() {
                               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                          Approved
+                          {b.status === "rescheduled" ? "Awaiting customer response" : "Approved"}
+                        </div>
+                      )}
+                      {(b.status === "confirmed" || b.status === "rescheduled") && (
+                        <div className="pt-2">
+                          <button
+                            onClick={() => handleReschedule(b)}
+                            disabled={actionLoading === b.id}
+                            className="w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                          >
+                            Propose Reschedule
+                          </button>
                         </div>
                       )}
                       {/* FIX 1: "done" status footer */}
@@ -775,6 +818,24 @@ function StaffAppointments() {
                             />
                           </svg>
                           Rejected / Cancelled
+                        </div>
+                      )}
+                      {b.status === "no_show" && (
+                        <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-red-300 text-sm">
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          No Show
                         </div>
                       )}
                     </div>

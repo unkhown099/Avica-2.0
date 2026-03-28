@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
 import { API_BASE } from "../hooks/useAuth.js";
@@ -29,7 +29,6 @@ function SignUpPage() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showCookieModal, setShowCookieModal] = useState(false);
   const [isGoogleSignup, setIsGoogleSignup] = useState(false);
-  const [googleToken, setGoogleToken] = useState(null);
   const [errors, setErrors] = useState({});
   const [passwordStrength, setPasswordStrength] = useState({
     score: 0,
@@ -76,7 +75,7 @@ function SignUpPage() {
     else return { score: 3, text: "Strong", color: "bg-green-600" };
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
+  const handleGoogleSuccess = (credentialResponse) => {
     try {
       const base64Url = credentialResponse.credential.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -92,7 +91,6 @@ function SignUpPage() {
         email: payload.email || "",
       }));
       setIsGoogleSignup(true);
-      setGoogleToken(credentialResponse.credential);
       setCurrentStep(1);
 
       swal.fire({
@@ -200,8 +198,6 @@ function SignUpPage() {
     setErrors({});
   };
 
-  const navigate = useNavigate();
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateStep(3)) return;
@@ -242,6 +238,7 @@ function SignUpPage() {
           firstName: "",
           lastName: "",
           suffix: "",
+          birthDate: "",
           email: "",
           countryCode: "+63",
           phone: "",
@@ -253,6 +250,7 @@ function SignUpPage() {
         setCurrentStep(1);
         setErrors({});
         setPasswordStrength({ score: 0, text: "", color: "" });
+        setIsGoogleSignup(false);
       } else {
         swal.fire({
           title: data.title || "Signup Failed",
@@ -895,7 +893,6 @@ function SignUpPage() {
                     <GoogleLogin
                       onSuccess={handleGoogleSuccess}
                       onError={() => console.log('Login Failed')}
-                      useOneTap
                       theme="filled_black"
                       shape="pill"
                       size="large"

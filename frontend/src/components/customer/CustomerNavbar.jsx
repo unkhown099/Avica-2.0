@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Swal from "sweetalert2";
 import { useNavigate, Link } from "react-router-dom";
 import logo from "../../assets/otokwikklogo.png";
@@ -171,63 +172,43 @@ const IconCheck = () => (
   </svg>
 );
 
-const IconStar = () => (
-  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-  </svg>
-);
+const formatTimeAgo = (dateValue) => {
+  const seconds = Math.floor((Date.now() - new Date(dateValue).getTime()) / 1000);
+  if (!Number.isFinite(seconds) || seconds < 0) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(months / 12);
+  return `${years}y ago`;
+};
 
-// ── sample notifications ───────────────────────────────────────────────────
-const SAMPLE_NOTIFICATIONS = [
-  {
-    id: 1,
-    type: "booking",
-    title: "Booking Confirmed",
-    message: "Your ceramic coating appointment on Mar 28 is confirmed.",
-    time: "2 min ago",
-    read: false,
-    icon: <IconCalendar />,
-    accent: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-  },
-  {
-    id: 2,
-    type: "reminder",
-    title: "Service Reminder",
-    message: "You have an upcoming interior detail tomorrow at 9:00 AM.",
-    time: "1 hr ago",
-    read: false,
-    icon: <IconBell />,
+const mapNotificationForUI = (notif) => {
+  const type = (notif.notification_type || "general").toLowerCase();
+  if (type === "appointment") {
+    return {
+      ...notif,
+      read: !!notif.is_read,
+      time: formatTimeAgo(notif.created_at),
+      icon: <IconCalendar />,
+      accent: "text-emerald-400",
+      bg: "bg-emerald-500/10",
+    };
+  }
+  return {
+    ...notif,
+    read: !!notif.is_read,
+    time: formatTimeAgo(notif.created_at),
+    icon: <IconCheck />,
     accent: "text-amber-400",
     bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
-  },
-  {
-    id: 3,
-    type: "review",
-    title: "Leave a Review",
-    message: "How was your paint correction service on Mar 20? Rate us!",
-    time: "2 days ago",
-    read: true,
-    icon: <IconStar />,
-    accent: "text-purple-400",
-    bg: "bg-purple-500/10",
-    border: "border-purple-500/20",
-  },
-  {
-    id: 4,
-    type: "promo",
-    title: "Limited Offer",
-    message: "Get 15% off full detailing packages this weekend only.",
-    time: "3 days ago",
-    read: true,
-    icon: <IconCheck />,
-    accent: "text-red-400",
-    bg: "bg-red-500/10",
-    border: "border-red-500/20",
-  },
-];
+  };
+};
 
 // ── close dropdown on outside click ───────────────────────────────────────
 function useOutsideClick(ref, callback) {
@@ -242,14 +223,16 @@ function useOutsideClick(ref, callback) {
 
 // ── main component ─────────────────────────────────────────────────────────
 function Navbar({ user: userProp, setUser }) {
-  const { user: authUser } = useAuth();
+  const { user: authUser, headers } = useAuth();
   const [localUser, setLocalUser] = useState(
     () => userProp || authUser,
   );
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [notifications, setNotifications] = useState(SAMPLE_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [notificationTab, setNotificationTab] = useState("all");
 
   const profileRef = useRef(null);
   const notifRef = useRef(null);
@@ -272,15 +255,62 @@ function Navbar({ user: userProp, setUser }) {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
+  const fetchNotifications = async () => {
+    if (!headers.Authorization) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/`, { headers });
+      if (!res.ok) return;
+      const data = await res.json();
+      setNotifications(Array.isArray(data) ? data.map(mapNotificationForUI) : []);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!headers.Authorization) return;
+    fetchNotifications();
+    const intervalId = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(intervalId);
+  }, [headers.Authorization]);
+
   const user = localUser;
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const visibleNotifications =
+    notificationTab === "unread"
+      ? notifications.filter((n) => !n.read)
+      : notifications;
 
-  const markAllRead = () =>
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  const markRead = (id) =>
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    );
+  const markAllRead = async () => {
+    try {
+      await fetch(`${API_BASE}/api/notifications/mark-all-read/`, {
+        method: "POST",
+        headers,
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.error("Failed to mark all notifications as read:", err);
+    }
+  };
+
+  const markRead = async (id) => {
+    try {
+      await fetch(`${API_BASE}/api/notifications/${id}/read/`, {
+        method: "PATCH",
+        headers,
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
+  };
+
+  const handleNotificationClick = async (notif) => {
+    if (!notif.read) {
+      await markRead(notif.id);
+    }
+    setSelectedNotification(notif);
+  };
 
   const handleLogout = async () => {
     const result = await Swal.fire({
@@ -385,7 +415,7 @@ function Navbar({ user: userProp, setUser }) {
           </div>
 
           {/* ── Right: bell + profile + hamburger ── */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 md:ml-4">
             {/* ── Notification Bell ── */}
             <div className="relative" ref={notifRef}>
               <button
@@ -429,17 +459,42 @@ function Navbar({ user: userProp, setUser }) {
                     )}
                   </div>
 
+                  <div className="px-4 py-2 border-b border-gray-700/60">
+                    <div className="inline-flex bg-gray-800/70 rounded-lg p-1 gap-1">
+                      <button
+                        onClick={() => setNotificationTab("all")}
+                        className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                          notificationTab === "all"
+                            ? "bg-red-600 text-white"
+                            : "text-gray-300 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        All
+                      </button>
+                      <button
+                        onClick={() => setNotificationTab("unread")}
+                        className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                          notificationTab === "unread"
+                            ? "bg-red-600 text-white"
+                            : "text-gray-300 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        Unread
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Notification list */}
                   <div className="max-h-80 overflow-y-auto divide-y divide-gray-800/60 scrollbar-thin">
-                    {notifications.length === 0 ? (
+                    {visibleNotifications.length === 0 ? (
                       <div className="py-10 text-center text-gray-500 text-sm italic">
                         No notifications yet
                       </div>
                     ) : (
-                      notifications.map((notif) => (
+                      visibleNotifications.map((notif) => (
                         <button
                           key={notif.id}
-                          onClick={() => markRead(notif.id)}
+                          onClick={() => handleNotificationClick(notif)}
                           className={`w-full text-left px-4 py-3.5 hover:bg-white/5 transition-colors duration-200 flex items-start gap-3 ${!notif.read ? "bg-white/[0.03]" : ""}`}
                         >
                           {/* Icon */}
@@ -471,17 +526,6 @@ function Navbar({ user: userProp, setUser }) {
                         </button>
                       ))
                     )}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="border-t border-gray-700/60 px-4 py-2.5">
-                    <Link
-                      to="/notifications"
-                      onClick={() => setIsNotifOpen(false)}
-                      className="text-xs text-red-400 hover:text-red-300 font-semibold transition-colors"
-                    >
-                      View all notifications →
-                    </Link>
                   </div>
                 </div>
               )}
@@ -663,6 +707,38 @@ function Navbar({ user: userProp, setUser }) {
           </div>
         </div>
       )}
+
+      {selectedNotification &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setSelectedNotification(null)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-950 p-5 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <h4 className="text-white font-bold text-base leading-tight">
+                  {selectedNotification.title}
+                </h4>
+                <button
+                  onClick={() => setSelectedNotification(null)}
+                  className="text-gray-400 hover:text-white text-sm font-semibold"
+                >
+                  Close
+                </button>
+              </div>
+              <p className="text-sm text-gray-300 mt-3 leading-relaxed">
+                {selectedNotification.message}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-3 uppercase tracking-wider">
+                {selectedNotification.time}
+              </p>
+            </div>
+          </div>,
+          document.body,
+        )}
     </nav>
   );
 }

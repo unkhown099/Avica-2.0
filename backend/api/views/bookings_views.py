@@ -9,11 +9,10 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from ..models import Branch, Booking, BranchScheduleConfig, Staff
+from ..models import Branch, Booking, BranchScheduleConfig, Staff, Notification
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils.html import strip_tags
-from ..models import Branch, Booking, Notification
 from ..serializers.bookings_serializer import BranchSerializer, BookingSerializer
 from .queue_views import _booking_to_queue_entry
 
@@ -124,6 +123,183 @@ def to_display_time(time_str):
         return time_str
 
 
+def _notify_customer_booking_status(booking, status_value):
+    status_config = {
+        "confirmed": {
+            "title": "Appointment Approved",
+            "email_subject": "Appointment Approved - Otokwikk",
+            "message": (
+                f"Your appointment for {booking.service} has been approved for "
+                f"{booking.date} at {booking.time}."
+            ),
+        },
+        "rescheduled": {
+            "title": "Appointment Rescheduled",
+            "email_subject": "Appointment Rescheduled - Otokwikk",
+            "message": (
+                f"Your appointment for {booking.service} has been rescheduled to "
+                f"{booking.date} at {booking.time}."
+            ),
+        },
+        "cancelled": {
+            "title": "Appointment Cancelled",
+            "email_subject": "Appointment Cancelled - Otokwikk",
+            "message": (
+                f"Your appointment for {booking.service} on {booking.date} at "
+                f"{booking.time} has been cancelled."
+            ),
+        },
+        "no_show": {
+            "title": "Appointment Marked as No Show",
+            "email_subject": "Appointment Marked as No Show - Otokwikk",
+            "message": (
+                f"Your appointment for {booking.service} on {booking.date} at "
+                f"{booking.time} was marked as no-show."
+            ),
+        },
+    }
+
+    config = status_config.get(status_value)
+    if not config:
+        return
+
+    try:
+        Notification.objects.create(
+            user=booking.user,
+            title=config["title"],
+            message=config["message"],
+            notification_type="appointment",
+        )
+    except Exception:
+        logger.exception(
+            "Failed to create booking notification for booking_id=%s status=%s",
+            booking.id,
+            status_value,
+        )
+
+    if not booking.user.email:
+        return
+
+    branch_name = booking.branch.name if booking.branch else "your selected branch"
+    html_content = f"""
+    <div style="font-family: sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #dc2626;">{config["title"]}</h2>
+        <p>Hi,</p>
+        <p>{config["message"]}</p>
+        <p><strong>Branch:</strong> {branch_name}</p>
+        <p>If you have any questions, please contact our branch.</p>
+        <br>
+        <p>Best regards,<br>Otokwikk Team</p>
+    </div>
+    """
+    text_content = strip_tags(html_content)
+    try:
+        msg = EmailMultiAlternatives(
+            config["email_subject"],
+            text_content,
+            settings.DEFAULT_FROM_EMAIL,
+            [booking.user.email],
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+    except Exception:
+        logger.exception(
+            "Failed to send booking status email for booking_id=%s status=%s",
+            booking.id,
+            status_value,
+        )
+
+
+def _notify_user_inapp_and_email(*, user, title, message, email_subject):
+    if not user:
+        return
+    try:
+        Notification.objects.create(
+            user=user,
+            title=title,
+            message=message,
+            notification_type="appointment",
+        )
+    except Exception:
+        logger.exception("Failed to create notification for user_id=%s", getattr(user, "id", None))
+
+    if not getattr(user, "email", ""):
+        return
+
+    html_content = f"""
+    <div style="font-family: sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #dc2626;">{title}</h2>
+        <p>Hi,</p>
+        <p>{message}</p>
+        <p>Best regards,<br>Otokwikk Team</p>
+    </div>
+    """
+    text_content = strip_tags(html_content)
+    try:
+        msg = EmailMultiAlternatives(
+            email_subject,
+            text_content,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+    except Exception:
+        logger.exception("Failed to send notification email for user_id=%s", getattr(user, "id", None))
+
+
+def _normalize_reschedule_options(raw_options):
+    if not isinstance(raw_options, list):
+        return []
+    normalized = []
+    for item in raw_options:
+        if not isinstance(item, dict):
+            continue
+        date_value = str(item.get("date", "")).strip()
+        time_value = str(item.get("time", "")).strip()
+        if not date_value or not time_value:
+            continue
+        try:
+            datetime.strptime(date_value, "%Y-%m-%d")
+        except ValueError:
+            continue
+        normalized.append({"date": date_value, "time": time_value})
+    return normalized[:5]
+
+
+def _is_reschedule_option_available(booking, option):
+    branch = booking.branch
+    if not branch:
+        return False
+
+    try:
+        selected_date = datetime.strptime(option["date"], "%Y-%m-%d").date()
+    except ValueError:
+        return False
+
+    today = timezone.now().date()
+    if selected_date < today:
+        return False
+
+    target_display_time = to_display_time(option["time"])
+    slot_capacity = max(int(branch.slots or 1), 1)
+
+    same_day_bookings = Booking.objects.filter(
+        branch=branch,
+        date=selected_date,
+        status__in=["pending", "confirmed"],
+    ).exclude(pk=booking.pk)
+
+    booked_count = sum(
+        1 for existing in same_day_bookings if to_display_time(existing.time) == target_display_time
+    )
+    return booked_count < slot_capacity
+
+
+def _format_reschedule_options(options):
+    return ", ".join([f'{opt["date"]} at {opt["time"]}' for opt in options])
+
+
 # ─── Customer-facing views ────────────────────────────────────────────────────
 
 class BranchListView(generics.ListAPIView):
@@ -146,7 +322,7 @@ class BookingListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         has_active_booking = Booking.objects.filter(
             user=self.request.user,
-            status__in=["pending", "confirmed"],
+            status__in=["pending", "confirmed", "rescheduled"],
         ).exists()
 
         if has_active_booking:
@@ -269,11 +445,11 @@ class AvailableSlotsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Check if date is tomorrow or later (no same-day bookings)
-        tomorrow = timezone.now().date() + timedelta(days=1)
-        if selected_date < tomorrow:
+        # Allow same-day booking; only block past dates.
+        today = timezone.now().date()
+        if selected_date < today:
             return Response(
-                {"error": "Bookings can only be made for tomorrow or later"},
+                {"error": "Bookings cannot be made for past dates"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -425,7 +601,7 @@ class AvailableSlotsView(APIView):
         bookings = Booking.objects.filter(
             branch=branch,
             date=selected_date,
-            status__in=['confirmed', 'pending']  # Count both confirmed and pending bookings
+            status__in=['confirmed', 'pending', 'rescheduled']  # Active bookings consume slots
         )
         
         # Convert time to display format and count bookings per slot
@@ -499,6 +675,61 @@ class StaffBookingActionView(APIView):
         except Booking.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        if not is_staff_or_above(request.user):
+            return Response(
+                {"detail": "Only staff and managers can perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        action_type = request.data.get("action")
+        if action_type == "propose_reschedule":
+            raw_options = request.data.get("options", [])
+            options = _normalize_reschedule_options(raw_options)
+            if not options:
+                return Response(
+                    {"detail": "At least one valid date/time option is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            unavailable = [opt for opt in options if not _is_reschedule_option_available(booking, opt)]
+            if unavailable:
+                return Response(
+                    {"detail": "One or more proposed slots are not available. Please choose different options."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            previous_status = booking.status if booking.status != "rescheduled" else (booking.reschedule_previous_status or "confirmed")
+            booking.status = "rescheduled"
+            booking.reschedule_previous_status = previous_status
+            booking.reschedule_status = "pending_customer"
+            booking.reschedule_options = options
+            booking.reschedule_selected_option = None
+            booking.reschedule_note = str(request.data.get("note", "") or "").strip()
+            booking.reschedule_proposed_by = getattr(request.user, "staff_profile", None)
+            booking.save(
+                update_fields=[
+                    "status",
+                    "reschedule_previous_status",
+                    "reschedule_status",
+                    "reschedule_options",
+                    "reschedule_selected_option",
+                    "reschedule_note",
+                    "reschedule_proposed_by",
+                ]
+            )
+
+            _notify_user_inapp_and_email(
+                user=booking.user,
+                title="Reschedule Proposal Received",
+                message=(
+                    f"We proposed new schedule options for your {booking.service} appointment: "
+                    f"{_format_reschedule_options(options)}. Please accept or decline in your bookings."
+                ),
+                email_subject="Reschedule Options for Your Appointment - Otokwikk",
+            )
+
+            from api.serializers.bookings_serializer import BookingSerializer
+            return Response(BookingSerializer(booking).data)
+
         new_status = request.data.get("status", booking.status)
         assigned_employee_id = request.data.get("assigned_employee_id", None)
         existing_assigned_employee_id = None
@@ -524,7 +755,7 @@ class StaffBookingActionView(APIView):
 
         allowed = ["pending", "confirmed"]
         new_status = request.data.get("status")
-        allowed = ["pending", "confirmed", "cancelled", "done", "rescheduled"]
+        allowed = ["pending", "confirmed", "cancelled", "no_show", "done", "rescheduled"]
         if new_status not in allowed:
             return Response(
                 {"detail": f"Invalid status. Allowed: {allowed}"},
@@ -590,7 +821,7 @@ class StaffBookingActionView(APIView):
                 has_time_conflict = Booking.objects.filter(
                     date=booking.date,
                     time=booking.time,
-                    status__in=["pending", "confirmed"],
+                    status__in=["pending", "confirmed", "rescheduled"],
                 ).exclude(pk=booking.pk).filter(
                     Q(staff=employee_full_name) | Q(queue_entry__assigned_employee_id=assigned_employee.id)
                 ).exists()
@@ -617,6 +848,7 @@ class StaffBookingActionView(APIView):
             booking.cancellation_reason = cancellation_reason
             booking.status = "cancelled"
             booking.save()
+            _notify_customer_booking_status(booking, "cancelled")
             
             # Return early - no queue entry for cancelled bookings
             from api.serializers.bookings_serializer import BookingSerializer
@@ -624,49 +856,31 @@ class StaffBookingActionView(APIView):
 
         # If not cancelled, proceed with normal flow
         if new_status == "rescheduled":
-            new_date = request.data.get("date")
-            new_time = request.data.get("time")
+            new_date = str(request.data.get("date", "")).strip()
+            new_time = str(request.data.get("time", "")).strip()
             if not new_date or not new_time:
                 return Response(
-                    {"detail": "Date and time are required for rescheduling."},
+                    {"detail": "Date and time are required for a reschedule proposal."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            booking.date = new_date
-            booking.time = new_time
-            
-            # Create Notification
-            try:
-                Notification.objects.create(
-                    user=booking.user,
-                    title="Appointment Rescheduled",
-                    message=f"Your appointment for {booking.service} has been rescheduled to {new_date} at {new_time}.",
-                    notification_type="appointment"
+            options = _normalize_reschedule_options([{"date": new_date, "time": new_time}])
+            if not options:
+                return Response(
+                    {"detail": "Invalid date/time proposal."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-            except Exception as e:
-                logger.error(f"Failed to create notification: {e}")
-                print(f"Failed to create notification: {e}")
-
-            # Send Email
-            try:
-                subject = "Appointment Rescheduled - Otokwikk"
-                html_content = f"""
-                <div style="font-family: sans-serif; padding: 20px; color: #333;">
-                    <h2 style="color: #dc2626;">Appointment Rescheduled</h2>
-                    <p>Hi,</p>
-                    <p>Your appointment for <strong>{booking.service}</strong> at Otokwikk has been rescheduled.</p>
-                    <p><strong>New Schedule:</strong> {new_date} at {new_time}</p>
-                    <p>If you have any questions, please contact our branch.</p>
-                    <br>
-                    <p>Best regards,<br>Otokwikk Team</p>
-                </div>
-                """
-                text_content = strip_tags(html_content)
-                msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [booking.user.email])
-                msg.attach_alternative(html_content, "text/html")
-                msg.send()
-            except Exception as e:
-                print(f"Failed to send reschedule email: {e}")
-
+            if not _is_reschedule_option_available(booking, options[0]):
+                return Response(
+                    {"detail": "The proposed slot is not currently available."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            previous_status = booking.status if booking.status != "rescheduled" else (booking.reschedule_previous_status or "confirmed")
+            booking.reschedule_status = "pending_customer"
+            booking.reschedule_previous_status = previous_status
+            booking.reschedule_options = options
+            booking.reschedule_selected_option = None
+            booking.reschedule_note = str(request.data.get("note", "") or "").strip()
+            booking.reschedule_proposed_by = getattr(request.user, "staff_profile", None)
         booking.status = new_status
         booking.save()
 
@@ -690,6 +904,7 @@ class StaffBookingActionView(APIView):
                     entry.save(update_fields=["assigned_employee"])
 
                 print(f"[QUEUE] ✅ Success — queue entry #{entry.id} at position #{entry.position}")
+                _notify_customer_booking_status(booking, "confirmed")
             except Exception as e:
                 print(f"[QUEUE] ❌ FAILED for booking #{booking.id}: {e}")
                 print(traceback.format_exc())
@@ -703,6 +918,138 @@ class StaffBookingActionView(APIView):
             queue_entry = booking.queue_entry
             queue_entry.assigned_employee = assigned_employee
             queue_entry.save(update_fields=["assigned_employee"])
+
+        if new_status == "rescheduled":
+            _notify_user_inapp_and_email(
+                user=booking.user,
+                title="Reschedule Proposal Received",
+                message=(
+                    f"We proposed a new schedule for your {booking.service} appointment: "
+                    f"{booking.reschedule_options[0]['date']} at {booking.reschedule_options[0]['time']}. "
+                    "Please accept or decline in your bookings."
+                ),
+                email_subject="Reschedule Proposal for Your Appointment - Otokwikk",
+            )
+
+        from api.serializers.bookings_serializer import BookingSerializer
+        return Response(BookingSerializer(booking).data)
+
+
+class BookingRescheduleResponseView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            booking = Booking.objects.select_related("branch", "user", "reschedule_proposed_by__user").get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if booking.user_id != request.user.id:
+            return Response({"detail": "You can only respond to your own booking."}, status=status.HTTP_403_FORBIDDEN)
+
+        if booking.reschedule_status != "pending_customer":
+            return Response(
+                {"detail": "There is no pending reschedule proposal for this booking."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        decision = str(request.data.get("decision", "")).strip().lower()
+        if decision not in {"accept", "decline"}:
+            return Response(
+                {"detail": "Decision must be either 'accept' or 'decline'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if decision == "accept":
+            selected_option = request.data.get("selected_option")
+            if selected_option is None and len(booking.reschedule_options or []) == 1:
+                selected_option = booking.reschedule_options[0]
+
+            if not isinstance(selected_option, dict):
+                return Response(
+                    {"detail": "Please select one proposed option to accept."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            normalized = _normalize_reschedule_options([selected_option])
+            if not normalized:
+                return Response(
+                    {"detail": "Invalid selected reschedule option."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            selected = normalized[0]
+
+            if selected not in (booking.reschedule_options or []):
+                return Response(
+                    {"detail": "Selected option is not part of the proposal."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not _is_reschedule_option_available(booking, selected):
+                return Response(
+                    {"detail": "Selected option is no longer available. Please choose another option."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            booking.date = selected["date"]
+            booking.time = selected["time"]
+            booking.status = booking.reschedule_previous_status or "confirmed"
+            booking.reschedule_status = "accepted"
+            booking.reschedule_selected_option = selected
+            booking.reschedule_options = []
+            booking.save(
+                update_fields=[
+                    "date",
+                    "time",
+                    "status",
+                    "reschedule_status",
+                    "reschedule_selected_option",
+                    "reschedule_options",
+                ]
+            )
+
+            proposer_user = getattr(getattr(booking, "reschedule_proposed_by", None), "user", None)
+            _notify_user_inapp_and_email(
+                user=proposer_user,
+                title="Customer Accepted Reschedule",
+                message=(
+                    f"The customer accepted your proposed schedule for {booking.service}: "
+                    f"{booking.date} at {booking.time}."
+                ),
+                email_subject="Customer Accepted Reschedule Proposal - Otokwikk",
+            )
+            _notify_user_inapp_and_email(
+                user=booking.user,
+                title="Reschedule Confirmed",
+                message=f"Your appointment is now confirmed for {booking.date} at {booking.time}.",
+                email_subject="Your Appointment Has Been Rescheduled - Otokwikk",
+            )
+        else:
+            booking.status = booking.reschedule_previous_status or "confirmed"
+            booking.reschedule_status = "declined"
+            booking.reschedule_selected_option = None
+            booking.save(
+                update_fields=[
+                    "status",
+                    "reschedule_status",
+                    "reschedule_selected_option",
+                ]
+            )
+            proposer_user = getattr(getattr(booking, "reschedule_proposed_by", None), "user", None)
+            _notify_user_inapp_and_email(
+                user=proposer_user,
+                title="Customer Declined Reschedule",
+                message=f"The customer declined the reschedule proposal for {booking.service}.",
+                email_subject="Customer Declined Reschedule Proposal - Otokwikk",
+            )
+            _notify_user_inapp_and_email(
+                user=booking.user,
+                title="Reschedule Declined",
+                message=(
+                    "You declined the proposed schedule. Our team will contact you with another option."
+                ),
+                email_subject="Reschedule Proposal Declined - Otokwikk",
+            )
 
         from api.serializers.bookings_serializer import BookingSerializer
         return Response(BookingSerializer(booking).data)
