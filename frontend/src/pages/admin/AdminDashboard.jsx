@@ -19,6 +19,7 @@ import html2canvas from "html2canvas";
 import AdminLayout from "./AdminLayout.jsx";
 import { useOverview } from "../../hooks/useDashboard";
 import { ErrorBanner, exportToCSV } from "../../components/admin/DashboardUI";
+import NotificationDropdown from "../../components/NotificationDropdown.jsx";
 
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
@@ -43,7 +44,7 @@ const VIEWS = [
     key: "overview",
     label: "Overview",
     icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
       </svg>
     ),
@@ -52,7 +53,7 @@ const VIEWS = [
     key: "revenue",
     label: "Revenue",
     icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
@@ -61,7 +62,7 @@ const VIEWS = [
     key: "appointment",
     label: "Appointment",
     icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
     ),
@@ -70,7 +71,7 @@ const VIEWS = [
     key: "customers",
     label: "Customers",
     icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
       </svg>
     ),
@@ -79,7 +80,7 @@ const VIEWS = [
     key: "inventory",
     label: "Inventory",
     icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
     ),
@@ -88,7 +89,7 @@ const VIEWS = [
     key: "services",
     label: "Services",
     icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
@@ -137,40 +138,40 @@ const STATUS_LABEL = {
 // ── Small reusable components ─────────────────────────────────────────────────
 function StatCard({ title, value, icon, accentBg, accentText, border, sub }) {
   return (
-    <div className={`bg-gray-900/60 border ${border} rounded-2xl p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className={`${accentBg} ${accentText} p-3 rounded-xl`}>{icon}</div>
+    <div className={`bg-gray-900/60 border ${border} rounded-xl sm:rounded-2xl p-3 sm:p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}>
+      <div className="flex items-start justify-between mb-2 sm:mb-4">
+        <div className={`${accentBg} ${accentText} p-1.5 sm:p-3 rounded-lg sm:rounded-xl`}>{icon}</div>
       </div>
-      <div className="text-2xl font-black text-white mb-1">{value ?? "—"}</div>
-      <div className="text-sm text-gray-500 mb-1">{title}</div>
-      {sub && <div className={`text-xs font-semibold ${accentText}`}>{sub}</div>}
+      <div className="text-lg sm:text-2xl font-black text-white mb-0.5 sm:mb-1 truncate">{value ?? "—"}</div>
+      <div className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1 truncate">{title}</div>
+      {sub && <div className={`text-[10px] sm:text-xs font-semibold ${accentText} truncate`}>{sub}</div>}
     </div>
   );
 }
 
 function SkeletonCard() {
   return (
-    <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 animate-pulse">
-      <div className="flex justify-between mb-4">
-        <div className="w-12 h-12 rounded-xl bg-gray-800" />
+    <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-5 animate-pulse">
+      <div className="flex justify-between mb-2 sm:mb-4">
+        <div className="w-7 h-7 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gray-800" />
       </div>
-      <div className="h-7 w-24 bg-gray-800 rounded mb-2" />
-      <div className="h-4 w-32 bg-gray-800 rounded" />
+      <div className="h-5 sm:h-7 w-16 sm:w-24 bg-gray-800 rounded mb-1 sm:mb-2" />
+      <div className="h-2 sm:h-4 w-20 sm:w-32 bg-gray-800 rounded" />
     </div>
   );
 }
 
 function SkeletonRow() {
   return (
-    <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 animate-pulse items-center">
-      <div className="col-span-4 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gray-800 shrink-0" />
-        <div className="h-4 w-28 bg-gray-800 rounded" />
+    <div className="grid grid-cols-2 sm:grid-cols-12 gap-2 sm:gap-4 px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5 animate-pulse items-center">
+      <div className="col-span-2 sm:col-span-4 flex items-center gap-2 sm:gap-3">
+        <div className="w-6 h-6 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gray-800 shrink-0" />
+        <div className="h-2 sm:h-4 w-16 sm:w-28 bg-gray-800 rounded" />
       </div>
-      <div className="col-span-3 h-4 w-20 bg-gray-800 rounded" />
-      <div className="col-span-2 h-4 w-14 bg-gray-800 rounded" />
-      <div className="col-span-2 h-6 w-20 bg-gray-800 rounded-full" />
-      <div className="col-span-1" />
+      <div className="hidden sm:block sm:col-span-3 h-2 sm:h-4 w-12 sm:w-20 bg-gray-800 rounded" />
+      <div className="col-span-1 sm:col-span-2 h-2 sm:h-4 w-10 sm:w-14 bg-gray-800 rounded" />
+      <div className="col-span-2 sm:col-span-2 h-4 sm:h-6 w-12 sm:w-20 bg-gray-800 rounded-full" />
+      <div className="col-span-1 sm:col-span-1" />
     </div>
   );
 }
@@ -343,37 +344,37 @@ export default function AdminDashboard() {
 
   const transactionsPagination = usePagination({
     items: transactions,
-    pageSize: 10,
+    pageSize: 5,
     resetDeps: [transactions.length],
   });
 
   const revenueBranchPagination = usePagination({
     items: revenueByBranch,
-    pageSize: 10,
+    pageSize: 5,
     resetDeps: [revenueByBranch.length],
   });
 
   const customersPagination = usePagination({
     items: customers,
-    pageSize: 10,
+    pageSize: 5,
     resetDeps: [customers.length],
   });
 
   const inventoryPagination = usePagination({
     items: filteredInventoryItems,
-    pageSize: 10,
+    pageSize: 5,
     resetDeps: [inventoryBranchFilter, filteredInventoryItems.length],
   });
 
   const servicesPagination = usePagination({
     items: sortedServiceCards,
-    pageSize: 10,
+    pageSize: 5,
     resetDeps: [topServiceCards.length],
   });
 
   const appointmentsPagination = usePagination({
     items: appointments,
-    pageSize: 10,
+    pageSize: 5,
     resetDeps: [appointments.length],
   });
 
@@ -395,7 +396,7 @@ export default function AdminDashboard() {
       title: "Total Revenue",
       value: stats ? `₱${Number(stats.total_revenue).toLocaleString()}` : null,
       icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
@@ -408,7 +409,7 @@ export default function AdminDashboard() {
       title: "Total Customers",
       value: stats ? Number(stats.total_customers).toLocaleString() : null,
       icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       ),
@@ -420,7 +421,7 @@ export default function AdminDashboard() {
       title: "Services Completed",
       value: stats ? Number(stats.services_completed).toLocaleString() : null,
       icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
@@ -433,7 +434,7 @@ export default function AdminDashboard() {
       title: "Avg. Satisfaction",
       value: stats ? `${(((stats.avg_satisfaction ?? 0) / 5) * 100).toFixed(1)}%` : null,
       icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
@@ -460,7 +461,7 @@ export default function AdminDashboard() {
   const doughnutChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    cutout: "72%",
+    cutout: "70%",
     plugins: { legend: { display: false }, tooltip: CHART_BASE.tooltip },
   };
 
@@ -485,8 +486,8 @@ export default function AdminDashboard() {
         backgroundColor: "rgba(239,68,68,0.08)",
         tension: 0.4,
         fill: true,
-        pointRadius: 3,
-        pointHoverRadius: 6,
+        pointRadius: 2,
+        pointHoverRadius: 5,
       },
       {
         label: "Services",
@@ -495,8 +496,8 @@ export default function AdminDashboard() {
         backgroundColor: "rgba(168,85,247,0.08)",
         tension: 0.4,
         fill: true,
-        pointRadius: 3,
-        pointHoverRadius: 6,
+        pointRadius: 2,
+        pointHoverRadius: 5,
       },
     ],
   };
@@ -509,12 +510,12 @@ export default function AdminDashboard() {
       legend: {
         display: true,
         position: "bottom",
-        labels: { color: "#9ca3af", usePointStyle: true, padding: 20, font: { size: 12 } },
+        labels: { color: "#9ca3af", usePointStyle: true, padding: 10, font: { size: 10 } },
       },
       tooltip: CHART_BASE.tooltip,
     },
     scales: {
-      x: { grid: CHART_BASE.grid, ticks: CHART_BASE.ticks },
+      x: { grid: CHART_BASE.grid, ticks: { ...CHART_BASE.ticks, maxRotation: 45, minRotation: 45 } },
       y: {
         beginAtZero: true,
         grid: CHART_BASE.grid,
@@ -542,12 +543,12 @@ export default function AdminDashboard() {
       legend: {
         display: true,
         position: "bottom",
-        labels: { color: "#9ca3af", usePointStyle: true, padding: 20, font: { size: 12 } },
+        labels: { color: "#9ca3af", usePointStyle: true, padding: 10, font: { size: 10 } },
       },
       tooltip: CHART_BASE.tooltip,
     },
     scales: {
-      x: { grid: CHART_BASE.grid, ticks: CHART_BASE.ticks },
+      x: { grid: CHART_BASE.grid, ticks: { ...CHART_BASE.ticks, maxRotation: 45, minRotation: 45 } },
       y: {
         beginAtZero: true,
         grid: CHART_BASE.grid,
@@ -557,13 +558,13 @@ export default function AdminDashboard() {
   };
 
   const customerBarData = {
-    labels: customers.map((c) => (c.first_name || "N/A").split(" ")[0]),
+    labels: customers.slice(0, 5).map((c) => (c.first_name || "N/A").split(" ")[0]),
     datasets: [
       {
         label: "Total Spent (₱)",
-        data: customers.map((c) => Number(c.total_spent ?? 0)),
+        data: customers.slice(0, 5).map((c) => Number(c.total_spent ?? 0)),
         backgroundColor: ["#a855f7", "#7c3aed", "#6d28d9", "#8b5cf6", "#c4b5fd"],
-        borderRadius: 8,
+        borderRadius: 6,
       },
     ],
   };
@@ -768,38 +769,53 @@ export default function AdminDashboard() {
             height: auto !important;
           }
         }
+        
+        /* Mobile responsive table overrides */
+        @media (max-width: 640px) {
+          .mobile-table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          
+          .mobile-card-view {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+        }
       `}</style>
       <div
         id="admin-dashboard-print"
-        className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 print:bg-white print:p-4"
+        className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-3 sm:p-8 print:bg-white print:p-4"
       >
         <div>
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tight print:text-black">
+            <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight print:text-black">
               Admin Dashboard
             </h1>
-            <p className="text-gray-400 mt-1 print:text-gray-600">
+            <p className="text-gray-400 text-xs sm:text-sm mt-0.5 print:text-gray-600">
               Welcome back — here's what's happening today.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 print:hidden sm:mt-14">
+          <div className="flex items-center gap-1.5 sm:gap-2 print:hidden">
+            <NotificationDropdown />
             <button
               onClick={handlePrintDashboard}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-sm font-semibold"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
               Print
             </button>
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-sm font-semibold"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Export CSV
@@ -816,72 +832,72 @@ export default function AdminDashboard() {
             VIEW: OVERVIEW
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "overview" && (
-        <section id="admin-overview" className="scroll-mt-24 mb-10">
-          <div className="mb-4">
-            <h2 className="text-xl font-black text-white">Overview</h2>
-            <p className="text-gray-500 text-sm mt-0.5">Snapshot of daily operations</p>
+        <section id="admin-overview" className="scroll-mt-20 sm:scroll-mt-24 mb-6 sm:mb-10">
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-xl font-black text-white">Overview</h2>
+            <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Snapshot of daily operations</p>
           </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {loading
                 ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
                 : statCards.map((card, i) => <StatCard key={i} {...card} />)}
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
               {/* Line Chart */}
-              <div className="xl:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                <div className="flex items-center justify-between mb-6">
+              <div className="xl:col-span-2 bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-3 sm:mb-6">
                   <div>
-                    <h3 className="text-lg font-black text-white">Revenue & Services Trend</h3>
-                    <p className="text-gray-500 text-sm mt-0.5">{chartSubtitle} · includes walk-ins</p>
+                    <h3 className="text-sm sm:text-lg font-black text-white">Revenue & Services Trend</h3>
+                    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">{chartSubtitle} · includes walk-ins</p>
                   </div>
                 </div>
                 {loading ? (
-                  <div className="h-64 sm:h-72 flex items-center justify-center">
-                    <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="h-40 sm:h-64 flex items-center justify-center">
+                    <div className="w-5 h-5 sm:w-8 sm:h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : !chart?.labels?.length ? (
-                  <div className="h-64 sm:h-72 flex items-center justify-center text-gray-600 text-sm">
+                  <div className="h-40 sm:h-64 flex items-center justify-center text-gray-600 text-xs sm:text-sm">
                     No booking data available for {currentYear} yet.
                   </div>
                 ) : (
-                  <div className="h-64 sm:h-72">
+                  <div className="h-40 sm:h-64">
                     <Line data={lineChartData} options={lineChartOptions} />
                   </div>
                 )}
               </div>
 
               {/* Doughnut */}
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                <div className="mb-6">
-                  <h3 className="text-lg font-black text-white">Service Distribution</h3>
-                  <p className="text-gray-500 text-sm mt-0.5">By category this month</p>
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <div className="mb-3 sm:mb-6">
+                  <h3 className="text-sm sm:text-lg font-black text-white">Service Distribution</h3>
+                  <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">By category this month</p>
                 </div>
-                <div className="h-44 flex items-center justify-center mb-6">
+                <div className="h-32 sm:h-44 flex items-center justify-center mb-3 sm:mb-6">
                   {!serviceDistribution.length ? (
-                    <div className="text-gray-600 text-sm text-center">
+                    <div className="text-gray-600 text-xs sm:text-sm text-center">
                       No service distribution data this month.
                     </div>
                   ) : (
                     <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
                   )}
                 </div>
-                <div className="space-y-3">
-                  {serviceBreakdown.map((item) => (
-                    <div key={item.label} className="flex items-center gap-3">
+                <div className="space-y-1.5 sm:space-y-3">
+                  {serviceBreakdown.slice(0, 4).map((item) => (
+                    <div key={item.label} className="flex items-center gap-1.5 sm:gap-3">
                       <div
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        className="w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: item.color }}
                       />
-                      <span className="text-sm text-gray-400 flex-1">{item.label}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                      <span className="text-[10px] sm:text-sm text-gray-400 flex-1 truncate">{item.label}</span>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="w-10 sm:w-16 h-1 sm:h-1.5 bg-gray-800 rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full"
                             style={{ width: item.pct, backgroundColor: item.color }}
                           />
                         </div>
-                        <span className="text-xs font-bold text-white w-8 text-right">
+                        <span className="text-[10px] sm:text-xs font-bold text-white w-5 sm:w-8 text-right">
                           {item.pct}
                         </span>
                       </div>
@@ -891,75 +907,129 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Transactions Table */}
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+            {/* Transactions Table - Mobile Responsive */}
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
                 <div>
-                  <h3 className="text-lg font-black text-white">Recent Transactions</h3>
-                  <p className="text-gray-500 text-sm mt-0.5">Latest paid activity (appointments + walk-ins)</p>
+                  <h3 className="text-sm sm:text-lg font-black text-white">Recent Transactions</h3>
+                  <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Latest paid activity (appointments + walk-ins)</p>
                 </div>
-                <button className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors">
-                  View all →
-                </button>
               </div>
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
-                <div className="col-span-4">Customer</div>
-                <div className="col-span-3">Service</div>
-                <div className="col-span-2">Amount</div>
-                <div className="col-span-2">Status</div>
-                <div className="col-span-1 text-right">Actions</div>
-              </div>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
-              ) : transactions.length === 0 ? (
-                <div className="px-6 py-12 flex flex-col items-center gap-3 text-center">
-                  <svg className="w-10 h-10 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <p className="text-gray-500 text-sm">No transactions found.</p>
-                </div>
-              ) : (
-                transactionsPagination.paginatedItems.map((row, i) => {
-                  const statusKey = normalizeStatus(row.status);
-                  return (
-                    <div
-                      key={i}
-                      className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
-                    >
-                      <div className="col-span-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center text-sm font-bold shrink-0">
-                            {getInitial(row.customer_name)}
-                          </div>
-                          <span className="text-white font-semibold text-sm">
-                            {row.customer_name}
-                          </span>
-                        </div>
+              
+              {/* Mobile view - card layout */}
+              <div className="block sm:hidden">
+                {loading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="p-3 border-b border-white/5 animate-pulse">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="w-16 h-4 bg-gray-800 rounded"></div>
+                        <div className="w-12 h-6 bg-gray-800 rounded-full"></div>
                       </div>
-                      <div className="col-span-3 text-gray-400 text-sm">{row.service}</div>
-                      <div className="col-span-2 text-white font-bold text-sm">
-                        ₱{Number(row.amount).toLocaleString()}
-                      </div>
-                      <div className="col-span-2">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
-                        >
-                          {STATUS_LABEL[statusKey] ?? row.status}
-                        </span>
-                      </div>
-                      <div className="col-span-1 flex justify-end">
-                        <button className="opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
-                        </button>
+                      <div className="space-y-1.5">
+                        <div className="h-3 bg-gray-800 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-800 rounded w-1/2"></div>
                       </div>
                     </div>
-                  );
-                })
-              )}
-              <div className="px-6 py-4">
-                <p className="text-gray-500 text-sm">
+                  ))
+                ) : transactions.length === 0 ? (
+                  <div className="px-3 py-6 flex flex-col items-center gap-2 text-center">
+                    <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-gray-500 text-xs">No transactions found.</p>
+                  </div>
+                ) : (
+                  transactionsPagination.paginatedItems.map((row, i) => {
+                    const statusKey = normalizeStatus(row.status);
+                    return (
+                      <div key={i} className="p-3 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                        <div className="flex justify-between items-start mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center text-xs font-bold">
+                              {getInitial(row.customer_name)}
+                            </div>
+                            <span className="text-white font-semibold text-xs">{row.customer_name}</span>
+                          </div>
+                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
+                            {STATUS_LABEL[statusKey] ?? row.status}
+                          </span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="text-gray-400 text-xs">{row.service}</div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white font-bold text-xs">₱{Number(row.amount).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Desktop view - table layout */}
+              <div className="hidden sm:block overflow-x-auto">
+                <div className="min-w-[640px]">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                    <div className="col-span-4">Customer</div>
+                    <div className="col-span-3">Service</div>
+                    <div className="col-span-2">Amount</div>
+                    <div className="col-span-2">Status</div>
+                    <div className="col-span-1 text-right">Actions</div>
+                  </div>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+                  ) : transactions.length === 0 ? (
+                    <div className="px-6 py-12 flex flex-col items-center gap-3 text-center">
+                      <svg className="w-10 h-10 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <p className="text-gray-500 text-sm">No transactions found.</p>
+                    </div>
+                  ) : (
+                    transactionsPagination.paginatedItems.map((row, i) => {
+                      const statusKey = normalizeStatus(row.status);
+                      return (
+                        <div
+                          key={i}
+                          className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+                        >
+                          <div className="col-span-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center text-sm font-bold shrink-0">
+                                {getInitial(row.customer_name)}
+                              </div>
+                              <span className="text-white font-semibold text-sm">
+                                {row.customer_name}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="col-span-3 text-gray-400 text-sm truncate">{row.service}</div>
+                          <div className="col-span-2 text-white font-bold text-sm">
+                            ₱{Number(row.amount).toLocaleString()}
+                          </div>
+                          <div className="col-span-2">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+                            >
+                              {STATUS_LABEL[statusKey] ?? row.status}
+                            </span>
+                          </div>
+                          <div className="col-span-1 flex justify-end">
+                            <button className="opacity-100 p-1 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+              
+              <div className="px-3 sm:px-6 py-2 sm:py-4">
+                <p className="text-gray-500 text-[10px] sm:text-sm">
                   Showing{" "}
                   <span className="text-white font-semibold">
                     {loading ? "—" : `${transactionsPagination.startItem}-${transactionsPagination.endItem}`}
@@ -977,7 +1047,7 @@ export default function AdminDashboard() {
                   current={transactionsPagination.currentPage}
                   total={transactionsPagination.totalPages}
                   onChange={transactionsPagination.setCurrentPage}
-                  className="px-6 pb-6"
+                  className="px-3 sm:px-6 pb-3 sm:pb-6"
                 />
               )}
             </div>
@@ -985,15 +1055,15 @@ export default function AdminDashboard() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            VIEW: REVENUE
+            VIEW: REVENUE - Mobile responsive version
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "revenue" && (
-        <section id="admin-revenue" className="scroll-mt-24 mb-10">
-          <div className="mb-4">
-            <h2 className="text-xl font-black text-white">Revenue</h2>
-            <p className="text-gray-500 text-sm mt-0.5">Income performance across branches</p>
+        <section id="admin-revenue" className="scroll-mt-20 sm:scroll-mt-24 mb-6 sm:mb-10">
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-xl font-black text-white">Revenue</h2>
+            <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Income performance across branches</p>
           </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
                 {
                   title: "Total Revenue (Q1)",
@@ -1003,7 +1073,7 @@ export default function AdminDashboard() {
                   border: "border-red-500/20",
                   sub: "Appointments + walk-ins",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   ),
@@ -1015,7 +1085,7 @@ export default function AdminDashboard() {
                   accentText: "text-gray-400",
                   border: "border-gray-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
                     </svg>
                   ),
@@ -1028,7 +1098,7 @@ export default function AdminDashboard() {
                   border: "border-emerald-500/20",
                   sub: analytics?.payment_rate != null ? `Paid rate: ${Number(analytics.payment_rate).toFixed(1)}%` : undefined,
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
                   ),
@@ -1038,55 +1108,73 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm mb-6">
-              <h3 className="text-lg font-black text-white mb-1">Revenue by Branch</h3>
-              <p className="text-gray-500 text-sm mb-6">Live totals from appointments and paid walk-ins</p>
-              <div className="h-72">
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm mb-4 sm:mb-6">
+              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Revenue by Branch</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Live totals from appointments and paid walk-ins</p>
+              <div className="h-40 sm:h-72">
                 <Bar data={revenueBarData} options={revenueBarOptions} />
               </div>
             </div>
 
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="px-6 py-4 border-b border-white/5">
-                <h3 className="text-lg font-black text-white">Branch Revenue Detail</h3>
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
+                <h3 className="text-sm sm:text-lg font-black text-white">Branch Revenue Detail</h3>
               </div>
-              <div className="grid grid-cols-2 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+              <div className="hidden sm:grid sm:grid-cols-2 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
                 <div>Branch</div>
                 <div>Revenue</div>
               </div>
-              {revenueBranchPagination.paginatedItems.map((row, idx) => (
-                <div
-                  key={`${row.branch}-${idx}`}
-                  className="grid grid-cols-2 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
-                >
-                  <div className="text-white font-semibold">{row.branch}</div>
-                  <div className="text-red-400 font-bold">
-                    ₱{Number(row.revenue ?? 0).toLocaleString()}
+              
+              {/* Mobile card view */}
+              <div className="block sm:hidden">
+                {revenueBranchPagination.paginatedItems.map((row, idx) => (
+                  <div key={`${row.branch}-${idx}`} className="p-3 border-b border-white/5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white font-semibold text-xs">{row.branch}</span>
+                      <span className="text-red-400 font-bold text-xs">
+                        ₱{Number(row.revenue ?? 0).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              
+              {/* Desktop grid view */}
+              <div className="hidden sm:block">
+                {revenueBranchPagination.paginatedItems.map((row, idx) => (
+                  <div
+                    key={`${row.branch}-${idx}`}
+                    className="grid grid-cols-2 gap-4 px-6 py-3 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                  >
+                    <div className="text-white font-semibold text-sm">{row.branch}</div>
+                    <div className="text-red-400 font-bold text-sm">
+                      ₱{Number(row.revenue ?? 0).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <Pagination
                 current={revenueBranchPagination.currentPage}
                 total={revenueBranchPagination.totalPages}
                 onChange={revenueBranchPagination.setCurrentPage}
-                className="px-6 py-4"
+                className="px-3 sm:px-6 py-2 sm:py-4"
               />
             </div>
         </section>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            VIEW: APPOINTMENT
+            VIEW: APPOINTMENT - Mobile responsive version
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "appointment" && (
-        <section id="admin-appointment" className="scroll-mt-24 mb-10">
-          <div className="mb-4">
-            <h2 className="text-xl font-black text-white">Appointment</h2>
-            <p className="text-gray-500 text-sm mt-0.5">Track and review all service bookings</p>
+        <section id="admin-appointment" className="scroll-mt-20 sm:scroll-mt-24 mb-6 sm:mb-10">
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-xl font-black text-white">Appointment</h2>
+            <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Track and review all service bookings</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
             {[
               {
                 title: "Total Appointments",
@@ -1095,7 +1183,7 @@ export default function AdminDashboard() {
                 accentText: "text-blue-400",
                 border: "border-blue-500/20",
                 icon: (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 ),
@@ -1107,7 +1195,7 @@ export default function AdminDashboard() {
                 accentText: "text-emerald-400",
                 border: "border-emerald-500/20",
                 icon: (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 ),
@@ -1119,7 +1207,7 @@ export default function AdminDashboard() {
                 accentText: "text-amber-400",
                 border: "border-amber-500/20",
                 icon: (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 ),
@@ -1131,7 +1219,7 @@ export default function AdminDashboard() {
                 accentText: "text-red-400",
                 border: "border-red-500/20",
                 icon: (
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 ),
@@ -1141,63 +1229,99 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-            <div className="px-6 py-4 border-b border-white/5">
-              <h3 className="text-lg font-black text-white">Appointment List</h3>
-              <p className="text-gray-500 text-sm mt-0.5">All scheduled appointment records</p>
+          <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
+            <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
+              <h3 className="text-sm sm:text-lg font-black text-white">Appointment List</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">All scheduled appointment records</p>
             </div>
-            <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
-              <div className="col-span-2">Date</div>
-              <div className="col-span-1">Time</div>
-              <div className="col-span-2">Customer</div>
-              <div className="col-span-3">Service</div>
-              <div className="col-span-2">Branch</div>
-              <div className="col-span-2">Status</div>
+            
+            {/* Mobile card view */}
+            <div className="block sm:hidden">
+              {appointmentsPagination.paginatedItems.length === 0 ? (
+                <div className="px-3 py-6 text-center text-gray-500 text-xs">
+                  No appointment data available.
+                </div>
+              ) : (
+                appointmentsPagination.paginatedItems.map((apt, i) => {
+                  const statusKey = normalizeStatus(apt.status);
+                  return (
+                    <div key={apt.id ?? `${apt.customer_name ?? "apt"}-${apt.date ?? "date"}-${i}`} className="p-3 border-b border-white/5">
+                      <div className="flex justify-between items-start mb-1.5">
+                        <div>
+                          <div className="text-white font-semibold text-xs">{apt.customer_name ?? "—"}</div>
+                          <div className="text-gray-400 text-[10px]">{apt.date ?? "—"} • {apt.time ? String(apt.time).slice(0, 5) : "—"}</div>
+                        </div>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
+                          {STATUS_LABEL[statusKey] ?? apt.status ?? "—"}
+                        </span>
+                      </div>
+                      <div className="mt-1.5">
+                        <div className="text-gray-300 text-xs">{apt.service ?? "—"}</div>
+                        <div className="text-gray-500 text-[10px] mt-0.5">{apt.branch_name ?? "—"}</div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            {appointmentsPagination.paginatedItems.length === 0 ? (
-              <div className="px-6 py-12 text-center text-gray-500 text-sm">
-                No appointment data available.
-              </div>
-            ) : (
-              appointmentsPagination.paginatedItems.map((apt, i) => {
-                const statusKey = normalizeStatus(apt.status);
-                return (
-                  <div
-                    key={apt.id ?? `${apt.customer_name ?? "apt"}-${apt.date ?? "date"}-${i}`}
-                    className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
-                  >
-                    <div className="col-span-2 text-white font-semibold text-sm">
-                      {apt.date ?? "—"}
-                    </div>
-                    <div className="col-span-1 text-gray-400 text-sm">
-                      {apt.time ? String(apt.time).slice(0, 5) : "—"}
-                    </div>
-                    <div className="col-span-2 text-gray-300 text-sm">
-                      {apt.customer_name ?? "—"}
-                    </div>
-                    <div className="col-span-3 text-gray-300 text-sm">
-                      {apt.service ?? "—"}
-                    </div>
-                    <div className="col-span-2 text-gray-500 text-sm">
-                      {apt.branch_name ?? "—"}
-                    </div>
-                    <div className="col-span-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
-                        {STATUS_LABEL[statusKey] ?? apt.status ?? "—"}
-                      </span>
-                    </div>
+            {/* Desktop table view */}
+            <div className="hidden sm:block overflow-x-auto">
+              <div className="min-w-[768px]">
+                <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                  <div className="col-span-2">Date</div>
+                  <div className="col-span-1">Time</div>
+                  <div className="col-span-2">Customer</div>
+                  <div className="col-span-3">Service</div>
+                  <div className="col-span-2">Branch</div>
+                  <div className="col-span-2">Status</div>
+                </div>
+
+                {appointmentsPagination.paginatedItems.length === 0 ? (
+                  <div className="px-6 py-12 text-center text-gray-500 text-sm">
+                    No appointment data available.
                   </div>
-                );
-              })
-            )}
+                ) : (
+                  appointmentsPagination.paginatedItems.map((apt, i) => {
+                    const statusKey = normalizeStatus(apt.status);
+                    return (
+                      <div
+                        key={apt.id ?? `${apt.customer_name ?? "apt"}-${apt.date ?? "date"}-${i}`}
+                        className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                      >
+                        <div className="col-span-2 text-white font-semibold text-sm">
+                          {apt.date ?? "—"}
+                        </div>
+                        <div className="col-span-1 text-gray-400 text-sm">
+                          {apt.time ? String(apt.time).slice(0, 5) : "—"}
+                        </div>
+                        <div className="col-span-2 text-gray-300 text-sm truncate">
+                          {apt.customer_name ?? "—"}
+                        </div>
+                        <div className="col-span-3 text-gray-300 text-sm truncate">
+                          {apt.service ?? "—"}
+                        </div>
+                        <div className="col-span-2 text-gray-500 text-sm truncate">
+                          {apt.branch_name ?? "—"}
+                        </div>
+                        <div className="col-span-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
+                            {STATUS_LABEL[statusKey] ?? apt.status ?? "—"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
 
             {appointmentsPagination.totalPages > 1 && (
               <Pagination
                 current={appointmentsPagination.currentPage}
                 total={appointmentsPagination.totalPages}
                 onChange={appointmentsPagination.setCurrentPage}
-                className="px-6 py-4"
+                className="px-3 sm:px-6 py-2 sm:py-4"
               />
             )}
           </div>
@@ -1205,15 +1329,15 @@ export default function AdminDashboard() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            VIEW: CUSTOMERS
+            VIEW: CUSTOMERS - Mobile responsive version
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "customers" && (
-        <section id="admin-customers" className="scroll-mt-24 mb-10">
-          <div className="mb-4">
-            <h2 className="text-xl font-black text-white">Customers</h2>
-            <p className="text-gray-500 text-sm mt-0.5">Customer growth, value, and segments</p>
+        <section id="admin-customers" className="scroll-mt-20 sm:scroll-mt-24 mb-6 sm:mb-10">
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-xl font-black text-white">Customers</h2>
+            <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Customer growth, value, and segments</p>
           </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
                 {
                   title: "Total Customers",
@@ -1222,7 +1346,7 @@ export default function AdminDashboard() {
                   accentText: "text-purple-400",
                   border: "border-purple-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   ),
@@ -1234,7 +1358,7 @@ export default function AdminDashboard() {
                   accentText: "text-blue-400",
                   border: "border-blue-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   ),
@@ -1247,7 +1371,7 @@ export default function AdminDashboard() {
                   accentText: "text-yellow-400",
                   border: "border-yellow-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                     </svg>
                   ),
@@ -1257,23 +1381,23 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                <h3 className="text-lg font-black text-white mb-1">Customer Spend</h3>
-                <p className="text-gray-500 text-sm mb-6">Top customers by total spending</p>
-                <div className="h-56">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-4 sm:mb-6">
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Customer Spend</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Top customers by total spending</p>
+                <div className="h-32 sm:h-56">
                   <Bar data={customerBarData} options={customerBarOptions} />
                 </div>
               </div>
 
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                <h3 className="text-lg font-black text-white mb-1">Tier Distribution</h3>
-                <p className="text-gray-500 text-sm mb-6">Customer loyalty tiers</p>
-                <div className="space-y-4 mt-4">
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Tier Distribution</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Customer loyalty tiers</p>
+                <div className="space-y-2 sm:space-y-4 mt-1 sm:mt-4">
                   {tierRows.map((t) => (
-                    <div key={t.tier} className="flex items-center gap-4">
-                      <span className="text-sm text-gray-400 w-20">{t.tier}</span>
-                      <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                    <div key={t.tier} className="flex items-center gap-1.5 sm:gap-4">
+                      <span className="text-[10px] sm:text-sm text-gray-400 w-14 sm:w-20">{t.tier}</span>
+                      <div className="flex-1 h-1 sm:h-2 bg-gray-800 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{
@@ -1282,7 +1406,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </div>
-                      <span className="text-sm font-bold text-white w-6 text-right">
+                      <span className="text-[10px] sm:text-sm font-bold text-white w-5 text-right">
                         {t.count}
                       </span>
                     </div>
@@ -1291,68 +1415,105 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="px-6 py-4 border-b border-white/5">
-                <h3 className="text-lg font-black text-white">Customer List</h3>
-                <p className="text-gray-500 text-sm mt-0.5">All registered customers</p>
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
+                <h3 className="text-sm sm:text-lg font-black text-white">Customer List</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">All registered customers</p>
               </div>
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
-                <div className="col-span-4">Name</div>
-                <div className="col-span-2">Visits</div>
-                <div className="col-span-3">Total Spent</div>
-                <div className="col-span-2">Avg Rating</div>
-                <div className="col-span-1">Segment</div>
-              </div>
-              {customersPagination.paginatedItems.map((c, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
-                >
-                  <div className="col-span-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-sm font-bold shrink-0">
-                      {getInitial(c.first_name)}
+              
+              {/* Mobile card view */}
+              <div className="block sm:hidden">
+                {customersPagination.paginatedItems.map((c, i) => (
+                  <div key={i} className="p-3 border-b border-white/5">
+                    <div className="flex justify-between items-start mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-6 h-6 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-xs font-bold">
+                          {getInitial(c.first_name)}
+                        </div>
+                        <span className="text-white font-semibold text-xs">
+                          {`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim()}
+                        </span>
+                      </div>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${SEGMENT_STYLE[c.segment] ?? SEGMENT_STYLE.New}`}>
+                        {c.segment ?? "New"}
+                      </span>
                     </div>
-                    <span className="text-white font-semibold text-sm">
-                      {`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim()}
-                    </span>
+                    <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                      <div>
+                        <div className="text-gray-500 text-[10px]">Visits</div>
+                        <div className="text-gray-400 text-xs font-semibold">{Number(c.visits ?? 0)}x</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500 text-[10px]">Total Spent</div>
+                        <div className="text-white font-bold text-xs">₱{Number(c.total_spent ?? 0).toLocaleString()}</div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="col-span-2 text-gray-400 text-sm font-semibold">
-                    {Number(c.visits ?? 0)}x
+                ))}
+              </div>
+              
+              {/* Desktop table view */}
+              <div className="hidden sm:block overflow-x-auto">
+                <div className="min-w-[768px]">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                    <div className="col-span-4">Name</div>
+                    <div className="col-span-2">Visits</div>
+                    <div className="col-span-3">Total Spent</div>
+                    <div className="col-span-2">Avg Rating</div>
+                    <div className="col-span-1">Segment</div>
                   </div>
-                  <div className="col-span-3 text-white font-bold text-sm">
-                    ₱{Number(c.total_spent ?? 0).toLocaleString()}
-                  </div>
-                  <div className="col-span-2 text-gray-500 text-xs">
-                    {c.avg_rating != null ? `${Number(c.avg_rating).toFixed(1)} / 5` : "—"}
-                  </div>
-                  <div className="col-span-1">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${SEGMENT_STYLE[c.segment] ?? SEGMENT_STYLE.New}`}>
-                      {c.segment ?? "New"}
-                    </span>
-                  </div>
+                  {customersPagination.paginatedItems.map((c, i) => (
+                    <div
+                      key={i}
+                      className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                    >
+                      <div className="col-span-4 flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-xs font-bold shrink-0">
+                          {getInitial(c.first_name)}
+                        </div>
+                        <span className="text-white font-semibold text-sm truncate">
+                          {`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim()}
+                        </span>
+                      </div>
+                      <div className="col-span-2 text-gray-400 text-sm font-semibold">
+                        {Number(c.visits ?? 0)}x
+                      </div>
+                      <div className="col-span-3 text-white font-bold text-sm">
+                        ₱{Number(c.total_spent ?? 0).toLocaleString()}
+                      </div>
+                      <div className="col-span-2 text-gray-500 text-xs">
+                        {c.avg_rating != null ? `${Number(c.avg_rating).toFixed(1)} / 5` : "—"}
+                      </div>
+                      <div className="col-span-1">
+                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold border ${SEGMENT_STYLE[c.segment] ?? SEGMENT_STYLE.New}`}>
+                          {c.segment ?? "New"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
 
               <Pagination
                 current={customersPagination.currentPage}
                 total={customersPagination.totalPages}
                 onChange={customersPagination.setCurrentPage}
-                className="px-6 py-4"
+                className="px-3 sm:px-6 py-2 sm:py-4"
               />
             </div>
         </section>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            VIEW: INVENTORY
+            VIEW: INVENTORY - Mobile responsive version
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "inventory" && (
-        <section id="admin-inventory" className="scroll-mt-24 mb-10">
-          <div className="mb-4">
-            <h2 className="text-xl font-black text-white">Inventory</h2>
-            <p className="text-gray-500 text-sm mt-0.5">Stock status and branch-level supplies</p>
+        <section id="admin-inventory" className="scroll-mt-20 sm:scroll-mt-24 mb-6 sm:mb-10">
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-xl font-black text-white">Inventory</h2>
+            <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Stock status and branch-level supplies</p>
           </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
                 {
                   title: "Total SKUs",
@@ -1361,7 +1522,7 @@ export default function AdminDashboard() {
                   accentText: "text-blue-400",
                   border: "border-blue-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                   ),
@@ -1373,7 +1534,7 @@ export default function AdminDashboard() {
                   accentText: "text-amber-400",
                   border: "border-amber-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                     </svg>
                   ),
@@ -1386,7 +1547,7 @@ export default function AdminDashboard() {
                   accentText: "text-red-400",
                   border: "border-red-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   ),
@@ -1396,17 +1557,17 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="px-6 py-4 border-b border-white/5">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
-                    <h3 className="text-lg font-black text-white">Parts & Supplies Inventory</h3>
-                    <p className="text-gray-500 text-sm mt-0.5">Current stock levels</p>
+                    <h3 className="text-sm sm:text-lg font-black text-white">Parts & Supplies Inventory</h3>
+                    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Current stock levels</p>
                   </div>
                   <select
                     value={inventoryBranchFilter}
                     onChange={(e) => setInventoryBranchFilter(e.target.value)}
-                    className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[180px]"
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 sm:px-4 py-1.5 sm:py-2 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer text-xs sm:text-sm w-full sm:w-auto"
                   >
                     {inventoryBranchOptions.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
@@ -1414,66 +1575,112 @@ export default function AdminDashboard() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
-                <div className="col-span-4">Item</div>
-                <div className="col-span-2">Branch</div>
-                <div className="col-span-2">Stock</div>
-                <div className="col-span-2">Reorder At</div>
-                <div className="col-span-2">Status</div>
+              
+              {/* Mobile card view */}
+              <div className="block sm:hidden">
+                {inventoryPagination.paginatedItems.map((item, i) => {
+                  const invStatus = normalizeInventoryStatus(item.status);
+                  return (
+                    <div key={i} className="p-3 border-b border-white/5">
+                      <div className="flex justify-between items-start mb-1.5">
+                        <div>
+                          <div className="text-white font-semibold text-xs">{item.name}</div>
+                          <div className="text-gray-400 text-[10px]">{item.branch_name ?? "Central"}</div>
+                        </div>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${INV_STYLE[invStatus]}`}>
+                          {invStatus === "ok"
+                            ? "Available"
+                            : invStatus === "low"
+                              ? "Low"
+                              : invStatus === "critical"
+                                ? "Critical"
+                                : "Out"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                        <div>
+                          <div className="text-gray-500 text-[10px]">Stock</div>
+                          <div className="text-gray-300 text-xs font-bold">
+                            {Number(item.quantity ?? 0)} <span className="text-gray-600 font-normal text-[10px]">{item.unit}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500 text-[10px]">Reorder At</div>
+                          <div className="text-gray-500 text-xs">
+                            {Number(item.minimum_qty ?? 0)} {item.unit}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              {inventoryPagination.paginatedItems.map((item, i) => {
-                const invStatus = normalizeInventoryStatus(item.status);
-                return (
-                  <div
-                    key={i}
-                    className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
-                  >
-                    <div className="col-span-4 text-white font-semibold text-sm">{item.name}</div>
-                    <div className="col-span-2 text-gray-400 text-sm">
-                      {item.branch_name ?? "Central"}
-                    </div>
-                    <div className="col-span-2 text-gray-300 text-sm font-bold">
-                      {Number(item.quantity ?? 0)}{" "}
-                      <span className="text-gray-600 font-normal">{item.unit}</span>
-                    </div>
-                    <div className="col-span-2 text-gray-500 text-sm">
-                      {Number(item.minimum_qty ?? 0)} {item.unit}
-                    </div>
-                    <div className="col-span-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${INV_STYLE[invStatus]}`}>
-                        {invStatus === "ok"
-                          ? "Available 🟢"
-                          : invStatus === "low"
-                            ? "Running Low 🟡"
-                            : invStatus === "critical"
-                              ? "Reorder Now 🔴"
-                              : "Out of Stock ⚫"}
-                      </span>
-                    </div>
+              
+              {/* Desktop table view */}
+              <div className="hidden sm:block overflow-x-auto">
+                <div className="min-w-[768px]">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                    <div className="col-span-4">Item</div>
+                    <div className="col-span-2">Branch</div>
+                    <div className="col-span-2">Stock</div>
+                    <div className="col-span-2">Reorder At</div>
+                    <div className="col-span-2">Status</div>
                   </div>
-                );
-              })}
+                  {inventoryPagination.paginatedItems.map((item, i) => {
+                    const invStatus = normalizeInventoryStatus(item.status);
+                    return (
+                      <div
+                        key={i}
+                        className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                      >
+                        <div className="col-span-4 text-white font-semibold text-sm truncate">{item.name}</div>
+                        <div className="col-span-2 text-gray-400 text-sm truncate">
+                          {item.branch_name ?? "Central"}
+                        </div>
+                        <div className="col-span-2 text-gray-300 text-sm font-bold">
+                          {Number(item.quantity ?? 0)}{" "}
+                          <span className="text-gray-600 font-normal">{item.unit}</span>
+                        </div>
+                        <div className="col-span-2 text-gray-500 text-sm">
+                          {Number(item.minimum_qty ?? 0)} {item.unit}
+                        </div>
+                        <div className="col-span-2">
+                          <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold border ${INV_STYLE[invStatus]}`}>
+                            {invStatus === "ok"
+                              ? "Available"
+                              : invStatus === "low"
+                                ? "Low"
+                                : invStatus === "critical"
+                                  ? "Critical"
+                                  : "Out"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
               <Pagination
                 current={inventoryPagination.currentPage}
                 total={inventoryPagination.totalPages}
                 onChange={inventoryPagination.setCurrentPage}
-                className="px-6 py-4"
+                className="px-3 sm:px-6 py-2 sm:py-4"
               />
             </div>
         </section>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            VIEW: SERVICES
+            VIEW: SERVICES - Mobile responsive version
         ══════════════════════════════════════════════════════════════════ */}
         {activeView === "services" && (
-        <section id="admin-services" className="scroll-mt-24">
-          <div className="mb-4">
-            <h2 className="text-xl font-black text-white">Services</h2>
-            <p className="text-gray-500 text-sm mt-0.5">Service rankings and contribution</p>
+        <section id="admin-services" className="scroll-mt-20 sm:scroll-mt-24">
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-xl font-black text-white">Services</h2>
+            <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Service rankings and contribution</p>
           </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
                 {
                   title: "Total Services",
@@ -1482,7 +1689,7 @@ export default function AdminDashboard() {
                   accentText: "text-blue-400",
                   border: "border-blue-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
@@ -1496,7 +1703,7 @@ export default function AdminDashboard() {
                   accentText: "text-red-400",
                   border: "border-red-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                     </svg>
                   ),
@@ -1508,7 +1715,7 @@ export default function AdminDashboard() {
                   accentText: "text-emerald-400",
                   border: "border-emerald-500/20",
                   icon: (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   ),
@@ -1518,62 +1725,108 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="px-6 py-4 border-b border-white/5">
-                <h3 className="text-lg font-black text-white">Service Performance</h3>
-                <p className="text-gray-500 text-sm mt-0.5">All service types ranked by revenue</p>
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
+                <h3 className="text-sm sm:text-lg font-black text-white">Service Performance</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">All service types ranked by revenue</p>
               </div>
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
-                <div className="col-span-4">Service</div>
-                <div className="col-span-2">Count</div>
-                <div className="col-span-3">Revenue</div>
-                <div className="col-span-2">Avg Time</div>
-                <div className="col-span-1">Share</div>
+              
+              {/* Mobile card view */}
+              <div className="block sm:hidden">
+                {topServiceCards.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-gray-500 text-xs">
+                    No service performance data available.
+                  </div>
+                ) : (
+                  servicesPagination.paginatedItems.map((s, i) => {
+                    const totalRev = sortedServiceCards.reduce((a, x) => a + Number(x.revenue ?? 0), 0);
+                    const pct = totalRev ? ((Number(s.revenue ?? 0) / totalRev) * 100).toFixed(1) : "0.0";
+                    return (
+                      <div key={i} className="p-3 border-b border-white/5">
+                        <div className="flex justify-between items-start mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <div
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
+                            />
+                            <span className="text-white font-semibold text-xs">{s.service}</span>
+                          </div>
+                          <span className="text-[10px] font-bold" style={{ color: SERVICE_COLORS[i % SERVICE_COLORS.length] }}>
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                          <div>
+                            <div className="text-gray-500 text-[10px]">Count</div>
+                            <div className="text-gray-400 text-xs">{s.count}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500 text-[10px]">Revenue</div>
+                            <div className="text-white font-bold text-xs">₱{Number(s.revenue ?? 0).toLocaleString()}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              {topServiceCards.length === 0 ? (
-                <div className="px-6 py-12 text-center text-gray-500 text-sm">
-                  No service performance data available.
-                </div>
-              ) : (
-                servicesPagination.paginatedItems.map((s, i) => {
-                  const totalRev = sortedServiceCards.reduce((a, x) => a + Number(x.revenue ?? 0), 0);
-                  const pct = totalRev ? ((Number(s.revenue ?? 0) / totalRev) * 100).toFixed(1) : "0.0";
-                  return (
-                    <div
-                      key={i}
-                      className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
-                    >
-                      <div className="col-span-4 flex items-center gap-3">
-                        <div
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
-                        />
-                        <span className="text-white font-semibold text-sm">{s.service}</span>
-                      </div>
-                      <div className="col-span-2 text-gray-400 text-sm">{s.count}</div>
-                      <div className="col-span-3 text-white font-bold text-sm">
-                        ₱{Number(s.revenue ?? 0).toLocaleString()}
-                      </div>
-                      <div className="col-span-2 text-gray-500 text-xs">{s.avg_time ?? "—"}</div>
-                      <div className="col-span-1">
-                        <span
-                          className="text-xs font-bold"
-                          style={{ color: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
-                        >
-                          {pct}%
-                        </span>
-                      </div>
+              
+              {/* Desktop table view */}
+              <div className="hidden sm:block overflow-x-auto">
+                <div className="min-w-[768px]">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                    <div className="col-span-4">Service</div>
+                    <div className="col-span-2">Count</div>
+                    <div className="col-span-3">Revenue</div>
+                    <div className="col-span-2">Avg Time</div>
+                    <div className="col-span-1">Share</div>
+                  </div>
+                  {topServiceCards.length === 0 ? (
+                    <div className="px-6 py-12 text-center text-gray-500 text-sm">
+                      No service performance data available.
                     </div>
-                  );
-                })
-              )}
+                  ) : (
+                    servicesPagination.paginatedItems.map((s, i) => {
+                      const totalRev = sortedServiceCards.reduce((a, x) => a + Number(x.revenue ?? 0), 0);
+                      const pct = totalRev ? ((Number(s.revenue ?? 0) / totalRev) * 100).toFixed(1) : "0.0";
+                      return (
+                        <div
+                          key={i}
+                          className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                        >
+                          <div className="col-span-4 flex items-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
+                            />
+                            <span className="text-white font-semibold text-sm truncate">{s.service}</span>
+                          </div>
+                          <div className="col-span-2 text-gray-400 text-sm">{s.count}</div>
+                          <div className="col-span-3 text-white font-bold text-sm">
+                            ₱{Number(s.revenue ?? 0).toLocaleString()}
+                          </div>
+                          <div className="col-span-2 text-gray-500 text-xs">{s.avg_time ?? "—"}</div>
+                          <div className="col-span-1">
+                            <span
+                              className="text-xs font-bold"
+                              style={{ color: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
+                            >
+                              {pct}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
 
               {topServiceCards.length > 0 && (
                 <Pagination
                   current={servicesPagination.currentPage}
                   total={servicesPagination.totalPages}
                   onChange={servicesPagination.setCurrentPage}
-                  className="px-6 py-4"
+                  className="px-3 sm:px-6 py-2 sm:py-4"
                 />
               )}
             </div>

@@ -136,7 +136,7 @@ const MENU_ITEMS = {
       path: "/manager/customers",
       icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
     },
-        {
+    {
       name: "Contents",
       path: "/manager/contents",
       icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
@@ -177,7 +177,7 @@ const MENU_ITEMS = {
       path: "/mechanic/dashboard",
       icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
     },
-        {
+    {
       name: "Active Jobs",
       path: "/mechanic/active-jobs",
       icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
@@ -192,7 +192,6 @@ const MENU_ITEMS = {
       path: "/mechanic/job-history",
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
     },
-
   ],
 
   inventory: [
@@ -210,7 +209,7 @@ const MENU_ITEMS = {
       name: "Reorder Alerts",
       path: "/inventory/alerts",
       icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
-      alertBadge: true, // marks this item to receive the live count
+      alertBadge: true,
     },
     {
       name: "Movement Log",
@@ -238,11 +237,8 @@ function UnifiedSidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const { isAuthenticated, role, user, headers } = useAuth();
 
-  const [alertCount, setAlertCount] = useState(null); // null = not yet loaded
-  const [expandedItems, setExpandedItems] = useState(() => {
-    const initialState = {};
-    return initialState;
-  });
+  const [alertCount, setAlertCount] = useState(null);
+  const [expandedItems, setExpandedItems] = useState({});
 
   const menuItems = MENU_ITEMS[role] ?? [];
   const roleLabel = ROLE_LABELS[role] ?? { title: "User", subtitle: "" };
@@ -254,7 +250,6 @@ function UnifiedSidebar({ isOpen, onClose }) {
     let cancelled = false;
 
     const fetchCount = async () => {
-      // Read a fresh token on every tick - avoids stale closure after expiry
       const token =
         localStorage.getItem("access_token") ??
         sessionStorage.getItem("access_token");
@@ -262,19 +257,15 @@ function UnifiedSidebar({ isOpen, onClose }) {
       if (!token || cancelled) return;
 
       try {
-        const res = await fetch(
-          `${API_BASE}/inventory/?status=low,out`,
-          {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const res = await fetch(`${API_BASE}/inventory/?status=low,out`, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
         if (cancelled) return;
         if (!res.ok) {
-          // Token expired or revoked - clear badge silently
           setAlertCount(null);
           return;
         }
@@ -286,11 +277,12 @@ function UnifiedSidebar({ isOpen, onClose }) {
     };
 
     fetchCount();
-
-    // Refresh every 2 minutes so the badge stays reasonably current
     const interval = setInterval(fetchCount, 2 * 60 * 1000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [isAuthenticated, role]); // intentionally excludes headers - we read fresh each time
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, role]);
 
   useEffect(() => {
     setExpandedItems((prev) => {
@@ -306,7 +298,11 @@ function UnifiedSidebar({ isOpen, onClose }) {
 
   const isActive = (path) => location.pathname === path;
 
-  const handleNavClick = () => { if (onClose) onClose(); };
+  const handleNavClick = () => {
+    if (onClose && window.innerWidth < 1024) {
+      onClose();
+    }
+  };
 
   const handleLogout = async () => {
     const result = await Swal.fire({
@@ -360,35 +356,49 @@ function UnifiedSidebar({ isOpen, onClose }) {
     navigate("/signin");
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <aside
         className={`
-          w-60 bg-gray-900 min-h-screen fixed left-0 top-0 flex flex-col z-30
-          transition-transform duration-300 ease-in-out
+          fixed lg:fixed top-0 left-0 h-full w-72 bg-gradient-to-b from-gray-900 to-gray-950 
+          flex flex-col z-40 shadow-2xl
+          transition-all duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0
+          lg:translate-x-0 lg:w-64
         `}
       >
-        {/* Logo */}
-        <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-          <img src={logo} alt="Otokwikk logo" className="h-12 md:h-16 object-contain" />
+        {/* Logo Section with Close Button */}
+        <div className="p-5 border-b border-gray-800/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              className="lg:hidden w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white transition-all duration-200 flex-shrink-0"
-              aria-label="Close sidebar"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <img
+              src={logo}
+              alt="Otokwikk logo"
+              className="h-10 md:h-12 object-contain transition-all duration-300 hover:scale-105"
+            />
           </div>
+          <button
+            onClick={onClose}
+            className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800/50 hover:bg-red-600/20 text-gray-400 hover:text-red-500 transition-all duration-200"
+            aria-label="Close sidebar"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-6 overflow-y-auto">
+        {/* Navigation */}
+        <nav className="flex-1 py-4 overflow-y-auto">
           {menuItems.map((item) => {
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expandedItems[item.path] ?? false;
@@ -396,7 +406,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
             if (hasChildren) {
               const active = location.pathname === item.path;
               return (
-                <div key={item.path}>
+                <div key={item.path} className="mb-1">
                   <button
                     type="button"
                     onClick={() =>
@@ -405,37 +415,54 @@ function UnifiedSidebar({ isOpen, onClose }) {
                         [item.path]: !prev[item.path],
                       }))
                     }
-                    className={`w-full flex items-center gap-3 px-6 py-3 transition-all duration-200 ${
+                    className={`w-full flex items-center gap-3 px-5 py-3 transition-all duration-200 group ${
                       active
-                        ? "bg-red-600 text-white"
-                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                        ? "bg-gradient-to-r from-red-600/20 to-transparent text-white border-l-4 border-red-600"
+                        : "text-gray-400 hover:text-white hover:bg-gray-800/50 border-l-4 border-transparent"
                     }`}
                   >
                     <svg
-                      className="w-5 h-5 flex-shrink-0"
+                      className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
+                        active ? "text-red-500" : ""
+                      }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d={item.icon}
+                      />
                     </svg>
-                    <span className="font-medium text-sm flex-1 text-left">{item.name}</span>
+                    <span className="font-medium text-sm flex-1 text-left">
+                      {item.name}
+                    </span>
                     <svg
-                      className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-90" : "rotate-0"}`}
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        isExpanded ? "rotate-90" : "rotate-0"
+                      }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
                     </svg>
                   </button>
 
                   {isExpanded && (
-                    <div className="ml-6 mt-1 space-y-1">
+                    <div className="ml-10 mt-1 space-y-1">
                       {item.children.map((child, idx) => {
                         const childTo = `${item.path}#${child.key}`;
                         const hashActive =
-                          location.pathname === item.path && location.hash === `#${child.key}`;
+                          location.pathname === item.path &&
+                          location.hash === `#${child.key}`;
                         const activeChild =
                           location.pathname === item.path &&
                           ((!location.hash && idx === 0) || hashActive);
@@ -445,10 +472,10 @@ function UnifiedSidebar({ isOpen, onClose }) {
                             key={child.key}
                             to={childTo}
                             onClick={handleNavClick}
-                            className={`block pl-5 pr-6 py-2.5 text-xs rounded-l-lg transition-all ${
+                            className={`block pl-4 pr-5 py-2 text-xs rounded-lg transition-all ${
                               activeChild
-                                ? "text-red-300 bg-red-500/10 border-l border-red-500/30"
-                                : "text-gray-500 hover:text-gray-200 hover:bg-white/5 border-l border-transparent"
+                                ? "text-red-400 bg-red-500/10 border-l-2 border-red-500"
+                                : "text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"
                             }`}
                           >
                             {child.label}
@@ -462,32 +489,44 @@ function UnifiedSidebar({ isOpen, onClose }) {
             }
 
             const active = isActive(item.path);
-            const showBadge = item.alertBadge && alertCount != null && alertCount > 0;
+            const showBadge =
+              item.alertBadge && alertCount != null && alertCount > 0;
 
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={handleNavClick}
-                className={`flex items-center gap-3 px-6 py-3 transition-all duration-200 ${active
-                  ? "bg-red-600 text-white"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                  }`}
+                className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 group ${
+                  active
+                    ? "bg-gradient-to-r from-red-600/20 to-transparent text-white border-l-4 border-red-600"
+                    : "text-gray-400 hover:text-white hover:bg-gray-800/50 border-l-4 border-transparent"
+                }`}
               >
                 <svg
-                  className="w-5 h-5 flex-shrink-0"
+                  className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
+                    active ? "text-red-500" : ""
+                  }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d={item.icon}
+                  />
                 </svg>
                 <span className="font-medium text-sm flex-1">{item.name}</span>
 
                 {showBadge && (
                   <span
-                    className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${active ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400"
-                      }`}
+                    className={`text-xs font-bold px-2 py-0.5 rounded-full animate-pulse ${
+                      active
+                        ? "bg-red-500 text-white"
+                        : "bg-red-500/20 text-red-400"
+                    }`}
                   >
                     {alertCount > 99 ? "99+" : alertCount}
                   </span>
@@ -497,22 +536,29 @@ function UnifiedSidebar({ isOpen, onClose }) {
           })}
         </nav>
 
-        {/* User section */}
-        <div className="p-4 border-t border-gray-800">
+        {/* User Section */}
+        <div className="p-4 border-t border-gray-800/50 bg-gray-900/50 backdrop-blur-sm">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+              <svg
+                className="w-6 h-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-sm truncate">
                 {user?.first_name && user?.last_name
                   ? `${user.first_name} ${user.last_name}`
-                  : user?.full_name
-                  ?? user?.name
-                  ?? roleLabel.title}
+                  : (user?.full_name ?? user?.name ?? roleLabel.title)}
               </p>
               <p className="text-gray-400 text-xs truncate">
                 {user?.email || roleLabel.subtitle}
@@ -521,21 +567,30 @@ function UnifiedSidebar({ isOpen, onClose }) {
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-red-600 text-gray-400 hover:text-white rounded-lg transition-all duration-200"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-800/50 hover:bg-red-600/20 text-gray-400 hover:text-red-400 rounded-xl transition-all duration-200 group"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <svg
+              className="w-5 h-5 transition-transform group-hover:translate-x-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
             </svg>
-            <span className="font-medium">Logout</span>
+            <span className="font-medium text-sm">Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* Mobile overlay */}
+      {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
           onClick={onClose}
         />
       )}

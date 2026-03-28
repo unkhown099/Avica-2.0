@@ -14,7 +14,6 @@ const authHeaders = () => ({
   Authorization: `Bearer ${getToken()}`,
 });
 
-// ── Constants ────────────────────────────────────────────────────────────────
 const FALLBACK_CATEGORIES = ["Maintenance", "Repair", "Diagnostic", "Cosmetic"];
 const PRICE_TIERS = [
   { key: "motor", label: "Motor" },
@@ -43,10 +42,9 @@ const CATEGORY_COLORS = {
   },
 };
 
-// ── Badge helpers ────────────────────────────────────────────────────────────
 const CategoryBadge = ({ category }) => (
   <span
-    className={`px-3 py-1 rounded-full text-xs font-semibold border ${CATEGORY_COLORS[category]?.badge ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${CATEGORY_COLORS[category]?.badge ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
   >
     {category}
   </span>
@@ -54,15 +52,14 @@ const CategoryBadge = ({ category }) => (
 
 const StatusBadge = ({ active }) => (
   <span
-    className={`px-3 py-1 rounded-full text-xs font-semibold border ${active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
   >
     {active ? "Active" : "Inactive"}
   </span>
 );
 
-// ── Skeleton card ────────────────────────────────────────────────────────────
 const SkeletonCard = () => (
-  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 animate-pulse flex flex-col gap-3">
+  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 animate-pulse flex flex-col gap-3">
     <div className="flex gap-2">
       <div className="h-6 w-20 bg-gray-800 rounded-full" />
       <div className="h-6 w-14 bg-gray-800 rounded-full" />
@@ -77,7 +74,6 @@ const SkeletonCard = () => (
   </div>
 );
 
-// ── Input field ──────────────────────────────────────────────────────────────
 const Field = ({ label, children }) => (
   <div>
     <label className="block text-sm font-semibold text-gray-400 mb-2">
@@ -88,9 +84,8 @@ const Field = ({ label, children }) => (
 );
 
 const inputCls =
-  "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all";
+  "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm";
 
-// ── Create / Edit Modal ──────────────────────────────────────────────────────
 function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
   const isEdit = !!editService;
   const editPriceList =
@@ -116,13 +111,11 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!form.category && categories?.length > 0) {
+    if (!form.category && categories?.length > 0)
       set("category", categories[0].name);
-    }
   }, [categories]);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
-
   const toggleBranch = (id) =>
     set(
       "branch_ids",
@@ -130,12 +123,8 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
         ? form.branch_ids.filter((b) => b !== id)
         : [...form.branch_ids, id],
     );
-
   const setTierPrice = (tier, value) =>
-    set("price_list", {
-      ...form.price_list,
-      [tier]: value,
-    });
+    set("price_list", { ...form.price_list, [tier]: value });
 
   const buildPriceListPayload = () => {
     const payload = {};
@@ -178,15 +167,12 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
         }
         payload.price_list = listPayload;
         const values = Object.values(listPayload);
-        if (values.length > 0) {
-          payload.price = Math.min(...values);
-        }
+        if (values.length > 0) payload.price = Math.min(...values);
       } else {
         payload.price_list = {};
         const singlePrice = Number(form.price);
         payload.price = Number.isNaN(singlePrice) ? 0 : singlePrice;
       }
-
       delete payload.use_price_list;
       if (isEdit) {
         await axios.patch(`${API_BASE}/services/${editService.id}/`, payload, {
@@ -226,15 +212,14 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 p-0 sm:p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10 sticky top-0 bg-gray-900 z-10">
           <div>
-            <h2 className="text-xl font-black text-white">
+            <h2 className="text-lg sm:text-xl font-black text-white">
               {isEdit ? "Edit Service" : "Add New Service"}
             </h2>
-            <p className="text-gray-500 text-sm mt-0.5">
+            <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
               {isEdit
                 ? "Update service details"
                 : "Fill in details to create a new service"}
@@ -259,10 +244,8 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
             </svg>
           </button>
         </div>
-
-        <div className="p-6 space-y-5">
-          {/* Name + Category */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Service Name">
               <input
                 className={inputCls}
@@ -277,14 +260,17 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
                 value={form.category}
                 onChange={(e) => set("category", e.target.value)}
               >
-                {(categories?.length > 0 ? categories : FALLBACK_CATEGORIES.map((name) => ({ name }))).map((c) => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
+                {(categories?.length > 0
+                  ? categories
+                  : FALLBACK_CATEGORIES.map((name) => ({ name }))
+                ).map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             </Field>
           </div>
-
-          {/* Description */}
           <Field label="Description">
             <textarea
               className={`${inputCls} resize-none`}
@@ -294,9 +280,7 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
               onChange={(e) => set("description", e.target.value)}
             />
           </Field>
-
-          {/* Duration + Price */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <Field label="Duration">
               <select
                 className={inputCls}
@@ -304,8 +288,8 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
                 onChange={(e) => set("duration", e.target.value)}
               >
                 <option value="">Select duration</option>
-                <option value="30">30</option>
-                <option value="45">45</option>
+                <option value="30">30 min</option>
+                <option value="45">45 min</option>
                 <option value="1 hour">1 hour</option>
               </select>
             </Field>
@@ -320,31 +304,28 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
               />
             </Field>
           </div>
-
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">Use Tiered Price List</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white">
+                  Use Tiered Price List
+                </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Set different prices by vehicle size (Motor, Small, Medium, Large, XL).
+                  Set different prices by vehicle size.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => set("use_price_list", !form.use_price_list)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${form.use_price_list
-                    ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-                    : "bg-gray-800 border-white/10 text-gray-400"
-                  }`}
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${form.use_price_list ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" : "bg-gray-800 border-white/10 text-gray-400"}`}
               >
                 {form.use_price_list ? "Enabled" : "Disabled"}
               </button>
             </div>
-
             {form.use_price_list && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {PRICE_TIERS.map((tier) => (
-                  <Field key={tier.key} label={`${tier.label} Price (₱)`}>
+                  <Field key={tier.key} label={`${tier.label} (₱)`}>
                     <input
                       type="number"
                       min="0"
@@ -358,8 +339,6 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
               </div>
             )}
           </div>
-
-          {/* Branches */}
           <Field label="Available Branches">
             <div className="flex flex-wrap gap-2 mt-1">
               {branches.map((b) => {
@@ -380,13 +359,11 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
               )}
             </div>
           </Field>
-
-          {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
+              className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-4 py-3 rounded-xl transition-all font-semibold text-sm"
             >
               Cancel
             </button>
@@ -394,7 +371,7 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
               type="button"
               onClick={submit}
               disabled={saving}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold shadow-lg shadow-red-600/30"
+              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-red-600/30"
             >
               {saving
                 ? "Saving..."
@@ -437,7 +414,10 @@ function CategoryModal({ onClose, onCreated }) {
       Swal.fire({
         icon: "error",
         title: "Failed",
-        text: err.response?.data?.name?.[0] ?? err.response?.data?.detail ?? "Could not add category.",
+        text:
+          err.response?.data?.name?.[0] ??
+          err.response?.data?.detail ??
+          "Could not add category.",
         background: "#111827",
         color: "#f9fafb",
       });
@@ -447,23 +427,35 @@ function CategoryModal({ onClose, onCreated }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 p-0 sm:p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">
           <div>
             <h2 className="text-lg font-black text-white">Add Category</h2>
-            <p className="text-gray-500 text-xs mt-1">Create a configurable service category</p>
+            <p className="text-gray-500 text-xs mt-1">
+              Create a configurable service category
+            </p>
           </div>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           <Field label="Category Name">
             <input
               className={inputCls}
@@ -476,7 +468,7 @@ function CategoryModal({ onClose, onCreated }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
+              className="flex-1 border border-white/10 text-gray-400 hover:text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm"
             >
               Cancel
             </button>
@@ -484,7 +476,7 @@ function CategoryModal({ onClose, onCreated }) {
               type="button"
               onClick={submit}
               disabled={saving || !name.trim()}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold"
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm"
             >
               {saving ? "Saving..." : "Add Category"}
             </button>
@@ -495,7 +487,6 @@ function CategoryModal({ onClose, onCreated }) {
   );
 }
 
-// ── Main Page ────────────────────────────────────────────────────────────────
 function AdminServices() {
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -509,7 +500,6 @@ function AdminServices() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editService, setEditService] = useState(null);
 
-  // ── Fetch services ───────────────────────────────────────────────────────
   const fetchServices = useCallback(async () => {
     try {
       setLoading(true);
@@ -522,7 +512,7 @@ function AdminServices() {
       setServices(svcRes.data);
       setBranches(branchRes.data);
       setCategories(Array.isArray(catRes.data) ? catRes.data : []);
-    } catch (err) {
+    } catch {
       setError("Failed to load services. Please try again.");
     } finally {
       setLoading(false);
@@ -533,7 +523,6 @@ function AdminServices() {
     fetchServices();
   }, [fetchServices]);
 
-  // ── Deactivate / reactivate ──────────────────────────────────────────────
   const toggleActive = async (service) => {
     const action = service.is_active ? "deactivate" : "activate";
     const result = await Swal.fire({
@@ -568,7 +557,6 @@ function AdminServices() {
     }
   };
 
-  // ── Delete ───────────────────────────────────────────────────────────────
   const deleteService = async (service) => {
     const result = await Swal.fire({
       title: `Delete "${service.name}"?`,
@@ -597,7 +585,6 @@ function AdminServices() {
     }
   };
 
-  // ── Filtering ────────────────────────────────────────────────────────────
   const filtered = services.filter((s) => {
     const q = searchQuery.toLowerCase();
     const matchSearch =
@@ -616,7 +603,6 @@ function AdminServices() {
     categories.length > 0
       ? categories.map((c) => c.name)
       : Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
-
   const visibleCategoryNames =
     categoryNames.length > 0 ? categoryNames : FALLBACK_CATEGORIES;
 
@@ -644,22 +630,38 @@ function AdminServices() {
 
   return (
     <AdminLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">
-              Services
-            </h1>
-            <p className="text-gray-400 mt-1">
-              Manage services available at your shop
-            </p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
+        {/* ── Header: title + button stacked on the left ── */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Services
+          </h1>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+            Manage services available at your shop
+          </p>
+          <button
+            onClick={openCreate}
+            className="mt-4 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Add New Service
+          </button>
         </div>
 
-        {/* Error */}
         {error && (
-          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
+          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3">
             <svg
               className="w-5 h-5 shrink-0"
               fill="none"
@@ -684,13 +686,13 @@ function AdminServices() {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {visibleCategoryNames.map((label) => (
             <div
               key={label}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all"
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all"
             >
-              <div className="text-2xl font-black text-white mb-1">
+              <div className="text-xl sm:text-2xl font-black text-white mb-1">
                 {loading ? (
                   <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
                 ) : (
@@ -714,8 +716,8 @@ function AdminServices() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-center">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="relative">
             <svg
               className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
               fill="none"
@@ -734,67 +736,52 @@ function AdminServices() {
               placeholder="Search by name or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
+              className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm"
             />
           </div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === "__add_category__") {
-                setShowCategoryModal(true);
-                return;
-              }
-              setCategoryFilter(value);
-            }}
-            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[160px]"
-          >
-            <option value="All Categories">All Categories</option>
-            {visibleCategoryNames.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-            <option value="__add_category__">+ Add Category...</option>
-          </select>
-          <select
-            value={branchFilter}
-            onChange={(e) => setBranchFilter(e.target.value)}
-            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[160px]"
-          >
-            <option value="All Branches">All Branches</option>
-            {branches.map((b) => (
-              <option key={b.id}>{b.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={openCreate}
-            className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 sm:ml-auto"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "__add_category__") {
+                  setShowCategoryModal(true);
+                  return;
+                }
+                setCategoryFilter(v);
+              }}
+              className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer text-sm"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add New Service
-          </button>
+              <option value="All Categories">All Categories</option>
+              {visibleCategoryNames.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+              <option value="__add_category__">+ Add Category...</option>
+            </select>
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer text-sm"
+            >
+              <option value="All Branches">All Branches</option>
+              {branches.map((b) => (
+                <option key={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl py-20 text-center backdrop-blur-sm">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl py-16 sm:py-20 text-center">
             <svg
               className="w-12 h-12 text-gray-700 mx-auto mb-4"
               fill="none"
@@ -814,26 +801,24 @@ function AdminServices() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {filtered.map((service) => {
               const accent =
                 CATEGORY_COLORS[service.category]?.accent ?? "#6b7280";
               return (
                 <div
                   key={service.id}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all group flex flex-col"
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 backdrop-blur-sm hover:border-white/10 transition-all flex flex-col"
                 >
-                  {/* Card Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2 flex-wrap">
                       <CategoryBadge category={service.category} />
                       <StatusBadge active={service.is_active} />
                     </div>
-                    {/* Actions dropdown */}
-                    <div className="flex items-center gap-1 opacity-100 transition-all">
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
                       <button
                         onClick={() => openEdit(service)}
-                        className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                        className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
                         title="Edit"
                       >
                         <svg
@@ -852,7 +837,7 @@ function AdminServices() {
                       </button>
                       <button
                         onClick={() => deleteService(service)}
-                        className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                        className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                         title="Delete"
                       >
                         <svg
@@ -871,26 +856,20 @@ function AdminServices() {
                       </button>
                     </div>
                   </div>
-
-                  {/* Title */}
-                  <div className="mb-3">
-                    <div className="flex items-center gap-3 mb-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: accent + "22" }}
+                    >
                       <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: accent + "22" }}
-                      >
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: accent }}
-                        />
-                      </div>
-                      <h3 className="text-lg font-black text-white">
-                        {service.name}
-                      </h3>
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: accent }}
+                      />
                     </div>
-
+                    <h3 className="text-base sm:text-lg font-black text-white leading-tight">
+                      {service.name}
+                    </h3>
                   </div>
-
                   <p className="text-gray-400 text-sm mb-4 leading-relaxed flex-1">
                     {service.description || (
                       <span className="italic text-gray-600">
@@ -898,8 +877,6 @@ function AdminServices() {
                       </span>
                     )}
                   </p>
-
-                  {/* Details */}
                   <div className="space-y-2 mb-4">
                     {service.duration && (
                       <div className="flex items-center gap-2 text-sm">
@@ -945,27 +922,26 @@ function AdminServices() {
                         </span>
                       </span>
                     </div>
-                    {service.price_list && Object.keys(service.price_list).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {PRICE_TIERS.map((tier) => {
-                          const value = service.price_list?.[tier.key];
-                          if (value == null || value === "") return null;
-                          return (
-                            <span
-                              key={tier.key}
-                              className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] rounded-md"
-                            >
-                              {tier.label}: ₱{Number(value).toLocaleString()}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
+                    {service.price_list &&
+                      Object.keys(service.price_list).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {PRICE_TIERS.map((tier) => {
+                            const value = service.price_list?.[tier.key];
+                            if (value == null || value === "") return null;
+                            return (
+                              <span
+                                key={tier.key}
+                                className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] rounded-md"
+                              >
+                                {tier.label}: ₱{Number(value).toLocaleString()}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                   </div>
-
-                  {/* Branches */}
                   {service.branches?.length > 0 && (
-                    <div className="mb-5">
+                    <div className="mb-4">
                       <p className="text-xs text-gray-600 mb-2">
                         Available at:
                       </p>
@@ -981,12 +957,10 @@ function AdminServices() {
                       </div>
                     </div>
                   )}
-
-                  {/* Actions */}
                   <div className="flex gap-2 mt-auto pt-4 border-t border-white/5">
                     <button
                       onClick={() => openEdit(service)}
-                      className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all"
+                      className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all"
                     >
                       <svg
                         className="w-4 h-4"
@@ -1005,10 +979,7 @@ function AdminServices() {
                     </button>
                     <button
                       onClick={() => toggleActive(service)}
-                      className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all border ${service.is_active
-                          ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400"
-                          : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"
-                        }`}
+                      className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all border ${service.is_active ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400" : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"}`}
                     >
                       {service.is_active ? "Deactivate" : "Activate"}
                     </button>
@@ -1019,7 +990,6 @@ function AdminServices() {
           </div>
         )}
 
-        {/* Footer count */}
         {!loading && filtered.length > 0 && (
           <div className="mt-6 text-sm text-gray-500">
             Showing{" "}
@@ -1031,7 +1001,6 @@ function AdminServices() {
         )}
       </div>
 
-      {/* Modal */}
       {showModal && (
         <ServiceModal
           onClose={() => setShowModal(false)}
@@ -1041,7 +1010,6 @@ function AdminServices() {
           categories={visibleCategoryNames.map((name) => ({ name }))}
         />
       )}
-
       {showCategoryModal && (
         <CategoryModal
           onClose={() => setShowCategoryModal(false)}

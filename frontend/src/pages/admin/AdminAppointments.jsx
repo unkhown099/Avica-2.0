@@ -8,7 +8,6 @@ const getToken = () =>
   sessionStorage.getItem("access_token");
 const authHeaders = () => ({ Authorization: `Bearer ${getToken()}` });
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 const MONTH_NAMES = [
   "January",
   "February",
@@ -51,17 +50,16 @@ function getFirstDayOfMonth(year, month) {
   return new Date(year, month, 1).getDay();
 }
 
-// ── Skeleton card ─────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-gray-800/60 border border-white/5 rounded-xl p-5 animate-pulse">
+    <div className="bg-gray-800/60 border border-white/5 rounded-xl p-4 sm:p-5 animate-pulse">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-xl bg-gray-700 shrink-0" />
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 flex-1">
           <div className="h-4 w-28 bg-gray-700 rounded" />
           <div className="h-3 w-16 bg-gray-700 rounded" />
         </div>
-        <div className="ml-auto h-6 w-20 bg-gray-700 rounded-full" />
+        <div className="h-6 w-20 bg-gray-700 rounded-full shrink-0" />
       </div>
       <div className="grid grid-cols-2 gap-2 mb-4">
         {[...Array(4)].map((_, i) => (
@@ -76,20 +74,18 @@ function SkeletonCard() {
   );
 }
 
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 function AdminAppointments() {
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth()); // 0-indexed
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState(today.getDate());
   const [branchFilter, setBranchFilter] = useState("All Branches");
   const [branches, setBranches] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCalendar, setShowCalendar] = useState(false); // mobile toggle
 
-  // ── Fetch ───────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -114,12 +110,9 @@ function AdminAppointments() {
     fetchData();
   }, [fetchData]);
 
-
-  // ── Calendar helpers ──────────────────────────────────────────────────────
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
 
-  // Map day → list of statuses for dot indicators
   const dayStatusMap = useMemo(() => {
     const map = {};
     appointments.forEach((a) => {
@@ -145,7 +138,6 @@ function AdminAppointments() {
     setSelectedDay(1);
   };
 
-  // ── Filtered appointments for selected day ────────────────────────────────
   const selectedDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
 
   const dayAppointments = appointments.filter((a) => {
@@ -155,7 +147,6 @@ function AdminAppointments() {
     return matchDate && matchBranch;
   });
 
-  // ── Stats ────────────────────────────────────────────────────────────────
   const confirmedCount = appointments.filter(
     (a) => a.status === "confirmed",
   ).length;
@@ -163,22 +154,129 @@ function AdminAppointments() {
     (a) => a.status === "pending",
   ).length;
 
+  const CalendarPanel = () => (
+    <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-base sm:text-lg font-black text-white">Calendar</h2>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={prevMonth}
+            className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+          <span className="text-sm text-gray-300 font-semibold px-2 min-w-[110px] text-center">
+            {MONTH_NAMES[currentMonth]} {currentYear}
+          </span>
+          <button
+            onClick={nextMonth}
+            className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {DAY_HEADERS.map((d) => (
+          <div
+            key={d}
+            className="text-center text-xs font-semibold text-gray-600 py-1"
+          >
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+          <div key={`empty-${i}`} />
+        ))}
+        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+          const statuses = dayStatusMap[day] ?? [];
+          const isSelected = selectedDay === day;
+          const isToday =
+            day === today.getDate() &&
+            currentMonth === today.getMonth() &&
+            currentYear === today.getFullYear();
+          return (
+            <button
+              key={day}
+              onClick={() => {
+                setSelectedDay(day);
+                setShowCalendar(false);
+              }}
+              className={`aspect-square flex flex-col items-center justify-center rounded-xl text-xs sm:text-sm font-semibold transition-all ${isSelected ? "bg-red-600 text-white shadow-lg shadow-red-600/30" : isToday ? "border border-red-500/40 text-red-400 hover:bg-red-500/10" : "hover:bg-white/5 text-gray-400 hover:text-white"}`}
+            >
+              <span>{day}</span>
+              {statuses.length > 0 && (
+                <div className="flex gap-0.5 mt-0.5">
+                  {statuses.map((s, idx) => (
+                    <div
+                      key={idx}
+                      className={`w-1 h-1 rounded-full ${isSelected ? "bg-white/70" : (STATUS_DOT[s] ?? "bg-gray-500")}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-white/5 space-y-2">
+        {Object.entries(STATUS_DOT).map(([key, dot]) => (
+          <div
+            key={key}
+            className="flex items-center gap-2 text-xs text-gray-500"
+          >
+            <div className={`w-2 h-2 rounded-full ${dot}`} />
+            {STATUS_LABEL[key]} Appointments
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <AdminLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Appointments
           </h1>
-          <p className="text-gray-400 mt-1">
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
             Manage service appointments and schedules
           </p>
         </div>
 
-        {/* Error */}
         {error && (
-          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
+          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3">
             <svg
               className="w-5 h-5 shrink-0"
               fill="none"
@@ -195,7 +293,7 @@ function AdminAppointments() {
             <span className="text-sm font-medium">{error}</span>
             <button
               onClick={fetchData}
-              className="ml-auto text-xs font-semibold underline hover:no-underline"
+              className="ml-auto text-xs font-semibold underline"
             >
               Retry
             </button>
@@ -203,9 +301,9 @@ function AdminAppointments() {
         )}
 
         {/* Stats row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm">
-            <div className="text-2xl font-black text-white mb-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
+            <div className="text-xl sm:text-2xl font-black text-white mb-1">
               {loading ? (
                 <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
               ) : (
@@ -214,8 +312,8 @@ function AdminAppointments() {
             </div>
             <div className="text-xs text-gray-400">Total This Month</div>
           </div>
-          <div className="bg-gray-900/60 border border-emerald-500/20 rounded-2xl p-4 backdrop-blur-sm">
-            <div className="text-2xl font-black text-emerald-400 mb-1">
+          <div className="bg-gray-900/60 border border-emerald-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
+            <div className="text-xl sm:text-2xl font-black text-emerald-400 mb-1">
               {loading ? (
                 <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
               ) : (
@@ -224,8 +322,8 @@ function AdminAppointments() {
             </div>
             <div className="text-xs text-gray-400">Confirmed</div>
           </div>
-          <div className="bg-gray-900/60 border border-amber-500/20 rounded-2xl p-4 backdrop-blur-sm">
-            <div className="text-2xl font-black text-amber-400 mb-1">
+          <div className="bg-gray-900/60 border border-amber-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
+            <div className="text-xl sm:text-2xl font-black text-amber-400 mb-1">
               {loading ? (
                 <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
               ) : (
@@ -234,12 +332,11 @@ function AdminAppointments() {
             </div>
             <div className="text-xs text-gray-400">Pending</div>
           </div>
-          {/* Branch filter */}
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm flex items-center">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm flex items-center">
             <select
               value={branchFilter}
               onChange={(e) => setBranchFilter(e.target.value)}
-              className="w-full bg-transparent text-white text-sm focus:outline-none cursor-pointer"
+              className="w-full bg-transparent text-white text-xs sm:text-sm focus:outline-none cursor-pointer"
             >
               <option className="bg-gray-900" value="All Branches">
                 All Branches
@@ -253,129 +350,48 @@ function AdminAppointments() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* ── Calendar ────────────────────────────────────────────────── */}
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-black text-white">Calendar</h2>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={prevMonth}
-                  className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
-                </button>
-                <span className="text-sm text-gray-300 font-semibold px-2 min-w-[120px] text-center">
-                  {MONTH_NAMES[currentMonth]} {currentYear}
-                </span>
-                <button
-                  onClick={nextMonth}
-                  className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-              </div>
+        {/* Mobile: Calendar toggle button */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setShowCalendar(!showCalendar)}
+            className="w-full flex items-center justify-between bg-gray-900/60 border border-white/10 rounded-2xl px-4 py-3 text-white font-semibold text-sm hover:border-white/20 transition-all"
+          >
+            <span>
+              📅 {MONTH_NAMES[currentMonth]} {selectedDay}, {currentYear}
+            </span>
+            <svg
+              className={`w-4 h-4 text-gray-400 transition-transform ${showCalendar ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+          {showCalendar && (
+            <div className="mt-3">
+              <CalendarPanel />
             </div>
+          )}
+        </div>
 
-            {/* Day headers */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {DAY_HEADERS.map((d) => (
-                <div
-                  key={d}
-                  className="text-center text-xs font-semibold text-gray-600 py-1"
-                >
-                  {d}
-                </div>
-              ))}
-            </div>
-
-            {/* Days grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {/* Empty cells for first day offset */}
-              {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                <div key={`empty-${i}`} />
-              ))}
-              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(
-                (day) => {
-                  const statuses = dayStatusMap[day] ?? [];
-                  const isSelected = selectedDay === day;
-                  const isToday =
-                    day === today.getDate() &&
-                    currentMonth === today.getMonth() &&
-                    currentYear === today.getFullYear();
-                  return (
-                    <button
-                      key={day}
-                      onClick={() => setSelectedDay(day)}
-                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                        isSelected
-                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                          : isToday
-                            ? "border border-red-500/40 text-red-400 hover:bg-red-500/10"
-                            : "hover:bg-white/5 text-gray-400 hover:text-white"
-                      }`}
-                    >
-                      <span>{day}</span>
-                      {statuses.length > 0 && (
-                        <div className="flex gap-0.5 mt-0.5">
-                          {statuses.map((s, idx) => (
-                            <div
-                              key={idx}
-                              className={`w-1 h-1 rounded-full ${isSelected ? "bg-white/70" : (STATUS_DOT[s] ?? "bg-gray-500")}`}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </button>
-                  );
-                },
-              )}
-            </div>
-
-            {/* Legend */}
-            <div className="mt-6 pt-5 border-t border-white/5 space-y-2">
-              {Object.entries(STATUS_DOT).map(([key, dot]) => (
-                <div
-                  key={key}
-                  className="flex items-center gap-2 text-xs text-gray-500"
-                >
-                  <div className={`w-2 h-2 rounded-full ${dot}`} />
-                  {STATUS_LABEL[key]} Appointments
-                </div>
-              ))}
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Desktop Calendar */}
+          <div className="hidden lg:block">
+            <CalendarPanel />
           </div>
 
-          {/* ── Appointments Panel ───────────────────────────────────────── */}
+          {/* Appointments Panel */}
           <div className="lg:col-span-2">
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div>
-                  <h2 className="text-lg font-black text-white">
+                  <h2 className="text-base sm:text-lg font-black text-white">
                     {MONTH_NAMES[currentMonth]} {selectedDay}, {currentYear}
                   </h2>
                   <p className="text-gray-500 text-sm mt-0.5">
@@ -393,7 +409,7 @@ function AdminAppointments() {
                   ))}
                 </div>
               ) : dayAppointments.length === 0 ? (
-                <div className="py-16 text-center">
+                <div className="py-12 sm:py-16 text-center">
                   <svg
                     className="w-12 h-12 text-gray-700 mx-auto mb-4"
                     fill="none"
@@ -419,18 +435,17 @@ function AdminAppointments() {
                     return (
                       <div
                         key={apt.id}
-                        className="bg-gray-800/60 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all group"
+                        className="bg-gray-800/60 border border-white/5 rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all"
                       >
-                        {/* Card header */}
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400"}`}
+                              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400"}`}
                             >
                               {apt.customer_name?.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div className="text-white font-black text-base">
+                              <div className="text-white font-black text-sm sm:text-base">
                                 {apt.customer_name}
                               </div>
                               <div className="text-gray-500 text-xs">
@@ -439,13 +454,12 @@ function AdminAppointments() {
                             </div>
                           </div>
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+                            className={`px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ml-2 ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
                           >
                             {STATUS_LABEL[statusKey] ?? apt.status}
                           </span>
                         </div>
 
-                        {/* Details grid */}
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
                           {[
                             {
@@ -467,7 +481,7 @@ function AdminAppointments() {
                           ].map((row, j) => (
                             <div
                               key={j}
-                              className="flex items-center gap-2 text-sm"
+                              className="flex items-center gap-2 text-xs sm:text-sm"
                             >
                               <svg
                                 className="w-3.5 h-3.5 text-gray-600 shrink-0"

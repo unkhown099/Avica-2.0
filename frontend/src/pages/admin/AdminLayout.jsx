@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Sidebar from "../../components/UnifiedSidebar.jsx";
 import NotificationDropdown from "../../components/NotificationDropdown.jsx";
+import logo from "../../assets/otokwikklogo.png";
 
 const PAGE_TITLES = {
   "/admin/dashboard": "Dashboard",
@@ -16,6 +17,9 @@ const PAGE_TITLES = {
 function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  
+  // Check if current route is dashboard
+  const isDashboard = location.pathname === "/admin/dashboard";
 
   useEffect(() => {
     const title = PAGE_TITLES[location.pathname] ?? "Admin";
@@ -48,16 +52,26 @@ function AdminLayout({ children }) {
             </svg>
           </button>
           <img
-            src="/assets/otokwikklogo.png"
+            src={logo}
             alt="Otokwikk"
             className="h-8 object-contain"
           />
+          
+          {/* Show notification dropdown in mobile header only if not on dashboard */}
+          {!isDashboard && (
+            <div className="ml-auto">
+              <NotificationDropdown />
+            </div>
+          )}
         </header>
 
         <main className="p-4 sm:p-6 lg:p-8 flex-1 relative">
-          <div className="absolute top-4 sm:top-6 lg:top-8 right-4 sm:right-6 lg:right-8 z-20">
-            <NotificationDropdown />
-          </div>
+          {/* Show notification dropdown in main content area only if not on dashboard */}
+          {!isDashboard && (
+            <div className="absolute top-4 sm:top-6 lg:top-8 right-4 sm:right-6 lg:right-8 z-20">
+              <NotificationDropdown />
+            </div>
+          )}
           {children}
         </main>
       </div>

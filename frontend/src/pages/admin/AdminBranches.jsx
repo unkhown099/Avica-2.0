@@ -14,11 +14,9 @@ const authHeaders = () => ({ Authorization: `Bearer ${getToken()}` });
 const bayColor = (pct) =>
   pct >= 80 ? "#10b981" : pct >= 60 ? "#f59e0b" : "#ef4444";
 
-// ── Input field ───────────────────────────────────────────────────────────────
 const inputCls =
   "w-full bg-white/5 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50 transition-all";
 
-// ── Branch Modal (Create + Edit) ──────────────────────────────────────────────
 const EMPTY_FORM = {
   name: "",
   address: "",
@@ -32,12 +30,12 @@ function BranchModal({ onClose, onSaved, editBranch }) {
   const [form, setForm] = useState(
     isEdit
       ? {
-        name: editBranch.name,
-        address: editBranch.address,
-        hours: editBranch.hours,
-        slots: editBranch.slots,
-        is_active: editBranch.is_active,
-      }
+          name: editBranch.name,
+          address: editBranch.address,
+          hours: editBranch.hours,
+          slots: editBranch.slots,
+          is_active: editBranch.is_active,
+        }
       : EMPTY_FORM,
   );
   const [saving, setSaving] = useState(false);
@@ -54,15 +52,14 @@ function BranchModal({ onClose, onSaved, editBranch }) {
     setError(null);
     try {
       const payload = { ...form, slots: Number(form.slots) };
-      if (isEdit) {
+      if (isEdit)
         await axios.patch(`${API}/branches/${editBranch.id}/`, payload, {
           headers: authHeaders(),
         });
-      } else {
+      else
         await axios.post(`${API}/branches/`, payload, {
           headers: authHeaders(),
         });
-      }
       onSaved();
       onClose();
       Swal.fire({
@@ -77,8 +74,8 @@ function BranchModal({ onClose, onSaved, editBranch }) {
     } catch (err) {
       setError(
         err.response?.data?.detail ??
-        JSON.stringify(err.response?.data) ??
-        err.message,
+          JSON.stringify(err.response?.data) ??
+          err.message,
       );
     } finally {
       setSaving(false);
@@ -87,21 +84,21 @@ function BranchModal({ onClose, onSaved, editBranch }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{
         backgroundColor: "rgba(0,0,0,0.75)",
         backdropFilter: "blur(6px)",
       }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-md bg-gray-900 border border-white/10 rounded-2xl shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+      <div className="w-full sm:max-w-md bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/10 sticky top-0 bg-gray-900 z-10">
           <div>
             <h2 className="text-lg font-black text-white">
               {isEdit ? "Edit Branch" : "Create New Branch"}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Staff, managers &amp; stats populate automatically from records
+              Stats populate automatically from records
             </p>
           </div>
           <button
@@ -124,7 +121,7 @@ function BranchModal({ onClose, onSaved, editBranch }) {
           </button>
         </div>
 
-        <form onSubmit={submit} className="px-6 py-5 space-y-4">
+        <form onSubmit={submit} className="px-4 sm:px-6 py-5 space-y-4">
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl px-4 py-3">
               {error}
@@ -216,9 +213,8 @@ function BranchModal({ onClose, onSaved, editBranch }) {
                 />
               </svg>
               <p className="text-xs text-blue-300 leading-relaxed">
-                Branch manager, staff counts, services completed, revenue &amp;
-                satisfaction are automatically computed from Staff, Booking and
-                Rating records.
+                Branch manager, staff counts, services completed, revenue &
+                satisfaction are automatically computed from records.
               </p>
             </div>
           )}
@@ -245,10 +241,9 @@ function BranchModal({ onClose, onSaved, editBranch }) {
   );
 }
 
-// ── Skeleton card ─────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-[#111827] border border-white/5 rounded-2xl p-5 flex flex-col gap-4 animate-pulse">
+    <div className="bg-[#111827] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 animate-pulse">
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <div className="h-5 w-36 bg-gray-800 rounded" />
@@ -271,7 +266,6 @@ function SkeletonCard() {
   );
 }
 
-// ── Branch Card ───────────────────────────────────────────────────────────────
 function BranchCard({ branch, onEdit, onDelete }) {
   const util = branch.bay_utilization ?? 0;
   const utilColor = bayColor(util);
@@ -279,16 +273,16 @@ function BranchCard({ branch, onEdit, onDelete }) {
     branch.satisfaction !== null && branch.satisfaction !== undefined;
 
   return (
-    <div className="bg-[#111827] border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
+    <div className="bg-[#111827] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
       {/* Name + badge */}
       <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-lg font-black text-white leading-tight">
+        <div className="flex-1 min-w-0 pr-3">
+          <h3 className="text-base sm:text-lg font-black text-white leading-tight truncate">
             {branch.name}
           </h3>
           <div className="flex items-center gap-1.5 mt-1">
             <svg
-              className="w-3.5 h-3.5 text-gray-500"
+              className="w-3.5 h-3.5 text-gray-500 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -300,11 +294,13 @@ function BranchCard({ branch, onEdit, onDelete }) {
                 d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            <span className="text-xs text-gray-500">{branch.address}</span>
+            <span className="text-xs text-gray-500 truncate">
+              {branch.address}
+            </span>
           </div>
         </div>
         <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold border shrink-0 ml-2 ${branch.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${branch.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
         >
           {branch.is_active ? "Active" : "Inactive"}
         </span>
@@ -337,7 +333,7 @@ function BranchCard({ branch, onEdit, onDelete }) {
             key={label}
             className="bg-white/[0.04] border border-white/[0.06] rounded-xl py-3 text-center"
           >
-            <p className="text-2xl font-black text-white leading-none">
+            <p className="text-xl sm:text-2xl font-black text-white leading-none">
               {value}
             </p>
             <p className="text-xs text-gray-500 mt-1">{label}</p>
@@ -410,7 +406,7 @@ function BranchCard({ branch, onEdit, onDelete }) {
         </button>
         <button
           onClick={() => onDelete(branch)}
-          className="px-5 py-2.5 bg-white/[0.06] hover:bg-red-500/10 border border-white/10 hover:border-red-500/20 text-gray-300 hover:text-red-400 font-semibold text-sm rounded-xl transition-all"
+          className="px-4 sm:px-5 py-2.5 bg-white/[0.06] hover:bg-red-500/10 border border-white/10 hover:border-red-500/20 text-gray-300 hover:text-red-400 font-semibold text-sm rounded-xl transition-all"
         >
           Delete
         </button>
@@ -419,7 +415,6 @@ function BranchCard({ branch, onEdit, onDelete }) {
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
 function AdminBranches() {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -527,23 +522,21 @@ function AdminBranches() {
         />
       )}
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">
-              Branches
-            </h1>
-            <p className="text-gray-400 mt-1">
-              Monitor and compare performance across all branches
-            </p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
+        {/* ── Header: title + button stacked on the left ── */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Branches
+          </h1>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+            Monitor and compare performance across all branches
+          </p>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:scale-105 self-start md:self-auto md:mt-12"
+            className="mt-4 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
           >
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -560,18 +553,18 @@ function AdminBranches() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {STATS.map((s) => (
             <div
               key={s.label}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all"
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-5 backdrop-blur-sm hover:border-white/10 transition-all"
             >
               <div
-                className="p-3 rounded-xl w-fit mb-3"
+                className="p-2.5 rounded-xl w-fit mb-2 sm:mb-3"
                 style={{ backgroundColor: s.color + "22" }}
               >
                 <svg
-                  className="w-5 h-5"
+                  className="w-4 h-4 sm:w-5 sm:h-5"
                   style={{ color: s.color }}
                   fill="none"
                   stroke="currentColor"
@@ -585,21 +578,20 @@ function AdminBranches() {
                   />
                 </svg>
               </div>
-              <div className="text-2xl font-black text-white mb-1">
+              <div className="text-xl sm:text-2xl font-black text-white mb-1">
                 {loading ? (
                   <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
                 ) : (
                   s.value
                 )}
               </div>
-              <div className="text-sm text-gray-500">{s.label}</div>
+              <div className="text-xs sm:text-sm text-gray-500">{s.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Error */}
         {!loading && error && (
-          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
+          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3">
             <span className="text-sm font-medium">
               Failed to load branches: {error}
             </span>
@@ -612,18 +604,16 @@ function AdminBranches() {
           </div>
         )}
 
-        {/* Loading skeletons */}
         {loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
             {[1, 2, 3].map((i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         )}
 
-        {/* Empty */}
         {!loading && !error && branches.length === 0 && (
-          <div className="text-center py-24 text-gray-600">
+          <div className="text-center py-16 sm:py-24 text-gray-600">
             <svg
               className="w-12 h-12 mx-auto mb-4 opacity-40"
               fill="none"
@@ -644,9 +634,8 @@ function AdminBranches() {
           </div>
         )}
 
-        {/* Cards */}
         {!loading && !error && branches.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
             {branches.map((branch) => (
               <BranchCard
                 key={branch.id}

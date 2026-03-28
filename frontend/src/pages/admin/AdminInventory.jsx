@@ -15,7 +15,6 @@ const CATEGORIES = [
   "Ignition",
   "Other",
 ];
-
 const SKU_PREFIX = {
   Lubricants: "LUB",
   Brakes: "BRK",
@@ -25,10 +24,8 @@ const SKU_PREFIX = {
   Ignition: "IGN",
   Other: "OTH",
 };
-
 const inputCls =
-  "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all";
-
+  "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm";
 const DARK_SWAL = { background: "#111827", color: "#f9fafb" };
 const ALL_BRANCHES = "All Branches";
 const CENTRAL_BRANCH = "Central";
@@ -49,7 +46,6 @@ const getInventoryStatusKey = (item) => {
   const raw = String(item?.status ?? "")
     .trim()
     .toLowerCase();
-
   if (quantity <= 0 || raw.includes("out of stock")) return "out_of_stock";
   if (minimum > 0 && quantity <= minimum) return "reorder_now";
   if (minimum > 0 && quantity <= Math.ceil(minimum * 1.5)) return "running_low";
@@ -82,26 +78,12 @@ const StatusBadge = ({ item }) => {
   const ui = STATUS_UI[key] ?? STATUS_UI.available;
   return (
     <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold border ${ui.className}`}
+      className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${ui.className}`}
     >
       {ui.label}
     </span>
   );
 };
-
-const SkeletonRow = () => (
-  <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 animate-pulse items-center">
-    <div className="col-span-1 h-3 w-10 bg-gray-800 rounded" />
-    <div className="col-span-2 h-3.5 w-28 bg-gray-800 rounded" />
-    <div className="col-span-1 h-3 w-16 bg-gray-800 rounded" />
-    <div className="col-span-1 h-3 w-20 bg-gray-800 rounded" />
-    <div className="col-span-1 h-3 w-12 bg-gray-800 rounded" />
-    <div className="col-span-1 h-3 w-14 bg-gray-800 rounded" />
-    <div className="col-span-2 h-3 w-24 bg-gray-800 rounded" />
-    <div className="col-span-2 h-3 w-24 bg-gray-800 rounded" />
-    <div className="col-span-1 h-6 w-16 bg-gray-800 rounded-full ml-auto" />
-  </div>
-);
 
 const Field = ({ label, children }) => (
   <div>
@@ -111,6 +93,122 @@ const Field = ({ label, children }) => (
     {children}
   </div>
 );
+
+const SkeletonRow = () => (
+  <div className="hidden md:grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 animate-pulse items-center">
+    <div className="col-span-2 h-3.5 bg-gray-800 rounded" />
+    <div className="col-span-1 h-3 bg-gray-800 rounded" />
+    <div className="col-span-1 h-3 bg-gray-800 rounded" />
+    <div className="col-span-1 h-3 bg-gray-800 rounded" />
+    <div className="col-span-1 h-3 bg-gray-800 rounded" />
+    <div className="col-span-2 h-3 bg-gray-800 rounded" />
+    <div className="col-span-2 h-3 bg-gray-800 rounded" />
+    <div className="col-span-1 h-6 bg-gray-800 rounded-full ml-auto" />
+    <div className="col-span-1 h-6 bg-gray-800 rounded" />
+  </div>
+);
+
+const SkeletonCard = () => (
+  <div className="md:hidden bg-gray-900/60 border border-white/5 rounded-2xl p-4 animate-pulse">
+    <div className="flex justify-between mb-3">
+      <div className="h-4 w-32 bg-gray-800 rounded" />
+      <div className="h-6 w-20 bg-gray-800 rounded-full" />
+    </div>
+    <div className="grid grid-cols-3 gap-2">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-12 bg-gray-800 rounded-xl" />
+      ))}
+    </div>
+  </div>
+);
+
+// Mobile item card
+function InventoryCard({ item, onEdit, onToggleActive, archiveFilter }) {
+  return (
+    <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 hover:border-white/10 transition-all">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-white font-semibold text-sm truncate">
+            {item.name}
+          </div>
+          <div className="text-gray-500 text-xs mt-0.5 font-mono">
+            {item.sku} · {item.category}
+          </div>
+        </div>
+        <StatusBadge item={item} />
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="bg-white/5 rounded-xl py-2 text-center">
+          <div className="text-white font-bold text-sm">{item.quantity}</div>
+          <div className="text-gray-500 text-[10px]">{item.unit}</div>
+        </div>
+        <div className="bg-white/5 rounded-xl py-2 text-center">
+          <div className="text-white font-bold text-sm">
+            ₱{Number(item.price).toLocaleString()}
+          </div>
+          <div className="text-gray-500 text-[10px]">Price</div>
+        </div>
+        <div className="bg-white/5 rounded-xl py-2 text-center">
+          <div
+            className={`text-xs font-semibold px-1 py-0.5 rounded-full border inline-block ${getBranchBadgeClass(getItemBranchLabel(item))}`}
+          >
+            {getItemBranchLabel(item)}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-gray-500 text-xs">{item.supplier || "—"}</span>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onEdit(item)}
+            className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => onToggleActive(item, archiveFilter === "archived")}
+            className={`p-1.5 rounded-lg transition-all ${archiveFilter === "archived" ? "text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10" : "text-gray-500 hover:text-amber-400 hover:bg-amber-500/10"}`}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              {archiveFilter === "archived" ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 13h6m2 7H7a2 2 0 01-2-2V7h14v11a2 2 0 01-2 2zM9 4h6l1 3H8l1-3z"
+                />
+              )}
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
   const isEdit = !!editItem;
@@ -126,7 +224,6 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
     supplier: editItem?.supplier ?? "",
   });
   const [saving, setSaving] = useState(false);
-
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
@@ -163,16 +260,14 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
       setSaving(true);
       const payload = { ...form };
       if (!isEdit) payload.sku = generatedSku;
-
-      if (isEdit) {
+      if (isEdit)
         await axios.patch(`${API_BASE}/inventory/${editItem.id}/`, payload, {
           headers: authHeaders,
         });
-      } else {
+      else
         await axios.post(`${API_BASE}/inventory/`, payload, {
           headers: authHeaders,
         });
-      }
       onSaved();
       onClose();
       Swal.fire({
@@ -196,14 +291,14 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 p-0 sm:p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10 sticky top-0 bg-gray-900 z-10">
           <div>
-            <h2 className="text-xl font-black text-white">
+            <h2 className="text-lg sm:text-xl font-black text-white">
               {isEdit ? "Edit Item" : "Add Inventory Item"}
             </h2>
-            <p className="text-gray-500 text-sm mt-0.5">
+            <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
               {isEdit ? "Update item details" : "Add a new item to inventory"}
             </p>
           </div>
@@ -226,8 +321,8 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
             </svg>
           </button>
         </div>
-        <div className="p-6 space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 sm:p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <Field label="Item Name">
               <input
                 className={inputCls}
@@ -248,8 +343,8 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               </select>
             </Field>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label={isEdit ? "SKU" : "SKU (Auto-generated)"}>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label={isEdit ? "SKU" : "SKU (Auto)"}>
               <input
                 className={inputCls}
                 value={isEdit ? form.sku : generatedSku}
@@ -259,13 +354,13 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
             <Field label="Unit">
               <input
                 className={inputCls}
-                placeholder="e.g. Liters, Pieces, Sets"
+                placeholder="e.g. Liters, Pieces"
                 value={form.unit}
                 onChange={(e) => set("unit", e.target.value)}
               />
             </Field>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <Field label="Quantity">
               <input
                 type="number"
@@ -275,7 +370,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
                 onChange={(e) => set("quantity", e.target.value)}
               />
             </Field>
-            <Field label="Min Qty (Alert)">
+            <Field label="Min Qty">
               <input
                 type="number"
                 className={inputCls}
@@ -306,7 +401,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 px-6 py-3 rounded-xl transition-all font-semibold"
+              className="flex-1 border border-white/10 text-gray-400 hover:text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm"
             >
               Cancel
             </button>
@@ -314,7 +409,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               type="button"
               onClick={submit}
               disabled={saving}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold shadow-lg shadow-red-600/30"
+              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-red-600/30"
             >
               {saving ? "Saving..." : isEdit ? "Save Changes" : "Add Item"}
             </button>
@@ -339,7 +434,6 @@ function StockTransferModal({
     note: "",
   });
   const [sending, setSending] = useState(false);
-
   const selectedItem = items.find(
     (i) => String(i.id) === String(form.source_item_id),
   );
@@ -382,7 +476,6 @@ function StockTransferModal({
         text:
           err.response?.data?.detail ??
           err.response?.data?.message ??
-          JSON.stringify(err.response?.data) ??
           "Could not send stock.",
         ...DARK_SWAL,
       });
@@ -392,9 +485,11 @@ function StockTransferModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-xl shadow-2xl p-6 space-y-4">
-        <h2 className="text-xl font-black text-white">Send Stock to Branch</h2>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 p-0 sm:p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xl shadow-2xl p-4 sm:p-6 space-y-4">
+        <h2 className="text-lg sm:text-xl font-black text-white">
+          Send Stock to Branch
+        </h2>
         <div className="space-y-4">
           <Field label="Central Item (SKU)">
             <select
@@ -452,7 +547,7 @@ function StockTransferModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 border border-white/10 text-gray-400 hover:text-white px-6 py-3 rounded-xl transition-all font-semibold"
+            className="flex-1 border border-white/10 text-gray-400 hover:text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm"
           >
             Cancel
           </button>
@@ -460,7 +555,7 @@ function StockTransferModal({
             type="button"
             onClick={submit}
             disabled={sending}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl transition-all font-semibold"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm"
           >
             {sending ? "Sending..." : "Send Stock"}
           </button>
@@ -472,7 +567,6 @@ function StockTransferModal({
 
 function AdminInventory() {
   const { headers: authHeaders, isAuthenticated } = useAuth();
-
   const [items, setItems] = useState([]);
   const [branches, setBranches] = useState([]);
   const [restockRequests, setRestockRequests] = useState([]);
@@ -494,7 +588,6 @@ function AdminInventory() {
     try {
       setLoading(true);
       setError(null);
-
       const [invRes, branchRes, rrRes, txRes] = await Promise.all([
         axios.get(
           `${API_BASE}/inventory/?archived=${archiveFilter === "archived" ? "true" : "false"}`,
@@ -508,9 +601,7 @@ function AdminInventory() {
           headers: authHeaders,
         }),
       ]);
-
-      const allItems = Array.isArray(invRes.data) ? invRes.data : [];
-      setItems(allItems);
+      setItems(Array.isArray(invRes.data) ? invRes.data : []);
       setBranches(branchRes.data?.results ?? branchRes.data ?? []);
       setRestockRequests(Array.isArray(rrRes.data) ? rrRes.data : []);
       setTransactions(Array.isArray(txRes.data) ? txRes.data : []);
@@ -574,7 +665,6 @@ function AdminInventory() {
       ...DARK_SWAL,
     });
     if (!confirm.isConfirmed) return;
-
     try {
       await axios.patch(
         `${API_BASE}/inventory/restock-requests/${req.id}/action/`,
@@ -588,10 +678,6 @@ function AdminInventory() {
           action === "approve"
             ? "Request approved — stock transferred!"
             : "Request rejected",
-        text:
-          action === "approve"
-            ? `${req.quantity_requested} units of "${req.inventory_item_name}" moved to ${req.branch_name}.`
-            : undefined,
         timer: 2000,
         showConfirmButton: false,
         ...DARK_SWAL,
@@ -608,12 +694,18 @@ function AdminInventory() {
 
   const branchOptions = React.useMemo(() => {
     const namesFromItems = items.map(getItemBranchLabel);
-    const namesFromBranches = (branches || []).map((b) => b.name).filter(Boolean);
+    const namesFromBranches = (branches || [])
+      .map((b) => b.name)
+      .filter(Boolean);
     return [
       ALL_BRANCHES,
       CENTRAL_BRANCH,
       ...Array.from(
-        new Set([...namesFromItems, ...namesFromBranches].filter((n) => n && n !== CENTRAL_BRANCH)),
+        new Set(
+          [...namesFromItems, ...namesFromBranches].filter(
+            (n) => n && n !== CENTRAL_BRANCH,
+          ),
+        ),
       ).sort((a, b) => a.localeCompare(b)),
     ];
   }, [items, branches]);
@@ -664,14 +756,11 @@ function AdminInventory() {
       key === "running_low" || key === "reorder_now" || key === "out_of_stock"
     );
   });
-
   const pendingRestock = restockRequests.filter((r) => r.status === "pending");
-
   const totalValue = branchScopedItems.reduce(
     (sum, i) => sum + (parseFloat(i.price) || 0) * (i.quantity || 0),
     0,
   );
-
   const openCreate = () => {
     setEditItem(null);
     setShowModal(true);
@@ -680,37 +769,33 @@ function AdminInventory() {
     setEditItem(i);
     setShowModal(true);
   };
-
   const centralItems = items.filter((i) => i.branch_name == null);
 
   return (
     <AdminLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
+        <div className="flex items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Inventory
             </h1>
-            <p className="text-gray-400 mt-1">
-              Track and manage parts and supplies inventory
+            <p className="text-gray-400 mt-1 text-sm sm:text-base">
+              Track and manage parts and supplies
             </p>
           </div>
         </div>
 
+        {/* Tabs + Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-          <div className="flex gap-2 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-fit">
+          <div className="flex gap-1 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-full sm:w-fit overflow-x-auto">
             {[
               { key: "inventory", label: "Inventory" },
-              { key: "transactions", label: "Transaction History" },
+              { key: "transactions", label: "Transactions" },
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-5 py-2.5 rounded-lg font-semibold transition-all ${
-                  activeTab === tab.key
-                    ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                }`}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all whitespace-nowrap ${activeTab === tab.key ? "bg-red-500 text-white shadow-lg shadow-red-500/25" : "text-gray-400 hover:text-white hover:bg-white/5"}`}
               >
                 {tab.label}
                 {tab.key === "inventory" &&
@@ -723,21 +808,20 @@ function AdminInventory() {
               </button>
             ))}
           </div>
-
           {activeTab === "inventory" && (
             <div className="flex gap-2 sm:ml-auto">
               <button
                 onClick={() => setShowTransferModal(true)}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-blue-600/30"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/30 text-sm"
               >
                 Send Stock
               </button>
               <button
                 onClick={openCreate}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 hover:scale-105"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
               >
                 <svg
-                  className="w-5 h-5"
+                  className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -756,7 +840,7 @@ function AdminInventory() {
         </div>
 
         {error && (
-          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
+          <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3">
             <svg
               className="w-5 h-5 shrink-0"
               fill="none"
@@ -773,7 +857,7 @@ function AdminInventory() {
             <span className="text-sm font-medium">{error}</span>
             <button
               onClick={fetchData}
-              className="ml-auto text-xs font-semibold underline hover:no-underline"
+              className="ml-auto text-xs font-semibold underline"
             >
               Retry
             </button>
@@ -782,14 +866,15 @@ function AdminInventory() {
 
         {activeTab === "inventory" && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
               {[
                 {
                   label: "Total Items",
                   sub:
                     branchFilter === ALL_BRANCHES
-                      ? "All inventory items"
-                      : `Items in ${branchFilter}`,
+                      ? "All inventory"
+                      : `In ${branchFilter}`,
                   value: loading ? null : branchScopedItems.length,
                   color: "#ef4444",
                   iconPath:
@@ -814,15 +899,15 @@ function AdminInventory() {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all"
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 backdrop-blur-sm hover:border-white/10 transition-all"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div
-                      className="p-3 rounded-xl"
+                      className="p-2.5 sm:p-3 rounded-xl"
                       style={{ backgroundColor: stat.color + "22" }}
                     >
                       <svg
-                        className="w-5 h-5"
+                        className="w-4 h-4 sm:w-5 sm:h-5"
                         style={{ color: stat.color }}
                         fill="none"
                         stroke="currentColor"
@@ -837,7 +922,7 @@ function AdminInventory() {
                       </svg>
                     </div>
                   </div>
-                  <div className="text-2xl font-black text-white mb-1">
+                  <div className="text-xl sm:text-2xl font-black text-white mb-1">
                     {loading ? (
                       <div className="h-7 w-16 bg-gray-800 rounded animate-pulse" />
                     ) : (
@@ -850,8 +935,9 @@ function AdminInventory() {
               ))}
             </div>
 
+            {/* Low Stock Alert */}
             {!loading && lowStock.length > 0 && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 mb-8 backdrop-blur-sm">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 sm:p-5 mb-6 sm:mb-8">
                 <div className="flex items-center gap-2 mb-4">
                   <svg
                     className="w-4 h-4 text-red-400"
@@ -877,23 +963,25 @@ function AdminInventory() {
                   {lowStock.map((item) => (
                     <div
                       key={item.id}
-                      className="bg-gray-900/60 border border-white/5 rounded-xl p-4 flex items-center justify-between"
+                      className="bg-gray-900/60 border border-white/5 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
                     >
                       <div>
                         <div className="text-white font-semibold text-sm">
                           {item.name}
                         </div>
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          Current:{" "}
-                          <span className="text-red-400 font-bold">
-                            {item.quantity} {item.unit}
+                        <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-x-2">
+                          <span>
+                            Current:{" "}
+                            <span className="text-red-400 font-bold">
+                              {item.quantity} {item.unit}
+                            </span>
                           </span>
-                          <span className="mx-2 text-gray-700">·</span>
-                          Min:{" "}
-                          <span className="text-gray-300">
-                            {item.minimum_qty} {item.unit}
+                          <span>
+                            Min:{" "}
+                            <span className="text-gray-300">
+                              {item.minimum_qty} {item.unit}
+                            </span>
                           </span>
-                          <span className="mx-2 text-gray-700">·</span>
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getBranchBadgeClass(getItemBranchLabel(item))}`}
                           >
@@ -903,7 +991,7 @@ function AdminInventory() {
                       </div>
                       <button
                         onClick={() => openEdit(item)}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-all shadow-lg shadow-red-600/20"
+                        className="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-all"
                       >
                         Update Stock
                       </button>
@@ -913,8 +1001,9 @@ function AdminInventory() {
               </div>
             )}
 
+            {/* Restock Requests */}
             {!loading && pendingRestock.length > 0 && (
-              <div className="bg-gray-900/60 border border-amber-500/20 rounded-2xl p-5 mb-8 backdrop-blur-sm">
+              <div className="bg-gray-900/60 border border-amber-500/20 rounded-2xl p-4 sm:p-5 mb-6 sm:mb-8">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <svg
@@ -931,7 +1020,7 @@ function AdminInventory() {
                       />
                     </svg>
                     <h2 className="text-sm font-black text-amber-400 uppercase tracking-wider">
-                      Pending Restock Requests
+                      Pending Restock
                     </h2>
                   </div>
                   <span className="text-xs text-gray-500">
@@ -942,7 +1031,7 @@ function AdminInventory() {
                   {pendingRestock.map((req) => (
                     <div
                       key={req.id}
-                      className="bg-gray-950/60 border border-white/5 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-3 justify-between"
+                      className="bg-gray-950/60 border border-white/5 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
                     >
                       <div>
                         <div className="text-white font-semibold text-sm">
@@ -953,37 +1042,29 @@ function AdminInventory() {
                           <span className="text-gray-300">
                             {req.branch_name ?? "—"}
                           </span>
-                          {" · "}Qty requested:{" "}
+                          {" · "}Qty:{" "}
                           <span className="text-amber-400 font-bold">
                             {req.quantity_requested}
                           </span>
-                          {" · "}By: {req.requested_by_name ?? "Unknown"}
+                          {" · "}
+                          {req.requested_by_name ?? "Unknown"}
                         </div>
                         {req.notes && (
                           <p className="text-xs text-gray-400 mt-1 italic">
                             "{req.notes}"
                           </p>
                         )}
-                        <div className="text-xs text-gray-600 mt-0.5">
-                          Requested{" "}
-                          {new Date(req.created_at).toLocaleString("en-PH", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex gap-2 shrink-0">
                         <button
                           onClick={() => reviewRestock(req, "approve")}
-                          className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow shadow-emerald-600/20"
+                          className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all"
                         >
                           Approve
                         </button>
                         <button
                           onClick={() => reviewRestock(req, "reject")}
-                          className="px-4 py-2 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-all shadow shadow-red-600/20"
+                          className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-all"
                         >
                           Reject
                         </button>
@@ -994,8 +1075,9 @@ function AdminInventory() {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
-              <div className="relative flex-1">
+            {/* Filters */}
+            <div className="flex flex-col gap-3 mb-6">
+              <div className="relative">
                 <svg
                   className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
                   fill="none"
@@ -1014,75 +1096,68 @@ function AdminInventory() {
                   placeholder="Search by name, SKU, or category..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all"
+                  className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm"
                 />
               </div>
-              {[
-                {
-                  value: categoryFilter,
-                  onChange: setCategoryFilter,
-                  options: ["All Categories", ...CATEGORIES],
-                },
-                {
-                  value: branchFilter,
-                  onChange: setBranchFilter,
-                  options: branchOptions,
-                },
-                {
-                  value: statusFilter,
-                  onChange: setStatusFilter,
-                  options: [
-                    { value: "all", label: "All Status" },
-                    { value: "available", label: "Available 🟢" },
-                    { value: "running_low", label: "Running Low 🟡" },
-                    { value: "reorder_now", label: "Reorder Now 🔴" },
-                    { value: "out_of_stock", label: "Out of Stock ⚫" },
-                  ],
-                },
-                {
-                  value: archiveFilter,
-                  onChange: setArchiveFilter,
-                  options: [
-                    { value: "active", label: "Active" },
-                    { value: "archived", label: "Archived" },
-                  ],
-                },
-              ].map((sel, i) => (
-                <select
-                  key={i}
-                  value={sel.value}
-                  onChange={(e) => sel.onChange(e.target.value)}
-                  className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer min-w-[150px]"
-                >
-                  {sel.options.map((o) => (
-                    <option
-                      key={typeof o === "string" ? o : o.value}
-                      value={typeof o === "string" ? o : o.value}
-                    >
-                      {typeof o === "string" ? o : o.label}
-                    </option>
-                  ))}
-                </select>
-              ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  {
+                    value: categoryFilter,
+                    onChange: setCategoryFilter,
+                    options: ["All Categories", ...CATEGORIES],
+                  },
+                  {
+                    value: branchFilter,
+                    onChange: setBranchFilter,
+                    options: branchOptions,
+                  },
+                  {
+                    value: statusFilter,
+                    onChange: setStatusFilter,
+                    options: [
+                      { value: "all", label: "All Status" },
+                      { value: "available", label: "Available 🟢" },
+                      { value: "running_low", label: "Running Low 🟡" },
+                      { value: "reorder_now", label: "Reorder Now 🔴" },
+                      { value: "out_of_stock", label: "Out of Stock ⚫" },
+                    ],
+                  },
+                  {
+                    value: archiveFilter,
+                    onChange: setArchiveFilter,
+                    options: [
+                      { value: "active", label: "Active" },
+                      { value: "archived", label: "Archived" },
+                    ],
+                  },
+                ].map((sel, i) => (
+                  <select
+                    key={i}
+                    value={sel.value}
+                    onChange={(e) => sel.onChange(e.target.value)}
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer text-sm"
+                  >
+                    {sel.options.map((o) => (
+                      <option
+                        key={typeof o === "string" ? o : o.value}
+                        value={typeof o === "string" ? o : o.value}
+                      >
+                        {typeof o === "string" ? o : o.label}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+              </div>
             </div>
 
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                <div className="col-span-3">Name</div>
-                <div className="col-span-1">Category</div>
-                <div className="col-span-1">SKU</div>
-                <div className="col-span-1">Qty</div>
-                <div className="col-span-1">Price</div>
-                <div className="col-span-2">Branch</div>
-                <div className="col-span-1">Supplier</div>
-                <div className="col-span-1 text-right">Status</div>
-                <div className="col-span-1 text-right">Actions</div>
-              </div>
-
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3 mb-4">
               {loading ? (
-                Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+                Array.from({ length: 4 }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))
               ) : filtered.length === 0 ? (
-                <div className="py-20 text-center">
+                <div className="py-16 text-center">
                   <svg
                     className="w-12 h-12 text-gray-700 mx-auto mb-4"
                     fill="none"
@@ -1096,6 +1171,39 @@ function AdminInventory() {
                       d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
                     />
                   </svg>
+                  <p className="text-gray-500">No items found</p>
+                </div>
+              ) : (
+                paginatedItems.map((item) => (
+                  <InventoryCard
+                    key={item.id}
+                    item={item}
+                    onEdit={openEdit}
+                    onToggleActive={toggleItemActive}
+                    archiveFilter={archiveFilter}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="col-span-2">Name</div>
+                <div className="col-span-1">Category</div>
+                <div className="col-span-1">SKU</div>
+                <div className="col-span-1">Qty</div>
+                <div className="col-span-1">Price</div>
+                <div className="col-span-2">Branch</div>
+                <div className="col-span-1">Supplier</div>
+                <div className="col-span-2 text-right">Status</div>
+                <div className="col-span-1 text-right">Actions</div>
+              </div>
+
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+              ) : filtered.length === 0 ? (
+                <div className="py-20 text-center">
                   <p className="text-gray-500 text-lg">No items found</p>
                   <p className="text-gray-600 text-sm mt-1">
                     Try adjusting your search or filters
@@ -1105,9 +1213,9 @@ function AdminInventory() {
                 paginatedItems.map((item) => (
                   <div
                     key={item.id}
-                    className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+                    className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
                   >
-                    <div className="col-span-3 text-white font-semibold text-sm">
+                    <div className="col-span-2 text-white font-semibold text-sm truncate">
                       {item.name}
                     </div>
                     <div className="col-span-1 text-gray-400 text-sm">
@@ -1128,12 +1236,12 @@ function AdminInventory() {
                     <div className="col-span-2 text-gray-400 text-sm">
                       {getItemBranchLabel(item)}
                     </div>
-                    <div className="col-span-1 text-gray-400 text-sm">
+                    <div className="col-span-1 text-gray-400 text-sm truncate">
                       {item.supplier || (
                         <span className="text-gray-700">—</span>
                       )}
                     </div>
-                    <div className="col-span-1 flex justify-end">
+                    <div className="col-span-2 flex justify-end">
                       <StatusBadge item={item} />
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1">
@@ -1161,9 +1269,6 @@ function AdminInventory() {
                           toggleItemActive(item, archiveFilter === "archived")
                         }
                         className={`p-1.5 rounded-lg transition-all ${archiveFilter === "archived" ? "text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10" : "text-gray-500 hover:text-amber-400 hover:bg-amber-500/10"}`}
-                        title={
-                          archiveFilter === "archived" ? "Restore" : "Archive"
-                        }
                       >
                         <svg
                           className="w-3.5 h-3.5"
@@ -1208,7 +1313,6 @@ function AdminInventory() {
                   </p>
                 </div>
               )}
-
               {!loading && (
                 <Pagination
                   current={currentPage}
@@ -1218,14 +1322,35 @@ function AdminInventory() {
                 />
               )}
             </div>
+
+            {/* Mobile pagination */}
+            {!loading && filtered.length > 0 && (
+              <div className="md:hidden mt-2">
+                <p className="text-gray-500 text-sm mb-3">
+                  Showing{" "}
+                  <span className="text-white font-semibold">
+                    {startItem}-{endItem}
+                  </span>{" "}
+                  of{" "}
+                  <span className="text-white font-semibold">
+                    {filtered.length}
+                  </span>
+                </p>
+                <Pagination
+                  current={currentPage}
+                  total={totalPages}
+                  onChange={setCurrentPage}
+                />
+              </div>
+            )}
           </>
         )}
 
         {activeTab === "transactions" && (
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 mb-8 backdrop-blur-sm">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-black text-white uppercase tracking-wider">
-                Inventory Transaction History
+                Transaction History
               </h2>
               <span className="text-xs text-gray-500">
                 Latest {transactions.length} records
@@ -1238,7 +1363,7 @@ function AdminInventory() {
                 {transactions.map((tx) => (
                   <div
                     key={tx.id}
-                    className="bg-gray-950/60 border border-white/5 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-3 justify-between"
+                    className="bg-gray-950/60 border border-white/5 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
                   >
                     <div>
                       <div className="text-white font-semibold text-sm">
@@ -1261,7 +1386,7 @@ function AdminInventory() {
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right shrink-0">
                       <p className="text-xs text-gray-300">
                         {tx.performed_by_name || "System"}
                       </p>
@@ -1285,7 +1410,6 @@ function AdminInventory() {
           authHeaders={authHeaders}
         />
       )}
-
       {showTransferModal && (
         <StockTransferModal
           onClose={() => setShowTransferModal(false)}
