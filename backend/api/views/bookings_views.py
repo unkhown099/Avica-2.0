@@ -123,6 +123,50 @@ def to_display_time(time_str):
         return time_str
 
 
+def _render_notification_email_html(*, title, message, detail_text=""):
+    detail_block = (
+        f'<p style="font-size: 14px; margin-top: 18px; color: #d1d5db;">{detail_text}</p>'
+        if detail_text
+        else ""
+    )
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Inter', Arial, sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 24px; }}
+            .container {{ max-width: 620px; margin: 0 auto; background: #111827; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }}
+            .header {{ background: #000000; padding: 28px; text-align: center; }}
+            .logo {{ height: 50px; }}
+            .content {{ padding: 36px; text-align: center; }}
+            h1 {{ color: #ffffff; font-size: 26px; font-weight: 800; margin-bottom: 12px; }}
+            p {{ color: #9ca3af; font-size: 16px; line-height: 1.7; margin: 0; }}
+            .divider {{ height: 1px; background: linear-gradient(to right, transparent, rgba(220,38,38,0.35), transparent); margin: 24px 0 18px; }}
+            .footer {{ background: rgba(0,0,0,0.28); padding: 22px; text-align: center; }}
+            .footer-text {{ color: #4b5563; font-size: 12px; margin: 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <img src="https://i.ibb.co/vzR0F7Z/otokwikklogo.png" alt="Otokwikk" class="logo">
+            </div>
+            <div class="content">
+                <h1>{title}</h1>
+                <p>{message}</p>
+                {detail_block}
+                <div class="divider"></div>
+                <p style="font-size: 14px;">If you have questions, please contact your branch.</p>
+            </div>
+            <div class="footer">
+                <p class="footer-text">© 2026 Otokwikk Services. This is an automated email, please do not reply.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+
 def _notify_customer_booking_status(booking, status_value):
     status_config = {
         "confirmed": {
@@ -181,17 +225,11 @@ def _notify_customer_booking_status(booking, status_value):
         return
 
     branch_name = booking.branch.name if booking.branch else "your selected branch"
-    html_content = f"""
-    <div style="font-family: sans-serif; padding: 20px; color: #333;">
-        <h2 style="color: #dc2626;">{config["title"]}</h2>
-        <p>Hi,</p>
-        <p>{config["message"]}</p>
-        <p><strong>Branch:</strong> {branch_name}</p>
-        <p>If you have any questions, please contact our branch.</p>
-        <br>
-        <p>Best regards,<br>Otokwikk Team</p>
-    </div>
-    """
+    html_content = _render_notification_email_html(
+        title=config["title"],
+        message=config["message"],
+        detail_text=f"Branch: {branch_name}",
+    )
     text_content = strip_tags(html_content)
     try:
         msg = EmailMultiAlternatives(
@@ -226,14 +264,10 @@ def _notify_user_inapp_and_email(*, user, title, message, email_subject):
     if not getattr(user, "email", ""):
         return
 
-    html_content = f"""
-    <div style="font-family: sans-serif; padding: 20px; color: #333;">
-        <h2 style="color: #dc2626;">{title}</h2>
-        <p>Hi,</p>
-        <p>{message}</p>
-        <p>Best regards,<br>Otokwikk Team</p>
-    </div>
-    """
+    html_content = _render_notification_email_html(
+        title=title,
+        message=message,
+    )
     text_content = strip_tags(html_content)
     try:
         msg = EmailMultiAlternatives(
@@ -650,6 +684,14 @@ class StaffBookingListView(generics.ListAPIView):
             else:
                 return Booking.objects.none()
 
+        # Employee should only see tasks assigned to their own account.
+        if requester_staff and requester_staff.role == "Employee":
+            full_name = f"{requester_staff.first_name} {requester_staff.last_name}".strip()
+            qs = qs.filter(
+                Q(queue_entry__assigned_employee_id=requester_staff.id) |
+                Q(staff=full_name)
+            )
+
         date_param   = self.request.query_params.get("date")
         status_param = self.request.query_params.get("status")
         branch_param = self.request.query_params.get("branch")
@@ -661,7 +703,7 @@ class StaffBookingListView(generics.ListAPIView):
         if branch_param:
             qs = qs.filter(branch__name=branch_param)
 
-        return qs.order_by("date", "time")
+        return qs.distinct().order_by("date", "time")
 
 
 class StaffBookingActionView(APIView):
@@ -731,6 +773,7 @@ class StaffBookingActionView(APIView):
             return Response(BookingSerializer(booking).data)
 
         new_status = request.data.get("status", booking.status)
+        assignment_provided = "assigned_employee_id" in request.data
         assigned_employee_id = request.data.get("assigned_employee_id", None)
         existing_assigned_employee_id = None
         queue_entry = getattr(booking, "queue_entry", None)
@@ -738,8 +781,14 @@ class StaffBookingActionView(APIView):
             existing_assigned_employee_id = queue_entry.assigned_employee_id
 
         normalized_assigned_employee_id = assigned_employee_id
-        if normalized_assigned_employee_id in ("", "null"):
+        if normalized_assigned_employee_id in ("", "null", None):
             normalized_assigned_employee_id = None
+
+        # Preserve current assignment unless a valid new mechanic id is explicitly provided.
+        if normalized_assigned_employee_id is None and existing_assigned_employee_id is not None:
+            assigned_employee_id = existing_assigned_employee_id
+            normalized_assigned_employee_id = existing_assigned_employee_id
+            assignment_provided = False
 
         # If customer picked a preferred mechanic, auto-use it when staff confirms
         # and no manual assignment is provided yet.
@@ -790,7 +839,7 @@ class StaffBookingActionView(APIView):
                 )
 
         assigned_employee = None
-        if assigned_employee_id is not None:
+        if assignment_provided and assigned_employee_id is not None:
             assigned_employee_id = normalized_assigned_employee_id
 
             if assigned_employee_id is None:
@@ -899,7 +948,7 @@ class StaffBookingActionView(APIView):
                 
                 entry = _booking_to_queue_entry(booking)
 
-                if assigned_employee_id is not None:
+                if assignment_provided and assigned_employee_id is not None:
                     entry.assigned_employee = assigned_employee
                     entry.save(update_fields=["assigned_employee"])
 
@@ -914,7 +963,7 @@ class StaffBookingActionView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-        elif assigned_employee_id is not None and hasattr(booking, "queue_entry"):
+        elif assignment_provided and assigned_employee_id is not None and hasattr(booking, "queue_entry"):
             queue_entry = booking.queue_entry
             queue_entry.assigned_employee = assigned_employee
             queue_entry.save(update_fields=["assigned_employee"])

@@ -15,6 +15,7 @@ const MENU_ITEMS = {
       children: [
         { key: "overview", label: "Overview" },
         { key: "revenue", label: "Revenue" },
+        { key: "appointment", label: "Appointment" },
         { key: "customers", label: "Customers" },
         { key: "inventory", label: "Inventory" },
         { key: "services", label: "Services" },
@@ -58,6 +59,14 @@ const MENU_ITEMS = {
       name: "Dashboard",
       path: "/branch-owner/dashboard",
       icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+      children: [
+        { key: "overview", label: "Overview" },
+        { key: "revenue", label: "Revenue" },
+        { key: "customers", label: "Customers" },
+        { key: "appointment", label: "Appointment" },
+        { key: "inventory", label: "Inventory" },
+        { key: "services", label: "Services" },
+      ],
     },
     {
       name: "Appointments",
@@ -92,6 +101,14 @@ const MENU_ITEMS = {
       name: "Dashboard",
       path: "/manager/dashboard",
       icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
+      children: [
+        { key: "overview", label: "Overview" },
+        { key: "revenue", label: "Revenue" },
+        { key: "customers", label: "Customers" },
+        { key: "appointment", label: "Appointment" },
+        { key: "inventory", label: "Inventory" },
+        { key: "services", label: "Services" },
+      ],
     },
     {
       name: "Appointments",

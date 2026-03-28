@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, date
 from calendar import month_abbr
 
 from ..models import Branch, Booking, QueueEntry, Service, InventoryItem, Staff, Rating
@@ -16,7 +16,7 @@ from ..serializers.business_owner_serializers import (
     OwnerStaffSerializer,
 )
 
-OWNER_ROLES = ["Admin", "Business Owner", "business_owner"]
+OWNER_ROLES = ["Admin", "Business Owner", "business_owner", "owner"]
 
 
 def _require_owner(request):
@@ -24,9 +24,11 @@ def _require_owner(request):
         if not hasattr(request.user, "staff_profile"):
             print(f"[_require_owner] user {request.user.email} has no staff_profile")
             return False, None
-        role = request.user.staff_profile.role
-        print(f"[_require_owner] checking role {role} against {OWNER_ROLES}")
-        return role in OWNER_ROLES, role
+        role = str(request.user.staff_profile.role or "").strip()
+        normalized = role.lower().replace(" ", "_")
+        allowed = normalized in {"admin", "business_owner", "owner"}
+        print(f"[_require_owner] checking role {role} ({normalized})")
+        return allowed, role
     except Exception as e:
         print(f"[_require_owner] Exception: {e}")
         return False, None
@@ -56,7 +58,11 @@ class OwnerDashboardStatsView(APIView):
             this_month  = _month_start(0)
             last_month  = _month_start(1)
 
-            # Revenue
+            # Revenue (align with admin: total paid revenue)
+            rev_total = QueueEntry.objects.filter(
+                payment_status="paid",
+            ).aggregate(t=Sum("price"))["t"] or 0
+
             rev_this = QueueEntry.objects.filter(
                 payment_status="paid",
                 completed_at__date__gte=this_month,
@@ -73,10 +79,11 @@ class OwnerDashboardStatsView(APIView):
                 if rev_last else 0
             )
 
-            # Services completed
-            svc_this = Booking.objects.filter(status="done", date__gte=this_month).count()
-            svc_last = Booking.objects.filter(
-                status="done", date__gte=last_month, date__lt=this_month
+            # Services completed (align with admin: total done queue entries)
+            svc_total = QueueEntry.objects.filter(status="done").count()
+            svc_this = QueueEntry.objects.filter(status="done", completed_at__date__gte=this_month).count()
+            svc_last = QueueEntry.objects.filter(
+                status="done", completed_at__date__gte=last_month, completed_at__date__lt=this_month
             ).count()
             svc_change = (
                 round(((svc_this - svc_last) / svc_last) * 100, 1)
@@ -101,10 +108,11 @@ class OwnerDashboardStatsView(APIView):
             )
 
             return Response({
-                "total_revenue":          float(rev_this),
+                "total_revenue":          float(rev_total),
                 "revenue_change_pct":     rev_change,
+                "total_customers":        Booking.objects.filter(user_id__isnull=False).values("user_id").distinct().count(),
                 "total_branches":         Branch.objects.filter(is_active=True).count(),
-                "services_completed":     svc_this,
+                "services_completed":     svc_total,
                 "services_change_pct":    svc_change,
                 "avg_satisfaction":       sat_pct,
                 "satisfaction_change_pct": sat_change,
@@ -126,23 +134,31 @@ class OwnerRevenueTrendView(APIView):
             if not ok:
                 return Response({"detail": "Permission denied."}, status=403)
 
+            now = timezone.now()
+            current_year = now.year
+            current_month = now.month
             points = []
-            for offset in range(5, -1, -1):   # 5 months ago → current
-                start = _month_start(offset)
-                end   = _month_start(offset - 1) if offset > 0 else timezone.now().date() + timedelta(days=1)
+            for month in range(1, current_month + 1):
+                start = date(current_year, month, 1)
+                if month == 12:
+                    end = date(current_year + 1, 1, 1)
+                else:
+                    end = date(current_year, month + 1, 1)
 
-                rev_qs = QueueEntry.objects.filter(
+                rev = QueueEntry.objects.filter(
                     payment_status="paid",
                     completed_at__date__gte=start,
                     completed_at__date__lt=end,
-                )
-                rev = rev_qs.aggregate(t=Sum("price"))["t"] or 0
+                ).aggregate(t=Sum("price"))["t"] or 0
 
-                svc_qs = Booking.objects.filter(status="done", date__gte=start, date__lt=end)
-                cnt = svc_qs.count()
+                cnt = QueueEntry.objects.filter(
+                    status="done",
+                    completed_at__date__gte=start,
+                    completed_at__date__lt=end,
+                ).count()
 
                 points.append({
-                    "label":    f"{month_abbr[start.month]} {start.year}",
+                    "label":    f"{month_abbr[month]} {current_year}",
                     "revenue":  float(rev),
                     "services": cnt,
                 })
@@ -165,14 +181,12 @@ class OwnerBranchRevenueView(APIView):
             if not ok:
                 return Response({"detail": "Permission denied."}, status=403)
 
-            this_month = _month_start(0)
             branches = Branch.objects.filter(is_active=True)
             data = []
             for b in branches:
                 rev = QueueEntry.objects.filter(
                     branch=b,
                     payment_status="paid",
-                    completed_at__date__gte=this_month,
                 ).aggregate(t=Sum("price"))["t"] or 0
                 data.append({"id": b.id, "name": b.name, "revenue": float(rev)})
 
@@ -301,6 +315,29 @@ class OwnerServiceListView(APIView):
             ok, _ = _require_owner(request)
             if not ok:
                 return Response({"detail": "Permission denied."}, status=403)
+
+            performance_mode = str(request.query_params.get("performance", "")).lower() in {"1", "true", "yes"}
+            if performance_mode:
+                branch_id = request.query_params.get("branch")
+                perf_qs = QueueEntry.objects.filter(status="done", payment_status="paid")
+                if branch_id:
+                    perf_qs = perf_qs.filter(branch_id=branch_id)
+
+                top_services = (
+                    perf_qs.values("service")
+                    .annotate(count=Count("id"), revenue=Sum("price"))
+                    .order_by("-revenue", "-count")
+                )
+                data = [
+                    {
+                        "service": row["service"] or "Other",
+                        "count": int(row["count"] or 0),
+                        "revenue": float(row["revenue"] or 0),
+                        "avg_time": "—",
+                    }
+                    for row in top_services
+                ]
+                return Response(data)
 
             qs = Service.objects.prefetch_related("branches").filter(is_active=True)
 

@@ -4,7 +4,6 @@ import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
 import { API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser.js";
-import Swal from "sweetalert2";
 
 function BranchOwnerAccountManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -168,59 +167,6 @@ function BranchOwnerAccountManagement() {
     ],
   });
 
-  // Handle action
-  const handleToggleStatus = async (staff) => {
-    const newStatus = staff.status === "Active" ? "Inactive" : "Active";
-    const result = await Swal.fire({
-      title: `Confirm Action`,
-      text: `Are you sure you want to ${newStatus === "Active" ? "activate" : "deactivate"} ${staff.first_name || staff.email}?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: newStatus === "Active" ? "#10b981" : "#ef4444",
-      cancelButtonColor: "#374151",
-      confirmButtonText: `Yes, ${newStatus === "Active" ? "activate" : "deactivate"}`,
-      background: "linear-gradient(to bottom right, #1f2937, #111827)",
-      color: "#fff",
-    });
-
-    if (result.isConfirmed) {
-      try {
-        const response = await fetch(`${API_BASE}/owner/staff/${staff.id}/`, {
-          method: "PATCH",
-          headers,
-          credentials: "include",
-          body: JSON.stringify({ status: newStatus }),
-        });
-
-        if (!response.ok) throw new Error("Failed to update status");
-
-        const updatedStaff = await response.json();
-
-        setStaffAccounts((prev) =>
-          prev.map((s) => (s.id === staff.id ? updatedStaff : s))
-        );
-
-        Swal.fire({
-          icon: "success",
-          title: "Success",
-          text: `Account has been ${newStatus.toLowerCase()}d.`,
-          background: "linear-gradient(to bottom right, #1f2937, #111827)",
-          color: "#fff",
-          confirmButtonColor: "#ef4444",
-        });
-      } catch (err) {
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: err.message,
-          background: "linear-gradient(to bottom right, #1f2937, #111827)",
-          color: "#fff",
-          confirmButtonColor: "#ef4444",
-        });
-      }
-    }
-  };
-
   // Format staff name
   const formatStaffName = (staff) => {
     if (staff.first_name && staff.last_name) {
@@ -259,7 +205,7 @@ function BranchOwnerAccountManagement() {
             Account Management
           </h1>
           <p className="text-gray-400 mt-1">
-            View and monitor staff accounts across all branches
+            View staff accounts across all branches
           </p>
         </div>
 
@@ -368,14 +314,15 @@ function BranchOwnerAccountManagement() {
 
         {/* Table */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-          <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            <div className="col-span-3">Name</div>
-            <div className="col-span-2">Phone</div>
-            <div className="col-span-2">Role</div>
-            <div className="col-span-2">Branch</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-1 text-right">Actions</div>
-          </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[980px]">
+              <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="col-span-4">Name</div>
+                <div className="col-span-2">Phone</div>
+                <div className="col-span-2">Role</div>
+                <div className="col-span-2">Branch</div>
+                <div className="col-span-2">Status</div>
+              </div>
 
           {loading ? (
             <div className="py-20 text-center">
@@ -413,9 +360,9 @@ function BranchOwnerAccountManagement() {
               return (
                 <div
                   key={staff.id}
-                  className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+                  className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
                 >
-                  <div className="col-span-3">
+                  <div className="col-span-4">
                     <div className="flex items-center gap-3">
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
@@ -429,13 +376,13 @@ function BranchOwnerAccountManagement() {
                       </div>
                       <div>
                         <div
-                          className="text-white font-semibold text-sm truncate max-w-[180px]"
+                          className="text-white font-semibold text-sm truncate max-w-[220px]"
                           title={staffName}
                         >
                           {staffName}
                         </div>
                         <div
-                          className="text-gray-500 text-xs truncate max-w-[150px]"
+                          className="text-gray-500 text-xs truncate max-w-[220px]"
                           title={staff.email}
                         >
                           {staff.email || "—"}
@@ -472,47 +419,37 @@ function BranchOwnerAccountManagement() {
                       {status}
                     </span>
                   </div>
-                  <div className="col-span-1 flex justify-end">
-                    <button
-                      onClick={() => handleToggleStatus(staff)}
-                      className={`opacity-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${status === "Active"
-                          ? "text-red-400 bg-red-500/10 hover:bg-red-500/20"
-                          : "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
-                        }`}
-                      title={status === "Active" ? "Deactivate Account" : "Activate Account"}
-                    >
-                      {status === "Active" ? "Deactivate" : "Activate"}
-                    </button>
-                  </div>
                 </div>
               );
             })
           )}
 
-          {!loading && filteredStaff.length > 0 && (
-            <div className="px-6 py-4 border-t border-white/5">
-              <p className="text-gray-500 text-sm">
-                Showing{" "}
-                <span className="text-white font-semibold">
-                  {startItem}-{endItem}
-                </span>{" "}
-                of{" "}
-                <span className="text-white font-semibold">
-                  {filteredStaff.length}
-                </span>{" "}
-                staff accounts
-              </p>
-            </div>
-          )}
+              {!loading && filteredStaff.length > 0 && (
+                <div className="px-6 py-4 border-t border-white/5">
+                  <p className="text-gray-500 text-sm">
+                    Showing{" "}
+                    <span className="text-white font-semibold">
+                      {startItem}-{endItem}
+                    </span>{" "}
+                    of{" "}
+                    <span className="text-white font-semibold">
+                      {filteredStaff.length}
+                    </span>{" "}
+                    staff accounts
+                  </p>
+                </div>
+              )}
 
-          {!loading && filteredStaff.length > 0 && (
-            <Pagination
-              current={currentPage}
-              total={totalPages}
-              onChange={setCurrentPage}
-              className="px-6 pb-6"
-            />
-          )}
+              {!loading && filteredStaff.length > 0 && (
+                <Pagination
+                  current={currentPage}
+                  total={totalPages}
+                  onChange={setCurrentPage}
+                  className="px-6 pb-6"
+                />
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </BranchOwnerLayout>

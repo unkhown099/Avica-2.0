@@ -82,6 +82,7 @@ class QueueEntrySerializer(serializers.ModelSerializer):
 
 class QueueEntryCreateSerializer(serializers.ModelSerializer):
     """Used when staff add a walk-in directly to the queue."""
+    customer_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model  = QueueEntry
@@ -94,12 +95,16 @@ class QueueEntryCreateSerializer(serializers.ModelSerializer):
             "branch",
             "notes",
             "source",
+            "customer_user",
+            "customer_id",
         ]
         extra_kwargs = {
             "branch": {"required": False, "allow_null": True},
+            "customer_user": {"required": False, "allow_null": True},
         }
 
     def create(self, validated_data):
+        validated_data.pop("customer_id", None)
         validated_data.setdefault("source", "walk_in")
         validated_data.setdefault("status", "waiting")
         return super().create(validated_data)

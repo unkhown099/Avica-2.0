@@ -375,7 +375,9 @@ class ManagerScheduleConfigView(APIView):
 
     def _get_staff_branch(self, request):
         staff = getattr(request.user, "staff_profile", None)
-        if not staff or staff.role not in ["Admin", "Branch Manager"]:
+        if not staff:
+            return None, None
+        if staff.role not in ["Admin", "Branch Manager", "Staff", "Employee", "Inventory"]:
             return None, None
         return staff, staff.branch
 

@@ -709,6 +709,7 @@ function WalkInModal({ onClose, onAdded }) {
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [showCustomerResults, setShowCustomerResults] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -793,6 +794,7 @@ function WalkInModal({ onClose, onAdded }) {
       customerName: fullName || prev.customerName,
       phone: customer.phone || prev.phone,
     }));
+    setSelectedCustomerId(customer.id);
     setShowCustomerResults(false);
   };
 
@@ -816,6 +818,7 @@ function WalkInModal({ onClose, onAdded }) {
           price: selectedServicePrice,
           notes: form.notes,
           source: "walk_in",
+          customer_id: selectedCustomerId,
         }),
       });
       if (!res.ok) {
@@ -877,6 +880,7 @@ function WalkInModal({ onClose, onAdded }) {
                 value={form.customerName}
                 onChange={(e) => {
                   set("customerName", e.target.value);
+                  setSelectedCustomerId(null);
                   setShowCustomerResults(true);
                 }}
                 onFocus={() => setShowCustomerResults(true)}
@@ -1129,10 +1133,16 @@ function StaffQueue() {
       if (newStatus === "done" || newStatus === "skipped") {
         setQueue((prev) => prev.filter((q) => q.id !== id));
         setHistory((prev) => [updated, ...prev]);
+        if (selectedEntry?.id === id) {
+          setSelectedEntry(updated);
+        }
       } else {
         setQueue((prev) =>
           prev.map((q) => (q.id === updated.id ? updated : q)),
         );
+        if (selectedEntry?.id === id) {
+          setSelectedEntry(updated);
+        }
       }
     } catch (e) {
       await Swal.fire({
@@ -1159,6 +1169,9 @@ function StaffQueue() {
       }
       const updated = await res.json();
       setQueue((prev) => prev.map((q) => (q.id === updated.id ? updated : q)));
+      if (selectedEntry?.id === id) {
+        setSelectedEntry(updated);
+      }
     } catch (e) {
       await Swal.fire({
         icon: "error",

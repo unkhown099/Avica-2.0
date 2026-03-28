@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.db.models import Q
 from django.utils import timezone
 from api.models import Booking, QueueEntry, Customer
 
@@ -24,8 +25,9 @@ class CustomerDashboardAPIView(APIView):
         # Service history — all completed queue entries, newest first
         # No date filter: return full history
         history = QueueEntry.objects.filter(
-            booking__user=user,
-            status="done"
+            Q(booking__user=user) | Q(customer_user=user),
+            status="done",
+            payment_status="paid",
         ).select_related("booking").order_by("-completed_at")
 
         customer = Customer.objects.filter(user=user).first()
@@ -68,15 +70,16 @@ class CustomerDashboardAPIView(APIView):
                 # completed_at is a datetime — send date portion only
                 "date": q.completed_at.date().isoformat() if q.completed_at else None,
                 "status": q.status,
-                "price": resolve_price(q.booking) if q.booking else "",
+                "price": resolve_price(q) if q.price is not None else (resolve_price(q.booking) if q.booking else ""),
             }
             for q in history
         ]
 
         # FIX 3: Count completed history from DB, not the queryset slice
         completed_count = QueueEntry.objects.filter(
-            booking__user=user,
-            status="done"
+            Q(booking__user=user) | Q(customer_user=user),
+            status="done",
+            payment_status="paid",
         ).count()
 
         stats = {

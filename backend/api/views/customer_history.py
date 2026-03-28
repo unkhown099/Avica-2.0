@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.db.models import Q
 from api.models import QueueEntry, Customer
 
 
@@ -10,18 +11,18 @@ class CustomerHistoryAPIView(APIView):
     def get(self, request):
         user = request.user
 
-        # Only show queue entries that are:
-        # 1. Linked to this user's booking
-        # 2. Status is "done"
-        # 3. Payment is "paid"
+        # Include paid completed services from:
+        # 1) booking-linked entries for this user
+        # 2) walk-ins linked to this user's account
         history = QueueEntry.objects.filter(
-            booking__user=user,
+            Q(booking__user=user) | Q(customer_user=user),
             status="done",
             payment_status="paid",
         ).select_related(
             "booking",
             "booking__branch",
             "assigned_employee",
+            "customer_user",
         ).order_by("-completed_at")
 
         customer = Customer.objects.filter(user=user).first()

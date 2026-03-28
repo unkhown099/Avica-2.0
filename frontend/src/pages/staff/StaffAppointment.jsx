@@ -43,6 +43,13 @@ function toApiTime(timeInput) {
   return `${normalizedHour}:${m} ${period}`;
 }
 
+function normalizeName(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
@@ -130,6 +137,31 @@ function StaffAppointments() {
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  useEffect(() => {
+    if (!employees.length || !bookings.length) return;
+    setAssignedByBooking((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      bookings.forEach((b) => {
+        if (next[b.id]) return;
+        const candidateName = normalizeName(
+          b.assigned_employee_name || b.preferred_employee_name || b.staff,
+        );
+        if (!candidateName || candidateName === "tba") return;
+        const matched = employees.find(
+          (emp) => normalizeName(emp.full_name) === candidateName,
+        );
+        if (matched) {
+          next[b.id] = String(matched.id);
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [employees, bookings]);
 
   const selectedISO = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
   const dayBookings = bookings.filter((b) => b.date === selectedISO);
@@ -752,6 +784,13 @@ function StaffAppointments() {
                             )}
                             Approve
                           </button>
+                          <button
+                            onClick={() => handleReschedule(b)}
+                            disabled={actionLoading === b.id}
+                            className="flex-1 flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                          >
+                            Reschedule
+                          </button>
                         </div>
                       )}
                       {(b.status === "confirmed" || b.status === "rescheduled") && (
@@ -769,7 +808,7 @@ function StaffAppointments() {
                               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                          {b.status === "rescheduled" ? "Awaiting customer response" : "Approved"}
+                          {b.status === "rescheduled" ? "Awaiting customer response" : "Confirmed"}
                         </div>
                       )}
                       {(b.status === "confirmed" || b.status === "rescheduled") && (

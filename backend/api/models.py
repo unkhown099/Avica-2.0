@@ -262,6 +262,13 @@ class QueueEntry(models.Model):
         on_delete=models.SET_NULL,
         related_name="queue_entry",
     )
+    customer_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="walkin_queue_entries",
+    )
 
     assigned_employee = models.ForeignKey(
         Staff,

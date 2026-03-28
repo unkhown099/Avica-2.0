@@ -85,6 +85,10 @@ function ReviewModal({ item, onClose, onSubmitted }) {
   const [error, setError] = useState("");
 
   const handleSubmit = async () => {
+    if (!item.booking_id) {
+      setError("Reviews are available only for booked appointments.");
+      return;
+    }
     if (!rating) {
       setError("Please select a rating.");
       return;
@@ -463,7 +467,7 @@ function HistoryPage() {
                       <button className="flex-1 lg:flex-none px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg shadow-red-600/20">
                         Book Again
                       </button>
-                      {!item.rating && (
+                      {!item.rating && item.booking_id && (
                         <button
                           onClick={() => setReviewItem(item)}
                           className="flex-1 lg:flex-none px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-sm font-semibold transition-colors"

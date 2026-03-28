@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import BranchOwnerLayout from "./BranchOwnerLayout";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 const STATUS_STYLE = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -131,6 +133,12 @@ export default function BranchOwnerAppointments() {
     .flat()
     .filter((s) => s === "pending").length;
   const totalCount = Object.values(calendar).flat().length;
+
+  const appointmentsPagination = usePagination({
+    items: appointments,
+    pageSize: 8,
+    resetDeps: [appointments.length, selectedDate, branchFilter],
+  });
 
   return (
     <BranchOwnerLayout title="" subtitle="">
@@ -347,90 +355,100 @@ export default function BranchOwnerAppointments() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-                {appointments.map((apt) => (
-                  <div
-                    key={apt.id}
-                    className="bg-gray-800/60 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${
-                            apt.status === "confirmed"
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : "bg-amber-500/20 text-amber-400"
-                          }`}
-                        >
-                          {(apt.customer_name || "?").charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="text-white font-black text-base">
-                            {apt.customer_name}
-                          </div>
-                          <div className="text-gray-500 text-xs">
-                            {apt.time} · {apt.customer_email}
-                          </div>
-                        </div>
-                      </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold border capitalize ${STATUS_STYLE[apt.status] ?? STATUS_STYLE.pending}`}
-                      >
-                        {apt.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3">
-                      {[
-                        {
-                          d: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
-                          label: apt.vehicle || "—",
-                        },
-                        {
-                          d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
-                          label: apt.service,
-                        },
-                        {
-                          d: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
-                          label: apt.branch_name,
-                        },
-                        {
-                          d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
-                          label: `Staff: ${apt.staff || "TBA"}`,
-                        },
-                      ].map((row, j) => (
-                        <div
-                          key={j}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5 text-gray-600 shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+              <>
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                  {appointmentsPagination.paginatedItems.map((apt) => (
+                    <div
+                      key={apt.id}
+                      className="bg-gray-800/60 border border-white/5 rounded-xl p-5 hover:border-white/10 transition-all"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black ${
+                              apt.status === "confirmed"
+                                ? "bg-emerald-500/20 text-emerald-400"
+                                : "bg-amber-500/20 text-amber-400"
+                            }`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d={row.d}
-                            />
-                          </svg>
-                          <span className="text-gray-400 truncate">
-                            {row.label}
-                          </span>
+                            {(apt.customer_name || "?").charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-white font-black text-base">
+                              {apt.customer_name}
+                            </div>
+                            <div className="text-gray-500 text-xs">
+                              {apt.time} · {apt.customer_email}
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold border capitalize ${STATUS_STYLE[apt.status] ?? STATUS_STYLE.pending}`}
+                        >
+                          {apt.status}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                      <span className="text-emerald-400 font-bold text-sm">
-                        ₱{Number(apt.price).toLocaleString()}
-                      </span>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3">
+                        {[
+                          {
+                            d: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+                            label: apt.vehicle || "—",
+                          },
+                          {
+                            d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
+                            label: apt.service,
+                          },
+                          {
+                            d: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                            label: apt.branch_name,
+                          },
+                          {
+                            d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+                            label: `Staff: ${apt.staff || "TBA"}`,
+                          },
+                        ].map((row, j) => (
+                          <div
+                            key={j}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5 text-gray-600 shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d={row.d}
+                              />
+                            </svg>
+                            <span className="text-gray-400 truncate">
+                              {row.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                        <span className="text-emerald-400 font-bold text-sm">
+                          ₱{Number(apt.price).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                {appointmentsPagination.totalPages > 1 && (
+                  <Pagination
+                    current={appointmentsPagination.currentPage}
+                    total={appointmentsPagination.totalPages}
+                    onChange={appointmentsPagination.setCurrentPage}
+                    className="px-1 py-4"
+                  />
+                )}
+              </>
             )}
           </div>
         </div>

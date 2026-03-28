@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from ..models import Customer, Booking, QueueEntry, Rating
+from django.db.models import Q
 from django.db.models import Sum, Avg
 
 
@@ -19,7 +20,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def _paid_completed_entries(self, obj):
         return QueueEntry.objects.filter(
-            booking__user=obj.user,
+            Q(booking__user=obj.user) | Q(customer_user=obj.user),
             status="done",
             payment_status="paid",
         )

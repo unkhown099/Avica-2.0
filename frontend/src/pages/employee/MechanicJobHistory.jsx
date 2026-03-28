@@ -1,137 +1,100 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import MechanicLayout from "./MechanicLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
+import { API_BASE } from "../../hooks/useAuth.js";
+
+function authHeaders() {
+  const token =
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("access") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("access_token") ||
+    sessionStorage.getItem("access") ||
+    sessionStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function normalizeStatus(status = "") {
+  return String(status).toLowerCase().replace(/\s+/g, "_");
+}
+
+function toDateLabel(dateStr) {
+  if (!dateStr) return "—";
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function toDisplayTime(t) {
+  if (!t) return "—";
+  const [hRaw, mRaw] = String(t).split(":");
+  const h = Number(hRaw);
+  const m = Number(mRaw ?? 0);
+  if (Number.isNaN(h)) return String(t);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+}
 
 function MechanicJobHistory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("All Time");
   const [serviceFilter, setServiceFilter] = useState("All Services");
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Job history data
-  const jobHistory = [
-    {
-      id: "JOB-001",
-      date: "2026-02-20",
-      customer: "John Doe",
-      vehicle: "Toyota Corolla 2020",
-      service: "Oil Change",
-      duration: "45 mins",
-      rating: 5,
-      completed: "09:45 AM",
-    },
-    {
-      id: "JOB-002",
-      date: "2026-02-19",
-      customer: "Jane Smith",
-      vehicle: "Honda Civic 2019",
-      service: "Brake Inspection",
-      duration: "1 hour",
-      rating: 5,
-      completed: "02:30 PM",
-    },
-    {
-      id: "JOB-003",
-      date: "2026-02-19",
-      customer: "Robert Wilson",
-      vehicle: "Ford Ranger 2021",
-      service: "Engine Diagnostic",
-      duration: "1.5 hours",
-      rating: 4,
-      completed: "11:00 AM",
-    },
-    {
-      id: "JOB-004",
-      date: "2026-02-18",
-      customer: "Emily Brown",
-      vehicle: "Nissan Altima 2022",
-      service: "Tire Replacement",
-      duration: "1 hour",
-      rating: 5,
-      completed: "03:15 PM",
-    },
-    {
-      id: "JOB-005",
-      date: "2026-02-18",
-      customer: "Michael Chen",
-      vehicle: "Mazda 3 2020",
-      service: "Full Service",
-      duration: "2 hours",
-      rating: 5,
-      completed: "10:30 AM",
-    },
-    {
-      id: "JOB-006",
-      date: "2026-02-17",
-      customer: "Sarah Johnson",
-      vehicle: "Hyundai Tucson 2021",
-      service: "AC Service",
-      duration: "1.5 hours",
-      rating: 4,
-      completed: "01:45 PM",
-    },
-    {
-      id: "JOB-007",
-      date: "2026-02-17",
-      customer: "David Martinez",
-      vehicle: "Kia Sportage 2022",
-      service: "Battery Replacement",
-      duration: "30 mins",
-      rating: 5,
-      completed: "04:00 PM",
-    },
-    {
-      id: "JOB-008",
-      date: "2026-02-16",
-      customer: "Patricia Lee",
-      vehicle: "Toyota Vios 2021",
-      service: "Brake Repair",
-      duration: "2 hours",
-      rating: 5,
-      completed: "09:30 AM",
-    },
-    {
-      id: "JOB-009",
-      date: "2026-02-16",
-      customer: "James Wilson",
-      vehicle: "Honda CR-V 2020",
-      service: "Oil Change",
-      duration: "40 mins",
-      rating: 4,
-      completed: "12:00 PM",
-    },
-    {
-      id: "JOB-010",
-      date: "2026-02-15",
-      customer: "Linda Garcia",
-      vehicle: "Nissan Navara 2022",
-      service: "Engine Repair",
-      duration: "3 hours",
-      rating: 5,
-      completed: "02:15 PM",
-    },
-    {
-      id: "JOB-011",
-      date: "2026-02-15",
-      customer: "Kevin Moore",
-      vehicle: "Mazda CX-5 2021",
-      service: "Transmission Service",
-      duration: "2.5 hours",
-      rating: 4,
-      completed: "10:45 AM",
-    },
-    {
-      id: "JOB-012",
-      date: "2026-02-14",
-      customer: "Susan Taylor",
-      vehicle: "Ford Everest 2020",
-      service: "Tire Rotation",
-      duration: "45 mins",
-      rating: 5,
-      completed: "03:30 PM",
-    },
-  ];
+  const fetchHistory = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await fetch(`${API_BASE}/api/staff/bookings/`, {
+        headers: authHeaders(),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Failed to load job history (${res.status})`);
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : data.results ?? [];
+      setBookings(rows);
+    } catch (err) {
+      setError(err.message || "Failed to load job history.");
+      setBookings([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const jobHistory = useMemo(() => {
+    return bookings
+      .filter((b) => normalizeStatus(b.status) === "done")
+      .map((b) => ({
+        id: `JOB-${String(b.id).padStart(4, "0")}`,
+        date: toDateLabel(b.date),
+        rawDate: b.date,
+        customer: b.customer_name || "Unknown Customer",
+        vehicle: b.vehicle || "—",
+        service: b.service || "—",
+        duration: "—",
+        rating: 0,
+        completed: toDisplayTime(b.time),
+      }));
+  }, [bookings]);
+
+  const serviceOptions = useMemo(() => {
+    const set = new Set(jobHistory.map((j) => j.service).filter(Boolean));
+    return ["All Services", ...Array.from(set)];
+  }, [jobHistory]);
+
+  const now = new Date();
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const filteredJobs = jobHistory.filter((job) => {
     const matchesSearch =
       job.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -141,7 +104,24 @@ function MechanicJobHistory() {
     const matchesService =
       serviceFilter === "All Services" || job.service === serviceFilter;
 
-    return matchesSearch && matchesService;
+    let matchesDate = true;
+    if (dateFilter === "Today") {
+      matchesDate = job.rawDate === todayISO;
+    } else if (dateFilter === "This Week") {
+      const d = new Date(`${job.rawDate}T00:00:00`);
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
+      matchesDate = d >= weekStart && d < weekEnd;
+    } else if (dateFilter === "This Month") {
+      const d = new Date(`${job.rawDate}T00:00:00`);
+      matchesDate =
+        d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }
+
+    return matchesSearch && matchesService && matchesDate;
   });
 
   const {
@@ -158,6 +138,7 @@ function MechanicJobHistory() {
   });
 
   const renderStars = (rating) => {
+    if (!rating) return <span className="text-xs text-gray-500">—</span>;
     return (
       <div className="flex gap-0.5">
         {[...Array(5)].map((_, index) => (
@@ -176,15 +157,8 @@ function MechanicJobHistory() {
 
   // Calculate stats
   const totalJobs = jobHistory.length;
-  const averageRating = (
-    jobHistory.reduce((sum, job) => sum + job.rating, 0) / totalJobs
-  ).toFixed(1);
-  const totalHoursWorked = jobHistory
-    .reduce((sum, job) => {
-      const hours = parseFloat(job.duration.replace(/[^\d.]/g, ""));
-      return sum + (job.duration.includes("hour") ? hours : hours / 60);
-    }, 0)
-    .toFixed(1);
+  const completedToday = jobHistory.filter((j) => j.rawDate === todayISO).length;
+  const servicesHandled = new Set(jobHistory.map((j) => j.service)).size;
 
   return (
     <MechanicLayout>
@@ -198,6 +172,12 @@ function MechanicJobHistory() {
             View your completed jobs and performance
           </p>
         </div>
+
+        {error && (
+          <div className="mb-6 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 text-sm">
+            {error}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -226,7 +206,7 @@ function MechanicJobHistory() {
             </div>
           </div>
 
-          {/* Hours Worked Card */}
+          {/* Completed Today Card */}
           <div className="bg-gray-900/60 border border-blue-500/20 rounded-2xl p-5 backdrop-blur-sm">
             <div className="flex items-center gap-3">
               <div className="bg-blue-500/10 p-3 rounded-xl">
@@ -245,15 +225,15 @@ function MechanicJobHistory() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Hours Worked</p>
+                <p className="text-sm text-gray-500">Completed Today</p>
                 <p className="text-2xl font-black text-white">
-                  {totalHoursWorked}
+                  {completedToday}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Average Rating Card */}
+          {/* Services Handled Card */}
           <div className="bg-gray-900/60 border border-yellow-500/20 rounded-2xl p-5 backdrop-blur-sm">
             <div className="flex items-center gap-3">
               <div className="bg-yellow-500/10 p-3 rounded-xl">
@@ -272,9 +252,9 @@ function MechanicJobHistory() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Avg. Rating</p>
+                <p className="text-sm text-gray-500">Services Handled</p>
                 <p className="text-2xl font-black text-white">
-                  {averageRating}
+                  {servicesHandled}
                 </p>
               </div>
             </div>
@@ -321,13 +301,11 @@ function MechanicJobHistory() {
                   onChange={(e) => setServiceFilter(e.target.value)}
                   className="appearance-none w-full md:w-48 bg-gray-800/60 border border-white/5 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-red-500/30 focus:border-red-500/30 text-white cursor-pointer"
                 >
-                  <option className="bg-gray-900">All Services</option>
-                  <option className="bg-gray-900">Oil Change</option>
-                  <option className="bg-gray-900">Brake Inspection</option>
-                  <option className="bg-gray-900">Engine Diagnostic</option>
-                  <option className="bg-gray-900">Tire Replacement</option>
-                  <option className="bg-gray-900">Full Service</option>
-                  <option className="bg-gray-900">AC Service</option>
+                  {serviceOptions.map((service) => (
+                    <option key={service} className="bg-gray-900">
+                      {service}
+                    </option>
+                  ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                   <svg
@@ -411,7 +389,14 @@ function MechanicJobHistory() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {paginatedItems.map((job) => (
+                {loading ? (
+                  <tr>
+                    <td className="px-6 py-6 text-sm text-gray-400" colSpan={9}>
+                      Loading job history...
+                    </td>
+                  </tr>
+                ) : (
+                paginatedItems.map((job) => (
                   <tr
                     key={job.id}
                     className="hover:bg-white/[0.02] transition-colors duration-150"
@@ -462,7 +447,7 @@ function MechanicJobHistory() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

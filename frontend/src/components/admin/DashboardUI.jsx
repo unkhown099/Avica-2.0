@@ -55,6 +55,9 @@ export function SkeletonRow() {
 
 // ── Error Banner ──────────────────────────────────────────────────────────────
 export function ErrorBanner({ message, onRetry }) {
+  const text = String(message ?? "").trim();
+  if (!text) return null;
+
   return (
     <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4">
       <svg
@@ -70,7 +73,7 @@ export function ErrorBanner({ message, onRetry }) {
           d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
         />
       </svg>
-      <span className="text-sm font-medium">{message}</span>
+      <span className="text-sm font-medium">{text}</span>
       {onRetry && (
         <button
           onClick={onRetry}

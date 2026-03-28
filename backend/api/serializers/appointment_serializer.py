@@ -1,10 +1,21 @@
 from rest_framework import serializers
-from ..models import Booking
+from ..models import Booking, Staff
 import decimal
 import re
 
 
 PREFERRED_EMPLOYEE_PATTERN = re.compile(r"\[preferred_employee_id=(\d+)\]", re.IGNORECASE)
+
+
+def _extract_preferred_employee_id(notes):
+    raw_notes = notes or ""
+    match = PREFERRED_EMPLOYEE_PATTERN.search(raw_notes)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except (TypeError, ValueError):
+        return None
 
 
 def _strip_preferred_employee_marker(notes):
@@ -41,5 +52,24 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
+        queue_entry = getattr(instance, "queue_entry", None)
+        if queue_entry and getattr(queue_entry, "assigned_employee", None):
+            full_name = f"{queue_entry.assigned_employee.first_name} {queue_entry.assigned_employee.last_name}".strip()
+            rep["staff"] = full_name or rep.get("staff")
+        elif rep.get("staff") in ("", None, "TBA"):
+            preferred_employee_id = _extract_preferred_employee_id(instance.notes)
+            if preferred_employee_id:
+                preferred_employee = Staff.objects.filter(pk=preferred_employee_id, role="Employee").first()
+                if preferred_employee:
+                    rep["staff"] = (
+                        f"{preferred_employee.first_name} {preferred_employee.last_name}".strip()
+                        or ""
+                    )
+                else:
+                    rep["staff"] = ""
+            if rep.get("staff") in ("", None, "TBA"):
+                rep["staff"] = ""
+        elif rep.get("staff") in ("", None, "TBA"):
+            rep["staff"] = ""
         rep["notes"] = _strip_preferred_employee_marker(instance.notes)
         return rep

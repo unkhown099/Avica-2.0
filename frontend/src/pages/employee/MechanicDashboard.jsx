@@ -1,13 +1,120 @@
-import React from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import MechanicLayout from "./MechanicLayout";
+import { API_BASE } from "../../hooks/useAuth.js";
+
+function authHeaders() {
+  const token =
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("access") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("access_token") ||
+    sessionStorage.getItem("access") ||
+    sessionStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function normalizeStatus(status = "") {
+  return String(status).toLowerCase().replace(/\s+/g, "_");
+}
+
+function toDisplayTime(t) {
+  if (!t) return "—";
+  const [hRaw, mRaw] = String(t).split(":");
+  const h = Number(hRaw);
+  const m = Number(mRaw ?? 0);
+  if (Number.isNaN(h)) return String(t);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+function toMinutes(t) {
+  if (!t) return Number.MAX_SAFE_INTEGER;
+  const [h, m] = String(t).split(":");
+  return Number(h || 0) * 60 + Number(m || 0);
+}
 
 function MechanicDashboard() {
-  // Stats data with updated theme colors
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const fetchBookings = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await fetch(`${API_BASE}/api/staff/bookings/`, {
+        headers: authHeaders(),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Failed to load dashboard data (${res.status})`);
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : data.results ?? [];
+      setBookings(rows);
+    } catch (err) {
+      setError(err.message || "Failed to load dashboard data.");
+      setBookings([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  const now = new Date();
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 7);
+
+  const approvedBookings = useMemo(
+    () => bookings.filter((b) => ["confirmed", "done"].includes(normalizeStatus(b.status))),
+    [bookings],
+  );
+
+  const todaySchedule = useMemo(() => {
+    return approvedBookings
+      .filter((b) => b.date === todayISO)
+      .slice()
+      .sort((a, b) => toMinutes(a.time) - toMinutes(b.time))
+      .map((b) => ({
+        id: b.id,
+        time: toDisplayTime(b.time),
+        customer: b.customer_name || "Unknown Customer",
+        vehicle: b.vehicle || "—",
+        service: b.service || "—",
+        status: normalizeStatus(b.status) === "done" ? "Completed" : "Scheduled",
+        bay: "—",
+      }));
+  }, [approvedBookings, todayISO]);
+
+  const weekApprovedCount = useMemo(() => {
+    return approvedBookings.filter((b) => {
+      const d = new Date(`${b.date}T00:00:00`);
+      return d >= weekStart && d < weekEnd;
+    }).length;
+  }, [approvedBookings, weekStart, weekEnd]);
+
+  const totalCompleted = useMemo(
+    () => approvedBookings.filter((b) => normalizeStatus(b.status) === "done").length,
+    [approvedBookings],
+  );
+
+  const todayCompleted = todaySchedule.filter((j) => j.status === "Completed").length;
+  const todayScheduled = todaySchedule.filter((j) => j.status === "Scheduled").length;
+
   const stats = [
     {
       title: "Today's Jobs",
-      value: "5",
-      change: "+2 completed, 3 pending",
+      value: String(todaySchedule.length),
+      change: `${todayCompleted} completed, ${todayScheduled} scheduled`,
       icon: (
         <svg
           className="w-6 h-6"
@@ -30,8 +137,8 @@ function MechanicDashboard() {
     },
     {
       title: "Active Job",
-      value: "1",
-      change: "Oil Change - In Progress",
+      value: String(todayScheduled),
+      change: todayScheduled > 0 ? "Confirmed jobs today" : "No active job",
       icon: (
         <svg
           className="w-6 h-6"
@@ -60,8 +167,8 @@ function MechanicDashboard() {
     },
     {
       title: "This Week",
-      value: "18",
-      change: "Jobs completed",
+      value: String(weekApprovedCount),
+      change: "Approved assigned jobs",
       icon: (
         <svg
           className="w-6 h-6"
@@ -83,9 +190,9 @@ function MechanicDashboard() {
       border: "border-emerald-500/20",
     },
     {
-      title: "Customer Rating",
-      value: "4.8",
-      change: "Based on 24 reviews",
+      title: "Completed Jobs",
+      value: String(totalCompleted),
+      change: "All-time completed",
       icon: (
         <svg
           className="w-6 h-6"
@@ -108,59 +215,22 @@ function MechanicDashboard() {
     },
   ];
 
-  // Today's schedule
-  const todaySchedule = [
-    {
-      time: "09:00 AM",
-      customer: "John Doe",
-      vehicle: "Toyota Corolla 2020",
-      service: "Oil Change",
-      status: "Completed",
-      bay: "3",
-    },
-    {
-      time: "11:00 AM",
-      customer: "Jane Smith",
-      vehicle: "Honda Civic 2019",
-      service: "Brake Inspection",
-      status: "In Progress",
-      bay: "3",
-    },
-    {
-      time: "02:00 PM",
-      customer: "Robert Wilson",
-      vehicle: "Ford Ranger 2021",
-      service: "Engine Diagnostic",
-      status: "Scheduled",
-      bay: "3",
-    },
-    {
-      time: "04:00 PM",
-      customer: "Emily Brown",
-      vehicle: "Nissan Altima 2022",
-      service: "Tire Replacement",
-      status: "Scheduled",
-      bay: "3",
-    },
-  ];
-
-  const notifications = [
-    {
-      title: "New job assigned",
-      message: "Engine Diagnostic - 2:00 PM",
-      type: "info",
-    },
-    {
-      title: "Parts available",
-      message: "Brake pads for Bay 3",
-      type: "success",
-    },
-    {
-      title: "Break reminder",
-      message: "Take a break in 30 mins",
-      type: "warning",
-    },
-  ];
+  const notifications = useMemo(() => {
+    if (todaySchedule.length === 0) {
+      return [
+        {
+          title: "No jobs today",
+          message: "You have no approved assignments for today.",
+          type: "info",
+        },
+      ];
+    }
+    return todaySchedule.slice(0, 3).map((job) => ({
+      title: `${job.status} job`,
+      message: `${job.service} - ${job.time}`,
+      type: job.status === "Completed" ? "success" : "info",
+    }));
+  }, [todaySchedule]);
 
   const getStatusStyle = (status) => {
     const styles = {
@@ -190,10 +260,16 @@ function MechanicDashboard() {
               Mechanic Dashboard
             </h1>
             <p className="text-gray-400 mt-1">
-              Welcome back, Mike Johnson — San Mateo Rizal Branch
+              Live data of your assigned appointments
             </p>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 text-sm">
+            {error}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
@@ -247,18 +323,26 @@ function MechanicDashboard() {
                     Today's Schedule
                   </h3>
                   <p className="text-gray-500 text-sm mt-0.5">
-                    Bay 3 assignments
+                    Approved assigned jobs
                   </p>
                 </div>
-                <button className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors">
-                  View all →
+                <button
+                  onClick={fetchBookings}
+                  className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
+                >
+                  Refresh
                 </button>
               </div>
 
               <div className="divide-y divide-white/5">
-                {todaySchedule.map((job, index) => (
+                {loading ? (
+                  <div className="p-6 text-sm text-gray-400">Loading dashboard data...</div>
+                ) : todaySchedule.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-500">No approved jobs for today.</div>
+                ) : (
+                todaySchedule.map((job, index) => (
                   <div
-                    key={index}
+                    key={job.id ?? index}
                     className="p-6 hover:bg-white/[0.02] transition-colors"
                   >
                     <div className="flex items-start justify-between">
@@ -361,7 +445,7 @@ function MechanicDashboard() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )))}
               </div>
             </div>
           </div>

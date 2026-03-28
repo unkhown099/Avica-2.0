@@ -51,6 +51,24 @@ function toApiTime(timeInput) {
   return `${normalizedHour}:${m} ${period}`;
 }
 
+function normalizeName(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function getMechanicLabel(booking) {
+  const mechanic =
+    booking.assigned_employee_name ||
+    booking.preferred_employee_name ||
+    booking.staff;
+  if (!mechanic || String(mechanic).trim().toLowerCase() === "tba") {
+    return "Unassigned";
+  }
+  return mechanic;
+}
+
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
@@ -150,6 +168,31 @@ function ManagerAppointments() {
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  useEffect(() => {
+    if (!employees.length || !bookings.length) return;
+    setAssignedByBooking((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      bookings.forEach((b) => {
+        if (next[b.id]) return;
+        const candidateName = normalizeName(
+          b.assigned_employee_name || b.preferred_employee_name || b.staff,
+        );
+        if (!candidateName || candidateName === "tba") return;
+        const matched = employees.find(
+          (emp) => normalizeName(emp.full_name) === candidateName,
+        );
+        if (matched) {
+          next[b.id] = String(matched.id);
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [employees, bookings]);
 
   // Bookings for selected date
   const selectedISO = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
@@ -574,7 +617,17 @@ function ManagerAppointments() {
                           path: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
                           label: b.branch || "—",
                         },
-                      ].map((row, j) => (
+                        {
+                          path: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+                          label: `Mechanic: ${getMechanicLabel(b)}`,
+                        },
+                        b.plate_number && {
+                          path: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+                          label: b.plate_number,
+                        },
+                      ]
+                        .filter(Boolean)
+                        .map((row, j) => (
                         <div
                           key={j}
                           className="flex items-center gap-2 text-sm"
@@ -610,7 +663,9 @@ function ManagerAppointments() {
                         {(() => {
                           const isAssignmentLocked =
                             b.status === "confirmed" &&
-                            Boolean(b.assigned_employee_id);
+                            Boolean(
+                              assignedByBooking[b.id] || b.assigned_employee_id,
+                            );
                           return (
                             <>
                         <div className="md:col-span-2">
@@ -663,7 +718,7 @@ function ManagerAppointments() {
 
                     {/* Action button — only show for pending */}
                     {b.status === "pending" && (
-                      <div className="pt-3 border-t border-white/5">
+                      <div className="pt-3 border-t border-white/5 flex gap-2">
                         <button
                           onClick={() =>
                             handleAction(
@@ -673,7 +728,7 @@ function ManagerAppointments() {
                             )
                           }
                           disabled={actionLoading === b.id || !(assignedByBooking[b.id] || "").trim()}
-                          className="w-full flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                          className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
                         >
                           {actionLoading === b.id ? (
                             <svg
@@ -712,6 +767,13 @@ function ManagerAppointments() {
                           )}
                           Approve
                         </button>
+                        <button
+                          onClick={() => handleRescheduleProposal(b)}
+                          disabled={actionLoading === b.id}
+                          className="flex-1 flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                        >
+                          Reschedule
+                        </button>
                       </div>
                     )}
 
@@ -731,7 +793,7 @@ function ManagerAppointments() {
                               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                          {b.status === "rescheduled" ? "Awaiting customer response" : "Approved"}
+                          {b.status === "rescheduled" ? "Awaiting customer response" : "Confirmed"}
                         </div>
                         <button
                           onClick={() => handleAction(b.id, "done")}

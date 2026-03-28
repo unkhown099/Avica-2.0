@@ -3,6 +3,8 @@ import { useLocation } from "react-router-dom";
 import ManagerLayout from "./ManagerLayout";
 import { API_BASE, useAuth } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
+import Pagination from "../../components/Pagination";
+import usePagination from "../../hooks/usePagination";
 
 const DAYS = [
   "Monday",
@@ -264,6 +266,12 @@ function ManagerContents() {
       return matchQuery && matchCategory;
     });
   }, [services, serviceCategory, serviceQuery]);
+
+  const servicesPagination = usePagination({
+    items: filteredServices,
+    pageSize: 10,
+    resetDeps: [filteredServices.length, serviceCategory, serviceQuery],
+  });
 
   if (loading) {
     return (
@@ -603,7 +611,7 @@ function ManagerContents() {
                       </td>
                     </tr>
                   ) : (
-                    filteredServices.map((service) => (
+                    servicesPagination.paginatedItems.map((service) => (
                       <tr key={service.id} className="border-t border-white/5 hover:bg-white/[0.02]">
                         <td className="px-4 py-3">
                           <div className="text-white font-semibold text-sm">{service.name}</div>
@@ -643,6 +651,12 @@ function ManagerContents() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              current={servicesPagination.currentPage}
+              total={servicesPagination.totalPages}
+              onChange={servicesPagination.setCurrentPage}
+              className="px-1 py-4"
+            />
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { API_BASE } from "../../hooks/useAuth.js";
 import {
@@ -15,6 +15,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
+import html2canvas from "html2canvas";
 import AdminLayout from "./AdminLayout.jsx";
 import { useOverview } from "../../hooks/useDashboard";
 import { ErrorBanner, exportToCSV } from "../../components/admin/DashboardUI";
@@ -35,7 +36,7 @@ ChartJS.register(
   Legend,
 );
 
-const SECTION_KEYS = ["overview", "revenue", "customers", "inventory", "services"];
+const SECTION_KEYS = ["overview", "revenue", "appointment", "customers", "inventory", "services"];
 
 const VIEWS = [
   {
@@ -53,6 +54,15 @@ const VIEWS = [
     icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    key: "appointment",
+    label: "Appointment",
+    icon: (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
     ),
   },
@@ -105,8 +115,10 @@ const CHART_BASE = {
 const STATUS_STYLE = {
   done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   completed: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
   cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
+  no_show: "bg-red-500/20 text-red-300 border-red-500/30",
   in_progress: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
@@ -114,8 +126,10 @@ const STATUS_STYLE = {
 const STATUS_LABEL = {
   done: "Done",
   completed: "Completed",
+  confirmed: "Confirmed",
   pending: "Pending",
   cancelled: "Cancelled",
+  no_show: "No Show",
   in_progress: "In Progress",
   rescheduled: "Rescheduled",
 };
@@ -186,6 +200,10 @@ function normalizeInventoryStatus(status) {
   return "ok";
 }
 
+function normalizeStatus(s = "") {
+  return String(s).toLowerCase().replace(/\s+/g, "_");
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const location = useLocation();
@@ -196,11 +214,11 @@ export default function AdminDashboard() {
   const [chart, setChart] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [customers, setCustomers] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState("All Branches");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const printRef = useRef(null);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -216,20 +234,23 @@ export default function AdminDashboard() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
 
-        const [dashboardRes, customersRes, inventoryRes] = await Promise.all([
+        const [dashboardRes, customersRes, inventoryRes, appointmentsRes] = await Promise.all([
           fetch(`${baseUrl}/dashboard/`, { headers, credentials: "include" }),
           fetch(`${baseUrl}/customers/`, { headers, credentials: "include" }),
           fetch(`${baseUrl}/inventory/`, { headers, credentials: "include" }),
+          fetch(`${baseUrl}/appointments/`, { headers, credentials: "include" }),
         ]);
 
         if (!dashboardRes.ok) throw new Error(`Dashboard: ${dashboardRes.status}`);
         if (!customersRes.ok) throw new Error(`Customers: ${customersRes.status}`);
         if (!inventoryRes.ok) throw new Error(`Inventory: ${inventoryRes.status}`);
+        if (!appointmentsRes.ok) throw new Error(`Appointments: ${appointmentsRes.status}`);
 
-        const [dashboardData, customersData, inventoryData] = await Promise.all([
+        const [dashboardData, customersData, inventoryData, appointmentsData] = await Promise.all([
           dashboardRes.json(),
           customersRes.json(),
           inventoryRes.json(),
+          appointmentsRes.json(),
         ]);
 
         setStats(dashboardData.stats);
@@ -238,6 +259,7 @@ export default function AdminDashboard() {
         setAnalytics(dashboardData.analytics ?? null);
         setCustomers(customersData ?? []);
         setInventoryItems(inventoryData ?? []);
+        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData.results ?? []));
       } catch (err) {
         setError(err.message || "Failed to load dashboard data.");
       } finally {
@@ -279,6 +301,7 @@ export default function AdminDashboard() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
 
   // Overview hook (used for error banner / refetch)
   const { data, loading: overviewLoading, error: overviewError, refetch } = useOverview();
@@ -347,6 +370,24 @@ export default function AdminDashboard() {
     pageSize: 10,
     resetDeps: [topServiceCards.length],
   });
+
+  const appointmentsPagination = usePagination({
+    items: appointments,
+    pageSize: 10,
+    resetDeps: [appointments.length],
+  });
+
+  const appointmentStatusCounts = appointments.reduce(
+    (acc, apt) => {
+      const key = normalizeStatus(apt.status);
+      if (key === "confirmed") acc.confirmed += 1;
+      else if (key === "pending") acc.pending += 1;
+      else if (key === "cancelled") acc.cancelled += 1;
+      else if (key === "no_show") acc.noShow += 1;
+      return acc;
+    },
+    { confirmed: 0, pending: 0, cancelled: 0, noShow: 0 },
+  );
 
   // ── Stat cards config ────────────────────────────────────────────────────
   const statCards = [
@@ -569,6 +610,19 @@ export default function AdminDashboard() {
         ["Branch", "Revenue"],
         "revenue_by_branch.csv",
       );
+    } else if (activeView === "appointment") {
+      exportToCSV(
+        appointments.map((a) => [
+          a.date ?? "—",
+          a.time ?? "—",
+          a.customer_name ?? "—",
+          a.service ?? "—",
+          a.branch_name ?? "—",
+          a.status ?? "—",
+        ]),
+        ["Date", "Time", "Customer", "Service", "Branch", "Status"],
+        "appointments.csv",
+      );
     } else if (activeView === "customers") {
       exportToCSV(
         customers.map((c) => [
@@ -603,14 +657,123 @@ export default function AdminDashboard() {
     }
   };
 
+  const handlePrintDashboard = async () => {
+    const sectionSelector = {
+      overview: "#admin-overview",
+      revenue: "#admin-revenue",
+      appointment: "#admin-appointment",
+      customers: "#admin-customers",
+      inventory: "#admin-inventory",
+      services: "#admin-services",
+    }[activeView];
+ 
+    const activeSection = document.querySelector(sectionSelector);
+    if (!activeSection) return;
+
+    try {
+      const canvas = await html2canvas(activeSection, {
+        backgroundColor: "#030712",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        scrollY: -window.scrollY,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) return;
+
+      printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Admin Dashboard — ${viewLabel}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { background: #fff; }
+            img {
+              width: 100%;
+              height: auto;
+              display: block;
+            }
+            @page { size: A4 portrait; margin: 8mm; }
+            @media print {
+              img { width: 100% !important; }
+            }
+          </style>
+        </head>
+        <body>
+          <img src="${imgData}" />
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+      printWindow.document.close();
+    } catch (err) {
+      console.error("Print failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    const originalPrint = window.print.bind(window);
+    const onKeyDown = (e) => {
+      const isPrintShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p";
+      if (!isPrintShortcut) return;
+      e.preventDefault();
+      handlePrintDashboard();
+    };
+
+    window.print = () => {
+      handlePrintDashboard();
+    };
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.print = originalPrint;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [handlePrintDashboard]);
+
   const getInitial = (name = "") => name.charAt(0).toUpperCase();
-  const normalizeStatus = (s = "") => s.toLowerCase().replace(/\s+/g, "_");
   const viewLabel = VIEWS.find((v) => v.key === activeView)?.label ?? "Dashboard";
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <AdminLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 print:bg-white print:p-4">
+      <style>{`
+        @media print {
+          #admin-dashboard-print {
+            background: #fff !important;
+            color: #111827 !important;
+          }
+          #admin-dashboard-print * {
+            color: #111827 !important;
+            text-shadow: none !important;
+          }
+          #admin-dashboard-print [class*="bg-"] {
+            background: transparent !important;
+          }
+          #admin-dashboard-print [class*="border-"] {
+            border-color: #d1d5db !important;
+          }
+          #admin-dashboard-print canvas {
+            max-width: 100% !important;
+            height: auto !important;
+          }
+        }
+      `}</style>
+      <div
+        id="admin-dashboard-print"
+        className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8 print:bg-white print:p-4"
+      >
+        <div>
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -624,7 +787,7 @@ export default function AdminDashboard() {
 
           <div className="flex items-center gap-2 print:hidden sm:mt-14">
             <button
-              onClick={() => window.print()}
+              onClick={handlePrintDashboard}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-sm font-semibold"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -910,6 +1073,134 @@ export default function AdminDashboard() {
                 className="px-6 py-4"
               />
             </div>
+        </section>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            VIEW: APPOINTMENT
+        ══════════════════════════════════════════════════════════════════ */}
+        {activeView === "appointment" && (
+        <section id="admin-appointment" className="scroll-mt-24 mb-10">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-white">Appointment</h2>
+            <p className="text-gray-500 text-sm mt-0.5">Track and review all service bookings</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
+            {[
+              {
+                title: "Total Appointments",
+                value: appointments.length.toLocaleString(),
+                accentBg: "bg-blue-500/10",
+                accentText: "text-blue-400",
+                border: "border-blue-500/20",
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                ),
+              },
+              {
+                title: "Confirmed",
+                value: appointmentStatusCounts.confirmed.toLocaleString(),
+                accentBg: "bg-emerald-500/10",
+                accentText: "text-emerald-400",
+                border: "border-emerald-500/20",
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ),
+              },
+              {
+                title: "Pending",
+                value: appointmentStatusCounts.pending.toLocaleString(),
+                accentBg: "bg-amber-500/10",
+                accentText: "text-amber-400",
+                border: "border-amber-500/20",
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ),
+              },
+              {
+                title: "Cancelled / No Show",
+                value: (appointmentStatusCounts.cancelled + appointmentStatusCounts.noShow).toLocaleString(),
+                accentBg: "bg-red-500/10",
+                accentText: "text-red-400",
+                border: "border-red-500/20",
+                icon: (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ),
+              },
+            ].map((c, i) => (
+              <StatCard key={i} {...c} />
+            ))}
+          </div>
+
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+            <div className="px-6 py-4 border-b border-white/5">
+              <h3 className="text-lg font-black text-white">Appointment List</h3>
+              <p className="text-gray-500 text-sm mt-0.5">All scheduled appointment records</p>
+            </div>
+            <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+              <div className="col-span-2">Date</div>
+              <div className="col-span-1">Time</div>
+              <div className="col-span-2">Customer</div>
+              <div className="col-span-3">Service</div>
+              <div className="col-span-2">Branch</div>
+              <div className="col-span-2">Status</div>
+            </div>
+
+            {appointmentsPagination.paginatedItems.length === 0 ? (
+              <div className="px-6 py-12 text-center text-gray-500 text-sm">
+                No appointment data available.
+              </div>
+            ) : (
+              appointmentsPagination.paginatedItems.map((apt, i) => {
+                const statusKey = normalizeStatus(apt.status);
+                return (
+                  <div
+                    key={apt.id ?? `${apt.customer_name ?? "apt"}-${apt.date ?? "date"}-${i}`}
+                    className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
+                  >
+                    <div className="col-span-2 text-white font-semibold text-sm">
+                      {apt.date ?? "—"}
+                    </div>
+                    <div className="col-span-1 text-gray-400 text-sm">
+                      {apt.time ? String(apt.time).slice(0, 5) : "—"}
+                    </div>
+                    <div className="col-span-2 text-gray-300 text-sm">
+                      {apt.customer_name ?? "—"}
+                    </div>
+                    <div className="col-span-3 text-gray-300 text-sm">
+                      {apt.service ?? "—"}
+                    </div>
+                    <div className="col-span-2 text-gray-500 text-sm">
+                      {apt.branch_name ?? "—"}
+                    </div>
+                    <div className="col-span-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLE[statusKey] ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
+                        {STATUS_LABEL[statusKey] ?? apt.status ?? "—"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {appointmentsPagination.totalPages > 1 && (
+              <Pagination
+                current={appointmentsPagination.currentPage}
+                total={appointmentsPagination.totalPages}
+                onChange={appointmentsPagination.setCurrentPage}
+                className="px-6 py-4"
+              />
+            )}
+          </div>
         </section>
         )}
 
@@ -1288,6 +1579,7 @@ export default function AdminDashboard() {
             </div>
         </section>
         )}
+        </div>
       </div>
     </AdminLayout>
   );

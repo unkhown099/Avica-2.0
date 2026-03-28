@@ -5,13 +5,16 @@ from datetime import timedelta
 from decimal import Decimal
 from django.db.models import Q
 from django.db import transaction
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
+from django.utils.html import strip_tags
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from api.models import QueueEntry, Booking, Staff, InventoryItem, Service
+from api.models import QueueEntry, Booking, Staff, InventoryItem, Service, Notification, Customer
 from api.serializers.queue_serializer import (
     QueueEntrySerializer,
     QueueEntryCreateSerializer,
@@ -78,6 +81,202 @@ def _notify_booking_no_show(booking_id):
         logger.exception("Failed to send no-show notification for booking_id=%s", booking_id)
 
 
+def _notify_booking_customer_event(booking_id, event_key):
+    if not booking_id:
+        return
+    try:
+        booking = Booking.objects.select_related("user", "branch").get(pk=booking_id)
+    except Booking.DoesNotExist:
+        return
+
+    event_config = {
+        "in_service": {
+            "title": "Appointment In Progress",
+            "email_subject": "Appointment In Progress - Otokwikk",
+            "message": (
+                f"Your appointment for {booking.service} on {booking.date} at "
+                f"{booking.time} is now in progress."
+            ),
+        },
+        "done": {
+            "title": "Appointment Completed",
+            "email_subject": "Appointment Completed - Otokwikk",
+            "message": (
+                f"Your appointment for {booking.service} on {booking.date} at "
+                f"{booking.time} has been completed."
+            ),
+        },
+        "paid": {
+            "title": "Payment Received",
+            "email_subject": "Payment Received - Otokwikk",
+            "message": (
+                f"Payment for your appointment ({booking.service} on {booking.date} at "
+                f"{booking.time}) has been marked as paid."
+            ),
+        },
+    }
+
+    config = event_config.get(event_key)
+    if not config:
+        return
+
+    try:
+        Notification.objects.create(
+            user=booking.user,
+            title=config["title"],
+            message=config["message"],
+            notification_type="appointment",
+        )
+    except Exception:
+        logger.exception("Failed to create %s notification for booking_id=%s", event_key, booking_id)
+
+    if not booking.user.email:
+        return
+
+    branch_name = booking.branch.name if booking.branch else "your selected branch"
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Inter', Arial, sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 24px; }}
+            .container {{ max-width: 620px; margin: 0 auto; background: #111827; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }}
+            .header {{ background: #000000; padding: 28px; text-align: center; }}
+            .logo {{ height: 50px; }}
+            .content {{ padding: 36px; text-align: center; }}
+            h1 {{ color: #ffffff; font-size: 26px; font-weight: 800; margin-bottom: 12px; }}
+            p {{ color: #9ca3af; font-size: 16px; line-height: 1.7; margin: 0; }}
+            .divider {{ height: 1px; background: linear-gradient(to right, transparent, rgba(220,38,38,0.35), transparent); margin: 24px 0 18px; }}
+            .footer {{ background: rgba(0,0,0,0.28); padding: 22px; text-align: center; }}
+            .footer-text {{ color: #4b5563; font-size: 12px; margin: 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <img src="https://i.ibb.co/vzR0F7Z/otokwikklogo.png" alt="Otokwikk" class="logo">
+            </div>
+            <div class="content">
+                <h1>{config["title"]}</h1>
+                <p>{config["message"]}</p>
+                <p style="font-size: 14px; margin-top: 18px; color: #d1d5db;">Branch: {branch_name}</p>
+                <div class="divider"></div>
+                <p style="font-size: 14px;">If you have questions, please contact your branch.</p>
+            </div>
+            <div class="footer">
+                <p class="footer-text">© 2026 Otokwikk Services. This is an automated email, please do not reply.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    try:
+        msg = EmailMultiAlternatives(
+            config["email_subject"],
+            strip_tags(html_content),
+            settings.DEFAULT_FROM_EMAIL,
+            [booking.user.email],
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+    except Exception:
+        logger.exception("Failed to send %s email for booking_id=%s", event_key, booking_id)
+
+
+def _notify_queue_customer_event(entry, event_key):
+    if not entry:
+        return
+    if entry.booking_id:
+        _notify_booking_customer_event(entry.booking_id, event_key)
+        return
+    if not entry.customer_user_id:
+        return
+
+    event_config = {
+        "in_service": {
+            "title": "Walk-in Service In Progress",
+            "email_subject": "Walk-in Service In Progress - Otokwikk",
+            "message": f"Your walk-in service ({entry.service}) is now in progress.",
+        },
+        "done": {
+            "title": "Walk-in Service Completed",
+            "email_subject": "Walk-in Service Completed - Otokwikk",
+            "message": f"Your walk-in service ({entry.service}) has been completed.",
+        },
+        "paid": {
+            "title": "Walk-in Payment Received",
+            "email_subject": "Walk-in Payment Received - Otokwikk",
+            "message": f"Payment for your walk-in service ({entry.service}) has been marked as paid.",
+        },
+    }
+    config = event_config.get(event_key)
+    if not config:
+        return
+
+    try:
+        Notification.objects.create(
+            user=entry.customer_user,
+            title=config["title"],
+            message=config["message"],
+            notification_type="appointment",
+        )
+    except Exception:
+        logger.exception("Failed to create %s notification for queue_entry_id=%s", event_key, entry.id)
+
+    user_email = getattr(entry.customer_user, "email", "")
+    if not user_email:
+        return
+
+    branch_name = entry.branch.name if entry.branch else (entry.branch_name or "your selected branch")
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Inter', Arial, sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 24px; }}
+            .container {{ max-width: 620px; margin: 0 auto; background: #111827; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }}
+            .header {{ background: #000000; padding: 28px; text-align: center; }}
+            .logo {{ height: 50px; }}
+            .content {{ padding: 36px; text-align: center; }}
+            h1 {{ color: #ffffff; font-size: 26px; font-weight: 800; margin-bottom: 12px; }}
+            p {{ color: #9ca3af; font-size: 16px; line-height: 1.7; margin: 0; }}
+            .divider {{ height: 1px; background: linear-gradient(to right, transparent, rgba(220,38,38,0.35), transparent); margin: 24px 0 18px; }}
+            .footer {{ background: rgba(0,0,0,0.28); padding: 22px; text-align: center; }}
+            .footer-text {{ color: #4b5563; font-size: 12px; margin: 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <img src="https://i.ibb.co/vzR0F7Z/otokwikklogo.png" alt="Otokwikk" class="logo">
+            </div>
+            <div class="content">
+                <h1>{config["title"]}</h1>
+                <p>{config["message"]}</p>
+                <p style="font-size: 14px; margin-top: 18px; color: #d1d5db;">Branch: {branch_name}</p>
+                <div class="divider"></div>
+                <p style="font-size: 14px;">If you have questions, please contact your branch.</p>
+            </div>
+            <div class="footer">
+                <p class="footer-text">© 2026 Otokwikk Services. This is an automated email, please do not reply.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    try:
+        msg = EmailMultiAlternatives(
+            config["email_subject"],
+            strip_tags(html_content),
+            settings.DEFAULT_FROM_EMAIL,
+            [user_email],
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+    except Exception:
+        logger.exception("Failed to send %s walk-in email for queue_entry_id=%s", event_key, entry.id)
+
+
 def _auto_mark_no_show_entries(queryset):
     now = timezone.localtime(timezone.now())
     for entry in queryset.filter(source="booking", status="waiting").select_related("booking"):
@@ -97,6 +296,23 @@ def _auto_mark_no_show_entries(queryset):
                     cancellation_reason="Marked as no-show: service was not started within 10 minutes of schedule.",
                 )
                 _notify_booking_no_show(entry.booking_id)
+
+
+def _local_date(dt):
+    if not dt:
+        return None
+    return timezone.localtime(dt).date()
+
+
+def _entry_matches_selected_date(entry, selected_date):
+    if _local_date(entry.completed_at) == selected_date:
+        return True
+    if entry.source == "booking" and entry.booking and entry.booking.date == selected_date:
+        return True
+    if entry.source == "walk_in" and _local_date(entry.queued_at) == selected_date:
+        return True
+    return False
+
 
 def _booking_to_queue_entry(booking):
     """
@@ -227,7 +443,11 @@ def queue_list(request):
                 | Q(booking__isnull=True, queued_at__date=selected_date)
             )
         elif status_param in ["done", "skipped"]:
-            queryset = queryset.filter(completed_at__date=selected_date)
+            queryset = queryset.filter(
+                Q(completed_at__date=selected_date)
+                | Q(source="booking", status__in=["done", "skipped"], booking__date=selected_date)
+                | Q(source="walk_in", status="done", queued_at__date=selected_date)
+            )
         else:
             queryset = queryset.filter(
                 Q(booking__date=selected_date)
@@ -267,6 +487,16 @@ def queue_walk_in(request):
             "price": price,
             "payment_status": 'unpaid',
         }
+
+        customer_id = serializer.validated_data.get("customer_id")
+        if customer_id not in (None, ""):
+            customer = Customer.objects.filter(pk=customer_id).select_related("user").first()
+            if not customer:
+                return Response(
+                    {"detail": "Selected customer not found."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            save_kwargs["customer_user"] = customer.user
 
         # For non-admin staff, force walk-ins into their branch so entries don't disappear on refresh.
         if requester_staff and requester_staff.role != "Admin":
@@ -381,6 +611,11 @@ def queue_action(request, pk):
     # of staying stuck on "Confirmed" forever.
     if new_status == "done" and entry.booking_id:
         Booking.objects.filter(pk=entry.booking_id).update(status="done")
+    if new_status == "done":
+        _notify_queue_customer_event(entry, "done")
+
+    if new_status == "in_service":
+        _notify_queue_customer_event(entry, "in_service")
 
     return Response(QueueEntrySerializer(entry).data)
 
@@ -511,13 +746,17 @@ def queue_history(request):
             selected_date = date.fromisoformat(date_param)
         except ValueError:
             return Response({"detail": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
-        entries = entries.filter(
-            Q(completed_at__date=selected_date)
-            | Q(status="skipped", source="booking", booking__date=selected_date)
-        )
+        entries = [entry for entry in entries if _entry_matches_selected_date(entry, selected_date)]
+    else:
+        entries = list(entries)
 
-    entries = entries.order_by("-completed_at")[:50]
-    return Response(QueueEntrySerializer(entries, many=True).data)
+    entries.sort(
+        key=lambda e: (
+            e.completed_at or e.queued_at or timezone.make_aware(datetime.min)
+        ),
+        reverse=True,
+    )
+    return Response(QueueEntrySerializer(entries[:50], many=True).data)
 
 
 # ── PATCH  /api/queue/<id>/mark-paid/ ────────────────────────────────────────
@@ -529,11 +768,16 @@ def queue_mark_paid(request, pk):
     except QueueEntry.DoesNotExist:
         return Response({"detail": "Not found."}, status=404)
 
+    previous_payment_status = entry.payment_status
     entry.payment_status = request.data.get("payment_status", "paid")
     entry.payment_method = request.data.get("payment_method", "")
     if "price" in request.data:
         entry.price = request.data["price"]
     entry.save()
+
+    if previous_payment_status != "paid" and entry.payment_status == "paid":
+        _notify_queue_customer_event(entry, "paid")
+
     return Response(QueueEntrySerializer(entry).data)
 
 

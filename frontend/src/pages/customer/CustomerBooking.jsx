@@ -1134,8 +1134,8 @@ function NewBookingModal({
     if (step === 3) {
       // FIX: Block same-day booking
       if (!form.date) { setError("Please select a date."); return false; }
-      if (form.date <= todayISO()) {
-        setError("Same-day bookings are not allowed. Please select tomorrow or a later date.");
+      if (form.date < todayISO()) {
+        setError("Past dates are not allowed. Please select today or a later date.");
         return false;
       }
       if (hasActiveBooking) {
@@ -1662,11 +1662,11 @@ function NewBookingModal({
               <div>
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
                   Pick a Date{" "}
-                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Tomorrow or later only)</span>
+                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Today onward)</span>
                 </p>
                 <input
                   type="date"
-                  min={tomorrowISO()}
+                  min={todayISO()}
                   value={form.date}
                   onChange={(e) => {
                     // FIX: use set() so error is cleared, time reset happens in the useEffect
@@ -1675,9 +1675,9 @@ function NewBookingModal({
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
                 />
                 {/* FIX: warn if user somehow picks today (browser may allow it on some devices) */}
-                {form.date && form.date <= todayISO() && (
+                {form.date && form.date < todayISO() && (
                   <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
-                    Same-day bookings are not allowed. Please select tomorrow or a later date.
+                    Past dates are not allowed. Please select today or a later date.
                   </p>
                 )}
                 {/* Warn if customer already has active booking */}
@@ -1721,11 +1721,11 @@ function NewBookingModal({
                     // FIX: a slot is only clickable if:
                     //  1. slots have been loaded (availableSlots !== null)
                     //  2. the slot is explicitly true in the response
-                    //  3. the date is valid (tomorrow or later)
+                    //  3. the date is valid (today onward)
                     //  4. user doesn't already have a booking that day
                     const slotsLoaded = availableSlots !== null;
                     const slotAvailable = slotsLoaded && availableSlots[t] === true;
-                    const dateValid = form.date && form.date > todayISO();
+                    const dateValid = form.date && form.date >= todayISO();
                     const isDisabled =
                       !slotsLoaded ||
                       !slotAvailable ||
@@ -1774,7 +1774,7 @@ function NewBookingModal({
               </div>
 
                 {/* Slot count summary */}
-                {form.date && form.date > todayISO() && !checkingAvailability && availableSlots !== null && !hasActiveBooking && (
+                {form.date && form.date >= todayISO() && !checkingAvailability && availableSlots !== null && !hasActiveBooking && (
                   <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
                     {availableCount > 0
                       ? `${availableCount} slot${availableCount !== 1 ? "s" : ""} available`
