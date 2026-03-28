@@ -43,7 +43,6 @@ function HelpPage() {
   return (
     <CustomerLayout>
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/30 p-4 sm:p-6 lg:p-8">
-        {" "}
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-1">
@@ -53,8 +52,9 @@ function HelpPage() {
             We're here to help. Find answers or reach out to us.
           </p>
         </div>
-        {/* Contact Cards */}
-        <div className="grid sm:grid-cols-3 gap-4 mb-10">
+
+        {/* Contact Cards — 1 col on mobile, 3 on sm+ */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-10">
           {[
             {
               icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
@@ -77,9 +77,9 @@ function HelpPage() {
           ].map(({ icon, label, value, sub }) => (
             <div
               key={label}
-              className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-6 border border-white/5 hover:border-red-600/40 transition-all duration-300 hover:-translate-y-1 text-center group cursor-pointer"
+              className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-5 sm:p-6 border border-white/5 hover:border-red-600/40 transition-all duration-300 hover:-translate-y-1 text-center group cursor-pointer flex sm:flex-col items-center sm:items-center gap-4 sm:gap-0"
             >
-              <div className="w-12 h-12 bg-red-600/10 group-hover:bg-red-600 rounded-xl flex items-center justify-center mx-auto mb-3 transition-all duration-300">
+              <div className="w-12 h-12 bg-red-600/10 group-hover:bg-red-600 rounded-xl flex items-center justify-center shrink-0 sm:mx-auto sm:mb-3 transition-all duration-300">
                 <svg
                   className="w-6 h-6 text-red-500 group-hover:text-white transition-colors duration-300"
                   fill="none"
@@ -94,15 +94,19 @@ function HelpPage() {
                   />
                 </svg>
               </div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                {label}
-              </p>
-              <p className="text-white font-bold text-sm">{value}</p>
-              <p className="text-gray-500 text-xs mt-0.5">{sub}</p>
+              <div className="text-left sm:text-center">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                  {label}
+                </p>
+                <p className="text-white font-bold text-sm">{value}</p>
+                <p className="text-gray-500 text-xs mt-0.5">{sub}</p>
+              </div>
             </div>
           ))}
         </div>
-        <div className="grid md:grid-cols-2 gap-8">
+
+        {/* FAQ + Contact Form — stack on mobile, side-by-side on md+ */}
+        <div className="grid md:grid-cols-2 gap-6 md:gap-8">
           {/* FAQ */}
           <div>
             <h2 className="text-xl font-black text-white mb-4">
@@ -152,7 +156,7 @@ function HelpPage() {
             <h2 className="text-xl font-black text-white mb-4">
               Send a Message
             </h2>
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-6 border border-white/5">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5">
               {sent ? (
                 <div className="text-center py-10">
                   <div className="w-16 h-16 bg-green-600/20 rounded-full flex items-center justify-center mx-auto mb-4">

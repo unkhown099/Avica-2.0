@@ -245,7 +245,6 @@ function HistoryPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // After submitting a review, update the item in state without refetching
   const handleReviewSubmitted = (queueId, rating, review) => {
     setHistory((prev) =>
       prev.map((h) => (h.id === queueId ? { ...h, rating, review } : h)),
@@ -265,33 +264,33 @@ function HistoryPage() {
 
         {/* Stats */}
         {!loading && !error && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-5 border border-white/5 text-center">
-              <div className="text-3xl font-black text-white mb-1">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-3 sm:p-5 border border-white/5 text-center">
+              <div className="text-2xl sm:text-3xl font-black text-white mb-1">
                 {stats.total_services}
               </div>
-              <div className="text-sm text-gray-500">Total Services</div>
+              <div className="text-xs sm:text-sm text-gray-500">Total Services</div>
             </div>
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-5 border border-white/5 text-center">
-              <div className="text-3xl font-black text-red-500 mb-1">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-3 sm:p-5 border border-white/5 text-center overflow-hidden">
+              <div className="text-lg sm:text-3xl font-black text-red-500 mb-1 truncate">
                 ₱{stats.total_spent.toLocaleString("en-PH")}
               </div>
-              <div className="text-sm text-gray-500">Total Spent</div>
+              <div className="text-xs sm:text-sm text-gray-500">Total Spent</div>
             </div>
-            <div className="col-span-2 sm:col-span-1 bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-5 border border-white/5 text-center">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-3 sm:p-5 border border-white/5 text-center">
               {stats.avg_rating !== null ? (
                 <>
-                  <div className="text-3xl font-black text-yellow-400 mb-1">
+                  <div className="text-2xl sm:text-3xl font-black text-yellow-400 mb-1">
                     {stats.avg_rating}
                   </div>
-                  <div className="text-sm text-gray-500">Avg Rating Given</div>
+                  <div className="text-xs sm:text-sm text-gray-500">Avg Rating Given</div>
                 </>
               ) : (
                 <>
-                  <div className="text-3xl font-black text-gray-600 mb-1">
+                  <div className="text-2xl sm:text-3xl font-black text-gray-600 mb-1">
                     —
                   </div>
-                  <div className="text-sm text-gray-500">No Ratings Yet</div>
+                  <div className="text-xs sm:text-sm text-gray-500">No Ratings Yet</div>
                 </>
               )}
             </div>
@@ -373,97 +372,63 @@ function HistoryPage() {
             {history.map((item) => (
               <div
                 key={item.id}
-                className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-6 border border-white/5 hover:border-red-600/20 transition-all duration-300"
+                className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/20 transition-all duration-300"
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                {/* On mobile: stack vertically. On lg+: side-by-side like original */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-5">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <h3 className="text-xl font-black text-white">
-                        {item.service}
-                      </h3>
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-600/20 text-blue-400 border border-blue-600/30">
-                        Completed
-                      </span>
-                      {item.payment_method && (
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-600/20 text-green-400 border border-green-600/30">
-                          Paid · {item.payment_method}
-                        </span>
-                      )}
+                    {/* Service name + badges */}
+                    <div className="flex items-start justify-between gap-3 mb-2 lg:block">
+                      <div>
+                        <h3 className="text-xl font-black text-white">
+                          {item.service}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-600/20 text-blue-400 border border-blue-600/30">
+                            Completed
+                          </span>
+                          {item.payment_method && (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-600/20 text-green-400 border border-green-600/30">
+                              Paid · {item.payment_method}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Price shown top-right on mobile only */}
+                      <div className="text-2xl font-black text-white whitespace-nowrap lg:hidden">
+                        ₱{Number(item.price).toLocaleString("en-PH")}
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-5 text-gray-400 text-sm mb-3">
+                    {/* Meta info */}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-gray-400 text-sm mb-3">
                       <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-red-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
+                        <svg className="w-4 h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         {formatDate(item.date)}
                       </div>
                       {item.staff && item.staff !== "—" && (
                         <div className="flex items-center gap-2">
-                          <svg
-                            className="w-4 h-4 text-red-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                            />
+                          <svg className="w-4 h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                           </svg>
                           {item.staff}
                         </div>
                       )}
                       {item.branch && (
                         <div className="flex items-center gap-2">
-                          <svg
-                            className="w-4 h-4 text-red-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
+                          <svg className="w-4 h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
                           {item.branch}
                         </div>
                       )}
                       {item.vehicle && (
                         <div className="flex items-center gap-2">
-                          <svg
-                            className="w-4 h-4 text-red-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l1.5 1h7l1.5-1zM8 6h5l3 5H8V6z"
-                            />
+                          <svg className="w-4 h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l1.5 1h7l1.5-1zM8 6h5l3 5H8V6z" />
                           </svg>
                           {item.vehicle}
                           {item.plate_number ? ` · ${item.plate_number}` : ""}
@@ -471,6 +436,7 @@ function HistoryPage() {
                       )}
                     </div>
 
+                    {/* Rating */}
                     {item.rating ? (
                       <div>
                         <StarRating rating={item.rating} />
@@ -487,18 +453,20 @@ function HistoryPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <div className="text-2xl font-black text-white">
+                  {/* Price + buttons: side by side on lg, buttons full-width on mobile */}
+                  <div className="flex items-center justify-between lg:justify-end gap-4 lg:flex-col lg:items-end">
+                    {/* Price hidden on mobile (shown above), visible on lg */}
+                    <div className="hidden lg:block text-2xl font-black text-white">
                       ₱{Number(item.price).toLocaleString("en-PH")}
                     </div>
-                    <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg shadow-red-600/20">
+                    <div className="flex gap-2 w-full lg:w-auto">
+                      <button className="flex-1 lg:flex-none px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg shadow-red-600/20">
                         Book Again
                       </button>
                       {!item.rating && (
                         <button
                           onClick={() => setReviewItem(item)}
-                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                          className="flex-1 lg:flex-none px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-sm font-semibold transition-colors"
                         >
                           Leave Review
                         </button>

@@ -243,9 +243,7 @@ function useOutsideClick(ref, callback) {
 // ── main component ─────────────────────────────────────────────────────────
 function Navbar({ user: userProp, setUser }) {
   const { user: authUser } = useAuth();
-  const [localUser, setLocalUser] = useState(
-    () => userProp || authUser,
-  );
+  const [localUser, setLocalUser] = useState(() => userProp || authUser);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -262,15 +260,6 @@ function Navbar({ user: userProp, setUser }) {
   useEffect(() => {
     if (userProp) setLocalUser(userProp);
   }, [userProp]);
-
-  useEffect(() => {
-    const handleStorage = () => {
-      // In this version we rely more on the auth hook or context if available,
-      // but for legacy we skip direct getUserFromSession.
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
 
   const user = localUser;
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -358,14 +347,14 @@ function Navbar({ user: userProp, setUser }) {
   return (
     <nav className="fixed top-0 w-full z-50 bg-black/95 backdrop-blur-md shadow-lg border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-16 sm:h-20">
           {/* ── Logo ── */}
           <div className="flex items-center shrink-0">
             <Link to="/dashboard">
               <img
                 src={logo}
                 alt="Otokwikk logo"
-                className="h-14 md:h-20 object-contain"
+                className="h-10 sm:h-14 md:h-20 object-contain"
               />
             </Link>
           </div>
@@ -393,20 +382,20 @@ function Navbar({ user: userProp, setUser }) {
                   setIsNotifOpen((v) => !v);
                   setIsProfileOpen(false);
                 }}
-                className="relative p-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
+                className="relative p-2 sm:p-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
                 aria-label="Notifications"
               >
                 <IconBell />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-600 rounded-full text-white text-[10px] font-black flex items-center justify-center leading-none shadow-lg shadow-red-600/50 animate-pulse">
+                  <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-4 h-4 bg-red-600 rounded-full text-white text-[10px] font-black flex items-center justify-center leading-none shadow-lg shadow-red-600/50 animate-pulse">
                     {unreadCount}
                   </span>
                 )}
               </button>
 
-              {/* Notification Dropdown */}
+              {/* Notification Dropdown — full width on mobile */}
               {isNotifOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 md:w-96 max-w-sm bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden">
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/60">
                     <div className="flex items-center gap-2">
@@ -430,7 +419,7 @@ function Navbar({ user: userProp, setUser }) {
                   </div>
 
                   {/* Notification list */}
-                  <div className="max-h-80 overflow-y-auto divide-y divide-gray-800/60 scrollbar-thin">
+                  <div className="max-h-72 sm:max-h-80 overflow-y-auto divide-y divide-gray-800/60">
                     {notifications.length === 0 ? (
                       <div className="py-10 text-center text-gray-500 text-sm italic">
                         No notifications yet
@@ -442,13 +431,11 @@ function Navbar({ user: userProp, setUser }) {
                           onClick={() => markRead(notif.id)}
                           className={`w-full text-left px-4 py-3.5 hover:bg-white/5 transition-colors duration-200 flex items-start gap-3 ${!notif.read ? "bg-white/[0.03]" : ""}`}
                         >
-                          {/* Icon */}
                           <div
                             className={`shrink-0 w-8 h-8 rounded-lg ${notif.bg} ${notif.accent} flex items-center justify-center mt-0.5`}
                           >
                             {notif.icon}
                           </div>
-                          {/* Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <p
@@ -464,7 +451,6 @@ function Navbar({ user: userProp, setUser }) {
                               {notif.message}
                             </p>
                           </div>
-                          {/* Unread dot */}
                           {!notif.read && (
                             <div className="shrink-0 w-2 h-2 bg-red-500 rounded-full mt-2" />
                           )}
@@ -487,7 +473,7 @@ function Navbar({ user: userProp, setUser }) {
               )}
             </div>
 
-            {/* ── Profile button (desktop) ── */}
+            {/* ── Profile button (desktop only, sm+) ── */}
             <div className="relative hidden sm:block" ref={profileRef}>
               <button
                 onClick={() => {
@@ -496,7 +482,6 @@ function Navbar({ user: userProp, setUser }) {
                 }}
                 className="flex items-center gap-2 lg:gap-3 px-2 lg:px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300"
               >
-                {/* Avatar */}
                 <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-br from-red-600 to-red-700">
                   {user?.profilePicture ? (
                     <img
@@ -510,7 +495,6 @@ function Navbar({ user: userProp, setUser }) {
                     </span>
                   )}
                 </div>
-                {/* Name (hidden on sm, visible lg+) */}
                 <div className="hidden lg:block text-left">
                   <p className="text-white font-semibold text-sm leading-tight">
                     {fullName}
@@ -558,9 +542,9 @@ function Navbar({ user: userProp, setUser }) {
               )}
             </div>
 
-            {/* ── Mobile: Avatar (no dropdown — handled in mobile menu) ── */}
+            {/* ── Mobile: Avatar only (no dropdown — handled in mobile menu) ── */}
             <div className="flex sm:hidden items-center">
-              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-red-600 to-red-700">
+              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-red-600 to-red-700">
                 {user?.profilePicture ? (
                   <img
                     src={user.profilePicture}
@@ -603,12 +587,10 @@ function Navbar({ user: userProp, setUser }) {
                 <span className="text-white font-bold text-sm">{initials}</span>
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-white font-bold text-sm">{fullName}</p>
               {email && (
-                <p className="text-gray-400 text-xs truncate max-w-[220px]">
-                  {email}
-                </p>
+                <p className="text-gray-400 text-xs truncate">{email}</p>
               )}
             </div>
           </div>
@@ -642,7 +624,7 @@ function Navbar({ user: userProp, setUser }) {
                 onClick={() => setIsMobileOpen(false)}
                 className="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-200 text-sm"
               >
-                <span className="text-gray-500">{icon}</span>
+                <span className="text-gray-500 shrink-0">{icon}</span>
                 {label}
               </Link>
             ))}

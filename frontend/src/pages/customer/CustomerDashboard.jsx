@@ -32,16 +32,13 @@ function CustomerDashboard() {
       setIsDashboardLoading(true);
       setDashboardError(null);
       try {
-        const response = await fetch(
-          `${API_BASE}/api/customer/dashboard/`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              ...getAuthHeaders(),
-            },
+        const response = await fetch(`${API_BASE}/api/customer/dashboard/`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
           },
-        );
+        });
 
         if (!response.ok) {
           throw new Error(
@@ -51,29 +48,20 @@ function CustomerDashboard() {
 
         const data = await response.json();
 
-        // FIX 1: Filter by full datetime, not just date
-        // This correctly removes bookings where the date+time has already passed
         const now = new Date();
-
         const trueUpcoming = (data.upcoming_bookings || []).filter((b) => {
-          // Combine date and time fields if separate, or parse ISO datetime directly
           let bookingDateTime;
           if (b.time) {
-            // e.g. date = "2026-03-20", time = "08:00:00"
             bookingDateTime = new Date(`${b.date}T${b.time}`);
           } else {
-            // Fallback: treat as all-day, use end of that day
             bookingDateTime = new Date(b.date);
             bookingDateTime.setHours(23, 59, 59, 999);
           }
           return bookingDateTime > now;
         });
 
-        setStats(
-          data.stats || { upcoming: 0, completed: 0 },
-        );
+        setStats(data.stats || { upcoming: 0, completed: 0 });
         setUpcomingBookings(trueUpcoming);
-        // FIX 2: Use all service history — no "this week" filter
         setServiceHistory(data.service_history || []);
       } catch (error) {
         console.error("Dashboard fetch error:", error);
@@ -102,14 +90,11 @@ function CustomerDashboard() {
     formData.append("car_image", file);
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/car-recognition/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: formData,
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/car-recognition/`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: formData,
+      });
 
       const data = await response.json();
 
@@ -185,10 +170,8 @@ function CustomerDashboard() {
     return recs;
   };
 
-  // FIX 3: Format date cleanly — no time component shown
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
-    // Parse only the date portion to avoid timezone issues showing wrong date
     const [year, month, day] = String(dateStr).split("T")[0].split("-");
     if (!year || !month || !day) return dateStr;
     const date = new Date(Number(year), Number(month) - 1, Number(day));
@@ -246,21 +229,21 @@ function CustomerDashboard() {
 
   return (
     <CustomerLayout>
-      {/* Hero */}
-      <div className="relative bg-gradient-to-b from-red-950/20 via-gray-900 to-gray-950 py-16 border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+      {/* ── Hero ── */}
+      <div className="relative bg-gradient-to-b from-red-950/20 via-gray-900 to-gray-950 py-10 sm:py-14 md:py-16 border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">
-                Welcome back, {displayFirst}!
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight leading-tight">
+                Welcome back,&nbsp;{displayFirst}!
               </h1>
-              <p className="text-xl text-gray-400">
+              <p className="text-base sm:text-lg md:text-xl text-gray-400">
                 Ready to keep your car looking its best?
               </p>
             </div>
-            <button className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg shadow-red-600/30 flex items-center gap-2">
+            <button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-red-600/30 flex items-center justify-center gap-2 text-sm sm:text-base">
               <svg
-                className="w-6 h-6"
+                className="w-5 h-5 sm:w-6 sm:h-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -278,12 +261,12 @@ function CustomerDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
-        {/* Error Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
+        {/* ── Error Banner ── */}
         {dashboardError && (
-          <div className="mb-8 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center gap-3 text-red-400">
+          <div className="mb-6 sm:mb-8 bg-red-500/10 border border-red-500/30 rounded-2xl p-3 sm:p-4 flex items-start sm:items-center gap-3 text-red-400">
             <svg
-              className="w-5 h-5 shrink-0"
+              className="w-5 h-5 shrink-0 mt-0.5 sm:mt-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -299,17 +282,20 @@ function CustomerDashboard() {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-4 mb-12">
+        {/* ── Stats Grid ── */}
+        {/* 2-col on mobile, 4-col on lg */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10 md:mb-12">
           {statCards.map(({ icon, value, label, border, bg, text }) => (
             <div
               key={label}
-              className={`bg-gray-900/60 border ${border} rounded-2xl p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}
+              className={`bg-gray-900/60 border ${border} rounded-2xl p-4 sm:p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}
             >
-              <div className="flex items-start gap-4">
-                <div className={`${bg} ${text} p-3 rounded-xl shrink-0`}>
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div
+                  className={`${bg} ${text} p-2.5 sm:p-3 rounded-xl shrink-0`}
+                >
                   <svg
-                    className="w-6 h-6"
+                    className="w-5 h-5 sm:w-6 sm:h-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -322,25 +308,30 @@ function CustomerDashboard() {
                     />
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   {isDashboardLoading ? (
-                    <div className="h-7 w-12 bg-white/10 rounded animate-pulse mb-1" />
+                    <div className="h-6 w-10 bg-white/10 rounded animate-pulse mb-1" />
                   ) : (
-                    <div className="text-2xl font-black text-white">
+                    <div className="text-lg sm:text-2xl font-black text-white truncate leading-tight">
                       {value}
                     </div>
                   )}
-                  <div className="text-sm text-gray-500">{label}</div>
+                  <div className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                    {label}
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* FIX 4: Compact Quick Actions — smaller padding, horizontal layout */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-black text-white mb-4">Quick Actions</h2>
-          <div className="grid md:grid-cols-3 gap-3">
+        {/* ── Quick Actions ── */}
+        <div className="mb-8 sm:mb-10 md:mb-12">
+          <h2 className="text-xl sm:text-2xl font-black text-white mb-3 sm:mb-4">
+            Quick Actions
+          </h2>
+          {/* Stack on mobile, 3-col on md+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
             {[
               {
                 title: "Book a Service",
@@ -363,14 +354,14 @@ function CustomerDashboard() {
             ].map(({ title, desc, icon, accent }) => (
               <button
                 key={title}
-                className="group bg-gray-900/60 border border-white/5 rounded-xl p-4 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300 hover:scale-[1.02] text-left flex items-center gap-4"
+                className="group bg-gray-900/60 border border-white/5 rounded-xl p-3 sm:p-4 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300 hover:scale-[1.02] text-left flex items-center gap-3 sm:gap-4"
               >
                 <div
-                  className="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300"
+                  className="w-9 h-9 sm:w-10 sm:h-10 bg-red-500/10 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300"
                   style={{ color: accent }}
                 >
                   <svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -384,7 +375,9 @@ function CustomerDashboard() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">{title}</h3>
+                  <h3 className="text-xs sm:text-sm font-bold text-white">
+                    {title}
+                  </h3>
                   <p className="text-xs text-gray-400">{desc}</p>
                 </div>
               </button>
@@ -392,27 +385,30 @@ function CustomerDashboard() {
           </div>
         </div>
 
-        {/* Car AI Analysis */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-white">Car AI Analysis</h2>
-            <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 rounded-full border border-red-500/30">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-xs font-bold text-red-400 uppercase tracking-widest">
+        {/* ── Car AI Analysis ── */}
+        <div className="mb-8 sm:mb-10 md:mb-12">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Car AI Analysis
+            </h2>
+            <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 bg-red-500/10 rounded-full border border-red-500/30">
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full animate-pulse" />
+              <span className="text-[10px] sm:text-xs font-bold text-red-400 uppercase tracking-widest">
                 Powered by AI
               </span>
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-6 items-stretch">
-            {/* Upload */}
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-8 backdrop-blur-sm flex flex-col items-center justify-center text-center relative overflow-hidden group">
+          {/* Stack vertically on mobile/tablet, side-by-side on lg */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-stretch">
+            {/* Upload panel */}
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 backdrop-blur-sm flex flex-col items-center justify-center text-center relative overflow-hidden group min-h-[240px]">
               <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
               {!previewImage ? (
                 <>
-                  <div className="w-20 h-20 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-500/10 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-500">
                     <svg
-                      className="w-10 h-10 text-red-400"
+                      className="w-8 h-8 sm:w-10 sm:h-10 text-red-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -431,14 +427,14 @@ function CustomerDashboard() {
                       />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-black text-white mb-2">
+                  <h3 className="text-lg sm:text-xl font-black text-white mb-2">
                     Identify Your Car
                   </h3>
-                  <p className="text-sm text-gray-400 mb-8 max-w-xs">
+                  <p className="text-xs sm:text-sm text-gray-400 mb-6 sm:mb-8 max-w-xs">
                     Upload a photo of your vehicle for personalised service
                     recommendations
                   </p>
-                  <label className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 rounded-xl cursor-pointer transition-all duration-300 shadow-lg shadow-red-600/30">
+                  <label className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl cursor-pointer transition-all duration-300 shadow-lg shadow-red-600/30 text-sm sm:text-base">
                     Upload Car Photo
                     <input
                       type="file"
@@ -453,12 +449,12 @@ function CustomerDashboard() {
                   <img
                     src={previewImage}
                     alt="Car preview"
-                    className="w-full h-64 object-cover rounded-xl border border-white/10"
+                    className="w-full h-48 sm:h-64 object-cover rounded-xl border border-white/10"
                   />
                   {isAnalyzing && (
                     <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl">
-                      <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4" />
-                      <p className="text-white font-bold animate-pulse uppercase tracking-widest text-sm">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-3 sm:mb-4" />
+                      <p className="text-white font-bold animate-pulse uppercase tracking-widest text-xs sm:text-sm">
                         Analysing Vehicle…
                       </p>
                     </div>
@@ -468,10 +464,10 @@ function CustomerDashboard() {
                       setPreviewImage(null);
                       setAnalysisResult(null);
                     }}
-                    className="absolute top-4 right-4 bg-gray-900/60 hover:bg-red-600 p-2 rounded-lg text-white border border-white/10 transition-all opacity-0 group-hover/preview:opacity-100"
+                    className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-gray-900/60 hover:bg-red-600 p-1.5 sm:p-2 rounded-lg text-white border border-white/10 transition-all opacity-0 group-hover/preview:opacity-100"
                   >
                     <svg
-                      className="w-5 h-5"
+                      className="w-4 h-4 sm:w-5 sm:h-5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -488,46 +484,46 @@ function CustomerDashboard() {
               )}
             </div>
 
-            {/* Result */}
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-8 backdrop-blur-sm flex flex-col">
+            {/* Results panel */}
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 backdrop-blur-sm flex flex-col min-h-[240px]">
               {analysisResult ? (
                 <div>
-                  <div className="flex items-start justify-between mb-8">
+                  <div className="flex flex-col xs:flex-row xs:items-start xs:justify-between gap-3 mb-6 sm:mb-8">
                     <div>
-                      <div className="text-sm font-bold text-red-400 uppercase tracking-widest mb-1">
+                      <div className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1">
                         Detected Vehicle
                       </div>
-                      <h3 className="text-3xl font-black text-white">
+                      <h3 className="text-2xl sm:text-3xl font-black text-white">
                         {analysisResult.make} {analysisResult.model}
                       </h3>
-                      <p className="text-gray-400 font-medium">
+                      <p className="text-gray-400 font-medium text-sm sm:text-base">
                         {analysisResult.year} • {analysisResult.color}
                       </p>
                     </div>
-                    <div className="bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-xl border border-emerald-500/30 font-bold text-sm">
+                    <div className="bg-emerald-500/20 text-emerald-400 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-emerald-500/30 font-bold text-xs sm:text-sm self-start whitespace-nowrap">
                       98% Match
                     </div>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                       Tailored Recommendations
                     </div>
                     {analysisResult.recommendations.map((rec, idx) => (
                       <div
                         key={idx}
-                        className="bg-white/5 rounded-xl p-4 border border-white/5 hover:border-red-500/30 transition-all group/rec"
+                        className="bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5 hover:border-red-500/30 transition-all group/rec"
                       >
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <h4 className="text-white font-bold mb-1 group-hover/rec:text-red-400 transition-colors">
+                        <div className="flex items-start sm:items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-bold mb-1 group-hover/rec:text-red-400 transition-colors text-sm sm:text-base">
                               {rec.title}
                             </h4>
-                            <p className="text-sm text-gray-400">
+                            <p className="text-xs sm:text-sm text-gray-400">
                               {rec.reason}
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="text-lg font-black text-white mb-1">
+                            <div className="text-base sm:text-lg font-black text-white mb-1">
                               {rec.price}
                             </div>
                             <button className="text-xs font-bold text-red-400 hover:text-red-300 uppercase">
@@ -542,7 +538,7 @@ function CustomerDashboard() {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
                   <svg
-                    className="w-16 h-16 text-gray-600 mb-4"
+                    className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mb-3 sm:mb-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -554,7 +550,7 @@ function CustomerDashboard() {
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                  <p className="text-gray-500 italic">
+                  <p className="text-gray-500 italic text-sm">
                     Analysis results will appear here after upload
                   </p>
                 </div>
@@ -563,26 +559,26 @@ function CustomerDashboard() {
           </div>
         </div>
 
-        {/* Upcoming Bookings */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-white">
+        {/* ── Upcoming Bookings ── */}
+        <div className="mb-8 sm:mb-10 md:mb-12">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-black text-white">
               Upcoming Bookings
             </h2>
             <a
               href="/bookings"
-              className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
+              className="text-xs sm:text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
             >
               View All →
             </a>
           </div>
 
           {isDashboardLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 animate-pulse"
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 animate-pulse"
                 >
                   <div className="h-5 w-48 bg-white/10 rounded mb-3" />
                   <div className="h-4 w-32 bg-white/5 rounded" />
@@ -590,36 +586,40 @@ function CustomerDashboard() {
               ))}
             </div>
           ) : upcomingBookings.length === 0 ? (
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-10 text-center">
-              <p className="text-gray-500 italic">No upcoming bookings.</p>
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-8 sm:p-10 text-center">
+              <p className="text-gray-500 italic text-sm">
+                No upcoming bookings.
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {upcomingBookings.map((booking) => (
                 <div
                   key={booking.id}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300"
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300"
                 >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-white">
+                  {/* Stack fully on mobile */}
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 className="text-base sm:text-lg font-bold text-white">
                           {booking.service}
                         </h3>
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold border ${booking.status === "confirmed"
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                            booking.status === "confirmed"
                               ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                               : "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                            }`}
+                          }`}
                         >
                           {booking.status.charAt(0).toUpperCase() +
                             booking.status.slice(1)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-400">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-1.5">
                           <svg
-                            className="w-4 h-4 text-gray-600"
+                            className="w-4 h-4 text-gray-600 shrink-0"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -631,13 +631,12 @@ function CustomerDashboard() {
                               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                             />
                           </svg>
-                          {/* FIX 3 applied: clean date display */}
                           <span>{formatDate(booking.date)}</span>
                         </div>
                         {booking.time && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <svg
-                              className="w-4 h-4 text-gray-600"
+                              className="w-4 h-4 text-gray-600 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -649,7 +648,6 @@ function CustomerDashboard() {
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                               />
                             </svg>
-                            {/* Show time cleanly, strip seconds if present */}
                             <span>
                               {booking.time.length > 5
                                 ? booking.time.slice(0, 5)
@@ -659,15 +657,17 @@ function CustomerDashboard() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-xl font-black text-white">
+
+                    {/* Price + actions: side-by-side on all sizes */}
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                      <div className="text-lg sm:text-xl font-black text-white">
                         {booking.price}
                       </div>
                       <div className="flex gap-2">
-                        <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold transition-colors border border-white/5">
+                        <button className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs sm:text-sm font-semibold transition-colors border border-white/5">
                           Reschedule
                         </button>
-                        <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
+                        <button className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
                           Cancel
                         </button>
                       </div>
@@ -679,26 +679,26 @@ function CustomerDashboard() {
           )}
         </div>
 
-        {/* Service History */}
+        {/* ── Service History ── */}
         <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-white">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-black text-white">
               Recent Service History
             </h2>
             <a
               href="/history"
-              className="text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
+              className="text-xs sm:text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
             >
               View All →
             </a>
           </div>
 
           {isDashboardLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 animate-pulse"
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 animate-pulse"
                 >
                   <div className="h-5 w-48 bg-white/10 rounded mb-3" />
                   <div className="h-4 w-32 bg-white/5 rounded" />
@@ -706,29 +706,31 @@ function CustomerDashboard() {
               ))}
             </div>
           ) : serviceHistory.length === 0 ? (
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-10 text-center">
-              <p className="text-gray-500 italic">No service history yet.</p>
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-8 sm:p-10 text-center">
+              <p className="text-gray-500 italic text-sm">
+                No service history yet.
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {serviceHistory.map((service) => (
                 <div
                   key={service.id}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm hover:border-white/10 transition-all duration-300"
+                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm hover:border-white/10 transition-all duration-300"
                 >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-white">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 className="text-base sm:text-lg font-bold text-white">
                           {service.service}
                         </h3>
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                           Completed
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="flex items-center gap-1.5 text-sm text-gray-400">
                         <svg
-                          className="w-4 h-4 text-gray-600"
+                          className="w-4 h-4 text-gray-600 shrink-0"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -743,15 +745,16 @@ function CustomerDashboard() {
                         <span>{formatDate(service.date)}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-xl font-black text-white">
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                      <div className="text-lg sm:text-xl font-black text-white">
                         {service.price}
                       </div>
                       <div className="flex gap-2">
-                        <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
+                        <button className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-lg shadow-red-600/30">
                           Book Again
                         </button>
-                        <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-semibold transition-colors border border-white/5">
+                        <button className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs sm:text-sm font-semibold transition-colors border border-white/5">
                           Leave Review
                         </button>
                       </div>
