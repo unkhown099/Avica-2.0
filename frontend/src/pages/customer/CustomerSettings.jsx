@@ -20,12 +20,14 @@ function Toggle({ enabled, onChange, disabled = false }) {
     <button
       onClick={() => !disabled && onChange(!enabled)}
       disabled={disabled}
-      className={`relative w-11 h-6 rounded-full transition-all duration-300 focus:outline-none ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-        } ${enabled ? "bg-red-600" : "bg-gray-700"}`}
+      className={`relative w-11 h-6 rounded-full transition-all duration-300 focus:outline-none shrink-0 ${
+        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+      } ${enabled ? "bg-red-600" : "bg-gray-700"}`}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${enabled ? "translate-x-5" : "translate-x-0"
-          }`}
+        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${
+          enabled ? "translate-x-5" : "translate-x-0"
+        }`}
       />
     </button>
   );
@@ -62,7 +64,6 @@ function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  // Fetch user settings from API
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -77,12 +78,8 @@ function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.notifications) {
-          setNotifications(data.notifications);
-        }
-        if (data.privacy) {
-          setPrivacy(data.privacy);
-        }
+        if (data.notifications) setNotifications(data.notifications);
+        if (data.privacy) setPrivacy(data.privacy);
       }
     } catch (err) {
       console.error("Error fetching settings:", err);
@@ -100,15 +97,10 @@ function SettingsPage() {
         method: "PUT",
         headers: authHeaders(),
         credentials: "include",
-        body: JSON.stringify({
-          notifications,
-          privacy,
-        }),
+        body: JSON.stringify({ notifications, privacy }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to save settings");
-      }
+      if (!response.ok) throw new Error("Failed to save settings");
 
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -125,12 +117,10 @@ function SettingsPage() {
       setError("Please fill in all password fields");
       return;
     }
-
     if (passwords.newPass !== passwords.confirm) {
       setError("New passwords do not match");
       return;
     }
-
     if (passwords.newPass.length < 8) {
       setError("Password must be at least 8 characters");
       return;
@@ -182,25 +172,24 @@ function SettingsPage() {
         credentials: "include",
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to delete account");
-      }
+      if (!response.ok) throw new Error("Failed to delete account");
 
-      // Clear all storage and redirect to login
       localStorage.clear();
       sessionStorage.clear();
       import("sweetalert2").then((swal) => {
-        swal.default.fire({
-          title: "Account Deleted!",
-          text: "Your account has been successfully deleted.",
-          icon: "success",
-          confirmButtonText: "Okay",
-          background: "linear-gradient(to bottom right, #1f2937, #111827)",
-          color: "#fff",
-          confirmButtonColor: "#dc2626"
-        }).then(() => {
-          window.location.href = "/";
-        });
+        swal.default
+          .fire({
+            title: "Account Deleted!",
+            text: "Your account has been successfully deleted.",
+            icon: "success",
+            confirmButtonText: "Okay",
+            background: "linear-gradient(to bottom right, #1f2937, #111827)",
+            color: "#fff",
+            confirmButtonColor: "#dc2626",
+          })
+          .then(() => {
+            window.location.href = "/";
+          });
       });
     } catch (err) {
       console.error("Error deleting account:", err);
@@ -240,7 +229,7 @@ function SettingsPage() {
           {saved && (
             <div className="bg-green-600/20 border border-green-600/40 text-green-400 px-5 py-3 rounded-xl flex items-center gap-3 font-semibold animate-in slide-in-from-top-2 duration-300">
               <svg
-                className="w-5 h-5"
+                className="w-5 h-5 shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -260,7 +249,7 @@ function SettingsPage() {
           {error && (
             <div className="bg-red-600/20 border border-red-600/40 text-red-400 px-5 py-3 rounded-xl flex items-center gap-3 font-semibold">
               <svg
-                className="w-5 h-5"
+                className="w-5 h-5 shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -276,11 +265,11 @@ function SettingsPage() {
             </div>
           )}
 
-          {/* Notifications Section - Enhanced */}
+          {/* Notifications Section */}
           <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
-            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-6 py-4 border-b border-white/10">
+            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-4 sm:px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-black text-white flex items-center gap-2">
-                <div className="p-1.5 bg-red-600/20 rounded-lg">
+                <div className="p-1.5 bg-red-600/20 rounded-lg shrink-0">
                   <svg
                     className="w-4 h-4 text-red-500"
                     fill="none"
@@ -301,7 +290,7 @@ function SettingsPage() {
                 Choose how you want to be notified
               </p>
             </div>
-            <div className="p-6 space-y-2">
+            <div className="px-4 sm:px-6 py-4 space-y-2">
               {[
                 {
                   key: "bookingConfirmation",
@@ -336,11 +325,11 @@ function SettingsPage() {
               ].map(({ key, label, desc, icon }) => (
                 <div
                   key={key}
-                  className="group flex items-center justify-between gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2"
+                  className="group flex items-center justify-between gap-3 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2"
                 >
-                  <div className="flex items-start gap-3 flex-1">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
                     <svg
-                      className="w-4 h-4 text-gray-500 mt-0.5"
+                      className="w-4 h-4 text-gray-500 mt-0.5 shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -352,11 +341,13 @@ function SettingsPage() {
                         d={icon}
                       />
                     </svg>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-white font-semibold text-sm group-hover:text-red-400 transition-colors">
                         {label}
                       </p>
-                      <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+                      <p className="text-gray-500 text-xs mt-0.5 leading-snug">
+                        {desc}
+                      </p>
                     </div>
                   </div>
                   <Toggle
@@ -370,11 +361,11 @@ function SettingsPage() {
             </div>
           </div>
 
-          {/* Privacy Section - Enhanced */}
+          {/* Privacy Section */}
           <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
-            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-6 py-4 border-b border-white/10">
+            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-4 sm:px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-black text-white flex items-center gap-2">
-                <div className="p-1.5 bg-red-600/20 rounded-lg">
+                <div className="p-1.5 bg-red-600/20 rounded-lg shrink-0">
                   <svg
                     className="w-4 h-4 text-red-500"
                     fill="none"
@@ -395,7 +386,7 @@ function SettingsPage() {
                 Control your data and privacy preferences
               </p>
             </div>
-            <div className="p-6 space-y-2">
+            <div className="px-4 sm:px-6 py-4 space-y-2">
               {[
                 {
                   key: "shareData",
@@ -412,11 +403,11 @@ function SettingsPage() {
               ].map(({ key, label, desc, icon }) => (
                 <div
                   key={key}
-                  className="group flex items-center justify-between gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2"
+                  className="group flex items-center justify-between gap-3 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2"
                 >
-                  <div className="flex items-start gap-3 flex-1">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
                     <svg
-                      className="w-4 h-4 text-gray-500 mt-0.5"
+                      className="w-4 h-4 text-gray-500 mt-0.5 shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -428,11 +419,13 @@ function SettingsPage() {
                         d={icon}
                       />
                     </svg>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-white font-semibold text-sm group-hover:text-red-400 transition-colors">
                         {label}
                       </p>
-                      <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+                      <p className="text-gray-500 text-xs mt-0.5 leading-snug">
+                        {desc}
+                      </p>
                     </div>
                   </div>
                   <Toggle
@@ -446,11 +439,11 @@ function SettingsPage() {
             </div>
           </div>
 
-          {/* Change Password Section - Enhanced */}
+          {/* Change Password Section */}
           <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
-            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-6 py-4 border-b border-white/10">
+            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-4 sm:px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-black text-white flex items-center gap-2">
-                <div className="p-1.5 bg-red-600/20 rounded-lg">
+                <div className="p-1.5 bg-red-600/20 rounded-lg shrink-0">
                   <svg
                     className="w-4 h-4 text-red-500"
                     fill="none"
@@ -471,7 +464,7 @@ function SettingsPage() {
                 Update your password to keep your account secure
               </p>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               {[
                 {
                   label: "Current Password",
@@ -514,12 +507,12 @@ function SettingsPage() {
             </div>
           </div>
 
-          {/* Danger Zone - Enhanced */}
+          {/* Danger Zone */}
           <div className="bg-gradient-to-br from-red-950/20 to-red-950/10 rounded-2xl border border-red-600/20 overflow-hidden">
-            <div className="bg-red-600/10 px-6 py-4 border-b border-red-600/20">
+            <div className="bg-red-600/10 px-4 sm:px-6 py-4 border-b border-red-600/20">
               <h3 className="text-base font-black text-red-500 flex items-center gap-2">
                 <svg
-                  className="w-5 h-5"
+                  className="w-5 h-5 shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -537,7 +530,7 @@ function SettingsPage() {
                 Permanently delete your account and all associated data
               </p>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {!showDeleteConfirm ? (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
@@ -595,11 +588,11 @@ function SettingsPage() {
           </div>
 
           {/* Save Button */}
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-4 pb-2">
             <button
               onClick={handleSaveSettings}
               disabled={saving}
-              className="px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-black transition-all duration-300 hover:scale-105 shadow-xl shadow-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-black transition-all duration-300 hover:scale-105 shadow-xl shadow-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {saving ? (
                 <>

@@ -37,7 +37,6 @@ function ProfilePage() {
     car_plate: "",
   });
 
-  // Fetch user profile from API
   useEffect(() => {
     fetchUserProfile();
   }, []);
@@ -46,7 +45,6 @@ function ProfilePage() {
     try {
       setLoading(true);
 
-      // Fetch user basic info from MeView
       const userResponse = await fetch(`${API}/me/`, {
         headers: authHeaders(),
         credentials: "include",
@@ -58,7 +56,6 @@ function ProfilePage() {
 
       const userData = await userResponse.json();
 
-      // Fetch customer details (vehicle info, address)
       const customerResponse = await fetch(`${API}/api/customers/me/`, {
         headers: authHeaders(),
         credentials: "include",
@@ -69,7 +66,6 @@ function ProfilePage() {
         customerData = await customerResponse.json();
       }
 
-      // Fetch customer stats (appointments, ratings, etc.)
       const statsResponse = await fetch(`${API}/api/customer/dashboard/`, {
         headers: authHeaders(),
         credentials: "include",
@@ -108,7 +104,6 @@ function ProfilePage() {
     setError(null);
 
     try {
-      // Update user basic info
       const userResponse = await fetch(`${API}/me/`, {
         method: "PUT",
         headers: authHeaders(),
@@ -125,7 +120,6 @@ function ProfilePage() {
         throw new Error(errorData.detail || "Failed to update profile");
       }
 
-      // Update customer details
       const customerResponse = await fetch(`${API}/api/customers/me/`, {
         method: "PUT",
         headers: authHeaders(),
@@ -144,7 +138,6 @@ function ProfilePage() {
         throw new Error("Failed to update vehicle information");
       }
 
-      // Update session user data
       const updatedUser = await userResponse.json();
       const currentUser = getUserFromSession();
       const updatedUserData = {
@@ -207,7 +200,7 @@ function ProfilePage() {
         {saved && (
           <div className="mb-6 bg-green-600/20 border border-green-600/40 text-green-400 px-5 py-3 rounded-xl flex items-center gap-3 font-semibold animate-in slide-in-from-top-2 duration-300">
             <svg
-              className="w-5 h-5"
+              className="w-5 h-5 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -227,7 +220,7 @@ function ProfilePage() {
         {error && (
           <div className="mb-6 bg-red-600/20 border border-red-600/40 text-red-400 px-5 py-3 rounded-xl flex items-center gap-3 font-semibold">
             <svg
-              className="w-5 h-5"
+              className="w-5 h-5 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -243,12 +236,13 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* Avatar Card - Enhanced */}
-        <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-red-950/20 rounded-2xl p-6 border border-white/10 mb-6 overflow-hidden">
+        {/* Avatar Card */}
+        <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-red-950/20 rounded-2xl p-4 sm:p-6 border border-white/10 mb-6 overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
-          <div className="relative flex flex-col sm:flex-row items-center gap-6">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center text-3xl font-black text-white shrink-0 bg-gradient-to-br from-red-600 to-red-800 ring-4 ring-red-500/30">
+          <div className="relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            {/* Avatar */}
+            <div className="relative shrink-0">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden flex items-center justify-center text-2xl sm:text-3xl font-black text-white bg-gradient-to-br from-red-600 to-red-800 ring-4 ring-red-500/30">
                 {sessionUser?.profile_picture ? (
                   <img
                     src={sessionUser.profile_picture}
@@ -275,13 +269,15 @@ function ProfilePage() {
                 </svg>
               </div>
             </div>
-            <div className="text-center sm:text-left flex-1">
-              <h2 className="text-2xl font-black text-white">
+
+            {/* Name / email / badges */}
+            <div className="text-center sm:text-left flex-1 min-w-0">
+              <h2 className="text-xl sm:text-2xl font-black text-white">
                 {form.first_name} {form.last_name}
               </h2>
               <p className="text-gray-400 text-sm flex items-center gap-1 justify-center sm:justify-start">
                 <svg
-                  className="w-3 h-3"
+                  className="w-3 h-3 shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -293,7 +289,7 @@ function ProfilePage() {
                     d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                   />
                 </svg>
-                {form.email}
+                <span className="truncate">{form.email}</span>
               </p>
               <div className="flex items-center gap-2 mt-3 justify-center sm:justify-start flex-wrap">
                 <span className="px-3 py-1 bg-red-600/20 text-red-500 border border-red-600/30 rounded-full text-xs font-bold flex items-center gap-1">
@@ -346,14 +342,16 @@ function ProfilePage() {
                 )}
               </div>
             </div>
+
+            {/* Edit/Save button — full width on mobile */}
             <button
               onClick={() => (editing ? handleSave() : setEditing(true))}
               disabled={saving}
-              className={`px-6 py-2.5 rounded-xl font-bold transition-all duration-300 hover:scale-105 text-sm ${saving ? "opacity-50 cursor-not-allowed" : ""
-                } ${editing
+              className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold transition-all duration-300 hover:scale-105 text-sm ${saving ? "opacity-50 cursor-not-allowed" : ""} ${
+                editing
                   ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/30"
                   : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg shadow-red-600/30"
-                }`}
+              }`}
             >
               {saving ? (
                 <>
@@ -387,8 +385,9 @@ function ProfilePage() {
           </div>
         </div>
 
+        {/* Info Cards — stack on mobile, side-by-side on md+ */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Personal Info - Enhanced */}
+          {/* Personal Info */}
           <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
             <div className="bg-gradient-to-r from-red-600/20 to-transparent px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-black text-white flex items-center gap-2">
@@ -410,7 +409,7 @@ function ProfilePage() {
                 Personal Information
               </h3>
             </div>
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
               {[
                 {
                   label: "First Name",
@@ -468,7 +467,7 @@ function ProfilePage() {
                       />
                     ) : (
                       <div className="bg-black/30 rounded-xl px-4 py-2.5 border border-white/5 group-hover:border-white/10 transition-all">
-                        <p className="text-white font-medium text-sm">
+                        <p className="text-white font-medium text-sm truncate">
                           {form[name] || (
                             <span className="text-gray-500">—</span>
                           )}
@@ -481,7 +480,7 @@ function ProfilePage() {
             </div>
           </div>
 
-          {/* Vehicle Info - Enhanced */}
+          {/* Vehicle Info */}
           <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
             <div className="bg-gradient-to-r from-red-600/20 to-transparent px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-black text-white flex items-center gap-2">
@@ -503,7 +502,7 @@ function ProfilePage() {
                 Vehicle Information
               </h3>
             </div>
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
               {[
                 {
                   label: "Make",
@@ -569,22 +568,23 @@ function ProfilePage() {
           </div>
         </div>
 
+        {/* Cancel / Save footer — full width buttons on mobile */}
         {editing && (
-          <div className="flex gap-3 mt-6 justify-end">
+          <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:justify-end">
             <button
               onClick={() => {
                 setEditing(false);
                 setError(null);
                 fetchUserProfile();
               }}
-              className="px-6 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition-colors text-sm"
+              className="w-full sm:w-auto px-6 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition-colors text-sm"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all hover:scale-105 shadow-lg shadow-green-600/30 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all hover:scale-105 shadow-lg shadow-green-600/30 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>
