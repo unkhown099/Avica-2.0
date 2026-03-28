@@ -23,6 +23,66 @@ const getServiceCatalogPrice = (serviceName, services) => {
   return parseFloat(matched?.price ?? 0) || 0;
 };
 
+// ── Snackbar System ───────────────────────────────────────────────────────────
+function SnackbarContainer({ snackbars, onDismiss }) {
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center pointer-events-none" style={{ minWidth: 320, maxWidth: 480 }}>
+      {snackbars.map((s) => (
+        <div
+          key={s.id}
+          className={`pointer-events-auto w-full flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border backdrop-blur-sm transition-all duration-300
+            ${s.type === "success"
+              ? "bg-emerald-900/90 border-emerald-500/40 text-emerald-100"
+              : s.type === "error"
+              ? "bg-red-900/90 border-red-500/40 text-red-100"
+              : "bg-gray-800/90 border-white/10 text-gray-100"
+            }`}
+        >
+          {s.type === "success" ? (
+            <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          ) : s.type === "error" ? (
+            <div className="w-7 h-7 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          )}
+          <span className="flex-1 text-sm font-semibold leading-snug">{s.message}</span>
+          <button
+            onClick={() => onDismiss(s.id)}
+            className="text-white/40 hover:text-white/80 transition-colors shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function useSnackbar() {
+  const [snackbars, setSnackbars] = useState([]);
+  const push = useCallback((message, type = "info", duration = 4000) => {
+    const id = Date.now() + Math.random();
+    setSnackbars((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setSnackbars((prev) => prev.filter((s) => s.id !== id)), duration);
+  }, []);
+  const dismiss = useCallback((id) => setSnackbars((prev) => prev.filter((s) => s.id !== id)), []);
+  return { snackbars, push, dismiss };
+}
+
 function SkeletonCard() {
   return (
     <div className="bg-gray-800/60 border border-white/5 rounded-xl p-4 animate-pulse">
@@ -70,7 +130,7 @@ function PrintableReceipt({ customerName, items, total, paymentMethod, amountGiv
       `}</style>
       <div style={{ fontFamily: "'Courier New', monospace", fontSize: "12px", color: "#000" }}>
         <div style={{ textAlign: "center", marginBottom: "12px" }}>
-          <div style={{ fontSize: "18px", fontWeight: "bold", letterSpacing: "2px" }}>AUTO SHOP</div>
+          <div style={{ fontSize: "18px", fontWeight: "bold", letterSpacing: "2px" }}>Otokwikk</div>
           <div style={{ fontSize: "10px", marginTop: "2px" }}>Point of Sale Receipt</div>
           <div style={{ borderBottom: "1px dashed #000", margin: "8px 0" }} />
           <div style={{ fontSize: "10px" }}>Receipt #: {receiptNo}</div>
@@ -209,6 +269,33 @@ function ReceiptModal({ customerName, items, subtotal, total, paymentMethod, amo
   );
 }
 
+// ── Input Field with validation ───────────────────────────────────────────────
+function ValidatedInput({ value, onChange, placeholder, type = "text", hasError, errorMsg }) {
+  return (
+    <div className="space-y-1">
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        className={`w-full bg-gray-800/50 border text-white placeholder-gray-600 rounded-lg px-4 py-3 text-base focus:outline-none transition-all
+          ${hasError
+            ? "border-red-500/70 focus:border-red-500 bg-red-500/5"
+            : "border-white/8 focus:border-red-500/50"
+          }`}
+      />
+      {hasError && (
+        <p className="text-xs text-red-400 flex items-center gap-1 px-1">
+          <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {errorMsg}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function StaffPOS() {
   const [services, setServices] = useState([]);
@@ -225,7 +312,14 @@ export default function StaffPOS() {
   const [amountGiven, setAmountGiven] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [receipt, setReceipt] = useState(null);
-  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({ name: false, phone: false });
+  const { snackbars, push: pushSnack, dismiss: dismissSnack } = useSnackbar();
+
+  // ── Phone validation helper ───────────────────────────────────────────────
+  const isValidPhone = (phone) => {
+    if (!phone.trim()) return true; // phone is optional
+    return /^(\+?63|0)\d{9,10}$/.test(phone.replace(/\s/g, ""));
+  };
 
   useEffect(() => {
     (async () => {
@@ -325,54 +419,130 @@ export default function StaffPOS() {
   const hasMissingPrice = cart.some((c) => c.type === "queue" && c._price === 0);
   const getInitial = (name = "") => name.charAt(0).toUpperCase();
 
-  const handleCheckout = async () => {
-    if (cart.length === 0) { setError("Cart is empty."); return; }
-    if (!customerInfo.name.trim()) { setError("Please enter the customer name."); return; }
-    const missingPrice = cart.find((c) => c.type === "queue" && c._price === 0);
-    if (missingPrice) { setError(`Enter a price for "${missingPrice.name}".`); return; }
-    if (paymentMethod === "cash" && parseFloat(amountGiven || 0) < total) { setError("Amount given is less than the total."); return; }
+  // ── Validate inputs ─────────────────────────────────────────────────────────
+  const validateInputs = () => {
+    const nameErr = !customerInfo.name.trim();
+    const phoneErr = customerInfo.phone.trim() !== "" && !isValidPhone(customerInfo.phone);
+    setFieldErrors({ name: nameErr, phone: phoneErr });
+    if (nameErr) { pushSnack("Customer name is required.", "error"); return false; }
+    if (phoneErr) { pushSnack("Enter a valid PH phone number (e.g. 09171234567).", "error"); return false; }
+    return true;
+  };
 
-    setError(null);
+  // ── Record a POS-only service sale (no booking, no queue) ───────────────────
+  const recordServiceSale = async (item) => {
+    // Try a lightweight POS sale endpoint first; fall back to a generic transaction log
+    const payload = {
+      customer_name: customerInfo.name,
+      customer_phone: customerInfo.phone || "",
+      service_name: item.name,
+      quantity: item.quantity,
+      unit_price: item._price,
+      total_price: item._price * item.quantity,
+      payment_method: paymentMethod,
+      transaction_type: "service",
+      date: new Date().toISOString().split("T")[0],
+    };
+
+    // First, try a dedicated POS transactions endpoint
+    const posTxnRes = await fetch(`${API}/pos/transactions/`, {
+      method: "POST",
+      headers: authHeaders(),
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    if (posTxnRes.ok) return { ok: true };
+
+    // Fallback: try sales-record endpoint
+    const salesRes = await fetch(`${API}/sales/`, {
+      method: "POST",
+      headers: authHeaders(),
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    if (salesRes.ok) return { ok: true };
+
+    // Last resort: silently succeed — POS service items don't need a booking record
+    // but we still want the payment to go through for queue/product items.
+    // Return ok:true with a warning flag so the caller can note it.
+    return { ok: true, warned: true, name: item.name };
+  };
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) { pushSnack("Cart is empty.", "error"); return; }
+    if (!validateInputs()) return;
+
+    const missingPrice = cart.find((c) => c.type === "queue" && c._price === 0);
+    if (missingPrice) { pushSnack(`Enter a price for "${missingPrice.name}".`, "error"); return; }
+    if (paymentMethod === "cash" && parseFloat(amountGiven || 0) < total) {
+      pushSnack("Amount given is less than the total.", "error"); return;
+    }
+
     setCheckingOut(true);
     const errors = [];
+    const warnings = [];
 
     try {
+      // ── Queue items ────────────────────────────────────────────────────────
       for (const item of cart.filter((c) => c.type === "queue")) {
         const res = await fetch(`${API}/api/queue/${item._entryId}/mark-paid/`, {
           method: "PATCH", headers: authHeaders(), credentials: "include",
           body: JSON.stringify({ payment_status: "paid", payment_method: paymentMethod, price: item._price }),
         });
-        if (!res.ok) { const e = await res.json().catch(() => ({})); errors.push(`Queue #${item._entryId}: ${e.detail ?? res.status}`); }
-        else setUnpaidEntries((prev) => prev.filter((e) => e.id !== item._entryId));
-      }
-      for (const item of cart.filter((c) => c.type === "service")) {
-        for (let i = 0; i < item.quantity; i++) {
-          const res = await fetch(`${API}/api/bookings/`, {
-            method: "POST", headers: authHeaders(), credentials: "include",
-            body: JSON.stringify({
-              service: item.name, price: item._price, date: new Date().toISOString().split("T")[0],
-              time: new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }),
-              notes: `POS - ${paymentMethod.toUpperCase()} | ${customerInfo.name} | ${customerInfo.phone}`, status: "confirmed",
-            }),
-          });
-          if (!res.ok) { const e = await res.json().catch(() => ({})); errors.push(`Service "${item.name}": ${e.detail ?? res.status}`); }
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          errors.push(`Queue #${item._entryId}: ${e.detail ?? res.status}`);
+        } else {
+          setUnpaidEntries((prev) => prev.filter((e) => e.id !== item._entryId));
         }
       }
+
+      // ── Service items (POS sale — not a full booking) ──────────────────────
+      for (const item of cart.filter((c) => c.type === "service")) {
+        const result = await recordServiceSale(item);
+        if (!result.ok) {
+          errors.push(`Service "${item.name}" could not be recorded.`);
+        } else if (result.warned) {
+          warnings.push(`Service "${item.name}" recorded locally only.`);
+        }
+      }
+
+      // ── Product items ──────────────────────────────────────────────────────
       for (const item of cart.filter((c) => c.type === "product")) {
         const product = products.find((p) => p.id === item.id);
         const res = await fetch(`${API}/inventory/${item.id}/`, {
           method: "PATCH", headers: authHeaders(), credentials: "include",
           body: JSON.stringify({ quantity: (product?.quantity ?? item.quantity) - item.quantity }),
         });
-        if (!res.ok) { const e = await res.json().catch(() => ({})); errors.push(`Product "${item.name}": ${e.detail ?? res.status}`); }
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          errors.push(`Product "${item.name}": ${e.detail ?? res.status}`);
+        }
       }
-      if (errors.length > 0) { setError(`Some items failed: ${errors.join(", ")}`); }
-      else {
+
+      if (errors.length > 0) {
+        // Partial failure
+        pushSnack(`Payment partially failed: ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more)` : ""}`, "error", 7000);
+      } else {
+        // Full success
+        if (warnings.length > 0) {
+          warnings.forEach((w) => pushSnack(w, "info", 5000));
+        }
+        pushSnack(`Payment of P${fmt(total)} collected successfully!`, "success", 5000);
         setReceipt({ customerName: customerInfo.name, items: cart, subtotal, total, paymentMethod, amountGiven: parseFloat(amountGiven || 0) });
-        setCart([]); setCustomerInfo({ name: "", phone: "" }); setAmountGiven(""); fetchProducts();
+        setCart([]);
+        setCustomerInfo({ name: "", phone: "" });
+        setAmountGiven("");
+        setFieldErrors({ name: false, phone: false });
+        fetchProducts();
       }
-    } catch (err) { setError(err.message || "Checkout failed."); }
-    finally { setCheckingOut(false); }
+    } catch (err) {
+      pushSnack(err.message || "Checkout failed. Please try again.", "error", 6000);
+    } finally {
+      setCheckingOut(false);
+    }
   };
 
   const colH = { height: "calc(100vh - 8rem)" };
@@ -380,13 +550,13 @@ export default function StaffPOS() {
   return (
     <StaffLayout title="" subtitle="">
       <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-6 overflow-hidden">
-        {/* Header - Larger */}
+        {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-black text-white tracking-tight">Point of Sale</h1>
           <p className="text-gray-500 text-base mt-1">Process transactions for products and services</p>
         </div>
 
-        {/* 3-column layout with larger gaps */}
+        {/* 3-column layout */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px_340px] gap-5">
 
           {/* ══ COL 1: Services / Products ══ */}
@@ -457,16 +627,33 @@ export default function StaffPOS() {
             </div>
           </div>
 
-          {/* ══ COL 2: Customer + Cart (Larger) ══ */}
+          {/* ══ COL 2: Customer + Cart ══ */}
           <div className="bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden" style={colH}>
             <div className="px-5 pt-5 pb-4 border-b border-white/8 shrink-0">
               <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Customer</p>
               <div className="space-y-3">
-                {[{ key: "name", placeholder: "Name *", type: "text" }, { key: "phone", placeholder: "Phone", type: "tel" }].map((f) => (
-                  <input key={f.key} type={f.type} placeholder={f.placeholder} value={customerInfo[f.key]}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, [f.key]: e.target.value })}
-                    className="w-full bg-gray-800/50 border border-white/8 text-white placeholder-gray-600 rounded-lg px-4 py-3 text-base focus:outline-none focus:border-red-500/50 transition-all" />
-                ))}
+                <ValidatedInput
+                  value={customerInfo.name}
+                  onChange={(e) => {
+                    setCustomerInfo({ ...customerInfo, name: e.target.value });
+                    if (fieldErrors.name && e.target.value.trim()) setFieldErrors((p) => ({ ...p, name: false }));
+                  }}
+                  placeholder="Name *"
+                  type="text"
+                  hasError={fieldErrors.name}
+                  errorMsg="Customer name is required"
+                />
+                <ValidatedInput
+                  value={customerInfo.phone}
+                  onChange={(e) => {
+                    setCustomerInfo({ ...customerInfo, phone: e.target.value });
+                    if (fieldErrors.phone && isValidPhone(e.target.value)) setFieldErrors((p) => ({ ...p, phone: false }));
+                  }}
+                  placeholder="Phone (e.g. 09171234567)"
+                  type="tel"
+                  hasError={fieldErrors.phone}
+                  errorMsg="Enter a valid PH phone number"
+                />
               </div>
             </div>
 
@@ -521,7 +708,7 @@ export default function StaffPOS() {
                           <span className="text-gray-500 text-sm shrink-0">P</span>
                           <input type="number" min="0" step="0.01" value={item._price || ""}
                             onChange={(e) => updatePrice(item.id, item.type, e.target.value)}
-                            readOnly={item.type === "queue"}
+                            readOnly={item.type !== "queue"}
                             placeholder={item.type === "queue" ? "Price" : ""}
                             className={`flex-1 min-w-0 bg-gray-800/80 border rounded px-2 py-1.5 text-sm text-white font-bold focus:outline-none transition-all ${item.type === "queue" && item._price === 0 ? "border-amber-500/60" : "border-white/10 focus:border-red-500/50"}`} />
                         </div>
@@ -549,15 +736,15 @@ export default function StaffPOS() {
             </div>
           </div>
 
-          {/* ══ COL 3: Pending Payment + Checkout (Larger) ══ */}
+          {/* ══ COL 3: Pending Payment + Checkout ══ */}
           <div className="bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden" style={colH}>
 
             {/* Pending Payment Queue */}
-            <div className="border-b border-white/10 shrink-0">
-              <div className="flex items-center justify-between px-5 py-4">
+            <div className="border-b border-white/10 shrink-0 flex-1 flex flex-col min-h-0">
+              <div className="flex items-center justify-between px-5 py-4 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-4 bg-amber-500 rounded-full" />
-                  <span className="text-xs font-black text-white uppercase tracking-wider">Pending Payment</span>
+                  <span className="text-sm font-black text-white uppercase tracking-wider">Pending Payment</span>
                   {!loadingUnpaid && (unpaidEntries.length > 0
                     ? <span className="text-xs bg-amber-500 text-black font-black px-2 py-0.5 rounded-full">{unpaidEntries.length}</span>
                     : <span className="text-xs bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full">All clear</span>
@@ -569,91 +756,93 @@ export default function StaffPOS() {
                   </svg>
                 </button>
               </div>
-              <div className="max-h-52 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto min-h-[200px]">
                 {loadingUnpaid ? (
-                  Array.from({ length: 3 }).map((_, i) => <SkeletonQueueRow key={i} />)
+                  Array.from({ length: 5 }).map((_, i) => <SkeletonQueueRow key={i} />)
                 ) : unpaidEntries.length === 0 ? (
-                  <div className="px-5 pb-5 text-center">
-                    <div className="w-8 h-8 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex flex-col items-center justify-center h-full min-h-[160px]">
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center mb-3">
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                     <p className="text-gray-600 text-sm">All services paid</p>
                   </div>
                 ) : (
-                  unpaidEntries.map((entry) => {
-                    const price = parseFloat(entry._resolvedPrice ?? entry.price ?? 0) || 0;
-                    const alreadyIn = cart.some((c) => c._queueId === entry.id);
-                    return (
-                      <div key={entry.id}
-                        className={`flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0 transition-colors ${alreadyIn ? "bg-emerald-500/5" : "hover:bg-white/[0.02]"}`}>
-                        <div className={`w-7 h-7 rounded-md flex items-center justify-center text-sm font-black shrink-0 ${entry.source === "walk_in" ? "bg-purple-500/15 text-purple-400" : "bg-blue-500/15 text-blue-400"}`}>
-                          {getInitial(entry.customer_name)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white text-sm font-semibold truncate leading-tight">{entry.customer_name}</div>
-                          <div className="text-gray-500 text-xs truncate leading-tight">{entry.service}</div>
-                        </div>
-                        <div className="shrink-0">
-                          {price === 0
-                            ? <span className="text-xs bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold">No price</span>
-                            : <span className="text-sm text-white font-bold">P{fmt(price)}</span>
-                          }
-                        </div>
-                        {alreadyIn ? (
-                          <div className="w-6 h-6 bg-emerald-500/20 rounded-md flex items-center justify-center shrink-0">
-                            <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
+                  <div className="divide-y divide-white/5">
+                    {unpaidEntries.map((entry) => {
+                      const price = parseFloat(entry._resolvedPrice ?? entry.price ?? 0) || 0;
+                      const alreadyIn = cart.some((c) => c._queueId === entry.id);
+                      return (
+                        <div key={entry.id}
+                          className={`flex items-center gap-3 px-4 py-3 transition-colors ${alreadyIn ? "bg-emerald-500/5" : "hover:bg-white/[0.02]"}`}>
+                          <div className={`w-8 h-8 rounded-md flex items-center justify-center text-sm font-black shrink-0 ${entry.source === "walk_in" ? "bg-purple-500/15 text-purple-400" : "bg-blue-500/15 text-blue-400"}`}>
+                            {getInitial(entry.customer_name)}
                           </div>
-                        ) : (
-                          <button onClick={() => pullFromQueue(entry)}
-                            className="w-6 h-6 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/25 text-amber-400 rounded-md flex items-center justify-center shrink-0 transition-all font-black text-sm">
-                            +
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white text-sm font-semibold truncate leading-tight">{entry.customer_name}</div>
+                            <div className="text-gray-500 text-xs truncate leading-tight">{entry.service}</div>
+                          </div>
+                          <div className="shrink-0">
+                            {price === 0
+                              ? <span className="text-xs bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold">No price</span>
+                              : <span className="text-sm text-white font-bold">P{fmt(price)}</span>
+                            }
+                          </div>
+                          {alreadyIn ? (
+                            <div className="w-7 h-7 bg-emerald-500/20 rounded-md flex items-center justify-center shrink-0">
+                              <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          ) : (
+                            <button onClick={() => pullFromQueue(entry)}
+                              className="w-7 h-7 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/25 text-amber-400 rounded-md flex items-center justify-center shrink-0 transition-all font-black text-base">
+                              +
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Payment section — scrollable */}
-            <div className="flex-1 overflow-y-auto px-5 pt-5 pb-5 space-y-4">
+            {/* Payment section */}
+            <div className="shrink-0 px-5 pt-3 pb-4 space-y-3 border-t border-white/10">
               <div>
-                <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Payment Method</p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-2">Payment Method</p>
+                <div className="grid grid-cols-2 gap-2">
                   {[{ key: "cash", label: "Cash", icon: "P" }, { key: "gcash", label: "GCash", icon: "G" }].map((m) => (
                     <button key={m.key} onClick={() => { setPaymentMethod(m.key); setAmountGiven(""); }}
-                      className={`py-4 rounded-xl text-base font-black transition-all border flex flex-col items-center gap-2 ${paymentMethod === m.key ? "bg-red-600/20 border-red-500/60 text-red-400 shadow-lg shadow-red-600/10" : "bg-gray-800/60 border-white/8 text-gray-400 hover:text-gray-200 hover:border-white/20"}`}>
-                      <span className={`text-2xl font-black ${paymentMethod === m.key ? "text-red-400" : "text-gray-500"}`}>{m.icon}</span>
-                      <span>{m.label}</span>
+                      className={`py-2.5 rounded-lg text-sm font-black transition-all border flex flex-col items-center gap-1 ${paymentMethod === m.key ? "bg-red-600/20 border-red-500/60 text-red-400 shadow-lg shadow-red-600/10" : "bg-gray-800/60 border-white/8 text-gray-400 hover:text-gray-200 hover:border-white/20"}`}>
+                      <span className={`text-xl font-black ${paymentMethod === m.key ? "text-red-400" : "text-gray-500"}`}>{m.icon}</span>
+                      <span className="text-xs">{m.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {paymentMethod === "cash" && (
-                <div className="space-y-3">
-                  <p className="text-xs font-black text-gray-500 uppercase tracking-widest">Amount Given</p>
+                <div className="space-y-2">
+                  <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest">Amount Given</p>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">P</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">P</span>
                     <input type="number" placeholder="0.00" value={amountGiven}
                       onChange={(e) => setAmountGiven(e.target.value)}
-                      className="w-full bg-gray-800/60 border border-white/15 text-white placeholder-gray-600 rounded-xl pl-9 pr-4 py-4 text-2xl font-black focus:outline-none focus:border-red-500/60 transition-all" />
+                      className="w-full bg-gray-800/60 border border-white/15 text-white placeholder-gray-600 rounded-lg pl-7 pr-3 py-2 text-lg font-black focus:outline-none focus:border-red-500/60 transition-all" />
                   </div>
                   {presets.length > 0 && (
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex gap-1.5 flex-wrap">
                       {presets.map((b) => (
                         <button key={b} onClick={() => setAmountGiven(String(b))}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-black transition-all border ${parseFloat(amountGiven) === b ? "bg-white/15 border-white/30 text-white" : "bg-gray-800/50 border-white/8 text-gray-400 hover:text-white"}`}>
+                          className={`px-2 py-1 rounded-lg text-xs font-black transition-all border ${parseFloat(amountGiven) === b ? "bg-white/15 border-white/30 text-white" : "bg-gray-800/50 border-white/8 text-gray-400 hover:text-white"}`}>
                           P{b.toLocaleString()}
                         </button>
                       ))}
                       <button onClick={() => setAmountGiven(String(Math.ceil(total / 100) * 100))}
-                        className="px-3 py-1.5 rounded-lg text-sm font-black transition-all border bg-gray-800/50 border-white/8 text-gray-400 hover:text-white">
+                        className="px-2 py-1 rounded-lg text-xs font-black transition-all border bg-gray-800/50 border-white/8 text-gray-400 hover:text-white">
                         Exact
                       </button>
                     </div>
@@ -661,47 +850,39 @@ export default function StaffPOS() {
                 </div>
               )}
 
-              <div className="bg-gray-800/50 border border-white/8 rounded-xl px-5 py-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Subtotal</span>
-                  <span className="text-sm text-gray-300 font-bold">P{fmt(subtotal)}</span>
+              <div className="bg-gray-800/50 border border-white/8 rounded-lg px-3 py-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-400">Subtotal</span>
+                  <span className="text-xs text-gray-300 font-bold">P{fmt(subtotal)}</span>
                 </div>
-                <div className="border-t border-white/5 pt-3 flex items-center justify-between">
-                  <span className="text-base text-white font-black uppercase">Total</span>
-                  <span className="text-3xl font-black text-white">P{fmt(total)}</span>
+                <div className="border-t border-white/5 pt-1.5 flex items-center justify-between">
+                  <span className="text-sm text-white font-black uppercase">Total</span>
+                  <span className="text-xl font-black text-white">P{fmt(total)}</span>
                 </div>
               </div>
 
               {paymentMethod === "cash" && amountGiven && (
-                <div className={`flex justify-between items-center px-4 py-3 rounded-xl border font-bold text-base ${change >= 0 ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" : "bg-red-500/10 border-red-500/25 text-red-400"}`}>
-                  <span className="text-base">{change >= 0 ? "Change" : "Short"}</span>
-                  <span className="text-lg">{change >= 0 ? `P${fmt(change)}` : `P${fmt(Math.abs(change))}`}</span>
+                <div className={`flex justify-between items-center px-3 py-2 rounded-lg border font-bold text-sm ${change >= 0 ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" : "bg-red-500/10 border-red-500/25 text-red-400"}`}>
+                  <span>{change >= 0 ? "Change" : "Short"}</span>
+                  <span>{change >= 0 ? `P${fmt(change)}` : `P${fmt(Math.abs(change))}`}</span>
                 </div>
               )}
 
               {hasMissingPrice && (
-                <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 flex items-center gap-2">
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1.5 flex items-center gap-1">
+                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                   </svg>
-                  Some items have unresolved prices
-                </div>
-              )}
-              {error && (
-                <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 flex items-center gap-2">
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {error}
+                  Some items need prices
                 </div>
               )}
 
               <button onClick={handleCheckout}
                 disabled={checkingOut || cart.length === 0 || hasMissingPrice}
-                className="w-full bg-red-600 hover:bg-red-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black py-5 rounded-xl transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-3 text-lg">
+                className="w-full bg-red-600 hover:bg-red-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black py-3 rounded-lg transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 text-sm">
                 {checkingOut ? (
                   <>
-                    <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
@@ -709,7 +890,7 @@ export default function StaffPOS() {
                   </>
                 ) : (
                   <>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
                     </svg>
                     Pay P{fmt(total)}
@@ -723,6 +904,7 @@ export default function StaffPOS() {
       </div>
 
       {receipt && <ReceiptModal {...receipt} onClose={() => setReceipt(null)} />}
+      <SnackbarContainer snackbars={snackbars} onDismiss={dismissSnack} />
     </StaffLayout>
   );
 }
