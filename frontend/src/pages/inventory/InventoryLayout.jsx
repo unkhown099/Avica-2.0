@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import UnifiedSidebar from "../../components/UnifiedSidebar.jsx";
 import NotificationDropdown from "../../components/NotificationDropdown.jsx";
+import logo from "../../assets/otokwikklogo.png";
 
 const PAGE_TITLES = {
   "/inventory/dashboard": "Dashboard",
@@ -49,7 +50,7 @@ function InventoryLayout({ children }) {
             </svg>
           </button>
           <img
-            src="/assets/otokwikklogo.png"
+            src={logo}
             alt="Otokwikk"
             className="h-8 object-contain"
           />
