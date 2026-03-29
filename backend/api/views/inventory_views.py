@@ -11,10 +11,10 @@ from ..serializers.restock_serializer import RestockRequestSerializer
 from ..serializers.inventory_transaction_serializer import InventoryTransactionSerializer
 
 # Roles that can READ inventory (for POS)
-READ_ROLES  = ["Admin", "Business Owner", "Branch Manager", "Staff", "Inventory"]
+READ_ROLES  = ["Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
 # Roles that can WRITE inventory
-WRITE_ROLES = ["Admin"]
-RESTOCK_REQUEST_ROLES = ["Business Owner", "Branch Manager", "Staff", "Inventory"]
+WRITE_ROLES = ["Inventory Manager"]
+RESTOCK_REQUEST_ROLES = ["Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
 
 def get_staff_role(request):
     try:
@@ -99,7 +99,7 @@ class InventoryListCreateView(APIView):
         requester_staff = getattr(request.user, "staff_profile", None)
         qs = InventoryItem.objects.select_related("branch").all()
 
-        if requester_staff and requester_staff.role != "Admin":
+        if requester_staff and requester_staff.role != "Inventory Manager":
             if requester_staff.branch_id:
                 qs = qs.filter(branch_id=requester_staff.branch_id)
             else:
@@ -207,7 +207,7 @@ class RestockRequestListCreateView(APIView):
             "reviewed_by",
         ).all()
 
-        if requester_staff and requester_staff.role != "Admin":
+        if requester_staff and requester_staff.role != "Inventory Manager":
             if requester_staff.branch_id:
                 qs = qs.filter(branch_id=requester_staff.branch_id)
             else:
@@ -254,7 +254,7 @@ class RestockRequestListCreateView(APIView):
             )
             requester_name = f"{requester_staff.first_name} {requester_staff.last_name}".strip() or "A staff member"
             _notify_roles(
-                roles=["Admin"],
+                roles=["Inventory Manager"],
                 title="New Stock Request",
                 message=(
                     f"{requester_name} requested {rr.quantity_requested} units of "
@@ -271,9 +271,9 @@ class RestockRequestActionView(APIView):
 
     def patch(self, request, pk):
         role = get_staff_role(request)
-        if role not in ["Admin", "Inventory"]:
+        if role not in ["Inventory Manager", "Inventory"]:
             return Response(
-                {"detail": "Only Admin or Inventory staff can perform this action."},
+                {"detail": "Only Inventory Manager or Inventory staff can perform this action."},
                 status=403,
             )
 
@@ -290,8 +290,8 @@ class RestockRequestActionView(APIView):
             return Response({"detail": "Invalid action."}, status=400)
 
         if action in ["approve", "reject"]:
-            if role != "Admin":
-                return Response({"detail": "Only Admin can review restock requests."}, status=403)
+            if role != "Inventory Manager":
+                return Response({"detail": "Only Inventory Manager can review restock requests."}, status=403)
             if rr.status != "pending":
                 return Response({"detail": "Only pending requests can be reviewed."}, status=400)
 
@@ -300,6 +300,28 @@ class RestockRequestActionView(APIView):
             rr.reviewed_at = timezone.now()
 
             if action == "approve":
+                central_item = InventoryItem.objects.filter(
+                    branch__isnull=True,
+                    name=rr.inventory_item.name,
+                    category=rr.inventory_item.category,
+                ).first()
+                if not central_item:
+                    return Response(
+                        {"detail": "Cannot approve: no central stock found for this item."},
+                        status=400,
+                    )
+                available_qty = central_item.quantity or 0
+                if available_qty < rr.quantity_requested:
+                    return Response(
+                        {
+                            "detail": (
+                                "Cannot approve: insufficient central stock. "
+                                f"Available: {available_qty}, requested: {rr.quantity_requested}."
+                            )
+                        },
+                        status=400,
+                    )
+
                 rr.status = "approved"
                 rr.save(update_fields=["status", "reviewed_by", "reviewer_note", "reviewed_at", "updated_at"])
                 _log_inventory_transaction(
@@ -407,7 +429,7 @@ class RestockRequestActionView(APIView):
             )
 
         _notify_roles(
-            roles=["Admin"],
+            roles=["Inventory Manager"],
             title="Stock Received",
             message=(
                 f"Inventory confirmed stock receipt for request #{rr.id} "
@@ -424,8 +446,8 @@ class DirectStockTransferView(APIView):
 
     def post(self, request):
         role = get_staff_role(request)
-        if role != "Admin":
-            return Response({"detail": "Only Admin can transfer stock."}, status=403)
+        if role != "Inventory Manager":
+            return Response({"detail": "Only Inventory Manager can transfer stock."}, status=403)
 
         source_item_id = request.data.get("source_item_id")
         target_branch_id = request.data.get("target_branch_id")
@@ -522,9 +544,9 @@ class InventoryTransactionHistoryView(APIView):
 
     def get(self, request):
         role = get_staff_role(request)
-        if role not in ["Admin", "Inventory", "Branch Manager"]:
+        if role not in ["Inventory Manager", "Inventory", "Branch Manager"]:
             return Response(
-                {"detail": "Only Admin, Inventory, or Branch Manager can view inventory transactions."},
+                {"detail": "Only Inventory Manager, Inventory, or Branch Manager can view inventory transactions."},
                 status=403,
             )
 

@@ -56,6 +56,9 @@ import InventoryDashboard from "./pages/inventory/InventoryDashboard.jsx";
 import InventoryAlerts from "./pages/inventory/InventoryAlerts.jsx";
 import InventoryMovementLog from "./pages/inventory/InventoryMovementLog.jsx";
 import InventoryStockOverview from "./pages/inventory/InventoryStockOverview.jsx";
+import InventoryManagerInventory from "./pages/inventory_manager/InventoryManagerInventory.jsx";
+import InventoryManagerDashboard from "./pages/inventory_manager/InventoryManagerDashboard.jsx";
+import InventoryManagerTransactions from "./pages/inventory_manager/InventoryManagerTransactions.jsx";
 
 // Staff Imports
 import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
@@ -191,8 +194,32 @@ function Layout() {
         <Route
           path="/admin/inventory"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminInventory />
+            <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <Navigate to="/inventory-manager/inventory" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory-manager/inventory"
+          element={
+            <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <InventoryManagerInventory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory-manager/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <InventoryManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory-manager/transactions"
+          element={
+            <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <InventoryManagerTransactions />
             </ProtectedRoute>
           }
         />

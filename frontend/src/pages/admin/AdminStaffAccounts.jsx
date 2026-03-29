@@ -13,6 +13,7 @@ const roles = [
   "Staff",
   "Employee",
   "Inventory",
+  "Inventory Manager",
 ];
 const createRoles = roles.filter(
   (r) => r !== "Admin" && r !== "Business Owner",
@@ -26,6 +27,7 @@ const roleColors = {
   Staff: "#10b981",
   Employee: "#f59e0b",
   Inventory: "#f97316",
+  "Inventory Manager": "#fb923c",
 };
 
 const ROLE_BADGE_STYLE = {
@@ -35,6 +37,7 @@ const ROLE_BADGE_STYLE = {
   Staff: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   Employee: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   Inventory: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  "Inventory Manager": "bg-orange-600/20 text-orange-300 border-orange-600/30",
 };
 
 const getRoleBadge = (role) => (

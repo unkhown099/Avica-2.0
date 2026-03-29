@@ -64,8 +64,12 @@ function formatTxDate(dateStr) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function InventoryDashboard() {
-  const { isAuthenticated, isAdmin, headers } = useAuth();
+export default function InventoryDashboard({
+  LayoutComponent = InventoryLayout,
+  title = "Inventory Dashboard",
+}) {
+  const { isAuthenticated, isAdmin, role, headers } = useAuth();
+  const isInventoryManager = role === "inventory_manager";
 
   const [items, setItems]               = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -159,9 +163,32 @@ export default function InventoryDashboard() {
     (sum, i) => sum + Number(i.price ?? 0) * Number(i.quantity ?? 0),
     0
   );
+  const branchHealthRows = Object.values(
+    items.reduce((acc, i) => {
+      const branch = i.branch_name ?? "Unassigned";
+      const status = normalizeStatus(i.status);
+      if (!acc[branch]) {
+        acc[branch] = { branch, total: 0, ok: 0, low: 0, out: 0, value: 0 };
+      }
+      acc[branch].total += 1;
+      acc[branch].value += Number(i.price ?? 0) * Number(i.quantity ?? 0);
+      if (status === "ok") acc[branch].ok += 1;
+      if (status === "low") acc[branch].low += 1;
+      if (status === "out") acc[branch].out += 1;
+      return acc;
+    }, {})
+  )
+    .map((row) => ({
+      ...row,
+      healthPct: row.total ? Math.round((row.ok / row.total) * 100) : 100,
+      alerts: row.low + row.out,
+    }))
+    .sort((a, b) => a.branch.localeCompare(b.branch));
 
   // Branch label: for non-admins, all items belong to the same branch
-  const branchName = items[0]?.branch_name ?? "Your Branch";
+  const branchName = isInventoryManager
+    ? "All Branches"
+    : (items[0]?.branch_name ?? "Your Branch");
 
   // Category breakdown
   const CATEGORY_COLORS = ["#3b82f6", "#a855f7", "#f59e0b", "#10b981", "#ef4444", "#06b6d4"];
@@ -244,14 +271,14 @@ export default function InventoryDashboard() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <InventoryLayout>
+    <LayoutComponent>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
 
         {/* Header */}
         <div className="mb-8">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tight">
-              Inventory Dashboard
+              {title}
             </h1>
             <p className="text-gray-400 mt-1">
               {loading
@@ -305,10 +332,12 @@ export default function InventoryDashboard() {
         {/* Middle Row */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
 
-          {/* Branch Stock Health */}
+          {/* Branch/Global Stock Health */}
           <div className="xl:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
             <div className="mb-6">
-              <h3 className="text-lg font-black text-white">Branch Stock Health</h3>
+              <h3 className="text-lg font-black text-white">
+                {isInventoryManager ? "All Branches Health" : "Branch Stock Health"}
+              </h3>
               <p className="text-gray-500 text-sm mt-0.5">
                 Overall inventory health for {loading ? "—" : branchName}
               </p>
@@ -451,6 +480,65 @@ export default function InventoryDashboard() {
           </div>
         </div>
 
+        {isInventoryManager && (
+          <div className="mb-6 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="mb-5">
+              <h3 className="text-lg font-black text-white">Each Branch Health</h3>
+              <p className="text-gray-500 text-sm mt-0.5">Health and value breakdown per branch</p>
+            </div>
+            {loading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="flex justify-between mb-2">
+                      <div className="h-4 w-28 bg-gray-800 rounded" />
+                      <div className="h-4 w-10 bg-gray-800 rounded" />
+                    </div>
+                    <div className="h-1.5 bg-gray-800 rounded-full mb-1" />
+                    <div className="h-3 w-44 bg-gray-800 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : branchHealthRows.length === 0 ? (
+              <p className="text-gray-600 text-sm">No branch inventory found.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {branchHealthRows.map((row) => (
+                  <div key={row.branch} className="bg-gray-950/40 border border-white/5 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-gray-300 text-sm font-semibold">{row.branch}</p>
+                      <span
+                        className={`text-xs font-black ${
+                          row.healthPct >= 80
+                            ? "text-emerald-400"
+                            : row.healthPct >= 60
+                            ? "text-amber-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {row.healthPct}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden mb-1.5">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${row.healthPct}%`,
+                          backgroundColor:
+                            row.healthPct >= 80 ? "#10b981" : row.healthPct >= 60 ? "#f59e0b" : "#ef4444",
+                        }}
+                      />
+                    </div>
+                    <p className="text-gray-500 text-xs">
+                      {row.alerts} items need attention · ₱{row.value.toLocaleString()} value
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Bottom Row */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
@@ -588,6 +676,6 @@ export default function InventoryDashboard() {
           </div>
         </div>
       </div>
-    </InventoryLayout>
+    </LayoutComponent>
   );
 }

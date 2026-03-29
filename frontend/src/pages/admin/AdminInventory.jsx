@@ -565,7 +565,12 @@ function StockTransferModal({
   );
 }
 
-function AdminInventory() {
+function AdminInventory({
+  LayoutComponent = AdminLayout,
+  title = "Inventory",
+  subtitle = "Track and manage parts and supplies",
+  showTransactionsTab = true,
+}) {
   const { headers: authHeaders, isAuthenticated } = useAuth();
   const [items, setItems] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -772,43 +777,45 @@ function AdminInventory() {
   const centralItems = items.filter((i) => i.branch_name == null);
 
   return (
-    <AdminLayout title="" subtitle="">
+    <LayoutComponent title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
         <div className="flex items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Inventory
+              {title}
             </h1>
             <p className="text-gray-400 mt-1 text-sm sm:text-base">
-              Track and manage parts and supplies
+              {subtitle}
             </p>
           </div>
         </div>
 
         {/* Tabs + Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-          <div className="flex gap-1 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-full sm:w-fit overflow-x-auto">
-            {[
-              { key: "inventory", label: "Inventory" },
-              { key: "transactions", label: "Transactions" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all whitespace-nowrap ${activeTab === tab.key ? "bg-red-500 text-white shadow-lg shadow-red-500/25" : "text-gray-400 hover:text-white hover:bg-white/5"}`}
-              >
-                {tab.label}
-                {tab.key === "inventory" &&
-                  pendingRestock.length > 0 &&
-                  activeTab !== "inventory" && (
-                    <span className="ml-1.5 bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full">
-                      {pendingRestock.length}
-                    </span>
-                  )}
-              </button>
-            ))}
-          </div>
-          {activeTab === "inventory" && (
+          {showTransactionsTab && (
+            <div className="flex gap-1 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-full sm:w-fit overflow-x-auto">
+              {[
+                { key: "inventory", label: "Inventory" },
+                { key: "transactions", label: "Transactions" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all whitespace-nowrap ${activeTab === tab.key ? "bg-red-500 text-white shadow-lg shadow-red-500/25" : "text-gray-400 hover:text-white hover:bg-white/5"}`}
+                >
+                  {tab.label}
+                  {tab.key === "inventory" &&
+                    pendingRestock.length > 0 &&
+                    activeTab !== "inventory" && (
+                      <span className="ml-1.5 bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full">
+                        {pendingRestock.length}
+                      </span>
+                    )}
+                </button>
+              ))}
+            </div>
+          )}
+          {(!showTransactionsTab || activeTab === "inventory") && (
             <div className="flex gap-2 sm:ml-auto">
               <button
                 onClick={() => setShowTransferModal(true)}
@@ -1419,7 +1426,7 @@ function AdminInventory() {
           authHeaders={authHeaders}
         />
       )}
-    </AdminLayout>
+    </LayoutComponent>
   );
 }
 

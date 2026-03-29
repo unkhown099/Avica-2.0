@@ -12,6 +12,7 @@ const roleBadge = {
   Staff: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
   Employee: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   Inventory: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  "Inventory Manager": "bg-orange-600/20 text-orange-300 border-orange-600/30",
 };
 
 const roleColors = {
@@ -21,6 +22,7 @@ const roleColors = {
   Staff: "#06b6d4",
   Employee: "#3b82f6",
   Inventory: "#f97316",
+  "Inventory Manager": "#fb923c",
 };
 
 const roles = [
@@ -30,6 +32,7 @@ const roles = [
   "Staff",
   "Employee",
   "Inventory",
+  "Inventory Manager",
 ];
 
 function BranchOwnerAccountManagement() {

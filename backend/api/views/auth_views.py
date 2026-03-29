@@ -135,6 +135,7 @@ def _get_profile_data(user):
         "Staff":          "staff",
         "Employee":       "employee",
         "Inventory":      "inventory",
+        "Inventory Manager": "inventory_manager",
     }
 
     def get_pic_url(pic):

@@ -228,6 +228,25 @@ const MENU_ITEMS = {
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
     },
   ],
+
+  inventory_manager: [
+    {
+      name: "Dashboard",
+      path: "/inventory-manager/dashboard",
+      icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
+    },
+    {
+      name: "Inventory",
+      path: "/inventory-manager/inventory",
+      icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+      alertBadge: true,
+    },
+    {
+      name: "Transaction History",
+      path: "/inventory-manager/transactions",
+      icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+    },
+  ],
 };
 
 // ─── Role Labels ──────────────────────────────────────────────────────────────
@@ -238,6 +257,7 @@ const ROLE_LABELS = {
   branch_manager: { title: "Manager", subtitle: "Branch Manager" },
   staff: { title: "Staff", subtitle: "Cashier" },
   employee: { title: "Mechanic", subtitle: "Service Employee" },
+  inventory: { title: "Inventory", subtitle: "Stock & Supply" },
   inventory_manager: { title: "Inventory Manager", subtitle: "Stock & Supply" },
 };
 

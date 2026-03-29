@@ -119,6 +119,7 @@ class Staff(models.Model):
         ("Staff",          "Staff (Cashier)"),
         ("Employee",       "Employee (Mechanic)"),
         ("Inventory",      "Inventory"),
+        ("Inventory Manager", "Inventory Manager"),
     ]
 
     user       = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_profile")
