@@ -545,7 +545,7 @@ export default function StaffPOS() {
     }
   };
 
-  const colH = { height: "calc(100vh - 8rem)" };
+  const colH = "xl:h-[calc(100vh-8rem)] h-auto";
 
   return (
     <StaffLayout title="" subtitle="">
@@ -560,7 +560,7 @@ export default function StaffPOS() {
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px_340px] gap-5">
 
           {/* ══ COL 1: Services / Products ══ */}
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden" style={colH}>
+          <div className={`bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
             <div className="flex border-b border-white/5 shrink-0">
               {["services", "products"].map((tab) => (
                 <button key={tab} onClick={() => { setActiveTab(tab); setSearchQuery(""); }}
@@ -585,7 +585,7 @@ export default function StaffPOS() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {activeTab === "services" && (
                   loadingServices ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />) :
                   filteredServices.length === 0 ? <div className="col-span-3 py-20 text-center text-gray-500 text-base">No services found</div> :
@@ -628,7 +628,7 @@ export default function StaffPOS() {
           </div>
 
           {/* ══ COL 2: Customer + Cart ══ */}
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden" style={colH}>
+          <div className={`bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
             <div className="px-5 pt-5 pb-4 border-b border-white/8 shrink-0">
               <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Customer</p>
               <div className="space-y-3">
@@ -737,7 +737,7 @@ export default function StaffPOS() {
           </div>
 
           {/* ══ COL 3: Pending Payment + Checkout ══ */}
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden" style={colH}>
+          <div className={`bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
 
             {/* Pending Payment Queue */}
             <div className="border-b border-white/10 shrink-0 flex-1 flex flex-col min-h-0">

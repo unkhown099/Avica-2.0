@@ -105,116 +105,141 @@ export default function StaffDashboard() {
   return (
     <StaffLayout>
       <div className="min-h-screen -m-8 p-8 bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Staff Dashboard</h1>
-            <p className="mt-2 text-sm text-gray-300">
-              Personal staff snapshot for {dashboard?.staff?.name || "your account"}
-              {dashboard?.staff?.branch_name ? ` · ${dashboard.staff.branch_name}` : ""}
-            </p>
+        <div>
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-white tracking-tight">Staff Dashboard</h1>
+              <p className="mt-2 text-sm text-gray-300 max-w-2xl">
+                Personal staff snapshot for {dashboard?.staff?.name || "your account"}
+                {dashboard?.staff?.branch_name ? ` · ${dashboard.staff.branch_name}` : ""}
+              </p>
+            </div>
+            <button
+              onClick={loadDashboard}
+              className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
+            >
+              Refresh
+            </button>
           </div>
-          <button
-            onClick={loadDashboard}
-            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
-          >
-            Refresh
-          </button>
-        </div>
 
-        {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-            {[1, 2, 3, 4].map((k) => (
-              <div key={k} className="h-28 rounded-2xl bg-white/5 border border-white/10 animate-pulse" />
-            ))}
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-8 rounded-2xl border border-rose-500/40 bg-rose-900/25 px-4 py-3 text-rose-200 text-sm">
-            {error}
-          </div>
-        )}
-
-        {!loading && !error && (
-          <>
+          {loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-              {cards.map((card) => (
-                <div
-                  key={card.label}
-                  className={`rounded-2xl border bg-gradient-to-br ${card.tone} p-5 shadow-lg shadow-black/20`}
-                >
-                  <p className="text-xs uppercase tracking-wide text-gray-300">{card.label}</p>
-                  <p className="mt-2 text-3xl font-black text-white">{card.value}</p>
-                  <p className="mt-2 text-sm text-gray-300">{card.hint}</p>
-                </div>
+              {[1, 2, 3, 4].map((k) => (
+                <div key={k} className="h-28 rounded-2xl bg-white/5 border border-white/10 animate-pulse" />
               ))}
             </div>
+          )}
 
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-              <section className="xl:col-span-3 rounded-2xl border border-white/10 bg-black/25 backdrop-blur-sm p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-white">Recent Assigned Jobs</h2>
-                  <span className="text-xs text-gray-400">Staff-scoped records</span>
-                </div>
+          {error && (
+            <div className="mb-8 rounded-2xl border border-rose-500/40 bg-rose-900/25 px-4 py-3 text-rose-200 text-sm">
+              {error}
+            </div>
+          )}
 
-                {Array.isArray(dashboard?.recent_jobs) && dashboard.recent_jobs.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-gray-400 border-b border-white/10">
-                          <th className="py-2 pr-3 font-medium">Customer</th>
-                          <th className="py-2 pr-3 font-medium">Service</th>
-                          <th className="py-2 pr-3 font-medium">Date</th>
-                          <th className="py-2 pr-3 font-medium">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+          {!loading && !error && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+                {cards.map((card) => (
+                  <div
+                    key={card.label}
+                    className={`rounded-2xl border bg-gradient-to-br ${card.tone} p-5 shadow-lg shadow-black/20`}
+                  >
+                    <p className="text-xs uppercase tracking-wide text-gray-300">{card.label}</p>
+                    <p className="mt-2 text-3xl font-black text-white">{card.value}</p>
+                    <p className="mt-2 text-sm text-gray-300">{card.hint}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <section className="lg:col-span-3 rounded-2xl border border-white/10 bg-black/25 backdrop-blur-sm p-5">
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold text-white">Recent Assigned Jobs</h2>
+                      <span className="text-xs text-gray-400">Staff-scoped records</span>
+                    </div>
+                  </div>
+
+                  {Array.isArray(dashboard?.recent_jobs) && dashboard.recent_jobs.length > 0 ? (
+                    <>
+                      <div className="space-y-3 block sm:hidden">
                         {dashboard.recent_jobs.map((row) => (
-                          <tr key={row.id} className="border-b border-white/5 last:border-b-0">
-                            <td className="py-3 pr-3 text-gray-100">{row.customer_name || "-"}</td>
-                            <td className="py-3 pr-3 text-gray-300">{row.service || "-"}</td>
-                            <td className="py-3 pr-3 text-gray-300">
-                              {row.date ? `${row.date}${row.time ? ` · ${row.time}` : ""}` : "-"}
-                            </td>
-                            <td className="py-3 pr-3">
-                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toStatusBadge(row.status)}`}>
+                          <div key={row.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-white truncate">{row.customer_name || "Unknown customer"}</p>
+                                <p className="mt-1 text-xs text-gray-400 truncate">{row.service || "No service"}</p>
+                              </div>
+                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${toStatusBadge(row.status)}`}>
                                 {row.status || "Unknown"}
                               </span>
-                            </td>
-                          </tr>
+                            </div>
+                            <div className="mt-3 text-xs text-gray-300 flex flex-col gap-1">
+                              <span>{row.date ? `${row.date}${row.time ? ` · ${row.time}` : ""}` : "-"}</span>
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400">No assigned jobs yet for this staff account.</p>
-                )}
-              </section>
-
-              <section className="xl:col-span-2 rounded-2xl border border-white/10 bg-black/25 backdrop-blur-sm p-5">
-                <h2 className="text-lg font-bold text-white mb-4">Recent Notifications</h2>
-                {Array.isArray(dashboard?.recent_notifications) && dashboard.recent_notifications.length > 0 ? (
-                  <div className="space-y-3">
-                    {dashboard.recent_notifications.map((notice) => (
-                      <div key={notice.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-white line-clamp-1">{notice.title}</p>
-                          {!notice.is_read && (
-                            <span className="text-[10px] uppercase tracking-wide text-amber-300">Unread</span>
-                          )}
-                        </div>
-                        <p className="mt-1 text-xs text-gray-300 line-clamp-2">{notice.message}</p>
-                        <p className="mt-2 text-[11px] text-gray-400">{formatDateTime(notice.created_at)}</p>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400">No notifications yet.</p>
-                )}
-              </section>
-            </div>
-          </>
-        )}
+
+                      <div className="hidden sm:block overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-gray-400 border-b border-white/10">
+                              <th className="py-2 pr-3 font-medium">Customer</th>
+                              <th className="py-2 pr-3 font-medium">Service</th>
+                              <th className="py-2 pr-3 font-medium">Date</th>
+                              <th className="py-2 pr-3 font-medium">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dashboard.recent_jobs.map((row) => (
+                              <tr key={row.id} className="border-b border-white/5 last:border-b-0">
+                                <td className="py-3 pr-3 text-gray-100">{row.customer_name || "-"}</td>
+                                <td className="py-3 pr-3 text-gray-300 truncate">{row.service || "-"}</td>
+                                <td className="py-3 pr-3 text-gray-300">
+                                  {row.date ? `${row.date}${row.time ? ` · ${row.time}` : ""}` : "-"}
+                                </td>
+                                <td className="py-3 pr-3">
+                                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toStatusBadge(row.status)}`}>
+                                    {row.status || "Unknown"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400">No assigned jobs yet for this staff account.</p>
+                  )}
+                </section>
+
+                <section className="lg:col-span-2 rounded-2xl border border-white/10 bg-black/25 backdrop-blur-sm p-5">
+                  <h2 className="text-lg font-bold text-white mb-4">Recent Notifications</h2>
+                  {Array.isArray(dashboard?.recent_notifications) && dashboard.recent_notifications.length > 0 ? (
+                    <div className="space-y-3">
+                      {dashboard.recent_notifications.map((notice) => (
+                        <div key={notice.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-white line-clamp-1">{notice.title}</p>
+                            {!notice.is_read && (
+                              <span className="text-[10px] uppercase tracking-wide text-amber-300">Unread</span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs text-gray-300 line-clamp-2">{notice.message}</p>
+                          <p className="mt-2 text-[11px] text-gray-400">{formatDateTime(notice.created_at)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">No notifications yet.</p>
+                  )}
+                </section>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </StaffLayout>
   );

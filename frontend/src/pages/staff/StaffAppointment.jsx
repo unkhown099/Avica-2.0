@@ -401,7 +401,7 @@ function StaffAppointments() {
         </div>
 
         {/* FIX 2: Stats grid now 4 columns including "Completed" */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {stats.map(({ label, value, color, border }) => (
             <div
               key={label}
@@ -604,7 +604,7 @@ function StaffAppointments() {
             )}
 
             {!loading && !error && dayBookings.length > 0 && (
-              <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+              <div className="space-y-4 max-h-[55vh] sm:max-h-[60vh] lg:max-h-[65vh] overflow-y-auto pr-1">
                 {dayBookings.map((b) => {
                   const isWalkIn = b.notes?.toLowerCase().includes("walk-in");
                   // FIX 1: icon bg also handles "done"
@@ -651,7 +651,7 @@ function StaffAppointments() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mb-4">
                         {[
                           {
                             path: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
