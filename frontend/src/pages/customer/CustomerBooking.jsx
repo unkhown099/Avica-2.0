@@ -1670,11 +1670,11 @@ function NewBookingModal({
               <div>
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
                   Pick a Date{" "}
-                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Today onward)</span>
+                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Tomorrow onward)</span>
                 </p>
                 <input
                   type="date"
-                  min={todayISO()}
+                  min={tomorrowISO()}
                   value={form.date}
                   onChange={(e) => {
                     // FIX: use set() so error is cleared, time reset happens in the useEffect
@@ -1683,9 +1683,9 @@ function NewBookingModal({
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
                 />
                 {/* FIX: warn if user somehow picks today (browser may allow it on some devices) */}
-                {form.date && form.date < todayISO() && (
+                {form.date && form.date < tomorrowISO() && (
                   <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
-                    Past dates are not allowed. Please select today or a later date.
+                    Past dates are not allowed. Please select a future date.
                   </p>
                 )}
                 {/* Warn if customer already has active booking */}
