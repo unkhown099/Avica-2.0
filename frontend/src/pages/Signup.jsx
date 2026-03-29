@@ -391,11 +391,11 @@ function SignUpPage() {
   );
 
   return (
-    <div className="h-screen bg-black flex items-center justify-center px-6 relative overflow-hidden">
+    <div className="min-h-screen bg-black flex items-start lg:items-center justify-center px-3 sm:px-6 py-16 sm:py-10 relative overflow-x-hidden overflow-y-auto">
       {/* Top-left back arrow */}
       <Link
         to="/"
-        className="fixed top-5 left-5 z-50 w-11 h-11 bg-white/5 hover:bg-red-600 border border-white/10 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all duration-300 shadow-lg backdrop-blur-sm"
+        className="fixed top-3 left-3 sm:top-5 sm:left-5 z-50 w-10 h-10 sm:w-11 sm:h-11 bg-white/5 hover:bg-red-600 border border-white/10 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all duration-300 shadow-lg backdrop-blur-sm"
       >
         <svg
           className="w-5 h-5"
@@ -414,16 +414,16 @@ function SignUpPage() {
 
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-0 left-0 w-64 h-64 sm:w-96 sm:h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse" />
         <div
-          className="absolute bottom-0 right-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse"
+          className="absolute bottom-0 right-0 w-64 h-64 sm:w-96 sm:h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse"
           style={{ animationDelay: "1s" }}
         />
       </div>
 
       {/* Main Container */}
-      <div className="w-full max-w-6xl relative z-10">
-        <div className="grid lg:grid-cols-2 gap-14 items-center">
+      <div className="w-full max-w-6xl relative z-10 mx-auto">
+        <div className="grid lg:grid-cols-2 gap-6 sm:gap-10 lg:gap-14 items-center">
           {/* Left Side - Branding */}
           <div className="hidden lg:block">
             <div className="space-y-8">
@@ -474,7 +474,7 @@ function SignUpPage() {
 
           {/* Right Side - Sign Up Form */}
           <div className="w-full">
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-3xl p-10 border border-white/5 shadow-2xl">
+            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-white/5 shadow-2xl">
               {/* Mobile Logo */}
               <div className="lg:hidden mb-6 text-center">
                 <img
@@ -484,11 +484,11 @@ function SignUpPage() {
                 />
               </div>
 
-              <div className="mb-6">
-                <h2 className="text-4xl font-black text-white mb-1">
+              <div className="mb-5 sm:mb-6">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1">
                   Create Account
                 </h2>
-                <p className="text-gray-400 text-lg">
+                <p className="text-gray-400 text-sm sm:text-base lg:text-lg">
                   {currentStep === 1 && "Step 1: Personal Information"}
                   {currentStep === 2 && "Step 2: Contact Information"}
                   {currentStep === 3 && "Step 3: Account Security"}
@@ -496,7 +496,7 @@ function SignUpPage() {
               </div>
 
               {/* Step Indicators */}
-              <div className="flex items-center mb-7">
+              <div className="flex items-center mb-6 sm:mb-7">
                 <div className="flex items-center w-full">
                   {[1, 2, 3].map((step, idx) => (
                     <React.Fragment key={step}>
@@ -504,12 +504,12 @@ function SignUpPage() {
                         className={`flex items-center ${currentStep >= step ? "text-red-600" : "text-gray-500"}`}
                       >
                         <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-base border-2 
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base border-2 
                           ${currentStep >= step ? "border-red-600 bg-red-600 text-white" : "border-gray-600 text-gray-500"}`}
                         >
                           {step}
                         </div>
-                        <span className="ml-2 text-base font-medium hidden sm:block">
+                        <span className="ml-2 text-sm sm:text-base font-medium hidden sm:block">
                           {step === 1
                             ? "Personal"
                             : step === 2
@@ -519,7 +519,7 @@ function SignUpPage() {
                       </div>
                       {idx < 2 && (
                         <div
-                          className={`flex-1 h-1 mx-4 ${currentStep > step ? "bg-red-600" : "bg-gray-700"}`}
+                           className={`flex-1 h-1 mx-2 sm:mx-4 ${currentStep > step ? "bg-red-600" : "bg-gray-700"}`}
                         />
                       )}
                     </React.Fragment>
@@ -668,13 +668,12 @@ function SignUpPage() {
                       >
                         Phone Number
                       </label>
-                      <div className="flex gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
                         <select
                           name="countryCode"
                           value={formData.countryCode}
                           onChange={handleChange}
-                          className="px-3 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-base focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 cursor-pointer"
-                          style={{ width: "120px" }}
+                          className="w-full sm:w-[120px] px-3 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-base focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 cursor-pointer"
                         >
                           {countryCodes.map((item) => (
                             <option key={item.code} value={item.code}>
@@ -846,12 +845,12 @@ function SignUpPage() {
                 )}
 
                 {/* Navigation Buttons */}
-                <div className="flex gap-4 pt-2">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2">
                   {currentStep > 1 && (
                     <button
                       type="button"
                       onClick={handlePrevious}
-                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-black py-4 rounded-2xl transition-all duration-300 text-lg flex items-center justify-center gap-2 border border-white/10 group shadow-lg"
+                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-black py-3.5 sm:py-4 rounded-2xl transition-all duration-300 text-base sm:text-lg flex items-center justify-center gap-2 border border-white/10 group shadow-lg"
                     >
                       <svg className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
@@ -863,14 +862,14 @@ function SignUpPage() {
                     <button
                       type="button"
                       onClick={handleNext}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50 text-lg"
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 sm:py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50 text-base sm:text-lg"
                     >
                       Next
                     </button>
                   ) : (
                     <button
                       type="submit"
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50 text-lg"
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 sm:py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50 text-base sm:text-lg"
                     >
                       Create Account
                     </button>
@@ -899,7 +898,7 @@ function SignUpPage() {
                       width="100%"
                     />
                   </div>
-                  <p className="text-gray-400 text-lg">
+                  <p className="text-gray-400 text-base sm:text-lg">
                     Already have an account?{" "}
                     <Link
                       to="/signin"
@@ -991,6 +990,9 @@ function SignUpPage() {
         .react-datepicker__month-select:focus, .react-datepicker__year-select:focus {
           border-color: #dc2626;
         }
+        .react-datepicker-popper {
+          z-index: 60;
+        }
         .react-datepicker__day--disabled {
           color: #4b5563 !important;
         }
@@ -1016,6 +1018,20 @@ function SignUpPage() {
         input[type="checkbox"]:checked {
           background-color: #dc2626;
           border-color: #dc2626;
+        }
+        @media (max-width: 640px) {
+          .react-datepicker {
+            padding: 6px;
+          }
+          .react-datepicker__day-name, .react-datepicker__day, .react-datepicker__time-name {
+            width: 1.9rem;
+            line-height: 1.9rem;
+            margin: 0.08rem;
+            font-size: 0.8rem;
+          }
+          .react-datepicker__current-month, .react-datepicker-time__header, .react-datepicker-year-header {
+            font-size: 0.95rem;
+          }
         }
 
       `}</style>
