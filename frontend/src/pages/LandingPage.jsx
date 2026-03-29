@@ -28,7 +28,7 @@ const roleRoutes = {
   business_owner: "/branch-owner/dashboard",
   branch_manager: "/manager/dashboard",
   staff: "/staff/dashboard",
-  employee: "/mechanic/dashboard",
+  employee: "/employee/dashboard",
   customer: "/dashboard",
 };
 

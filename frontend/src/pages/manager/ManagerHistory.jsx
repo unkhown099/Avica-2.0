@@ -46,7 +46,7 @@ function ManagerHistory() {
           customer: row.customer_name || "Unknown",
           vehicle: row.vehicle || "—",
           service: row.service || "—",
-          mechanic: row.assigned_employee?.full_name || "Unassigned",
+          employee: row.assigned_employee?.full_name || "Unassigned",
           duration: "—",
           amount: Number(row.price || 0),
           status: row.status === "done" ? "Completed" : "Skipped",
@@ -293,7 +293,7 @@ function ManagerHistory() {
                   <div className="col-span-2">Customer</div>
                   <div className="col-span-2">Vehicle</div>
                   <div className="col-span-2">Service</div>
-                  <div className="col-span-1">Mechanic</div>
+                  <div className="col-span-1">Employee</div>
                   <div className="col-span-1">Duration</div>
                   <div className="col-span-1">Amount</div>
                   <div className="col-span-1">Status</div>
@@ -341,7 +341,7 @@ function ManagerHistory() {
                           {record.service}
                         </div>
                         <div className="col-span-1 text-gray-500 text-xs">
-                          {record.mechanic.split(" ")[0]}
+                          {record.employee.split(" ")[0]}
                         </div>
                         <div className="col-span-1 text-gray-500 text-xs">
                           {record.duration}
@@ -401,7 +401,7 @@ function ManagerHistory() {
                               ? String(record.date).slice(5, 10)
                               : "—"}
                           </span>
-                          <span>· {record.mechanic.split(" ")[0]}</span>
+                          <span>· {record.employee.split(" ")[0]}</span>
                           <span className="text-white font-bold ml-auto">
                             ₱{Number(record.amount || 0).toLocaleString()}
                           </span>

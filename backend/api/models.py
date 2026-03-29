@@ -117,7 +117,7 @@ class Staff(models.Model):
         ("Business Owner", "Business Owner"),
         ("Branch Manager", "Branch Manager"),
         ("Staff",          "Staff (Cashier)"),
-        ("Employee",       "Employee (Mechanic)"),
+        ("Employee",       "Employee"),
         ("Inventory",      "Inventory"),
         ("Inventory Manager", "Inventory Manager"),
     ]

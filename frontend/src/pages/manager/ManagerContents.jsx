@@ -61,7 +61,7 @@ const SECTION_KEYS = ["schedule", "exceptions", "services"];
 
 function ManagerContents() {
   const location = useLocation();
-  const { headers } = useAuth();
+  const { headers, user } = useAuth();
   const [scheduleConfig, setScheduleConfig] = useState(createDefaultSchedule);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -191,22 +191,35 @@ function ManagerContents() {
   const toggleServiceStatus = async (service) => {
     setUpdatingServiceId(service.id);
     try {
+      const branchId = user?.branch_id;
+      if (!branchId) throw new Error("No branch assigned to your account.");
+
+      const isCurrentlyActiveInBranch = service.branches?.some(
+        (b) => b.id === branchId
+      );
+      const currentBranchIds = service.branches?.map((b) => b.id) || [];
+      const newBranchIds = isCurrentlyActiveInBranch
+        ? currentBranchIds.filter((id) => id !== branchId)
+        : [...currentBranchIds, branchId];
+
       const res = await fetch(`${API_BASE}/services/${service.id}/`, {
         method: "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !service.is_active }),
+        body: JSON.stringify({ branch_ids: newBranchIds }),
       });
-      if (!res.ok) throw new Error("Failed to update service status.");
+      if (!res.ok) throw new Error("Failed to update service branch availability.");
+
+      const updatedService = await res.json();
+
       setServices((prev) =>
         prev.map((item) =>
-          item.id === service.id
-            ? { ...item, is_active: !item.is_active }
-            : item,
-        ),
+          item.id === service.id ? updatedService : item
+        )
       );
       notify(
         "success",
-        `${service.name} ${service.is_active ? "deactivated" : "activated"}.`,
+        `${service.name} is now ${isCurrentlyActiveInBranch ? "unavailable" : "available"
+        } in your branch.`
       );
     } catch (err) {
       notify("error", err.message || "Failed to update service status.");
@@ -596,9 +609,9 @@ function ManagerContents() {
                 </div>
               </div>
               <div className="bg-gray-950/70 border border-white/5 rounded-xl p-3">
-                <div className="text-gray-500 text-xs">Active</div>
+                <div className="text-gray-500 text-xs">Active (Your Branch)</div>
                 <div className="text-emerald-300 text-xl sm:text-2xl font-black mt-1">
-                  {services.filter((s) => s.is_active !== false).length}
+                  {services.filter((s) => s.branches?.some((b) => b.id === user?.branch_id)).length}
                 </div>
               </div>
               <div className="bg-gray-950/70 border border-white/5 rounded-xl p-3">
@@ -658,20 +671,30 @@ function ManagerContents() {
                               : "P0")}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => toggleServiceStatus(service)}
-                            disabled={updatingServiceId === service.id}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${service.is_active !== false ? "bg-emerald-500" : "bg-gray-600"} ${updatingServiceId === service.id ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                            title={
-                              service.is_active !== false
-                                ? "Deactivate"
-                                : "Activate"
-                            }
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${service.is_active !== false ? "translate-x-6" : "translate-x-1"}`}
-                            />
-                          </button>
+                          {(() => {
+                            const isBranchActive = service.branches?.some(
+                              (b) => b.id === user?.branch_id
+                            );
+                            return (
+                              <button
+                                onClick={() => toggleServiceStatus(service)}
+                                disabled={updatingServiceId === service.id}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isBranchActive ? "bg-emerald-500" : "bg-gray-600"
+                                  } ${updatingServiceId === service.id
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : "cursor-pointer"
+                                  }`}
+                                title={
+                                  isBranchActive ? "Deactivate for Branch" : "Activate for Branch"
+                                }
+                              >
+                                <span
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBranchActive ? "translate-x-6" : "translate-x-1"
+                                    }`}
+                                />
+                              </button>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))

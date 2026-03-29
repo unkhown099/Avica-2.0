@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import MechanicLayout from "./MechanicLayout";
+import EmployeeLayout from "./EmployeeLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
 import { API_BASE } from "../../hooks/useAuth.js";
@@ -40,7 +40,7 @@ function toDisplayTime(t) {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-function MechanicJobHistory() {
+function EmployeeJobHistory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("All Time");
   const [serviceFilter, setServiceFilter] = useState("All Services");
@@ -161,7 +161,7 @@ function MechanicJobHistory() {
   const servicesHandled = new Set(jobHistory.map((j) => j.service)).size;
 
   return (
-    <MechanicLayout>
+    <EmployeeLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         {/* Header */}
         <div className="mb-8">
@@ -492,8 +492,8 @@ function MechanicJobHistory() {
           </div>
         )}
       </div>
-    </MechanicLayout>
+    </EmployeeLayout>
   );
 }
 
-export default MechanicJobHistory;
+export default EmployeeJobHistory;

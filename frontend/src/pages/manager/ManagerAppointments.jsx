@@ -55,14 +55,14 @@ function normalizeName(name) {
     .replace(/\s+/g, " ");
 }
 
-function getMechanicLabel(booking) {
-  const mechanic =
+function getEmployeeLabel(booking) {
+  const employee =
     booking.assigned_employee_name ||
     booking.preferred_employee_name ||
     booking.staff;
-  if (!mechanic || String(mechanic).trim().toLowerCase() === "tba")
+  if (!employee || String(employee).trim().toLowerCase() === "tba")
     return "Unassigned";
-  return mechanic;
+  return employee;
 }
 
 function getDaysInMonth(year, month) {
@@ -600,7 +600,7 @@ function ManagerAppointments() {
                         },
                         {
                           path: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
-                          label: `Mechanic: ${getMechanicLabel(b)}`,
+                          label: `Employee: ${getEmployeeLabel(b)}`,
                         },
                         b.plate_number && {
                           path: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
@@ -652,8 +652,8 @@ function ManagerAppointments() {
                               <div>
                                 <label className="block text-xs font-semibold text-gray-500 mb-1">
                                   {isAssignmentLocked
-                                    ? "Assigned Mechanic (Locked)"
-                                    : "Assign Mechanic"}
+                                    ? "Assigned Employee (Locked)"
+                                    : "Assign Employee"}
                                 </label>
                                 <select
                                   value={assignedByBooking[b.id] ?? ""}

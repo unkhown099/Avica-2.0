@@ -713,8 +713,8 @@ function StaffAppointments() {
                           <div className="md:col-span-2">
                             <label className="block text-xs font-semibold text-gray-500 mb-1">
                                 {isAssignmentLocked
-                                  ? "Assigned Mechanic (Locked)"
-                                  : "Assign Mechanic"}
+                                  ? "Assigned Employee (Locked)"
+                                  : "Assign Employee"}
                             </label>
                             <select
                               value={assignedByBooking[b.id] ?? ""}

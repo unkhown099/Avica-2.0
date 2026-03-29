@@ -349,7 +349,7 @@ function AssignDropdown({ entry, employees, onAssign, assigning }) {
           </svg>
         )}
         <span className="truncate flex-1 text-left">
-          {current ? current.full_name : "Assign Mechanic"}
+          {current ? current.full_name : "Assign Employee"}
         </span>
         <svg
           className={`w-3 h-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
@@ -370,7 +370,7 @@ function AssignDropdown({ entry, employees, onAssign, assigning }) {
         <div className="absolute bottom-full mb-1 left-0 right-0 bg-gray-800 border border-white/10 rounded-xl shadow-2xl z-20 overflow-hidden">
           {employees.length === 0 ? (
             <div className="px-4 py-3 text-xs text-gray-500">
-              No mechanics available
+              No employees available
             </div>
           ) : (
             employees.map((emp) => (
@@ -585,9 +585,9 @@ function QueueDetailModal({
                 onClick={() => onAction(entry.id, "in_service")}
                 disabled={isActive || !entry.assigned_employee}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!entry.assigned_employee ? "Assign a mechanic first" : ""}
+                title={!entry.assigned_employee ? "Assign a employee first" : ""}
               >
-                {entry.assigned_employee ? "Start Service" : "Assign Mechanic First"}
+                {entry.assigned_employee ? "Start Service" : "Assign Employee First"}
               </button>
             )}
             {entry.status === "in_service" && (
@@ -1235,8 +1235,8 @@ function StaffQueue() {
     if (draggingEntry.status === "waiting" && colId === "in_service" && !draggingEntry.assigned_employee) {
       await Swal.fire({
         icon: "warning",
-        title: "Assign a mechanic first",
-        text: "You need to assign a mechanic before starting service.",
+        title: "Assign a employee first",
+        text: "You need to assign a employee before starting service.",
         ...DARK_SWAL,
       });
       return;
@@ -1476,10 +1476,10 @@ function StaffQueue() {
 
           {/* ── Right sidebar ─────────────────────────────────── */}
           <div className="space-y-5 xl:max-w-[320px] w-full xl:justify-self-end">
-            {/* Mechanics overview */}
+            {/* Employees overview */}
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-sm font-black text-white">Mechanics</h3>
+                <h3 className="text-sm font-black text-white">Employees</h3>
                 <span className="w-5 h-5 rounded-full bg-indigo-600/40 text-indigo-300 text-xs font-black flex items-center justify-center">
                   {employees.length}
                 </span>
@@ -1487,7 +1487,7 @@ function StaffQueue() {
 
               {employees.length === 0 ? (
                 <p className="text-gray-600 text-sm text-center py-4">
-                  No mechanics found
+                  No employees found
                 </p>
               ) : (
                 <div className="space-y-2">

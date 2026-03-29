@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import MechanicLayout from "./MechanicLayout";
+import EmployeeLayout from "./EmployeeLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
 
 function authHeaders() {
@@ -86,7 +86,7 @@ function getWeekStart(dateObj) {
   return d;
 }
 
-export default function MechanicSchedule() {
+export default function EmployeeSchedule() {
   const now = new Date();
   const [viewMode, setViewMode] = useState("week");
   const [bookings, setBookings] = useState([]);
@@ -196,7 +196,7 @@ export default function MechanicSchedule() {
   };
 
   return (
-    <MechanicLayout>
+    <EmployeeLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -362,6 +362,6 @@ export default function MechanicSchedule() {
           </div>
         </div>
       </div>
-    </MechanicLayout>
+    </EmployeeLayout>
   );
 }

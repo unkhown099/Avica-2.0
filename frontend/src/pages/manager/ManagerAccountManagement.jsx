@@ -15,7 +15,7 @@ function ManagerAccountManagement() {
 
   const roleBadge = {
     "Branch Manager": "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    Mechanic: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    Employee: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     "Service Advisor":
       "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     Receptionist: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -23,14 +23,14 @@ function ManagerAccountManagement() {
   };
   const roleColors = {
     "Branch Manager": "#a855f7",
-    Mechanic: "#3b82f6",
+    Employee: "#3b82f6",
     "Service Advisor": "#10b981",
     Receptionist: "#f59e0b",
     "Parts Manager": "#ef4444",
   };
   const roles = [
     "Branch Manager",
-    "Mechanic",
+    "Employee",
     "Service Advisor",
     "Receptionist",
     "Parts Manager",

@@ -505,7 +505,7 @@ function AdminAppointments() {
                             },
                             {
                               d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
-                              label: `Mechanic: ${apt.staff || "Unassigned"}`,
+                              label: `Employee: ${apt.staff || "Unassigned"}`,
                             },
                           ].map((row, j) => (
                             <div

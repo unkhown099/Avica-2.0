@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import MechanicLayout from "./MechanicLayout";
+import EmployeeLayout from "./EmployeeLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -495,7 +495,7 @@ function DetailPanel({ entry, onClose }) {
                       d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                     />
                   </svg>
-                  <span className="text-gray-500 text-xs">Mechanic</span>
+                  <span className="text-gray-500 text-xs">Employee</span>
                 </div>
                 <span className="text-gray-200 text-sm font-semibold">
                   {entry.assigned_employee.full_name}
@@ -512,7 +512,7 @@ function DetailPanel({ entry, onClose }) {
           )}
 
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
-            Queue flow is managed by staff. Mechanics can view status updates here.
+            Queue flow is managed by staff. Employees can view status updates here.
           </div>
         </div>
       </div>
@@ -740,7 +740,7 @@ function EditServiceDetailsModal({ entry, onClose, onEntryUpdated }) {
 
 // ─── Main ──────────────────────────────────────────────────────────────────
 
-export default function MechanicActiveJobs() {
+export default function EmployeeActiveJobs() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -814,7 +814,7 @@ export default function MechanicActiveJobs() {
   };
 
   return (
-    <MechanicLayout>
+    <EmployeeLayout>
       {/* Detail Modal */}
       {selectedEntry && (
         <DetailPanel
@@ -941,6 +941,6 @@ export default function MechanicActiveJobs() {
           </div>
         )}
       </div>
-    </MechanicLayout>
+    </EmployeeLayout>
   );
 }

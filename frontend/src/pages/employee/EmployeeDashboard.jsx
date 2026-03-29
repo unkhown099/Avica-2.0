@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import MechanicLayout from "./MechanicLayout";
+import EmployeeLayout from "./EmployeeLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
 
 function authHeaders() {
@@ -37,7 +37,7 @@ function toMinutes(t) {
   return Number(h || 0) * 60 + Number(m || 0);
 }
 
-function MechanicDashboard() {
+function EmployeeDashboard() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -251,13 +251,13 @@ function MechanicDashboard() {
   };
 
   return (
-    <MechanicLayout>
+    <EmployeeLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         {/* Header */}
         <div className="mb-8">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tight">
-              Mechanic Dashboard
+              Employee Dashboard
             </h1>
             <p className="text-gray-400 mt-1">
               Live data of your assigned appointments
@@ -531,8 +531,8 @@ function MechanicDashboard() {
           </div>
         </div>
       </div>
-    </MechanicLayout>
+    </EmployeeLayout>
   );
 }
 
-export default MechanicDashboard;
+export default EmployeeDashboard;

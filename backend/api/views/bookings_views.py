@@ -931,13 +931,13 @@ class StaffBookingActionView(APIView):
         if normalized_assigned_employee_id in ("", "null", None):
             normalized_assigned_employee_id = None
 
-        # Preserve current assignment unless a valid new mechanic id is explicitly provided.
+        # Preserve current assignment unless a valid new employee id is explicitly provided.
         if normalized_assigned_employee_id is None and existing_assigned_employee_id is not None:
             assigned_employee_id = existing_assigned_employee_id
             normalized_assigned_employee_id = existing_assigned_employee_id
             assignment_provided = False
 
-        # If customer picked a preferred mechanic, auto-use it when staff confirms
+        # If customer picked a preferred employee, auto-use it when staff confirms
         # and no manual assignment is provided yet.
         if (
             new_status == "confirmed"
@@ -969,7 +969,7 @@ class StaffBookingActionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Once a confirmed booking already has an assigned mechanic, do not allow changing it.
+        # Once a confirmed booking already has an assigned employee, do not allow changing it.
         if (
             booking.status == "confirmed"
             and assigned_employee_id is not None
@@ -981,7 +981,7 @@ class StaffBookingActionView(APIView):
 
             if normalized_assigned is None or int(normalized_assigned) != int(existing_assigned_employee_id):
                 return Response(
-                    {"detail": "Assigned mechanic is locked after approval and cannot be changed."},
+                    {"detail": "Assigned employee is locked after approval and cannot be changed."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 

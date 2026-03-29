@@ -18,7 +18,7 @@ const ROLE_ROUTES = {
   inventory: "/inventory/dashboard",
   inventory_manager: "/inventory-manager/dashboard",
   staff: "/staff/dashboard",
-  employee: "/mechanic/dashboard",
+  employee: "/employee/dashboard",
   customer: "/dashboard",
 };
 

@@ -15,7 +15,7 @@ def clean_price(value):
 class BranchSerializer(serializers.ModelSerializer):
     manager_name       = serializers.SerializerMethodField()
     staff_count        = serializers.SerializerMethodField()
-    mechanic_count     = serializers.SerializerMethodField()
+    employee_count     = serializers.SerializerMethodField()
     services_completed = serializers.SerializerMethodField()
     monthly_revenue    = serializers.SerializerMethodField()
     bay_utilization    = serializers.SerializerMethodField()
@@ -32,7 +32,7 @@ class BranchSerializer(serializers.ModelSerializer):
             "is_active",
             "manager_name",
             "staff_count",
-            "mechanic_count",
+            "employee_count",
             "services_completed",
             "monthly_revenue",
             "bay_utilization",
@@ -48,7 +48,7 @@ class BranchSerializer(serializers.ModelSerializer):
     def get_staff_count(self, branch):
         return Staff.objects.filter(branch=branch, role="Staff").count()
 
-    def get_mechanic_count(self, branch):
+    def get_employee_count(self, branch):
         return Staff.objects.filter(branch=branch, role="Employee").count()
 
     def get_services_completed(self, branch):

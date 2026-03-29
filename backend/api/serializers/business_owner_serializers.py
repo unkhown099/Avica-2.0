@@ -20,7 +20,7 @@ class BranchSummarySerializer(serializers.ModelSerializer):
     """Full branch card data including aggregated stats."""
     manager_name      = serializers.SerializerMethodField()
     staff_count       = serializers.SerializerMethodField()
-    mechanic_count    = serializers.SerializerMethodField()
+    employee_count    = serializers.SerializerMethodField()
     services_completed = serializers.SerializerMethodField()
     monthly_revenue   = serializers.SerializerMethodField()
     satisfaction_pct  = serializers.SerializerMethodField()
@@ -30,7 +30,7 @@ class BranchSummarySerializer(serializers.ModelSerializer):
         model  = Branch
         fields = [
             "id", "name", "address", "hours", "slots", "is_active",
-            "manager_name", "staff_count", "mechanic_count",
+            "manager_name", "staff_count", "employee_count",
             "services_completed", "monthly_revenue",
             "satisfaction_pct", "bay_utilization",
         ]
@@ -48,7 +48,7 @@ class BranchSummarySerializer(serializers.ModelSerializer):
     def get_staff_count(self, obj):
         return obj.staff_members.count()
 
-    def get_mechanic_count(self, obj):
+    def get_employee_count(self, obj):
         return obj.staff_members.filter(role="Employee").count()
 
     def get_services_completed(self, obj):
