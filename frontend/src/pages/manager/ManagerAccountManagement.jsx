@@ -1,3 +1,4 @@
+// ─── ManagerAccountManagement.jsx ────────────────────────────────────────────
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { API_BASE } from "../../hooks/useAuth.js";
@@ -9,7 +10,6 @@ function ManagerAccountManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [statusFilter, setStatusFilter] = useState("All Status");
-
   const [staffAccounts, setStaffAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +28,6 @@ function ManagerAccountManagement() {
     Receptionist: "#f59e0b",
     "Parts Manager": "#ef4444",
   };
-
   const roles = [
     "Branch Manager",
     "Mechanic",
@@ -36,6 +35,7 @@ function ManagerAccountManagement() {
     "Receptionist",
     "Parts Manager",
   ];
+
   useEffect(() => {
     const fetchStaff = async () => {
       try {
@@ -43,7 +43,9 @@ function ManagerAccountManagement() {
           localStorage.getItem("access_token") ||
           sessionStorage.getItem("access_token");
         const res = await axios.get(`${API_BASE}/staff/`, {
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+          headers: accessToken
+            ? { Authorization: `Bearer ${accessToken}` }
+            : {},
         });
         setStaffAccounts(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
@@ -55,11 +57,11 @@ function ManagerAccountManagement() {
     };
     fetchStaff();
   }, []);
+
   const roleCounts = roles.reduce((acc, r) => {
     acc[r] = staffAccounts.filter((s) => s.role === r).length;
     return acc;
   }, {});
-
   const filteredStaff = staffAccounts.filter(
     (s) =>
       (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -67,7 +69,6 @@ function ManagerAccountManagement() {
       (roleFilter === "All Roles" || s.role === roleFilter) &&
       (statusFilter === "All Status" || s.status === statusFilter),
   );
-
   const {
     currentPage,
     setCurrentPage,
@@ -93,27 +94,29 @@ function ManagerAccountManagement() {
 
   return (
     <ManagerLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Account Management
           </h1>
-          <p className="text-gray-400 mt-1">
+          <p className="text-gray-400 mt-1 text-sm">
             Manage staff accounts for San Mateo Rizal branch
           </p>
         </div>
 
-        {/* Role Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        {/* Role Stats — 2 col mobile, 5 col md+ */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {roles.map((role) => (
             <div
               key={role}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 backdrop-blur-sm hover:border-white/10 transition-all"
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all"
             >
-              <div className="text-2xl font-black text-white mb-1">
+              <div className="text-xl sm:text-2xl font-black text-white mb-1">
                 {roleCounts[role] || 0}
               </div>
-              <div className="text-xs text-gray-400 font-medium">{role}</div>
+              <div className="text-xs text-gray-400 font-medium leading-snug">
+                {role}
+              </div>
               <div className="mt-2 h-1 rounded-full bg-gray-800">
                 <div
                   className="h-1 rounded-full"
@@ -169,7 +172,7 @@ function ManagerAccountManagement() {
               key={i}
               value={sel.value}
               onChange={(e) => sel.onChange(e.target.value)}
-              className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
+              className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 cursor-pointer min-w-[150px]"
             >
               {sel.options.map((o) => (
                 <option key={o}>{o}</option>
@@ -180,7 +183,8 @@ function ManagerAccountManagement() {
 
         {/* Table */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-          <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          {/* Desktop header */}
+          <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <div className="col-span-3">Name</div>
             <div className="col-span-3">Phone</div>
             <div className="col-span-3">Role</div>
@@ -212,10 +216,11 @@ function ManagerAccountManagement() {
             paginatedItems.map((staff) => (
               <div
                 key={staff.id}
-                className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+                className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
               >
-                <div className="col-span-3">
-                  <div className="flex items-center gap-3">
+                {/* Desktop */}
+                <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                  <div className="col-span-3 flex items-center gap-3">
                     <div
                       className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
                       style={{
@@ -235,57 +240,99 @@ function ManagerAccountManagement() {
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="col-span-3 text-gray-400 text-sm">
-                  {staff.phone}
-                </div>
-                <div className="col-span-3">
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${roleBadge[staff.role] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
-                  >
-                    {staff.role}
-                  </span>
-                </div>
-                <div className="col-span-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                    {staff.status}
-                  </span>
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  <button className="opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                  <div className="col-span-3 text-gray-400 text-sm">
+                    {staff.phone}
+                  </div>
+                  <div className="col-span-3">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${roleBadge[staff.role] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                      />
-                    </svg>
-                  </button>
+                      {staff.role}
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                      {staff.status}
+                    </span>
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <button className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                {/* Mobile card */}
+                <div className="sm:hidden px-4 py-3">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                        style={{
+                          backgroundColor:
+                            (roleColors[staff.role] || "#6b7280") + "22",
+                          color: roleColors[staff.role] || "#6b7280",
+                        }}
+                      >
+                        {(staff.name || "?").charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-white font-semibold text-sm truncate">
+                          {staff.name}
+                        </div>
+                        <div className="text-gray-500 text-xs truncate">
+                          {staff.email}
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${roleBadge[staff.role] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+                    >
+                      {staff.role}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-400 pl-10">
+                    <span>{staff.phone}</span>
+                    <span className="px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                      {staff.status}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))
           )}
 
           {filteredStaff.length > 0 && (
-            <div className="px-6 py-4">
+            <div className="px-4 sm:px-6 py-4">
               <p className="text-gray-500 text-sm">
-                Showing <span className="text-white font-semibold">{startItem}-{endItem}</span> of{" "}
-                <span className="text-white font-semibold">{filteredStaff.length}</span> staff accounts
+                Showing{" "}
+                <span className="text-white font-semibold">
+                  {startItem}-{endItem}
+                </span>{" "}
+                of{" "}
+                <span className="text-white font-semibold">
+                  {filteredStaff.length}
+                </span>{" "}
+                staff accounts
               </p>
             </div>
           )}
-
           <Pagination
             current={currentPage}
             total={totalPages}
             onChange={setCurrentPage}
-            className="px-6 pb-6"
+            className="px-4 sm:px-6 pb-6"
           />
         </div>
       </div>

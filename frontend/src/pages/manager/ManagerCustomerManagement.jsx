@@ -70,10 +70,15 @@ function ManagerCustomerManagement() {
     fetchCustomers();
   }, []);
 
-  const totalRevenue = customers.reduce((s, c) => s + Number(c.totalSpent || 0), 0);
+  const totalRevenue = customers.reduce(
+    (s, c) => s + Number(c.totalSpent || 0),
+    0,
+  );
   const highValue = customers.filter((c) => c.segment === "High Value").length;
   const avgSat = customers.length
-    ? Math.round(customers.reduce((s, c) => s + c.satisfaction, 0) / customers.length)
+    ? Math.round(
+        customers.reduce((s, c) => s + c.satisfaction, 0) / customers.length,
+      )
     : 0;
 
   const filteredCustomers = customers.filter(
@@ -83,7 +88,6 @@ function ManagerCustomerManagement() {
         c.phone.includes(searchQuery)) &&
       (segmentFilter === "All Segments" || c.segment === segmentFilter),
   );
-
   const {
     currentPage,
     setCurrentPage,
@@ -102,18 +106,14 @@ function ManagerCustomerManagement() {
     setHistoryOpen(true);
     setHistoryLoading(true);
     setHistoryError("");
-
     try {
       const token =
         localStorage.getItem("access_token") ||
         sessionStorage.getItem("access_token");
       const res = await axios.get(
         `${API_BASE}/api/manager/customers/${customer.id}/history/`,
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
-
       setCustomerHistory({
         summary: res.data?.summary ?? {
           total_services: 0,
@@ -156,18 +156,18 @@ function ManagerCustomerManagement() {
 
   return (
     <ManagerLayout title="" subtitle="">
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Customer Management
           </h1>
-          <p className="text-gray-400 mt-1">
+          <p className="text-gray-400 mt-1 text-sm">
             Manage customers for San Mateo Rizal branch
           </p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[
             {
               label: "Total Customers",
@@ -224,15 +224,15 @@ function ManagerCustomerManagement() {
           ].map((stat) => (
             <div
               key={stat.label}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 backdrop-blur-sm hover:border-white/10 transition-all"
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-5 backdrop-blur-sm hover:border-white/10 transition-all"
             >
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start justify-between mb-2 sm:mb-3">
                 <div
-                  className="p-3 rounded-xl"
+                  className="p-2 sm:p-3 rounded-xl"
                   style={{ backgroundColor: stat.color + "22" }}
                 >
                   <svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     style={{ color: stat.color }}
                     fill="none"
                     stroke="currentColor"
@@ -242,10 +242,12 @@ function ManagerCustomerManagement() {
                   </svg>
                 </div>
               </div>
-              <div className="text-2xl font-black text-white mb-1">
+              <div className="text-lg sm:text-2xl font-black text-white mb-1 truncate">
                 {stat.value}
               </div>
-              <div className="text-sm text-gray-500">{stat.label}</div>
+              <div className="text-xs sm:text-sm text-gray-500 leading-snug">
+                {stat.label}
+              </div>
             </div>
           ))}
         </div>
@@ -277,7 +279,7 @@ function ManagerCustomerManagement() {
           <select
             value={segmentFilter}
             onChange={(e) => setSegmentFilter(e.target.value)}
-            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[160px]"
+            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 cursor-pointer min-w-[160px]"
           >
             {["All Segments", "High Value", "Regular", "New", "At Risk"].map(
               (o) => (
@@ -289,7 +291,8 @@ function ManagerCustomerManagement() {
 
         {/* Table */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-          <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          {/* Desktop header */}
+          <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <div className="col-span-3">Customer</div>
             <div className="col-span-2">Phone</div>
             <div className="col-span-1 text-center">Vehicles</div>
@@ -324,10 +327,11 @@ function ManagerCustomerManagement() {
             paginatedItems.map((customer) => (
               <div
                 key={customer.id}
-                className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group"
+                className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
               >
-                <div className="col-span-3">
-                  <div className="flex items-center gap-3">
+                {/* Desktop */}
+                <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                  <div className="col-span-3 flex items-center gap-3">
                     <div
                       className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
                       style={{
@@ -347,135 +351,222 @@ function ManagerCustomerManagement() {
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="col-span-2 text-gray-400 text-sm">
-                  {customer.phone}
-                </div>
-                <div className="col-span-1 text-center text-gray-400 text-sm">
-                  {customer.vehicles}
-                </div>
-                <div className="col-span-2 text-white font-bold text-sm">
-                  ₱{Number(customer.totalSpent || 0).toLocaleString()}
-                </div>
-                <div className="col-span-1 text-center text-gray-400 text-sm">
-                  {customer.visits}
-                </div>
-                <div className="col-span-1">
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${segmentBadge[customer.segment]}`}
-                  >
-                    {customer.segment}
-                  </span>
-                </div>
-                <div className="col-span-1 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <svg
-                      className="w-3.5 h-3.5 text-amber-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+                  <div className="col-span-2 text-gray-400 text-sm">
+                    {customer.phone}
+                  </div>
+                  <div className="col-span-1 text-center text-gray-400 text-sm">
+                    {customer.vehicles}
+                  </div>
+                  <div className="col-span-2 text-white font-bold text-sm">
+                    ₱{Number(customer.totalSpent || 0).toLocaleString()}
+                  </div>
+                  <div className="col-span-1 text-center text-gray-400 text-sm">
+                    {customer.visits}
+                  </div>
+                  <div className="col-span-1">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${segmentBadge[customer.segment]}`}
                     >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    <span className="text-xs font-bold text-white">
-                      {customer.satisfaction}%
+                      {customer.segment}
                     </span>
                   </div>
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  <button
-                    onClick={() => openCustomerHistory(customer)}
-                    className="opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                    title="View complete customer history"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                  <div className="col-span-1 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <svg
+                        className="w-3.5 h-3.5 text-amber-400"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      <span className="text-xs font-bold text-white">
+                        {customer.satisfaction}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <button
+                      onClick={() => openCustomerHistory(customer)}
+                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                {/* Mobile card */}
+                <div className="sm:hidden px-4 py-3">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                        style={{
+                          backgroundColor:
+                            (segmentColors[customer.segment] || "#6b7280") +
+                            "22",
+                          color: segmentColors[customer.segment] || "#6b7280",
+                        }}
+                      >
+                        {(customer.name || "?").charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-white font-semibold text-sm truncate">
+                          {customer.name}
+                        </div>
+                        <div className="text-gray-500 text-xs truncate">
+                          {customer.email}
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${segmentBadge[customer.segment]}`}
+                    >
+                      {customer.segment}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-400 pl-10">
+                    <span>{customer.phone}</span>
+                    <span className="text-white font-bold">
+                      ₱{Number(customer.totalSpent || 0).toLocaleString()}
+                    </span>
+                    <span>{customer.visits} visits</span>
+                    <button
+                      onClick={() => openCustomerHistory(customer)}
+                      className="ml-auto p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
           )}
 
           {filteredCustomers.length > 0 && (
-            <div className="px-6 py-4">
+            <div className="px-4 sm:px-6 py-4">
               <p className="text-gray-500 text-sm">
-                Showing <span className="text-white font-semibold">{startItem}-{endItem}</span> of{" "}
-                <span className="text-white font-semibold">{filteredCustomers.length}</span> customers
+                Showing{" "}
+                <span className="text-white font-semibold">
+                  {startItem}-{endItem}
+                </span>{" "}
+                of{" "}
+                <span className="text-white font-semibold">
+                  {filteredCustomers.length}
+                </span>{" "}
+                customers
               </p>
             </div>
           )}
-
           <Pagination
             current={currentPage}
             total={totalPages}
             onChange={setCurrentPage}
-            className="px-6 pb-6"
+            className="px-4 sm:px-6 pb-6"
           />
         </div>
 
+        {/* Customer History Modal */}
         {historyOpen && (
-          <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
             <div className="w-full max-w-6xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-white/10 rounded-2xl shadow-2xl">
-              <div className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur border-b border-white/10 px-6 py-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-white">Customer Transaction History</h2>
-                  <p className="text-sm text-gray-400 mt-0.5">
-                    {selectedCustomer?.name ?? "Customer"} · Branch-processed records only
+              <div className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur border-b border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-xl font-black text-white">
+                    Customer Transaction History
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-0.5 truncate">
+                    {selectedCustomer?.name ?? "Customer"} · Branch-processed
+                    records only
                   </p>
                 </div>
                 <button
                   onClick={() => setHistoryOpen(false)}
-                  className="px-3 py-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                  className="shrink-0 px-3 py-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all text-sm"
                 >
                   Close
                 </button>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-6">
                 {historyLoading ? (
                   <div className="py-20 flex items-center justify-center">
                     <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : historyError ? (
-                  <div className="py-8 text-center text-red-300">{historyError}</div>
+                  <div className="py-8 text-center text-red-300">
+                    {historyError}
+                  </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4">
-                        <p className="text-xs uppercase tracking-wider text-gray-500">Services Availed</p>
-                        <p className="text-2xl font-black text-white mt-1">{customerHistory.summary.total_services}</p>
-                      </div>
-                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4">
-                        <p className="text-xs uppercase tracking-wider text-gray-500">Product Purchases</p>
-                        <p className="text-2xl font-black text-white mt-1">{customerHistory.summary.total_product_purchases}</p>
-                      </div>
-                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4">
-                        <p className="text-xs uppercase tracking-wider text-gray-500">Service Amount</p>
-                        <p className="text-2xl font-black text-white mt-1">₱{Number(customerHistory.summary.total_service_amount || 0).toLocaleString()}</p>
-                      </div>
-                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4">
-                        <p className="text-xs uppercase tracking-wider text-gray-500">Product Amount</p>
-                        <p className="text-2xl font-black text-white mt-1">₱{Number(customerHistory.summary.total_product_amount || 0).toLocaleString()}</p>
-                      </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        {
+                          label: "Services Availed",
+                          value: customerHistory.summary.total_services,
+                        },
+                        {
+                          label: "Product Purchases",
+                          value:
+                            customerHistory.summary.total_product_purchases,
+                        },
+                        {
+                          label: "Service Amount",
+                          value: `₱${Number(customerHistory.summary.total_service_amount || 0).toLocaleString()}`,
+                        },
+                        {
+                          label: "Product Amount",
+                          value: `₱${Number(customerHistory.summary.total_product_amount || 0).toLocaleString()}`,
+                        },
+                      ].map(({ label, value }) => (
+                        <div
+                          key={label}
+                          className="bg-gray-800/50 border border-white/10 rounded-xl p-3 sm:p-4"
+                        >
+                          <p className="text-xs uppercase tracking-wider text-gray-500">
+                            {label}
+                          </p>
+                          <p className="text-lg sm:text-2xl font-black text-white mt-1">
+                            {value}
+                          </p>
+                        </div>
+                      ))}
                     </div>
 
+                    {/* Services table — scrollable on mobile */}
                     <div className="bg-gray-800/40 border border-white/10 rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-white/10">
-                        <h3 className="text-lg font-bold text-white">Services Availed</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">Includes transaction type: walk-in or appointment</p>
+                      <div className="px-4 sm:px-5 py-4 border-b border-white/10">
+                        <h3 className="text-base sm:text-lg font-bold text-white">
+                          Services Availed
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Includes transaction type: walk-in or appointment
+                        </p>
                       </div>
                       <div className="overflow-x-auto">
-                        <div className="min-w-[900px]">
+                        <div className="min-w-[600px]">
                           <div className="grid grid-cols-12 gap-3 px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-white/10">
                             <div className="col-span-2">Date</div>
                             <div className="col-span-3">Service</div>
@@ -485,20 +576,39 @@ function ManagerCustomerManagement() {
                             <div className="col-span-2 text-right">Amount</div>
                           </div>
                           {customerHistory.services.length === 0 ? (
-                            <div className="px-5 py-8 text-gray-500 text-sm">No service transactions found for this branch.</div>
+                            <div className="px-5 py-8 text-gray-500 text-sm">
+                              No service transactions found for this branch.
+                            </div>
                           ) : (
                             customerHistory.services.map((row, idx) => (
-                              <div key={`${row.queue_entry_id}-${idx}`} className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-white/5 text-sm items-center">
-                                <div className="col-span-2 text-gray-400">{row.date ? String(row.date).slice(0, 10) : "—"}</div>
-                                <div className="col-span-3 text-white font-semibold truncate">{row.service || "—"}</div>
+                              <div
+                                key={`${row.queue_entry_id}-${idx}`}
+                                className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-white/5 text-sm items-center"
+                              >
+                                <div className="col-span-2 text-gray-400 text-xs">
+                                  {row.date
+                                    ? String(row.date).slice(0, 10)
+                                    : "—"}
+                                </div>
+                                <div className="col-span-3 text-white font-semibold truncate text-xs sm:text-sm">
+                                  {row.service || "—"}
+                                </div>
                                 <div className="col-span-2">
                                   <span className="px-2 py-1 rounded-full text-xs font-semibold border bg-blue-500/15 text-blue-300 border-blue-500/30 capitalize">
-                                    {row.transaction_type === "booking" ? "appointment" : row.transaction_type}
+                                    {row.transaction_type === "booking"
+                                      ? "appointment"
+                                      : row.transaction_type}
                                   </span>
                                 </div>
-                                <div className="col-span-2 text-gray-400 truncate">{row.branch || "—"}</div>
-                                <div className="col-span-1 text-gray-300 capitalize">{row.status || "—"}</div>
-                                <div className="col-span-2 text-right text-white font-bold">₱{Number(row.amount || 0).toLocaleString()}</div>
+                                <div className="col-span-2 text-gray-400 truncate text-xs">
+                                  {row.branch || "—"}
+                                </div>
+                                <div className="col-span-1 text-gray-300 capitalize text-xs">
+                                  {row.status || "—"}
+                                </div>
+                                <div className="col-span-2 text-right text-white font-bold text-xs sm:text-sm">
+                                  ₱{Number(row.amount || 0).toLocaleString()}
+                                </div>
                               </div>
                             ))
                           )}
@@ -507,29 +617,54 @@ function ManagerCustomerManagement() {
                     </div>
 
                     <div className="bg-gray-800/40 border border-white/10 rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-white/10">
-                        <h3 className="text-lg font-bold text-white">Product Purchases</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">Extracted from processed queue transaction notes</p>
+                      <div className="px-4 sm:px-5 py-4 border-b border-white/10">
+                        <h3 className="text-base sm:text-lg font-bold text-white">
+                          Product Purchases
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Extracted from processed queue transaction notes
+                        </p>
                       </div>
                       {customerHistory.products.length === 0 ? (
-                        <div className="px-5 py-8 text-gray-500 text-sm">No product purchases found for this branch.</div>
+                        <div className="px-5 py-8 text-gray-500 text-sm">
+                          No product purchases found for this branch.
+                        </div>
                       ) : (
                         <div className="divide-y divide-white/5">
                           {customerHistory.products.map((row, idx) => (
-                            <div key={`${row.queue_entry_id}-product-${idx}`} className="px-5 py-4">
+                            <div
+                              key={`${row.queue_entry_id}-product-${idx}`}
+                              className="px-4 sm:px-5 py-4"
+                            >
                               <div className="flex items-center justify-between gap-3 mb-2">
-                                <div className="text-sm text-gray-300">
-                                  <span className="text-white font-semibold">{row.date ? String(row.date).slice(0, 10) : "—"}</span>
+                                <div className="text-xs sm:text-sm text-gray-300 min-w-0">
+                                  <span className="text-white font-semibold">
+                                    {row.date
+                                      ? String(row.date).slice(0, 10)
+                                      : "—"}
+                                  </span>
                                   <span className="mx-2 text-gray-600">•</span>
-                                  <span className="capitalize">{row.transaction_type === "booking" ? "appointment" : row.transaction_type}</span>
+                                  <span className="capitalize">
+                                    {row.transaction_type === "booking"
+                                      ? "appointment"
+                                      : row.transaction_type}
+                                  </span>
                                   <span className="mx-2 text-gray-600">•</span>
                                   <span>{row.branch || "—"}</span>
                                 </div>
-                                <div className="text-sm font-bold text-emerald-300">₱{Number(row.amount || 0).toLocaleString()}</div>
+                                <div className="text-sm font-bold text-emerald-300 shrink-0">
+                                  ₱{Number(row.amount || 0).toLocaleString()}
+                                </div>
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                {(Array.isArray(row.items) ? row.items : []).map((item, itemIdx) => (
-                                  <span key={`${idx}-${itemIdx}`} className="px-2.5 py-1 rounded-full text-xs border border-white/15 text-gray-200 bg-white/5">
+                                {(Array.isArray(row.items)
+                                  ? row.items
+                                  : []
+                                ).map((item, itemIdx) => (
+                                  <span
+                                    key={`${idx}-${itemIdx}`}
+                                    className="px-2.5 py-1 rounded-full text-xs border border-white/15 text-gray-200 bg-white/5"
+                                  >
                                     {item.name} x{item.quantity}
                                   </span>
                                 ))}
