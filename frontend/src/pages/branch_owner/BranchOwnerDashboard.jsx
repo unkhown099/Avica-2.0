@@ -629,44 +629,7 @@ export default function BranchOwnerDashboard() {
               : "Branch owner analytics with section views."}
           </p>
           <div className="flex items-center gap-2 mt-4">
-            <button
-              onClick={handlePrintDashboard}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                />
-              </svg>
-              <span className="hidden sm:inline">Print</span>
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 transition-all text-sm font-semibold"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <span className="hidden sm:inline">Export CSV</span>
-            </button>
+           
           </div>
         </div>
 
@@ -675,14 +638,32 @@ export default function BranchOwnerDashboard() {
         {/* ── OVERVIEW ── */}
         {activeView === "overview" && (
           <section id="owner-overview" className="scroll-mt-24 mb-10">
-            <div className="mb-4">
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                Overview
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                Snapshot across all branches
-              </p>
-            </div>
+          <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+      <div>
+        <h2 className="text-base sm:text-xl font-black text-white">Overview</h2>
+        <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Snapshot of daily operations</p>
+      </div>
+      <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+        <button
+          onClick={handlePrintDashboard}
+          className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+        >
+          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          <span className="hidden sm:inline">Print</span>
+        </button>
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+        >
+          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="hidden sm:inline">Export CSV</span>
+        </button>
+      </div>
+    </div>
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
               {loading
                 ? Array.from({ length: 4 }).map((_, i) => (
@@ -868,14 +849,32 @@ export default function BranchOwnerDashboard() {
         {/* ── REVENUE ── */}
         {activeView === "revenue" && (
           <section id="owner-revenue" className="scroll-mt-24 mb-10">
-            <div className="mb-4">
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                Revenue
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                Revenue comparison by branch
-              </p>
-            </div>
+   <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Revenue</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Income performance across branches</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
               <StatCard
                 title="Total Revenue"
@@ -1002,14 +1001,32 @@ export default function BranchOwnerDashboard() {
         {/* ── CUSTOMERS ── */}
         {activeView === "customers" && (
           <section id="owner-customers" className="scroll-mt-24 mb-10">
-            <div className="mb-4">
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                Customers
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                Customer insights aligned with admin view
-              </p>
-            </div>
+      <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Revenue</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Income performance across branches</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
               <StatCard
                 title="Total Customers"
@@ -1209,14 +1226,32 @@ export default function BranchOwnerDashboard() {
         {/* ── APPOINTMENT ── */}
         {activeView === "appointment" && (
           <section id="owner-appointment" className="scroll-mt-24 mb-10">
-            <div className="mb-4">
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                Appointment
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                All branch bookings
-              </p>
-            </div>
+           <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Revenue</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Income performance across branches</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
               <StatCard
                 title="Total"
@@ -1428,14 +1463,32 @@ export default function BranchOwnerDashboard() {
         {/* ── INVENTORY ── */}
         {activeView === "inventory" && (
           <section id="owner-inventory" className="scroll-mt-24 mb-10">
-            <div className="mb-4">
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                Inventory
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                Stock levels and status
-              </p>
-            </div>
+ <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Revenue</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Income performance across branches</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
               <StatCard
                 title="Total Items"
@@ -1610,14 +1663,32 @@ export default function BranchOwnerDashboard() {
         {/* ── SERVICES ── */}
         {activeView === "services" && (
           <section id="owner-services" className="scroll-mt-24">
-            <div className="mb-4">
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                Services
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                Service performance summary
-              </p>
-            </div>
+     <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Revenue</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Income performance across branches</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
               <StatCard
                 title="Total Services"

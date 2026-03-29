@@ -563,12 +563,6 @@ export default function ManagerDashboard() {
 
         <ErrorBanner message={error} />
 
-        {/* Action buttons */}
-        <div className="mb-6 flex gap-2 flex-wrap">
-          <button onClick={handleExportCSV} className="px-3 py-2 rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/40 text-sm font-semibold">Export CSV</button>
-          <button onClick={handlePrintDashboard} className="px-3 py-2 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 text-sm font-semibold">Print</button>
-        </div>
-
         {loading ? (
           <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 text-gray-400">Loading dashboard data...</div>
         ) : (
@@ -576,10 +570,32 @@ export default function ManagerDashboard() {
             {/* ── OVERVIEW ─────────────────────────────────────────────── */}
             {activeView === "overview" && (
               <section id="manager-overview" className="scroll-mt-24 mb-10">
-                <div className="mb-4">
-                  <h2 className="text-xl font-black text-white">Overview</h2>
-                  <p className="text-gray-500 text-sm mt-0.5">Snapshot of daily operations</p>
-                </div>
+                <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Revenue</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Income performance across branches</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
 
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-8">
                   {loading ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />) : managerKpiCards.map((card, i) => <StatCard key={i} {...card} />)}
@@ -683,10 +699,32 @@ export default function ManagerDashboard() {
             {/* ── REVENUE ──────────────────────────────────────────────── */}
             {activeView === "revenue" && (
               <section id="manager-revenue" className="scroll-mt-24 mb-10">
-                <div className="mb-4">
-                  <h2 className="text-xl font-black text-white">Revenue</h2>
-                  <p className="text-gray-500 text-sm mt-0.5">Income performance for your branch</p>
-                </div>
+                <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Revenue</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Income performance across branches</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                   {[
                     { title: "Total Revenue (Q1)", value: `₱${Number(totalRevenue).toLocaleString()}`, accentBg: "bg-red-500/10", accentText: "text-red-400", border: "border-red-500/20", sub: "Appointments + walk-ins", icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
@@ -720,10 +758,32 @@ export default function ManagerDashboard() {
             {/* ── CUSTOMERS ────────────────────────────────────────────── */}
             {activeView === "customers" && (
               <section id="manager-customers" className="scroll-mt-24 mb-10">
-                <div className="mb-4">
-                  <h2 className="text-xl font-black text-white">Customers</h2>
-                  <p className="text-gray-500 text-sm mt-0.5">Customer growth, value, and segments</p>
-                </div>
+                <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Customers</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Customer growth, value, and segments</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                   {[
                     { title: "Total Customers", value: Number(customers.length).toLocaleString(), accentBg: "bg-purple-500/10", accentText: "text-purple-400", border: "border-purple-500/20", icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg> },
@@ -814,10 +874,32 @@ export default function ManagerDashboard() {
             {/* ── APPOINTMENTS ─────────────────────────────────────────── */}
             {activeView === "appointment" && (
               <section id="manager-appointment" className="scroll-mt-24 mb-10">
-                <div className="mb-4">
-                  <h2 className="text-xl font-black text-white">Appointment</h2>
-                  <p className="text-gray-500 text-sm mt-0.5">Track and review all branch bookings</p>
-                </div>
+               <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Appointment</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Track and review all service bookings</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
                   {[
                     { title: "Total Appointments", value: appointments.length.toLocaleString(), accentBg: "bg-blue-500/10", accentText: "text-blue-400", border: "border-blue-500/20", icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> },
@@ -879,10 +961,32 @@ export default function ManagerDashboard() {
             {/* ── INVENTORY ────────────────────────────────────────────── */}
             {activeView === "inventory" && (
               <section id="manager-inventory" className="scroll-mt-24 mb-10">
-                <div className="mb-4">
-                  <h2 className="text-xl font-black text-white">Inventory</h2>
-                  <p className="text-gray-500 text-sm mt-0.5">Stock status and branch-level supplies</p>
-                </div>
+            <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Inventory</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Stock status and branch-level supplies</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                   {[
                     { title: "Total SKUs", value: String(inventory.length), accentBg: "bg-blue-500/10", accentText: "text-blue-400", border: "border-blue-500/20", icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg> },
@@ -940,10 +1044,32 @@ export default function ManagerDashboard() {
             {/* ── SERVICES ─────────────────────────────────────────────── */}
             {activeView === "services" && (
               <section id="manager-services" className="scroll-mt-24">
-                <div className="mb-4">
-                  <h2 className="text-xl font-black text-white">Services</h2>
-                  <p className="text-gray-500 text-sm mt-0.5">Service rankings and contribution</p>
-                </div>
+              <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Services</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Service rankings and contribution</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                   {[
                     { title: "Total Services", value: String(services.reduce((a, s) => a + Number(s.count ?? 0), 0)), accentBg: "bg-blue-500/10", accentText: "text-blue-400", border: "border-blue-500/20", icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> },
@@ -1005,10 +1131,32 @@ export default function ManagerDashboard() {
             {/* ── EMPLOYEES ────────────────────────────────────────────── */}
             {activeView === "employees" && (
               <section id="manager-employees" className="scroll-mt-24">
-                <div className="mb-4">
-                  <h2 className="text-xl font-black text-white">Employees</h2>
-                  <p className="text-gray-500 text-sm mt-0.5">Track employee workload distribution</p>
-                </div>
+             <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+  <div>
+    <h2 className="text-base sm:text-xl font-black text-white">Employees</h2>
+    <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Track employee workload distribution across all branches</p>
+  </div>
+  <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
+    <button
+      onClick={handlePrintDashboard}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+      </svg>
+      <span className="hidden sm:inline">Print</span>
+    </button>
+    <button
+      onClick={handleExportCSV}
+      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+    >
+      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="hidden sm:inline">Export CSV</span>
+    </button>
+  </div>
+</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                   {[
                     { title: "Assigned Employees", value: String(employeeWorkloadRows.filter((row) => row.employee !== "Unassigned").length), sub: "With recorded service load", accentBg: "bg-cyan-500/10", accentText: "text-cyan-400", border: "border-cyan-500/20", icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V10H2v10h5m10 0v-2a4 4 0 10-8 0v2m8 0H9m4-12a4 4 0 110 8 4 4 0 010-8z" /></svg> },
