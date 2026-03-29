@@ -269,16 +269,18 @@ function AdminStaffAccounts() {
     <AdminLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
         {/* ── Header: title + button stacked on the left ── */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Staff Accounts
-          </h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">
-            Manage your team members and access levels
-          </p>
+        <div className="mb-6 sm:mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Staff Accounts
+            </h1>
+            <p className="text-gray-400 mt-1 text-sm sm:text-base">
+              Manage your team members and access levels
+            </p>
+          </div>
           <button
             onClick={openCreateModal}
-            className="mt-4 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
+            className="mt-0 mr-10 flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
           >
             <svg
               className="w-4 h-4"
