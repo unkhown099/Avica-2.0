@@ -66,6 +66,7 @@ from api.views.notification_views import (
     NotificationMarkReadView,
     NotificationMarkAllReadView,
 )
+from api.views.damage_views import AnalyzeDamageView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -89,6 +90,7 @@ urlpatterns = [
 
     # ── Vehicle AI ────────────────────────────────────────────────────────────
     path('api/analyze-vehicle/', AnalyzeVehicleView.as_view(), name='analyze_vehicle'),
+    path('api/analyze-damage/', AnalyzeDamageView.as_view(), name='analyze_damage'),
 
     # ── Chatbot ───────────────────────────────────────────────────────────────
     path('api/chat/', chat_with_groq, name='chat_with_groq'),

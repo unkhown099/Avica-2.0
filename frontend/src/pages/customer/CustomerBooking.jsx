@@ -525,39 +525,42 @@ function DamageDetectionModal({ onClose, onBack }) {
     }
     setUploading(true);
     setError("");
+
     try {
-      await new Promise((r) => setTimeout(r, 2000));
-      setAnalysisResult({
-        damageDetected: true,
-        confidence: 0.92,
-        damages: [
-          {
-            type: "Scratch",
-            location: "Front bumper",
-            severity: "Minor",
-            confidence: 0.95,
+      const token =
+        localStorage.getItem("access_token") ??
+        sessionStorage.getItem("access_token");
+
+      // Convert all images to base64
+      const base64Images = await Promise.all(
+        images.map(
+          (img) =>
+            new Promise((res, rej) => {
+              const reader = new FileReader();
+              reader.readAsDataURL(img.file);
+              reader.onload = () => res(reader.result.split(",")[1]);
+              reader.onerror = (err) => rej(err);
+            }),
+        ),
+      );
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/analyze-damage/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          {
-            type: "Dent",
-            location: "Driver's door",
-            severity: "Moderate",
-            confidence: 0.88,
-          },
-          {
-            type: "Paint chip",
-            location: "Hood",
-            severity: "Minor",
-            confidence: 0.93,
-          },
-        ],
-        recommendations: [
-          "Paint touch-up recommended for scratches",
-          "Paintless dent removal possible for door dent",
-          "Full exterior detailing suggested",
-        ],
-        estimatedCost: "₱3,500 – ₱5,000",
-      });
-    } catch {
+          body: JSON.stringify({ images: base64Images }),
+        },
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Analysis failed");
+      setAnalysisResult(data);
+    } catch (err) {
+      console.error(err);
       setError("Failed to analyze images. Please try again.");
     } finally {
       setUploading(false);
@@ -1141,9 +1144,14 @@ function NewBookingModal({
     }
     if (step === 3) {
       // FIX: Block same-day booking
-      if (!form.date) { setError("Please select a date."); return false; }
+      if (!form.date) {
+        setError("Please select a date.");
+        return false;
+      }
       if (form.date < todayISO()) {
-        setError("Past dates are not allowed. Please select today or a later date.");
+        setError(
+          "Past dates are not allowed. Please select today or a later date.",
+        );
         return false;
       }
       if (hasActiveBooking) {
@@ -1176,21 +1184,28 @@ function NewBookingModal({
     try {
       if (!form.service?.id) throw new Error("Please select a service");
       if (!form.branch?.id) throw new Error("Please select a branch");
-      if (!form.date || !form.time) throw new Error("Please select date and time");
+      if (!form.date || !form.time)
+        throw new Error("Please select date and time");
 
       // Allow same-day booking; only block past dates.
       if (form.date < todayISO()) {
-        throw new Error("Past dates are not allowed. Please select today or a later date.");
+        throw new Error(
+          "Past dates are not allowed. Please select today or a later date.",
+        );
       }
 
       // Guard: one active booking at a time.
       if (hasActiveBooking) {
-        throw new Error("You already have an active booking. Please complete or cancel it before creating a new one.");
+        throw new Error(
+          "You already have an active booking. Please complete or cancel it before creating a new one.",
+        );
       }
 
       // FIX: Slot availability guard at submit time
       if (!isSlotAvailable(form.time)) {
-        throw new Error("This time slot is no longer available. Please go back and select another time.");
+        throw new Error(
+          "This time slot is no longer available. Please go back and select another time.",
+        );
       }
 
       const vehicle = (form.vehicle ?? "").trim();
@@ -1663,43 +1678,47 @@ function NewBookingModal({
           </div>
         )}
 
-          {/* ── Step 3: Schedule ── */}
-          {step === 3 && (
-            <div className="space-y-4 sm:space-y-5">
-              {/* Date picker */}
-              <div>
-                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
-                  Pick a Date{" "}
-                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Today onward)</span>
+        {/* ── Step 3: Schedule ── */}
+        {step === 3 && (
+          <div className="space-y-4 sm:space-y-5">
+            {/* Date picker */}
+            <div>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
+                Pick a Date{" "}
+                <span className="text-yellow-500 text-[8px] sm:text-[10px]">
+                  (Today onward)
+                </span>
+              </p>
+              <input
+                type="date"
+                min={todayISO()}
+                value={form.date}
+                onChange={(e) => {
+                  // FIX: use set() so error is cleared, time reset happens in the useEffect
+                  set("date", e.target.value);
+                }}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
+              />
+              {/* FIX: warn if user somehow picks today (browser may allow it on some devices) */}
+              {form.date && form.date < todayISO() && (
+                <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
+                  Past dates are not allowed. Please select today or a later
+                  date.
                 </p>
-                <input
-                  type="date"
-                  min={todayISO()}
-                  value={form.date}
-                  onChange={(e) => {
-                    // FIX: use set() so error is cleared, time reset happens in the useEffect
-                    set("date", e.target.value);
-                  }}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
-                />
-                {/* FIX: warn if user somehow picks today (browser may allow it on some devices) */}
-                {form.date && form.date < todayISO() && (
-                  <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
-                    Past dates are not allowed. Please select today or a later date.
-                  </p>
-                )}
-                {/* Warn if customer already has active booking */}
-                {hasActiveBooking && (
-                  <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">
-                    You already have an active booking. Please complete or cancel it before creating a new one.
-                  </p>
-                )}
-                {scheduleWindowText && (
-                  <p className="text-gray-500 text-[8px] sm:text-[10px] mt-1">
-                    {scheduleWindowText}
-                  </p>
-                )}
-              </div>
+              )}
+              {/* Warn if customer already has active booking */}
+              {hasActiveBooking && (
+                <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">
+                  You already have an active booking. Please complete or cancel
+                  it before creating a new one.
+                </p>
+              )}
+              {scheduleWindowText && (
+                <p className="text-gray-500 text-[8px] sm:text-[10px] mt-1">
+                  {scheduleWindowText}
+                </p>
+              )}
+            </div>
 
             <div>
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
@@ -1723,53 +1742,62 @@ function NewBookingModal({
                 </p>
               )}
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
-                  {visibleTimeSlots.map((t) => {
-                    const active = form.time === t;
-                    // FIX: a slot is only clickable if:
-                    //  1. slots have been loaded (availableSlots !== null)
-                    //  2. the slot is explicitly true in the response
-                    //  3. the date is valid (today onward)
-                    //  4. user doesn't already have a booking that day
-                    const slotsLoaded = availableSlots !== null;
-                    const slotAvailable = slotsLoaded && availableSlots[t] === true;
-                    const dateValid = form.date && form.date >= todayISO();
-                    const isDisabled =
-                      !slotsLoaded ||
-                      !slotAvailable ||
-                      !dateValid ||
-                      hasActiveBooking ||
-                      checkingAvailability;
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
+                {visibleTimeSlots.map((t) => {
+                  const active = form.time === t;
+                  // FIX: a slot is only clickable if:
+                  //  1. slots have been loaded (availableSlots !== null)
+                  //  2. the slot is explicitly true in the response
+                  //  3. the date is valid (today onward)
+                  //  4. user doesn't already have a booking that day
+                  const slotsLoaded = availableSlots !== null;
+                  const slotAvailable =
+                    slotsLoaded && availableSlots[t] === true;
+                  const dateValid = form.date && form.date >= todayISO();
+                  const isDisabled =
+                    !slotsLoaded ||
+                    !slotAvailable ||
+                    !dateValid ||
+                    hasActiveBooking ||
+                    checkingAvailability;
 
-                    return (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => { if (!isDisabled) set("time", t); }}
-                        disabled={isDisabled}
-                        title={
-                          !dateValid
-                            ? "Select a valid date first"
-                            : hasActiveBooking
-                              ? "You already have an active booking"
-                              : !slotsLoaded || checkingAvailability
-                                ? "Loading availability…"
-                                : !slotAvailable
-                                  ? "This slot is fully booked"
-                                  : ""
-                        }
-                        className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${
-                          active && !isDisabled
-                            ? "border-red-500 bg-red-600/15 text-white shadow-md shadow-red-600/10"
-                            : isDisabled
-                              ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
-                              : "border-white/8 bg-white/3 text-gray-400 hover:border-white/20 hover:text-white cursor-pointer"
-                        }`}
-                      >
-                        {t}
-                        {/* FIX: show correct label based on why it's disabled */}
-                        {isDisabled && slotsLoaded && !checkingAvailability && !hasActiveBooking && dateValid && (
-                          <span className="block text-[8px] text-gray-600 font-normal">Fully Booked</span>
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        if (!isDisabled) set("time", t);
+                      }}
+                      disabled={isDisabled}
+                      title={
+                        !dateValid
+                          ? "Select a valid date first"
+                          : hasActiveBooking
+                            ? "You already have an active booking"
+                            : !slotsLoaded || checkingAvailability
+                              ? "Loading availability…"
+                              : !slotAvailable
+                                ? "This slot is fully booked"
+                                : ""
+                      }
+                      className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${
+                        active && !isDisabled
+                          ? "border-red-500 bg-red-600/15 text-white shadow-md shadow-red-600/10"
+                          : isDisabled
+                            ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
+                            : "border-white/8 bg-white/3 text-gray-400 hover:border-white/20 hover:text-white cursor-pointer"
+                      }`}
+                    >
+                      {t}
+                      {/* FIX: show correct label based on why it's disabled */}
+                      {isDisabled &&
+                        slotsLoaded &&
+                        !checkingAvailability &&
+                        !hasActiveBooking &&
+                        dateValid && (
+                          <span className="block text-[8px] text-gray-600 font-normal">
+                            Fully Booked
+                          </span>
                         )}
                       {checkingAvailability && (
                         <span className="block text-[8px] text-gray-600 font-normal">
@@ -1781,8 +1809,12 @@ function NewBookingModal({
                 })}
               </div>
 
-                {/* Slot count summary */}
-                {form.date && form.date >= todayISO() && !checkingAvailability && availableSlots !== null && !hasActiveBooking && (
+              {/* Slot count summary */}
+              {form.date &&
+                form.date >= todayISO() &&
+                !checkingAvailability &&
+                availableSlots !== null &&
+                !hasActiveBooking && (
                   <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
                     {availableCount > 0
                       ? `${availableCount} slot${availableCount !== 1 ? "s" : ""} available`
@@ -2314,16 +2346,23 @@ function BookingsPage() {
     }
   };
 
-  const handleRescheduleDecision = async (booking, decision, selectedOption = null) => {
+  const handleRescheduleDecision = async (
+    booking,
+    decision,
+    selectedOption = null,
+  ) => {
     try {
-      const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/reschedule-response/`, {
-        method: "PATCH",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          decision,
-          selected_option: selectedOption,
-        }),
-      });
+      const res = await fetch(
+        `${API_BASE}/api/bookings/${booking.id}/reschedule-response/`,
+        {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            decision,
+            selected_option: selectedOption,
+          }),
+        },
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.detail || "Failed to submit response.");
@@ -2430,14 +2469,39 @@ function BookingsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8">
           {[
             { label: "Total", value: bookings.length, color: "text-white" },
-            { label: "Confirmed", value: bookings.filter((b) => b.status === "confirmed").length, color: "text-green-400" },
-            { label: "Pending", value: bookings.filter((b) => b.status === "pending").length, color: "text-yellow-400" },
-            { label: "Completed", value: bookings.filter((b) => b.status === "done").length, color: "text-blue-400" },
-            { label: "Cancelled", value: bookings.filter((b) => b.status === "cancelled").length, color: "text-red-400" },
+            {
+              label: "Confirmed",
+              value: bookings.filter((b) => b.status === "confirmed").length,
+              color: "text-green-400",
+            },
+            {
+              label: "Pending",
+              value: bookings.filter((b) => b.status === "pending").length,
+              color: "text-yellow-400",
+            },
+            {
+              label: "Completed",
+              value: bookings.filter((b) => b.status === "done").length,
+              color: "text-blue-400",
+            },
+            {
+              label: "Cancelled",
+              value: bookings.filter((b) => b.status === "cancelled").length,
+              color: "text-red-400",
+            },
           ].map(({ label, value, color }) => (
-            <div key={label} className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-3 sm:p-5 border border-white/5 text-center">
-              <div className={`text-xl sm:text-2xl lg:text-3xl font-black ${color} mb-0.5 sm:mb-1`}>{value}</div>
-              <div className="text-[10px] sm:text-xs text-gray-500">{label}</div>
+            <div
+              key={label}
+              className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl p-3 sm:p-5 border border-white/5 text-center"
+            >
+              <div
+                className={`text-xl sm:text-2xl lg:text-3xl font-black ${color} mb-0.5 sm:mb-1`}
+              >
+                {value}
+              </div>
+              <div className="text-[10px] sm:text-xs text-gray-500">
+                {label}
+              </div>
             </div>
           ))}
         </div>
@@ -2548,55 +2612,92 @@ function BookingsPage() {
                     : "To be assessed"
                   : "—";
 
-            return (
-              <div
-                key={booking.id}
-                className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/30 transition-all duration-300"
-              >
-                <div className="flex flex-col gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 flex-wrap">
-                      <h3 className="text-base sm:text-lg lg:text-xl font-black text-white">{serviceName}</h3>
-                      <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold border ${sc.color}`}>{sc.label}</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-x-4 sm:gap-x-5 gap-y-1.5 sm:gap-y-2 text-gray-400 text-[10px] sm:text-xs">
-                      {[
-                        { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", text: booking.date },
-                        { icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", text: displayTime },
-                        booking.staff && { icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z", text: booking.staff },
-                        booking.branch && {
-                          icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
-                          text: typeof booking.branch === "object" ? booking.branch.name : booking.branch,
-                        },
-                      ].filter(Boolean).map(({ icon, text }) =>
-                        text && (
-                          <div key={icon} className="flex items-center gap-1 sm:gap-2">
-                            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
-                            </svg>
-                            <span className="truncate">{text}</span>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-wrap">
-                    <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">{priceDisplay}</div>
-                    {booking.status !== "cancelled" && booking.status !== "done" && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setCancelBooking(booking)}
-                          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
+              return (
+                <div
+                  key={booking.id}
+                  className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/30 transition-all duration-300"
+                >
+                  <div className="flex flex-col gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 flex-wrap">
+                        <h3 className="text-base sm:text-lg lg:text-xl font-black text-white">
+                          {serviceName}
+                        </h3>
+                        <span
+                          className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold border ${sc.color}`}
                         >
-                          Cancel
-                        </button>
+                          {sc.label}
+                        </span>
                       </div>
-                    )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-x-4 sm:gap-x-5 gap-y-1.5 sm:gap-y-2 text-gray-400 text-[10px] sm:text-xs">
+                        {[
+                          {
+                            icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+                            text: booking.date,
+                          },
+                          {
+                            icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+                            text: displayTime,
+                          },
+                          booking.staff && {
+                            icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+                            text: booking.staff,
+                          },
+                          booking.branch && {
+                            icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                            text:
+                              typeof booking.branch === "object"
+                                ? booking.branch.name
+                                : booking.branch,
+                          },
+                        ]
+                          .filter(Boolean)
+                          .map(
+                            ({ icon, text }) =>
+                              text && (
+                                <div
+                                  key={icon}
+                                  className="flex items-center gap-1 sm:gap-2"
+                                >
+                                  <svg
+                                    className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 flex-shrink-0"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d={icon}
+                                    />
+                                  </svg>
+                                  <span className="truncate">{text}</span>
+                                </div>
+                              ),
+                          )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-wrap">
+                      <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">
+                        {priceDisplay}
+                      </div>
+                      {booking.status !== "cancelled" &&
+                        booking.status !== "done" && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setCancelBooking(booking)}
+                              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           {!loading && !fetchError && filtered.length === 0 && (
             <div className="text-center py-16 sm:py-24 text-gray-500">
               <svg
@@ -2641,9 +2742,26 @@ function BookingsPage() {
           initialServiceId={prefillServiceId}
         />
       )}
-      {showDamageModal && <DamageDetectionModal onClose={() => setShowDamageModal(false)} onBack={handleDamageComplete} />}
-      {cancelBooking && <CancelBookingModal booking={cancelBooking} onClose={() => setCancelBooking(null)} onConfirm={handleCancelConfirm} />}
-      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+      {showDamageModal && (
+        <DamageDetectionModal
+          onClose={() => setShowDamageModal(false)}
+          onBack={handleDamageComplete}
+        />
+      )}
+      {cancelBooking && (
+        <CancelBookingModal
+          booking={cancelBooking}
+          onClose={() => setCancelBooking(null)}
+          onConfirm={handleCancelConfirm}
+        />
+      )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </CustomerLayout>
   );
 }

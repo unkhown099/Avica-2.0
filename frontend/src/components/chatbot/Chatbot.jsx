@@ -1,32 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { API_BASE } from "../../hooks/useAuth.js";
 
-const SYSTEM_PROMPT = `You are a helpful customer support assistant for Otokwikk, a premium automotive detailing shop in North Caloocan, Metro Manila.
-
-About Otokwikk:
-- Services: Exterior detailing (multi-stage wash, clay bar, machine polish), Interior detailing (steam cleaning, leather conditioning, deep extraction), and Protection packages (Ceramic coating 9H hardness, PPF applications).
-- Location: Lot 1 Block 1, Camarin Road, North Caloocan, Metro Manila
-- Hours: Monday - Sunday, 8:00 AM - 7:00 PM
-- Contact: +63 9XX XXX XXXX | info@otokwikk.com
-- Stats: 10,000+ premium clients served, 5.0 average rating, 15+ years expertise
-
-Be concise, warm, and professional. Help customers with bookings, service inquiries, pricing, and general support. If you cannot answer something specific, invite them to call or visit the shop.`;
-
 const suggestedQuestions = [
   "What services do you offer?",
   "How do I book an appointment?",
   "Where is your shop located?",
 ];
 
-export default function Chatbot({ onClose }) {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content:
-        "Welcome to Otokwikk! 🚗✨ I'm your personal detailing assistant. How can I help you today?",
-      id: Date.now(),
-    },
-  ]);
+export default function Chatbot({
+  onClose,
+  onClearChat,
+  messages,
+  setMessages,
+}) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -53,14 +39,12 @@ export default function Chatbot({ onClose }) {
     try {
       const response = await fetch(`${API_BASE}/api/chat/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...updatedMessages.map(({ role, content }) => ({ role, content })),
-          ],
+          messages: updatedMessages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
         }),
       });
 
@@ -98,7 +82,7 @@ export default function Chatbot({ onClose }) {
 
   return (
     <div className="flex flex-col h-full bg-black rounded-2xl overflow-hidden">
-      {/* Header - More compact */}
+      {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-neutral-900 via-black to-neutral-900 border-b border-white/10 flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="relative w-8 h-8 bg-red-600/20 rounded-lg border border-red-600/40 flex items-center justify-center shadow-[0_0_12px_rgba(220,38,38,0.25)]">
@@ -127,18 +111,44 @@ export default function Chatbot({ onClose }) {
           </div>
         </div>
 
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="w-6 h-6 rounded-lg bg-white/5 hover:bg-red-600/20 border border-white/10 hover:border-red-600/40 text-gray-500 hover:text-red-400 flex items-center justify-center transition-all duration-300 text-xs font-bold"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {/* Clear chat button */}
+          {onClearChat && messages.length > 1 && (
+            <button
+              onClick={onClearChat}
+              title="Clear conversation"
+              className="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-500 hover:text-gray-300 flex items-center justify-center transition-all duration-300"
+              aria-label="Clear chat"
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+            </button>
+          )}
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="w-6 h-6 rounded-lg bg-white/5 hover:bg-red-600/20 border border-white/10 hover:border-red-600/40 text-gray-500 hover:text-red-400 flex items-center justify-center transition-all duration-300 text-xs font-bold"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Messages - Compact spacing */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 bg-neutral-950 min-h-0">
         {messages.map((msg) => (
           <div
@@ -168,17 +178,13 @@ export default function Chatbot({ onClose }) {
                   ? "bg-red-600 text-white rounded-br-sm shadow-[0_2px_12px_rgba(220,38,38,0.25)]"
                   : "bg-white/5 backdrop-blur-sm text-gray-200 border border-white/10 rounded-bl-sm"
               }`}
-              style={{
-                wordBreak: "break-word",
-                overflowWrap: "break-word",
-              }}
+              style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
             >
               {msg.content}
             </div>
           </div>
         ))}
 
-        {/* Typing indicator - Compact */}
         {isLoading && (
           <div className="flex items-start gap-1.5 justify-start">
             <div className="w-6 h-6 bg-red-600/20 rounded-lg border border-red-600/30 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -219,7 +225,6 @@ export default function Chatbot({ onClose }) {
           </div>
         )}
 
-        {/* Suggested questions - Compact */}
         {showSuggestions && (
           <div className="flex flex-col gap-1.5 pt-1">
             <p className="text-gray-600 text-[10px] font-black uppercase tracking-widest px-1">
@@ -240,7 +245,7 @@ export default function Chatbot({ onClose }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input - Compact */}
+      {/* Input */}
       <div className="flex items-center gap-2 px-2 py-2 bg-neutral-900 border-t border-white/10 flex-shrink-0">
         <textarea
           ref={inputRef}
@@ -251,10 +256,7 @@ export default function Chatbot({ onClose }) {
           rows={1}
           disabled={isLoading}
           className="flex-1 resize-none bg-white/5 border border-white/10 focus:border-red-600/50 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-xs outline-none transition-all duration-300 font-medium leading-relaxed"
-          style={{ 
-            maxHeight: "60px",
-            overflow: "auto"
-          }}
+          style={{ maxHeight: "60px", overflow: "auto" }}
         />
         <button
           onClick={() => sendMessage()}
