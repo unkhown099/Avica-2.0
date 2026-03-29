@@ -419,6 +419,7 @@ class RestockRequest(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
         ("approved", "Approved"),
+        ("received", "Received"),
         ("rejected", "Rejected"),
     ]
 
@@ -471,6 +472,8 @@ class InventoryTransaction(models.Model):
         ("transfer_out", "Transfer Out"),
         ("transfer_in", "Transfer In"),
         ("restock_request", "Restock Request"),
+        ("restock_approved", "Restock Approved"),
+        ("restock_received", "Restock Received"),
         ("restock_rejected", "Restock Rejected"),
     ]
 

@@ -282,6 +282,99 @@ def _notify_user_inapp_and_email(*, user, title, message, email_subject):
         logger.exception("Failed to send notification email for user_id=%s", getattr(user, "id", None))
 
 
+def _notify_staff_and_manager_new_booking(booking):
+    branch = getattr(booking, "branch", None)
+    if not branch:
+        return
+
+    recipients = (
+        Staff.objects.filter(
+            branch=branch,
+            role__in=["Staff", "Branch Manager"],
+            status="Active",
+        )
+        .select_related("user")
+    )
+
+    notifications = []
+    appointment_time = to_display_time(str(booking.time))
+    message = (
+        f"New appointment for {booking.service} on {booking.date} at {appointment_time} "
+        f"in {branch.name}."
+    )
+
+    for staff_member in recipients:
+        if not getattr(staff_member, "user_id", None):
+            continue
+        notifications.append(
+            Notification(
+                user_id=staff_member.user_id,
+                title="New Appointment",
+                message=message,
+                notification_type="appointment",
+            )
+        )
+
+    if not notifications:
+        return
+
+    try:
+        Notification.objects.bulk_create(notifications)
+    except Exception:
+        logger.exception(
+            "Failed to notify staff/manager for new booking_id=%s branch_id=%s",
+            booking.id,
+            branch.id,
+        )
+
+
+def _notify_staff_and_manager_cancellation(booking):
+    """Notify staff and managers when an appointment is cancelled."""
+    branch = getattr(booking, "branch", None)
+    if not branch:
+        return
+
+    recipients = (
+        Staff.objects.filter(
+            branch=branch,
+            role__in=["Staff", "Branch Manager"],
+            status="Active",
+        )
+        .select_related("user")
+    )
+
+    notifications = []
+    appointment_time = to_display_time(str(booking.time))
+    message = (
+        f"Appointment for {booking.service} on {booking.date} at {appointment_time} "
+        f"has been cancelled."
+    )
+
+    for staff_member in recipients:
+        if not getattr(staff_member, "user_id", None):
+            continue
+        notifications.append(
+            Notification(
+                user_id=staff_member.user_id,
+                title="Appointment Cancelled",
+                message=message,
+                notification_type="appointment",
+            )
+        )
+
+    if not notifications:
+        return
+
+    try:
+        Notification.objects.bulk_create(notifications)
+    except Exception:
+        logger.exception(
+            "Failed to notify staff/manager for cancelled booking_id=%s branch_id=%s",
+            booking.id,
+            branch.id,
+        )
+
+
 def _normalize_reschedule_options(raw_options):
     if not isinstance(raw_options, list):
         return []
@@ -368,7 +461,8 @@ class BookingListCreateView(generics.ListCreateAPIView):
                 }
             )
 
-        serializer.save(user=self.request.user, status="pending")
+        booking = serializer.save(user=self.request.user, status="pending")
+        _notify_staff_and_manager_new_booking(booking)
 
 
 class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -396,6 +490,8 @@ class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
             booking.status = "cancelled"
             booking.cancellation_reason = cancellation_reason
             booking.save()
+            _notify_customer_booking_status(booking, "cancelled")
+            _notify_staff_and_manager_cancellation(booking)
             return Response(self.get_serializer(booking).data)
         
         return super().partial_update(request, *args, **kwargs)
@@ -631,35 +727,86 @@ class AvailableSlotsView(APIView):
         if not slots:
             return Response({"available_slots": {}, "meta": schedule_meta})
 
-        # Get all confirmed/pending bookings for this branch on this date
-        bookings = Booking.objects.filter(
+        preferred_employee_raw = request.query_params.get("preferred_employee_id")
+        preferred_employee_id = None
+        if preferred_employee_raw not in (None, "", "null", "None"):
+            try:
+                preferred_employee_id = int(preferred_employee_raw)
+            except (TypeError, ValueError):
+                return Response(
+                    {"error": "preferred_employee_id must be a valid integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        active_employees_qs = Staff.objects.filter(
             branch=branch,
-            date=selected_date,
-            status__in=['confirmed', 'pending', 'rescheduled']  # Active bookings consume slots
+            role="Employee",
+            status="Active",
         )
-        
-        # Convert time to display format and count bookings per slot
-        from collections import Counter
+        active_employee_ids = set(active_employees_qs.values_list("id", flat=True))
+
+        if preferred_employee_id is not None and preferred_employee_id not in active_employee_ids:
+            return Response(
+                {"error": "Selected employee is not available in this branch."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get all active bookings for this branch on this date.
+        bookings = (
+            Booking.objects.filter(
+                branch=branch,
+                date=selected_date,
+                status__in=["confirmed", "pending", "rescheduled"],
+            )
+            .select_related("queue_entry")
+        )
+
+        # Convert time to display format and count bookings per slot.
+        from collections import Counter, defaultdict
+
         booked_slots = []
+        slot_busy_employee_ids = defaultdict(set)
+
         for booking in bookings:
             display_time = to_display_time(booking.time)
             booked_slots.append(display_time)
-        
+
+            assigned_employee_id = None
+            queue_entry = getattr(booking, "queue_entry", None)
+            if queue_entry and queue_entry.assigned_employee_id:
+                assigned_employee_id = queue_entry.assigned_employee_id
+            else:
+                assigned_employee_id = _extract_preferred_employee_id(getattr(booking, "notes", ""))
+
+            if assigned_employee_id in active_employee_ids:
+                slot_busy_employee_ids[display_time].add(assigned_employee_id)
+
         slot_counts = Counter(booked_slots)
-        
+
         # Capacity per slot still follows branch slot capacity.
         max_capacity = max(int(branch.slots or 1), 1)
 
         # Daily cap from manager schedule settings.
         total_bookings_for_day = bookings.count()
         daily_limit_reached = total_bookings_for_day >= max_patients_per_day
-        
-        # Calculate availability for each generated slot
+
+        employee_capacity = len(active_employee_ids)
+
+        # Calculate availability for each generated slot.
         available_slots = {}
         for slot in slots:
             current_bookings = slot_counts.get(slot, 0)
-            is_available = (not daily_limit_reached) and (current_bookings < max_capacity)
-            available_slots[slot] = is_available
+            base_available = (not daily_limit_reached) and (current_bookings < max_capacity)
+
+            busy_employee_ids = slot_busy_employee_ids.get(slot, set())
+            if preferred_employee_id is not None:
+                employee_available = preferred_employee_id not in busy_employee_ids
+            else:
+                employee_available = True
+                if employee_capacity > 0 and len(busy_employee_ids) >= employee_capacity:
+                    employee_available = False
+
+            available_slots[slot] = base_available and employee_available
 
         return Response({'available_slots': available_slots, 'meta': schedule_meta})
 
@@ -898,6 +1045,7 @@ class StaffBookingActionView(APIView):
             booking.status = "cancelled"
             booking.save()
             _notify_customer_booking_status(booking, "cancelled")
+            _notify_staff_and_manager_cancellation(booking)
             
             # Return early - no queue entry for cancelled bookings
             from api.serializers.bookings_serializer import BookingSerializer

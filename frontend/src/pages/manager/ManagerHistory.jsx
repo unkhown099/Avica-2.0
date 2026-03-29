@@ -1,16 +1,31 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useLocation } from "react-router-dom";
 import { API_BASE } from "../../hooks/useAuth.js";
 import ManagerLayout from './ManagerLayout';
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
 
+const HISTORY_SECTION_KEYS = ["service-history", "inventory-transaction"];
+
 function ManagerHistory() {
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [serviceFilter, setServiceFilter] = useState("All Services");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [serviceHistory, setServiceHistory] = useState([]);
+  const [inventoryTransactions, setInventoryTransactions] = useState([]);
+  const [activeSection, setActiveSection] = useState("service-history");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const hash = location.hash.replace("#", "");
+    if (HISTORY_SECTION_KEYS.includes(hash)) {
+      setActiveSection(hash);
+      return;
+    }
+    setActiveSection("service-history");
+  }, [location.hash]);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -18,10 +33,14 @@ function ManagerHistory() {
         const token =
           localStorage.getItem("access_token") ||
           sessionStorage.getItem("access_token");
-        const res = await axios.get(`${API_BASE}/api/queue/history/`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const mapped = (Array.isArray(res.data) ? res.data : []).map((row) => ({
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const [serviceRes, inventoryRes] = await Promise.all([
+          axios.get(`${API_BASE}/api/queue/history/`, { headers }),
+          axios.get(`${API_BASE}/inventory/transactions/`, { headers }),
+        ]);
+
+        const mapped = (Array.isArray(serviceRes.data) ? serviceRes.data : []).map((row) => ({
           id: `SH-${String(row.id).padStart(3, "0")}`,
           date: row.completed_at || row.queued_at || "",
           customer: row.customer_name || "Unknown",
@@ -32,10 +51,36 @@ function ManagerHistory() {
           amount: Number(row.price || 0),
           status: row.status === "done" ? "Completed" : "Skipped",
         }));
+
+        const actionLabel = {
+          restock: "Restock",
+          restock_approved: "Restock Approved",
+          restock_received: "Restock Received",
+          transfer_in: "Transfer In",
+          transfer_out: "Transfer Out",
+          consume: "Consumed",
+          adjustment: "Adjustment",
+          add: "Added",
+          remove: "Removed",
+        };
+
+        const inventoryMapped = (Array.isArray(inventoryRes.data) ? inventoryRes.data : []).map((row) => ({
+          id: `IT-${String(row.id).padStart(3, "0")}`,
+          date: row.created_at || row.date || "",
+          item: row.item_name || row.inventory_item_name || row.item?.name || "—",
+          action: actionLabel[row.action] || String(row.action || "—").replace(/_/g, " "),
+          quantity: Number(row.quantity || row.qty || 0),
+          unit: row.unit || row.item?.unit || "",
+          branch: row.branch_name || row.branch || "—",
+          actor: row.actor_name || row.performed_by_name || row.staff_name || "System",
+        }));
+
         setServiceHistory(mapped);
+        setInventoryTransactions(inventoryMapped);
       } catch (error) {
         console.error("Failed to load manager history:", error);
         setServiceHistory([]);
+        setInventoryTransactions([]);
       } finally {
         setLoading(false);
       }
@@ -69,6 +114,12 @@ function ManagerHistory() {
     resetDeps: [searchQuery, serviceFilter, statusFilter, serviceHistory.length],
   });
 
+  const inventoryPagination = usePagination({
+    items: inventoryTransactions,
+    pageSize: 10,
+    resetDeps: [inventoryTransactions.length],
+  });
+
   if (loading) {
     return (
       <ManagerLayout title="" subtitle="">
@@ -84,10 +135,12 @@ function ManagerHistory() {
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
 
         <div className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">Service History</h1>
-          <p className="text-gray-400 mt-1">View completed services for San Mateo Rizal branch</p>
+          <h1 className="text-3xl font-black text-white tracking-tight">History</h1>
+          <p className="text-gray-400 mt-1">Service and inventory activity for your branch</p>
         </div>
 
+        {activeSection === "service-history" && (
+        <>
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
@@ -127,8 +180,13 @@ function ManagerHistory() {
           ))}
         </div>
 
-        {/* Table */}
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+        <section id="service-history" className="mb-8 scroll-mt-24">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-white">Service History</h2>
+            <p className="text-gray-500 text-sm mt-0.5">Completed and skipped queue entries</p>
+          </div>
+
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
           <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <div className="col-span-1">Date</div>
             <div className="col-span-2">Customer</div>
@@ -185,7 +243,65 @@ function ManagerHistory() {
             onChange={setCurrentPage}
             className="px-6 pb-6"
           />
-        </div>
+          </div>
+        </section>
+        </>
+        )}
+
+        {activeSection === "inventory-transaction" && (
+        <section id="inventory-transaction" className="scroll-mt-24">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-white">Inventory Transaction</h2>
+            <p className="text-gray-500 text-sm mt-0.5">Stock movements and adjustments</p>
+          </div>
+
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+                <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <div className="col-span-2">Date</div>
+                  <div className="col-span-3">Item</div>
+                  <div className="col-span-2">Action</div>
+                  <div className="col-span-1">Qty</div>
+                  <div className="col-span-2">Branch</div>
+                  <div className="col-span-2">By</div>
+                </div>
+
+                {inventoryTransactions.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <svg className="w-12 h-12 text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                    </svg>
+                    <p className="text-gray-500 text-lg">No inventory transactions yet</p>
+                  </div>
+                ) : (
+                  inventoryPagination.paginatedItems.map((record) => (
+                    <div key={record.id} className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center group">
+                      <div className="col-span-2 text-gray-500 text-xs">{record.date ? String(record.date).slice(0, 10) : "—"}</div>
+                      <div className="col-span-3 text-white font-semibold text-sm truncate">{record.item}</div>
+                      <div className="col-span-2 text-gray-300 text-xs capitalize">{record.action}</div>
+                      <div className="col-span-1 text-white font-bold text-sm">{record.quantity} {record.unit}</div>
+                      <div className="col-span-2 text-gray-400 text-sm truncate">{record.branch}</div>
+                      <div className="col-span-2 text-gray-500 text-xs truncate">{record.actor}</div>
+                    </div>
+                  ))
+                )}
+
+                {inventoryTransactions.length > 0 && (
+                  <div className="px-6 py-4">
+                    <p className="text-gray-500 text-sm">
+                      Showing <span className="text-white font-semibold">{inventoryPagination.startItem}-{inventoryPagination.endItem}</span> of <span className="text-white font-semibold">{inventoryTransactions.length}</span> records
+                    </p>
+                  </div>
+                )}
+
+                <Pagination
+                  current={inventoryPagination.currentPage}
+                  total={inventoryPagination.totalPages}
+                  onChange={inventoryPagination.setCurrentPage}
+                  className="px-6 pb-6"
+                />
+          </div>
+        </section>
+        )}
       </div>
     </ManagerLayout>
   );

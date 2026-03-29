@@ -3,6 +3,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   useLocation,
 } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -386,15 +387,6 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/staff/vehicle-recognition"
-          element={
-            <ProtectedRoute allowedRoles={["staff"]}>
-              <StaffVehicleRecognition />
-            </ProtectedRoute>
-          }
-        />
-
         {/* Mechanic Routes */}
         <Route
           path="/mechanic/dashboard"
@@ -427,6 +419,18 @@ function Layout() {
               <MechanicJobHistory />
             </ProtectedRoute>
           }
+        />
+        <Route
+          path="/mechanic/vehicle-recognition"
+          element={
+            <ProtectedRoute allowedRoles={["employee"]}>
+              <StaffVehicleRecognition />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff/vehicle-recognition"
+          element={<Navigate to="/mechanic/vehicle-recognition" replace />}
         />
 
         <Route path="*" element={<ErrorPage />} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { API_BASE } from "../../hooks/useAuth.js";
 import {
@@ -37,7 +37,7 @@ ChartJS.register(
   Legend,
 );
 
-const SECTION_KEYS = ["overview", "revenue", "appointment", "customers", "inventory", "services"];
+const SECTION_KEYS = ["overview", "revenue", "appointment", "customers", "inventory", "services", "employees"];
 
 const VIEWS = [
   {
@@ -92,6 +92,15 @@ const VIEWS = [
       <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+  },
+  {
+    key: "employees",
+    label: "Employees",
+    icon: (
+      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V10H2v10h5m10 0v-2a4 4 0 10-8 0v2m8 0H9m4-12a4 4 0 110 8 4 4 0 010-8z" />
       </svg>
     ),
   },
@@ -216,6 +225,7 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [appointments, setAppointments] = useState([]);
+  const [queueHistory, setQueueHistory] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState("All Branches");
   const [loading, setLoading] = useState(true);
@@ -235,11 +245,12 @@ export default function AdminDashboard() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
 
-        const [dashboardRes, customersRes, inventoryRes, appointmentsRes] = await Promise.all([
+        const [dashboardRes, customersRes, inventoryRes, appointmentsRes, queueHistoryRes] = await Promise.all([
           fetch(`${baseUrl}/dashboard/`, { headers, credentials: "include" }),
           fetch(`${baseUrl}/customers/`, { headers, credentials: "include" }),
           fetch(`${baseUrl}/inventory/`, { headers, credentials: "include" }),
           fetch(`${baseUrl}/appointments/`, { headers, credentials: "include" }),
+          fetch(`${baseUrl}/api/queue/history/`, { headers, credentials: "include" }),
         ]);
 
         if (!dashboardRes.ok) throw new Error(`Dashboard: ${dashboardRes.status}`);
@@ -247,11 +258,12 @@ export default function AdminDashboard() {
         if (!inventoryRes.ok) throw new Error(`Inventory: ${inventoryRes.status}`);
         if (!appointmentsRes.ok) throw new Error(`Appointments: ${appointmentsRes.status}`);
 
-        const [dashboardData, customersData, inventoryData, appointmentsData] = await Promise.all([
+        const [dashboardData, customersData, inventoryData, appointmentsData, queueHistoryData] = await Promise.all([
           dashboardRes.json(),
           customersRes.json(),
           inventoryRes.json(),
           appointmentsRes.json(),
+          queueHistoryRes.ok ? queueHistoryRes.json() : Promise.resolve([]),
         ]);
 
         setStats(dashboardData.stats);
@@ -261,6 +273,7 @@ export default function AdminDashboard() {
         setCustomers(customersData ?? []);
         setInventoryItems(inventoryData ?? []);
         setAppointments(Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData.results ?? []));
+        setQueueHistory(Array.isArray(queueHistoryData) ? queueHistoryData : (queueHistoryData?.results ?? []));
       } catch (err) {
         setError(err.message || "Failed to load dashboard data.");
       } finally {
@@ -370,6 +383,49 @@ export default function AdminDashboard() {
     items: sortedServiceCards,
     pageSize: 5,
     resetDeps: [topServiceCards.length],
+  });
+
+  const employeeWorkloadRows = useMemo(() => {
+    const grouped = queueHistory.reduce((acc, entry) => {
+      const assignedName =
+        entry?.assigned_employee?.full_name ||
+        entry?.assigned_employee_name ||
+        "Unassigned";
+
+      if (!acc[assignedName]) {
+        acc[assignedName] = {
+          employee: assignedName,
+          branch: entry?.branch || entry?.branch_name || "Unknown Branch",
+          total: 0,
+          completed: 0,
+          skipped: 0,
+        };
+      }
+
+      const status = normalizeStatus(entry?.status);
+      acc[assignedName].total += 1;
+      if (status === "done" || status === "completed") acc[assignedName].completed += 1;
+      if (status === "skipped") acc[assignedName].skipped += 1;
+      return acc;
+    }, {});
+
+    const rows = Object.values(grouped).sort((a, b) => {
+      const totalDiff = Number(b.total) - Number(a.total);
+      if (totalDiff !== 0) return totalDiff;
+      return Number(b.completed) - Number(a.completed);
+    });
+
+    const grandTotal = rows.reduce((sum, row) => sum + Number(row.total), 0);
+    return rows.map((row) => ({
+      ...row,
+      share: grandTotal > 0 ? (Number(row.total) / grandTotal) * 100 : 0,
+    }));
+  }, [queueHistory]);
+
+  const employeeWorkloadPagination = usePagination({
+    items: employeeWorkloadRows,
+    pageSize: 5,
+    resetDeps: [employeeWorkloadRows.length],
   });
 
   const appointmentsPagination = usePagination({
@@ -655,6 +711,12 @@ export default function AdminDashboard() {
         ["Service", "Count", "Revenue", "Avg Time"],
         "services.csv",
       );
+    } else if (activeView === "employees") {
+      exportToCSV(
+        employeeWorkloadRows.map((row) => [row.employee, row.branch, row.total, row.completed, row.skipped, row.share.toFixed(1)]),
+        ["Employee", "Branch", "Total Tasks", "Completed", "Skipped", "Workload Share (%)"],
+        "employees_workload.csv",
+      );
     }
   };
 
@@ -666,6 +728,7 @@ export default function AdminDashboard() {
       customers: "#admin-customers",
       inventory: "#admin-inventory",
       services: "#admin-services",
+      employees: "#admin-employees",
     }[activeView];
  
     const activeSection = document.querySelector(sectionSelector);
@@ -1830,6 +1893,149 @@ export default function AdminDashboard() {
                 />
               )}
             </div>
+        </section>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            VIEW: EMPLOYEES
+        ══════════════════════════════════════════════════════════════════ */}
+        {activeView === "employees" && (
+        <section id="admin-employees" className="scroll-mt-20 sm:scroll-mt-24">
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-xl font-black text-white">Employees</h2>
+            <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Track employee workload distribution across all branches</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
+            {[
+              {
+                title: "Assigned Employees",
+                value: String(employeeWorkloadRows.filter((row) => row.employee !== "Unassigned").length),
+                sub: "With recorded service load",
+                accentBg: "bg-cyan-500/10",
+                accentText: "text-cyan-400",
+                border: "border-cyan-500/20",
+                icon: (
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V10H2v10h5m10 0v-2a4 4 0 10-8 0v2m8 0H9m4-12a4 4 0 110 8 4 4 0 010-8z" />
+                  </svg>
+                ),
+              },
+              {
+                title: "Total Assigned Tasks",
+                value: String(employeeWorkloadRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0)),
+                accentBg: "bg-blue-500/10",
+                accentText: "text-blue-400",
+                border: "border-blue-500/20",
+                icon: (
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                ),
+              },
+              {
+                title: "Completion Rate",
+                value: `${(
+                  (employeeWorkloadRows.reduce((sum, row) => sum + Number(row.completed ?? 0), 0) /
+                    Math.max(1, employeeWorkloadRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0))) *
+                  100
+                ).toFixed(1)}%`,
+                sub: "Completed tasks across all branches",
+                accentBg: "bg-emerald-500/10",
+                accentText: "text-emerald-400",
+                border: "border-emerald-500/20",
+                icon: (
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ),
+              },
+            ].map((c, i) => (
+              <StatCard key={i} {...c} />
+            ))}
+          </div>
+
+          <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
+            <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
+              <h3 className="text-sm sm:text-lg font-black text-white">Employee Workload Distribution</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">All employees by assigned tasks</p>
+            </div>
+
+            <div className="block sm:hidden">
+              {employeeWorkloadRows.length === 0 ? (
+                <div className="px-3 py-6 text-center text-gray-500 text-xs">
+                  No workload data available yet.
+                </div>
+              ) : (
+                employeeWorkloadPagination.paginatedItems.map((row, i) => (
+                  <div key={`${row.employee}-${i}`} className="p-3 border-b border-white/5">
+                    <div className="flex justify-between items-start mb-1.5">
+                      <div>
+                        <div className="text-white font-semibold text-xs">{row.employee}</div>
+                        <div className="text-gray-400 text-[10px]">{row.branch}</div>
+                      </div>
+                      <span className="text-cyan-300 text-[10px] font-bold">{row.share.toFixed(1)}%</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5 mt-1.5">
+                      <div>
+                        <div className="text-gray-500 text-[10px]">Total</div>
+                        <div className="text-gray-300 text-xs font-semibold">{row.total}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500 text-[10px]">Completed</div>
+                        <div className="text-emerald-400 text-xs font-semibold">{row.completed}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500 text-[10px]">Skipped</div>
+                        <div className="text-amber-400 text-xs font-semibold">{row.skipped}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="hidden sm:block overflow-x-auto">
+              <div className="min-w-[900px]">
+                <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                  <div className="col-span-3">Employee</div>
+                  <div className="col-span-3">Branch</div>
+                  <div className="col-span-2">Total Tasks</div>
+                  <div className="col-span-2">Completed</div>
+                  <div className="col-span-2">Workload Share</div>
+                </div>
+                {employeeWorkloadRows.length === 0 ? (
+                  <div className="px-6 py-12 text-center text-gray-500 text-sm">
+                    No workload data available yet.
+                  </div>
+                ) : (
+                  employeeWorkloadPagination.paginatedItems.map((row, i) => (
+                    <div key={`${row.employee}-${i}`} className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center">
+                      <div className="col-span-3 text-white font-semibold text-sm truncate">{row.employee}</div>
+                      <div className="col-span-3 text-gray-400 text-sm truncate">{row.branch}</div>
+                      <div className="col-span-2 text-gray-300 text-sm font-semibold">{row.total}</div>
+                      <div className="col-span-2 text-emerald-400 text-sm font-semibold">{row.completed}</div>
+                      <div className="col-span-2">
+                        <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden mb-1">
+                          <div className="h-full rounded-full bg-cyan-500" style={{ width: `${Math.min(100, Math.max(0, row.share)).toFixed(1)}%` }} />
+                        </div>
+                        <span className="text-xs text-cyan-300 font-semibold">{row.share.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {employeeWorkloadRows.length > 0 && (
+              <Pagination
+                current={employeeWorkloadPagination.currentPage}
+                total={employeeWorkloadPagination.totalPages}
+                onChange={employeeWorkloadPagination.setCurrentPage}
+                className="px-3 sm:px-6 py-2 sm:py-4"
+              />
+            )}
+          </div>
         </section>
         )}
         </div>

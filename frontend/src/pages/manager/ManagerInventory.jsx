@@ -14,6 +14,7 @@ function ManagerInventory() {
   // State for API data - initialize as empty arrays
   const [services, setServices] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
+  const [restockRequests, setRestockRequests] = useState([]);
   const [updatingServiceId, setUpdatingServiceId] = useState(null);
   const [requestingRestockId, setRequestingRestockId] = useState(null);
 
@@ -354,7 +355,7 @@ function ManagerInventory() {
         price: item.price ? `₱${Number(item.price).toLocaleString()}` : "₱0",
         supplier: item.supplier || "",
         status: item.status || (item.quantity && item.quantity < 10 ? "Low Stock" : "In Stock"),
-        minimum: item.minimum_stock || 10,
+        minimum: item.minimum_qty ?? 10,
       }));
 
       setInventoryItems(transformedInventory);
@@ -370,13 +371,32 @@ function ManagerInventory() {
     }
   };
 
+  const fetchRestockRequests = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const apiClient = createApiClient();
+      const response = await apiClient.get("inventory/restock-requests/");
+      setRestockRequests(Array.isArray(response.data) ? response.data : []);
+    } catch {
+      setRestockRequests([]);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "inventory") {
+      fetchRestockRequests();
+    }
+  }, [activeTab]);
+
   const requestRestock = async (item) => {
     if (!item?.originalId) {
       notify("error", "Unable to request restock for this item.");
       return;
     }
 
-    const defaultQty = Math.max((item.minimum || 10) - (item.current || 0), 1);
+    const defaultQty = Math.max((item.minimum || 10) - (item.quantity || 0), 1);
     const qtyPrompt = await Swal.fire({
       title: "Request Restock",
       text: `${item.name} (${item.sku})`,
@@ -551,6 +571,25 @@ function ManagerInventory() {
       );
     })
     : [];
+
+  const approvedRestockRequests = Array.isArray(restockRequests)
+    ? restockRequests.filter((req) => req.status === "approved")
+    : [];
+
+  const pendingRestockRequests = Array.isArray(restockRequests)
+    ? restockRequests.filter((req) => req.status === "pending")
+    : [];
+
+  const inventoryCategoryOptions = [
+    "All Categories",
+    ...Array.from(
+      new Set(
+        (Array.isArray(inventoryItems) ? inventoryItems : [])
+          .map((item) => item.category)
+          .filter(Boolean),
+      ),
+    ).sort((a, b) => a.localeCompare(b)),
+  ];
 
   // Safely filter services - ensure services is array
   const filteredServices = Array.isArray(services)
@@ -796,6 +835,65 @@ function ManagerInventory() {
           </div>
         )}
 
+        {activeTab === "inventory" && pendingRestockRequests.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5 mb-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-black text-amber-400 uppercase tracking-wider">
+                Pending Restock Requests
+              </h2>
+              <span className="text-xs text-gray-500">
+                {pendingRestockRequests.length} pending
+              </span>
+            </div>
+            <div className="space-y-2">
+              {pendingRestockRequests.slice(0, 4).map((req) => (
+                <div
+                  key={req.id}
+                  className="bg-gray-900/60 border border-white/5 rounded-xl px-4 py-3"
+                >
+                  <p className="text-sm text-white font-semibold">
+                    {req.inventory_item_name}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Qty {req.quantity_requested} · {req.branch_name || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "inventory" && approvedRestockRequests.length > 0 && (
+          <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5 mb-8 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-black text-cyan-400 uppercase tracking-wider">
+                Approved Requests
+              </h2>
+              <span className="text-xs text-gray-500">
+                {approvedRestockRequests.length} approved
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">
+              Waiting for Inventory to confirm stock receipt.
+            </p>
+            <div className="space-y-2">
+              {approvedRestockRequests.slice(0, 4).map((req) => (
+                <div
+                  key={req.id}
+                  className="bg-gray-900/60 border border-white/5 rounded-xl px-4 py-3"
+                >
+                  <p className="text-sm text-white font-semibold">
+                    {req.inventory_item_name}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Qty {req.quantity_requested} · {req.branch_name || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
@@ -830,15 +928,7 @@ function ManagerInventory() {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all cursor-pointer min-w-[150px]"
               >
-                {[
-                  "All Categories",
-                  "Lubricants",
-                  "Brakes",
-                  "Filters",
-                  "Batteries",
-                  "Tires",
-                  "Ignition",
-                ].map((o) => (
+                {inventoryCategoryOptions.map((o) => (
                   <option key={o}>{o}</option>
                 ))}
               </select>

@@ -34,7 +34,7 @@ ChartJS.register(
   Legend,
 );
 
-const SECTION_KEYS = ["overview", "revenue", "appointment", "customers", "inventory", "services"];
+const SECTION_KEYS = ["overview", "revenue", "appointment", "customers", "inventory", "services", "employees"];
 
 const STATUS_STYLE = {
   confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -228,6 +228,47 @@ export default function ManagerDashboard() {
     items: services,
     pageSize: 10,
     resetDeps: [services.length],
+  });
+
+  const employeeWorkloadRows = useMemo(() => {
+    const grouped = queueHistory.reduce((acc, entry) => {
+      const assignedName =
+        entry?.assigned_employee?.full_name ||
+        entry?.assigned_employee_name ||
+        "Unassigned";
+      if (!acc[assignedName]) {
+        acc[assignedName] = {
+          employee: assignedName,
+          total: 0,
+          completed: 0,
+          skipped: 0,
+        };
+      }
+
+      const status = normalizeStatus(entry?.status);
+      acc[assignedName].total += 1;
+      if (status === "done" || status === "completed") acc[assignedName].completed += 1;
+      if (status === "skipped") acc[assignedName].skipped += 1;
+      return acc;
+    }, {});
+
+    const rows = Object.values(grouped).sort((a, b) => {
+      const totalDiff = Number(b.total) - Number(a.total);
+      if (totalDiff !== 0) return totalDiff;
+      return Number(b.completed) - Number(a.completed);
+    });
+
+    const grandTotal = rows.reduce((sum, row) => sum + Number(row.total), 0);
+    return rows.map((row) => ({
+      ...row,
+      share: grandTotal > 0 ? (Number(row.total) / grandTotal) * 100 : 0,
+    }));
+  }, [queueHistory]);
+
+  const workloadPagination = usePagination({
+    items: employeeWorkloadRows,
+    pageSize: 8,
+    resetDeps: [employeeWorkloadRows.length],
   });
 
   const overviewTransactions = useMemo(() => {
@@ -604,6 +645,7 @@ export default function ManagerDashboard() {
     appointment: "Appointment",
     inventory: "Inventory",
     services: "Services",
+    employees: "Employees",
   }[activeView];
 
   const handleExportCSV = () => {
@@ -633,6 +675,12 @@ export default function ManagerDashboard() {
         ["Service", "Count", "Revenue"],
         "manager_services.csv",
       );
+    } else if (activeView === "employees") {
+      exportToCSV(
+        employeeWorkloadRows.map((row) => [row.employee, row.total, row.completed, row.skipped, row.share.toFixed(1)]),
+        ["Employee", "Total Tasks", "Completed", "Skipped", "Workload Share (%)"],
+        "manager_employees_workload.csv",
+      );
     }
   };
 
@@ -644,6 +692,7 @@ export default function ManagerDashboard() {
       appointment: "#manager-appointment",
       inventory: "#manager-inventory",
       services: "#manager-services",
+      employees: "#manager-employees",
     }[activeView];
     const activeSection = document.querySelector(selector);
     if (!activeSection) return;
@@ -1261,6 +1310,99 @@ export default function ManagerDashboard() {
                     })
                   )}
                   <Pagination current={servicesPagination.currentPage} total={servicesPagination.totalPages} onChange={servicesPagination.setCurrentPage} className="px-6 py-4" />
+                </div>
+              </section>
+            )}
+
+            {activeView === "employees" && (
+              <section id="manager-employees" className="scroll-mt-24">
+                <div className="mb-4">
+                  <h2 className="text-xl font-black text-white">Employees</h2>
+                  <p className="text-gray-500 text-sm mt-0.5">Track employee workload distribution</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                  {[
+                    {
+                      title: "Assigned Employees",
+                      value: String(employeeWorkloadRows.filter((row) => row.employee !== "Unassigned").length),
+                      sub: "With recorded service load",
+                      accentBg: "bg-cyan-500/10",
+                      accentText: "text-cyan-400",
+                      border: "border-cyan-500/20",
+                      icon: (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V10H2v10h5m10 0v-2a4 4 0 10-8 0v2m8 0H9m4-12a4 4 0 110 8 4 4 0 010-8z" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      title: "Total Assigned Tasks",
+                      value: String(employeeWorkloadRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0)),
+                      accentBg: "bg-blue-500/10",
+                      accentText: "text-blue-400",
+                      border: "border-blue-500/20",
+                      icon: (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      title: "Completion Rate",
+                      value: `${(
+                        (employeeWorkloadRows.reduce((sum, row) => sum + Number(row.completed ?? 0), 0) /
+                          Math.max(1, employeeWorkloadRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0))) *
+                        100
+                      ).toFixed(1)}%`,
+                      sub: "Completed tasks across branch",
+                      accentBg: "bg-emerald-500/10",
+                      accentText: "text-emerald-400",
+                      border: "border-emerald-500/20",
+                      icon: (
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ),
+                    },
+                  ].map((c, i) => (
+                    <StatCard key={i} {...c} />
+                  ))}
+                </div>
+
+                <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+                  <div className="px-6 py-4 border-b border-white/5">
+                    <h3 className="text-lg font-black text-white">Employee Workload Distribution</h3>
+                    <p className="text-gray-500 text-sm mt-0.5">Tasks handled per employee in this branch</p>
+                  </div>
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                    <div className="col-span-4">Employee</div>
+                    <div className="col-span-2">Total Tasks</div>
+                    <div className="col-span-2">Completed</div>
+                    <div className="col-span-2">Skipped</div>
+                    <div className="col-span-2">Workload Share</div>
+                  </div>
+                  {employeeWorkloadRows.length === 0 ? (
+                    <div className="px-6 py-12 text-center text-gray-500 text-sm">No workload data available yet.</div>
+                  ) : (
+                    workloadPagination.paginatedItems.map((row, idx) => (
+                      <div key={`${row.employee}-${idx}`} className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center">
+                        <div className="col-span-4 text-white font-semibold text-sm">{row.employee}</div>
+                        <div className="col-span-2 text-gray-300 text-sm font-semibold">{row.total}</div>
+                        <div className="col-span-2 text-emerald-400 text-sm font-semibold">{row.completed}</div>
+                        <div className="col-span-2 text-amber-400 text-sm font-semibold">{row.skipped}</div>
+                        <div className="col-span-2">
+                          <div className="h-2 rounded-full bg-gray-800 overflow-hidden mb-1">
+                            <div
+                              className="h-full rounded-full bg-cyan-500"
+                              style={{ width: `${Math.min(100, Math.max(0, row.share)).toFixed(1)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-cyan-300 font-semibold">{row.share.toFixed(1)}%</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <Pagination current={workloadPagination.currentPage} total={workloadPagination.totalPages} onChange={workloadPagination.setCurrentPage} className="px-6 py-4" />
                 </div>
               </section>
             )}

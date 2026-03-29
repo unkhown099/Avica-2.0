@@ -19,6 +19,7 @@ const MENU_ITEMS = {
         { key: "customers", label: "Customers" },
         { key: "inventory", label: "Inventory" },
         { key: "services", label: "Services" },
+        { key: "employees", label: "Employees" },
       ],
     },
     {
@@ -62,8 +63,8 @@ const MENU_ITEMS = {
       children: [
         { key: "overview", label: "Overview" },
         { key: "revenue", label: "Revenue" },
-        { key: "customers", label: "Customers" },
         { key: "appointment", label: "Appointment" },
+        { key: "customers", label: "Customers" },
         { key: "inventory", label: "Inventory" },
         { key: "services", label: "Services" },
       ],
@@ -104,10 +105,11 @@ const MENU_ITEMS = {
       children: [
         { key: "overview", label: "Overview" },
         { key: "revenue", label: "Revenue" },
-        { key: "customers", label: "Customers" },
         { key: "appointment", label: "Appointment" },
+        { key: "customers", label: "Customers" },
         { key: "inventory", label: "Inventory" },
         { key: "services", label: "Services" },
+        { key: "employees", label: "Employees" },
       ],
     },
     {
@@ -130,6 +132,10 @@ const MENU_ITEMS = {
       name: "History",
       path: "/manager/history",
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+      children: [
+        { key: "service-history", label: "Service History" },
+        { key: "inventory-transaction", label: "Inventory Transaction" },
+      ],
     },
     {
       name: "Customer Management",
@@ -164,11 +170,6 @@ const MENU_ITEMS = {
       path: "/staff/queue",
       icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9",
     },
-    {
-      name: "Vehicle Recognition",
-      path: "/staff/vehicle-recognition",
-      icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9",
-    },
   ],
 
   employee: [
@@ -191,6 +192,11 @@ const MENU_ITEMS = {
       name: "Job History",
       path: "/mechanic/job-history",
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+    },
+    {
+      name: "Vehicle Recognition",
+      path: "/mechanic/vehicle-recognition",
+      icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9",
     },
   ],
 

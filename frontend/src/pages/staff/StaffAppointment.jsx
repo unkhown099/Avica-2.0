@@ -71,6 +71,29 @@ const statusLabel = {
   done: "Done",
 };
 
+const APPOINTMENT_STATUS_PRIORITY = {
+  pending: 0,
+  confirmed: 1,
+  rescheduled: 2,
+  done: 3,
+  cancelled: 4,
+  no_show: 5,
+};
+
+function sortBookingsByPriority(rows) {
+  return [...rows].sort((a, b) => {
+    const aPriority = APPOINTMENT_STATUS_PRIORITY[a?.status] ?? 3;
+    const bPriority = APPOINTMENT_STATUS_PRIORITY[b?.status] ?? 3;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+
+    const aTime = String(a?.time ?? "");
+    const bTime = String(b?.time ?? "");
+    if (aTime !== bTime) return aTime.localeCompare(bTime);
+
+    return (a?.id ?? 0) - (b?.id ?? 0);
+  });
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 function StaffAppointments() {
@@ -164,7 +187,9 @@ function StaffAppointments() {
   }, [employees, bookings]);
 
   const selectedISO = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
-  const dayBookings = bookings.filter((b) => b.date === selectedISO);
+  const dayBookings = sortBookingsByPriority(
+    bookings.filter((b) => b.date === selectedISO),
+  );
 
   const dotsForDay = (day) => {
     const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -579,7 +604,7 @@ function StaffAppointments() {
             )}
 
             {!loading && !error && dayBookings.length > 0 && (
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
                 {dayBookings.map((b) => {
                   const isWalkIn = b.notes?.toLowerCase().includes("walk-in");
                   // FIX 1: icon bg also handles "done"

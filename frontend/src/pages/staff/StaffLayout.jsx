@@ -7,7 +7,6 @@ const PAGE_TITLES = {
   "/staff/pos": "POS",
   "/staff/appointments": "Appointments",
   "/staff/queue": "Queue Management",
-  "/staff/vehicle-recognition": "Vehicle Recognition",
 };
 
 function StaffLayout({ children }) {

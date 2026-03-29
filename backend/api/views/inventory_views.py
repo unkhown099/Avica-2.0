@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated  # ← changed
 from rest_framework import status
 from django.utils import timezone
 from django.db import transaction
-from ..models import InventoryItem, RestockRequest, InventoryTransaction
+from ..models import InventoryItem, RestockRequest, InventoryTransaction, Staff, Notification
 from ..serializers.inventory_serializer import InventoryItemSerializer
 from ..serializers.restock_serializer import RestockRequestSerializer
 from ..serializers.inventory_transaction_serializer import InventoryTransactionSerializer
@@ -58,6 +58,28 @@ def _log_inventory_transaction(
         performed_by=performed_by,
         notes=notes or "",
     )
+
+
+def _notify_roles(*, roles, title, message, branch_id=None, notification_type="inventory"):
+    recipients = Staff.objects.filter(role__in=roles, status="Active").select_related("user")
+    if branch_id is not None:
+        recipients = recipients.filter(branch_id=branch_id)
+
+    notifications = []
+    for staff_member in recipients:
+        if not getattr(staff_member, "user_id", None):
+            continue
+        notifications.append(
+            Notification(
+                user_id=staff_member.user_id,
+                title=title,
+                message=message,
+                notification_type=notification_type,
+            )
+        )
+
+    if notifications:
+        Notification.objects.bulk_create(notifications)
 
 
 class InventoryListCreateView(APIView):
@@ -230,6 +252,16 @@ class RestockRequestListCreateView(APIView):
                 performed_by=requester_staff,
                 notes=rr.notes,
             )
+            requester_name = f"{requester_staff.first_name} {requester_staff.last_name}".strip() or "A staff member"
+            _notify_roles(
+                roles=["Admin"],
+                title="New Stock Request",
+                message=(
+                    f"{requester_name} requested {rr.quantity_requested} units of "
+                    f"{rr.inventory_item.name} for {rr.branch.name}."
+                ),
+                notification_type="inventory",
+            )
             return Response(RestockRequestSerializer(rr).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -239,8 +271,11 @@ class RestockRequestActionView(APIView):
 
     def patch(self, request, pk):
         role = get_staff_role(request)
-        if role != "Admin":
-            return Response({"detail": "Only Admin can review restock requests."}, status=403)
+        if role not in ["Admin", "Inventory"]:
+            return Response(
+                {"detail": "Only Admin or Inventory staff can perform this action."},
+                status=403,
+            )
 
         try:
             rr = RestockRequest.objects.select_related("inventory_item").get(pk=pk)
@@ -249,80 +284,138 @@ class RestockRequestActionView(APIView):
 
         action = request.data.get("action")
         reviewer_note = request.data.get("reviewer_note", "")
-        if rr.status != "pending":
-            return Response({"detail": "Request is already reviewed."}, status=400)
-        if action not in ["approve", "reject"]:
+        actor = getattr(request.user, "staff_profile", None)
+
+        if action not in ["approve", "reject", "receive"]:
             return Response({"detail": "Invalid action."}, status=400)
 
-        reviewer = getattr(request.user, "staff_profile", None)
-        rr.reviewed_by = reviewer
-        rr.reviewer_note = reviewer_note
-        rr.reviewed_at = timezone.now()
+        if action in ["approve", "reject"]:
+            if role != "Admin":
+                return Response({"detail": "Only Admin can review restock requests."}, status=403)
+            if rr.status != "pending":
+                return Response({"detail": "Only pending requests can be reviewed."}, status=400)
 
-        if action == "approve":
-            central_item = InventoryItem.objects.filter(
-                branch__isnull=True,
-                name=rr.inventory_item.name,
-                category=rr.inventory_item.category,
-            ).first()
-            if not central_item:
-                return Response(
-                    {"detail": "No central stock found for this item."},
-                    status=400,
-                )
-            if (central_item.quantity or 0) < rr.quantity_requested:
-                return Response(
-                    {"detail": "Insufficient central stock for this transfer."},
-                    status=400,
-                )
+            rr.reviewed_by = actor
+            rr.reviewer_note = reviewer_note
+            rr.reviewed_at = timezone.now()
 
-            with transaction.atomic():
-                source_before = central_item.quantity or 0
-                central_item.quantity = (central_item.quantity or 0) - rr.quantity_requested
-                central_item.save(update_fields=["quantity", "updated_at"])
-
-                target_before = rr.inventory_item.quantity or 0
-                rr.inventory_item.quantity = (rr.inventory_item.quantity or 0) + rr.quantity_requested
-                rr.inventory_item.save(update_fields=["quantity", "updated_at"])
-
+            if action == "approve":
                 rr.status = "approved"
                 rr.save(update_fields=["status", "reviewed_by", "reviewer_note", "reviewed_at", "updated_at"])
-
-                _log_inventory_transaction(
-                    inventory_item=central_item,
-                    action_type="transfer_out",
-                    quantity_before=source_before,
-                    quantity_after=central_item.quantity or 0,
-                    quantity_changed=-(rr.quantity_requested or 0),
-                    branch_name="Central",
-                    target_branch_name=rr.branch.name if rr.branch else "",
-                    performed_by=reviewer,
-                    notes=f"Approved restock request #{rr.id}",
-                )
                 _log_inventory_transaction(
                     inventory_item=rr.inventory_item,
-                    action_type="transfer_in",
-                    quantity_before=target_before,
+                    action_type="restock_approved",
+                    quantity_before=rr.inventory_item.quantity or 0,
                     quantity_after=rr.inventory_item.quantity or 0,
-                    quantity_changed=rr.quantity_requested or 0,
+                    quantity_changed=0,
                     branch_name=rr.branch.name if rr.branch else "",
-                    target_branch_name="Central",
-                    performed_by=reviewer,
+                    performed_by=actor,
                     notes=f"Approved restock request #{rr.id}",
                 )
-        else:
-            rr.status = "rejected"
-            rr.save(update_fields=["status", "reviewed_by", "reviewer_note", "reviewed_at", "updated_at"])
+                _notify_roles(
+                    roles=["Inventory"],
+                    branch_id=rr.branch_id,
+                    title="Stock Request Approved",
+                    message=(
+                        f"Restock request #{rr.id} for {rr.inventory_item.name} "
+                        f"has been approved. Please confirm when stock is received."
+                    ),
+                    notification_type="inventory",
+                )
+            else:
+                rr.status = "rejected"
+                rr.save(update_fields=["status", "reviewed_by", "reviewer_note", "reviewed_at", "updated_at"])
+                _log_inventory_transaction(
+                    inventory_item=rr.inventory_item,
+                    action_type="restock_rejected",
+                    quantity_before=rr.inventory_item.quantity or 0,
+                    quantity_after=rr.inventory_item.quantity or 0,
+                    quantity_changed=0,
+                    branch_name=rr.branch.name if rr.branch else "",
+                    performed_by=actor,
+                    notes=reviewer_note,
+                )
+            return Response(RestockRequestSerializer(rr).data)
+
+        # receive action
+        if role != "Inventory":
+            return Response({"detail": "Only Inventory staff can confirm stock receipt."}, status=403)
+        if not actor or actor.branch_id != rr.branch_id:
+            return Response({"detail": "You can only receive stock for your assigned branch."}, status=403)
+        if rr.status != "approved":
+            return Response({"detail": "Only approved requests can be marked as received."}, status=400)
+
+        central_item = InventoryItem.objects.filter(
+            branch__isnull=True,
+            name=rr.inventory_item.name,
+            category=rr.inventory_item.category,
+        ).first()
+        if not central_item:
+            return Response(
+                {"detail": "No central stock found for this item."},
+                status=400,
+            )
+        if (central_item.quantity or 0) < rr.quantity_requested:
+            return Response(
+                {"detail": "Insufficient central stock for this transfer."},
+                status=400,
+            )
+
+        with transaction.atomic():
+            source_before = central_item.quantity or 0
+            central_item.quantity = (central_item.quantity or 0) - rr.quantity_requested
+            central_item.save(update_fields=["quantity", "updated_at"])
+
+            target_before = rr.inventory_item.quantity or 0
+            rr.inventory_item.quantity = (rr.inventory_item.quantity or 0) + rr.quantity_requested
+            rr.inventory_item.save(update_fields=["quantity", "updated_at"])
+
+            rr.status = "received"
+            rr.save(update_fields=["status", "updated_at"])
+
+            _log_inventory_transaction(
+                inventory_item=central_item,
+                action_type="transfer_out",
+                quantity_before=source_before,
+                quantity_after=central_item.quantity or 0,
+                quantity_changed=-(rr.quantity_requested or 0),
+                branch_name="Central",
+                target_branch_name=rr.branch.name if rr.branch else "",
+                performed_by=actor,
+                notes=f"Received restock request #{rr.id}",
+            )
             _log_inventory_transaction(
                 inventory_item=rr.inventory_item,
-                action_type="restock_rejected",
-                quantity_before=rr.inventory_item.quantity or 0,
+                action_type="transfer_in",
+                quantity_before=target_before,
                 quantity_after=rr.inventory_item.quantity or 0,
-                quantity_changed=0,
+                quantity_changed=rr.quantity_requested or 0,
                 branch_name=rr.branch.name if rr.branch else "",
-                performed_by=reviewer,
-                notes=reviewer_note,
+                target_branch_name="Central",
+                performed_by=actor,
+                notes=f"Received restock request #{rr.id}",
             )
+            _log_inventory_transaction(
+                inventory_item=rr.inventory_item,
+                action_type="restock_received",
+                quantity_before=target_before,
+                quantity_after=rr.inventory_item.quantity or 0,
+                quantity_changed=rr.quantity_requested or 0,
+                branch_name=rr.branch.name if rr.branch else "",
+                performed_by=actor,
+                notes=f"Inventory confirmed receipt for request #{rr.id}",
+            )
+
+        _notify_roles(
+            roles=["Admin"],
+            title="Stock Received",
+            message=(
+                f"Inventory confirmed stock receipt for request #{rr.id} "
+                f"({rr.inventory_item.name}, qty {rr.quantity_requested}) in {rr.branch.name}."
+            ),
+            notification_type="inventory",
+        )
+
         return Response(RestockRequestSerializer(rr).data)
 
 
@@ -429,8 +522,11 @@ class InventoryTransactionHistoryView(APIView):
 
     def get(self, request):
         role = get_staff_role(request)
-        if role != "Admin":
-            return Response({"detail": "Only Admin can view inventory transactions."}, status=403)
+        if role not in ["Admin", "Inventory", "Branch Manager"]:
+            return Response(
+                {"detail": "Only Admin, Inventory, or Branch Manager can view inventory transactions."},
+                status=403,
+            )
 
         limit_raw = request.query_params.get("limit", "50")
         try:
@@ -438,5 +534,14 @@ class InventoryTransactionHistoryView(APIView):
         except (TypeError, ValueError):
             limit = 50
 
-        qs = InventoryTransaction.objects.select_related("inventory_item", "performed_by").all()[:limit]
+        qs = InventoryTransaction.objects.select_related("inventory_item", "performed_by").all()
+
+        if role in ["Inventory", "Branch Manager"]:
+            requester_staff = getattr(request.user, "staff_profile", None)
+            branch_name = requester_staff.branch.name if requester_staff and requester_staff.branch else ""
+            if not branch_name:
+                return Response([], status=200)
+            qs = qs.filter(branch_name=branch_name)
+
+        qs = qs[:limit]
         return Response(InventoryTransactionSerializer(qs, many=True).data)

@@ -48,6 +48,8 @@ const ACTION_CONFIG = {
   transfer_in:      { label: "Transfer In",  color: "text-emerald-400 bg-emerald-500/10", sign: "+" },
   transfer_out:     { label: "Transfer Out", color: "text-blue-400 bg-blue-500/10",       sign: "−" },
   restock_request:  { label: "Restock Req",  color: "text-amber-400 bg-amber-500/10",     sign: "~" },
+  restock_approved: { label: "Approved",     color: "text-cyan-400 bg-cyan-500/10",       sign: "~" },
+  restock_received: { label: "Received",     color: "text-emerald-400 bg-emerald-500/10", sign: "+" },
   restock_rejected: { label: "Rejected",     color: "text-red-400 bg-red-500/10",         sign: "✕" },
   update:           { label: "Updated",      color: "text-purple-400 bg-purple-500/10",   sign: "~" },
   create:           { label: "Created",      color: "text-cyan-400 bg-cyan-500/10",       sign: "+" },
@@ -122,7 +124,9 @@ export default function InventoryDashboard() {
                 branch_name:      rr.branch_name ?? rr.branch?.name ?? "—",
                 action_type:
                   rr.status === "approved"
-                    ? "transfer_in"
+                    ? "restock_approved"
+                    : rr.status === "received"
+                    ? "restock_received"
                     : rr.status === "rejected"
                     ? "restock_rejected"
                     : "restock_request",

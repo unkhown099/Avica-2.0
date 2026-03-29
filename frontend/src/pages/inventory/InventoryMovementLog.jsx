@@ -1,250 +1,180 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import InventoryLayout from "./InventoryLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
-
-const MOVEMENT_DATA = [
-  {
-    id: 1,
-    item: "Engine Oil (5W-30)",
-    category: "Consumables",
-    sku: "EO-5W30-4L",
-    branch: "Quezon City",
-    type: "Used",
-    qty: -8,
-    date: "2025-06-15",
-    time: "02:45 PM",
-    by: "Juan dela Cruz",
-    notes: "Oil change service",
-  },
-  {
-    id: 2,
-    item: "Oil Filter",
-    category: "Parts",
-    sku: "OF-UNI-001",
-    branch: "Makati",
-    type: "Restocked",
-    qty: +20,
-    date: "2025-06-15",
-    time: "10:00 AM",
-    by: "System",
-    notes: "Supplier delivery — AutoParts PH",
-  },
-  {
-    id: 3,
-    item: "Brake Pads (Front)",
-    category: "Parts",
-    sku: "BP-FRT-003",
-    branch: "Pasig",
-    type: "Transfer Out",
-    qty: -3,
-    date: "2025-06-14",
-    time: "04:15 PM",
-    by: "Pedro Reyes",
-    notes: "Transferred to Makati branch",
-  },
-  {
-    id: 4,
-    item: "Brake Pads (Front)",
-    category: "Parts",
-    sku: "BP-FRT-003",
-    branch: "Makati",
-    type: "Transfer In",
-    qty: +3,
-    date: "2025-06-14",
-    time: "04:20 PM",
-    by: "Pedro Reyes",
-    notes: "Received from Pasig branch",
-  },
-  {
-    id: 5,
-    item: "Transmission Fluid",
-    category: "Consumables",
-    sku: "TF-ATF-1L",
-    branch: "Quezon City",
-    type: "Used",
-    qty: -5,
-    date: "2025-06-14",
-    time: "01:30 PM",
-    by: "Carlo Mendoza",
-    notes: "Transmission flush",
-  },
-  {
-    id: 6,
-    item: "Coolant (Pre-mixed)",
-    category: "Consumables",
-    sku: "CL-PRE-1L",
-    branch: "Makati",
-    type: "Low Stock Alert",
-    qty: 0,
-    date: "2025-06-13",
-    time: "09:00 AM",
-    by: "System",
-    notes: "Stock fell below reorder threshold",
-  },
-  {
-    id: 7,
-    item: "Air Filter",
-    category: "Parts",
-    sku: "AF-UNI-002",
-    branch: "Mandaluyong",
-    type: "Restocked",
-    qty: +15,
-    date: "2025-06-13",
-    time: "08:30 AM",
-    by: "System",
-    notes: "Supplier delivery — AutoParts PH",
-  },
-  {
-    id: 8,
-    item: "Spark Plug (Iridium)",
-    category: "Parts",
-    sku: "SP-IRD-004",
-    branch: "Pasig",
-    type: "Used",
-    qty: -4,
-    date: "2025-06-12",
-    time: "03:00 PM",
-    by: "Ana Gonzales",
-    notes: "Spark plug replacement",
-  },
-  {
-    id: 9,
-    item: "Windshield Wiper (21in)",
-    category: "Accessories",
-    sku: "WW-21-BLK",
-    branch: "Quezon City",
-    type: "Used",
-    qty: -2,
-    date: "2025-06-12",
-    time: "11:45 AM",
-    by: "Maria Santos",
-    notes: "Wiper blade replacement",
-  },
-  {
-    id: 10,
-    item: "Tire Valve Stem",
-    category: "Accessories",
-    sku: "TV-STM-005",
-    branch: "Pasig",
-    type: "Restocked",
-    qty: +50,
-    date: "2025-06-11",
-    time: "09:15 AM",
-    by: "System",
-    notes: "Monthly stock replenishment",
-  },
-  {
-    id: 11,
-    item: "Engine Oil (5W-30)",
-    category: "Consumables",
-    sku: "EO-5W30-4L",
-    branch: "Makati",
-    type: "Used",
-    qty: -6,
-    date: "2025-06-11",
-    time: "02:00 PM",
-    by: "Jose Reyes",
-    notes: "Express oil change",
-  },
-  {
-    id: 12,
-    item: "Cabin Air Filter",
-    category: "Parts",
-    sku: "CA-FLT-006",
-    branch: "Mandaluyong",
-    type: "Used",
-    qty: -1,
-    date: "2025-06-10",
-    time: "04:30 PM",
-    by: "Diego Cruz",
-    notes: "AC maintenance service",
-  },
-];
+import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 
 const TYPE_STYLES = {
-  Used: {
-    bg: "bg-red-500/10",
-    text: "text-red-400",
-    border: "border-red-500/20",
+  create: {
+    label: "Created",
+    bg: "bg-cyan-500/10",
+    text: "text-cyan-400",
+    border: "border-cyan-500/20",
+    icon: "+",
+  },
+  update: {
+    label: "Updated",
+    bg: "bg-violet-500/10",
+    text: "text-violet-400",
+    border: "border-violet-500/20",
+    icon: "~",
+  },
+  archive: {
+    label: "Archived",
+    bg: "bg-gray-500/10",
+    text: "text-gray-400",
+    border: "border-gray-500/20",
     icon: "−",
   },
-  Restocked: {
+  restore: {
+    label: "Restored",
     bg: "bg-emerald-500/10",
     text: "text-emerald-400",
     border: "border-emerald-500/20",
     icon: "+",
   },
-  "Transfer Out": {
+  transfer_out: {
+    label: "Transfer Out",
+    bg: "bg-red-500/10",
+    text: "text-red-400",
+    border: "border-red-500/20",
+    icon: "−",
+  },
+  transfer_in: {
+    label: "Transfer In",
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-400",
+    border: "border-emerald-500/20",
+    icon: "+",
+  },
+  restock_request: {
+    label: "Restock Request",
+    bg: "bg-amber-500/10",
+    text: "text-amber-400",
+    border: "border-amber-500/20",
+    icon: "~",
+  },
+  restock_approved: {
+    label: "Restock Approved",
     bg: "bg-orange-500/10",
     text: "text-orange-400",
     border: "border-orange-500/20",
-    icon: "→",
+    icon: "~",
   },
-  "Transfer In": {
+  restock_received: {
+    label: "Restock Received",
     bg: "bg-blue-500/10",
     text: "text-blue-400",
     border: "border-blue-500/20",
-    icon: "←",
+    icon: "+",
   },
-  "Low Stock Alert": {
-    bg: "bg-amber-500/10",
-    text: "text-amber-400",
-    border: "border-amber-500/20",
-    icon: "!",
-  },
-};
-
-const CATEGORY_STYLES = {
-  Parts: {
-    bg: "bg-blue-500/10",
-    text: "text-blue-400",
-    border: "border-blue-500/20",
-  },
-  Consumables: {
-    bg: "bg-purple-500/10",
-    text: "text-purple-400",
-    border: "border-purple-500/20",
-  },
-  Accessories: {
-    bg: "bg-amber-500/10",
-    text: "text-amber-400",
-    border: "border-amber-500/20",
+  restock_rejected: {
+    label: "Restock Rejected",
+    bg: "bg-rose-500/10",
+    text: "text-rose-400",
+    border: "border-rose-500/20",
+    icon: "x",
   },
 };
 
-const ALL_TYPES = [
-  "All Types",
-  "Used",
-  "Restocked",
-  "Transfer In",
-  "Transfer Out",
-  "Low Stock Alert",
-];
-const ALL_BRANCHES = [
-  "All Branches",
-  "Quezon City",
-  "Makati",
-  "Pasig",
-  "Mandaluyong",
-];
+const DEFAULT_TYPE_STYLE = {
+  label: "Movement",
+  bg: "bg-gray-500/10",
+  text: "text-gray-400",
+  border: "border-gray-500/20",
+  icon: "~",
+};
+
+const formatActionLabel = (actionType) => {
+  const style = TYPE_STYLES[actionType];
+  if (style?.label) return style.label;
+  return String(actionType || "movement")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
 function MovementLog() {
+  const { headers, isAuthenticated } = useAuth();
+  const [movements, setMovements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All Types");
-  const [branchFilter, setBranchFilter] = useState("All Branches");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [branchFilter, setBranchFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const filtered = MOVEMENT_DATA.filter((m) => {
+  const fetchMovements = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      setLoading(true);
+      setError("");
+      const res = await fetch(`${API_BASE}/inventory/transactions/?limit=200`, {
+        headers,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || `Failed to load movement log (${res.status})`);
+      }
+      const data = await res.json();
+      const mapped = (Array.isArray(data) ? data : []).map((tx) => {
+        const dt = tx.created_at ? new Date(tx.created_at) : null;
+        const date = dt
+          ? dt.toLocaleDateString("en-CA")
+          : "";
+        const time = dt
+          ? dt.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })
+          : "";
+        return {
+          id: tx.id,
+          item: tx.item_name || "Unknown Item",
+          sku: tx.item_sku || "—",
+          branch: tx.branch_name || "Central",
+          type: tx.action_type || "",
+          typeLabel: formatActionLabel(tx.action_type),
+          qty: Number(tx.quantity_changed || 0),
+          date,
+          time,
+          by: tx.performed_by_name || "System",
+          notes: tx.notes || "",
+          createdAtRaw: tx.created_at || "",
+        };
+      });
+      setMovements(mapped);
+    } catch (err) {
+      setError(err.message || "Failed to load movement log.");
+      setMovements([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [headers, isAuthenticated]);
+
+  useEffect(() => {
+    fetchMovements();
+  }, [fetchMovements]);
+
+  const allTypeOptions = [
+    { value: "all", label: "All Types" },
+    ...Array.from(new Set(movements.map((m) => m.type).filter(Boolean))).map((type) => ({
+      value: type,
+      label: formatActionLabel(type),
+    })),
+  ];
+
+  const allBranchOptions = [
+    "all",
+    ...Array.from(new Set(movements.map((m) => m.branch).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+  ];
+
+  const filtered = movements.filter((m) => {
     const q = search.toLowerCase();
     const matchSearch =
       m.item.toLowerCase().includes(q) ||
       m.sku.toLowerCase().includes(q) ||
       m.by.toLowerCase().includes(q);
-    const matchType = typeFilter === "All Types" || m.type === typeFilter;
-    const matchBranch =
-      branchFilter === "All Branches" || m.branch === branchFilter;
+    const matchType = typeFilter === "all" || m.type === typeFilter;
+    const matchBranch = branchFilter === "all" || m.branch === branchFilter;
     const matchFrom = !dateFrom || m.date >= dateFrom;
     const matchTo = !dateTo || m.date <= dateTo;
     return matchSearch && matchType && matchBranch && matchFrom && matchTo;
@@ -264,15 +194,14 @@ function MovementLog() {
   });
 
   // Summary counts
-  const usedCount = MOVEMENT_DATA.filter((m) => m.type === "Used").reduce(
-    (acc, m) => acc + Math.abs(m.qty),
-    0,
-  );
-  const restockedCount = MOVEMENT_DATA.filter(
-    (m) => m.type === "Restocked",
-  ).reduce((acc, m) => acc + m.qty, 0);
-  const transferCount = MOVEMENT_DATA.filter(
-    (m) => m.type === "Transfer In" || m.type === "Transfer Out",
+  const usedCount = movements
+    .filter((m) => m.qty < 0)
+    .reduce((acc, m) => acc + Math.abs(m.qty), 0);
+  const restockedCount = movements
+    .filter((m) => m.qty > 0)
+    .reduce((acc, m) => acc + m.qty, 0);
+  const transferCount = movements.filter(
+    (m) => m.type === "transfer_in" || m.type === "transfer_out",
   ).length;
 
   return (
@@ -305,6 +234,31 @@ function MovementLog() {
             Export CSV
           </button>
         </div>
+
+        {error && (
+          <div className="mb-6 flex items-center gap-3 px-5 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm font-semibold">
+            <svg
+              className="w-5 h-5 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
+            </svg>
+            {error}
+            <button
+              onClick={fetchMovements}
+              className="ml-auto text-xs font-semibold underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Quick stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
@@ -373,8 +327,10 @@ function MovementLog() {
               onChange={(e) => setTypeFilter(e.target.value)}
               className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors"
             >
-              {ALL_TYPES.map((t) => (
-                <option key={t}>{t}</option>
+              {allTypeOptions.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
               ))}
             </select>
             <select
@@ -382,8 +338,10 @@ function MovementLog() {
               onChange={(e) => setBranchFilter(e.target.value)}
               className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors"
             >
-              {ALL_BRANCHES.map((b) => (
-                <option key={b}>{b}</option>
+              {allBranchOptions.map((b) => (
+                <option key={b} value={b}>
+                  {b === "all" ? "All Branches" : b}
+                </option>
               ))}
             </select>
             <div className="flex items-center gap-2">
@@ -425,7 +383,11 @@ function MovementLog() {
             <div className="col-span-2">By / Notes</div>
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <p className="text-gray-500 text-sm">Loading movement records...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               <p className="text-gray-500 text-sm">
                 No records match your filters.
@@ -433,8 +395,7 @@ function MovementLog() {
             </div>
           ) : (
             paginatedItems.map((m) => {
-              const t = TYPE_STYLES[m.type] || TYPE_STYLES.Used;
-              const cat = CATEGORY_STYLES[m.category];
+              const t = TYPE_STYLES[m.type] || DEFAULT_TYPE_STYLE;
               return (
                 <div
                   key={m.id}
@@ -451,7 +412,7 @@ function MovementLog() {
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${t.bg} ${t.text} ${t.border}`}
                         >
-                          {m.type}
+                          {m.typeLabel}
                         </span>
                         <span className="text-gray-500 text-xs">
                           {m.branch}
@@ -474,14 +435,7 @@ function MovementLog() {
                   {/* Desktop */}
                   <div className="hidden lg:block col-span-3">
                     <p className="text-white font-semibold text-sm">{m.item}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-xs font-semibold ${cat.bg} ${cat.text}`}
-                      >
-                        {m.category}
-                      </span>
-                      <span className="text-gray-600 text-xs">{m.sku}</span>
-                    </div>
+                    <span className="text-gray-600 text-xs">{m.sku}</span>
                   </div>
                   <div className="hidden lg:flex col-span-2 items-center">
                     <span className="text-gray-400 text-sm">{m.branch}</span>
@@ -496,7 +450,7 @@ function MovementLog() {
                         {t.icon}
                       </span>
                       <span className={`text-xs font-semibold ${t.text}`}>
-                        {m.type}
+                        {m.typeLabel}
                       </span>
                     </div>
                   </div>
@@ -511,7 +465,7 @@ function MovementLog() {
                     <div>
                       <p className="text-gray-300 text-sm">{m.date}</p>
                       <p className="text-gray-600 text-xs">{m.time}</p>
-                    </div>
+                  </div>
                   </div>
                   <div className="hidden lg:flex col-span-2 items-center">
                     <div>

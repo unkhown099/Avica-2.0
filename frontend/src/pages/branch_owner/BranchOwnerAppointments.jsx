@@ -12,6 +12,29 @@ const STATUS_STYLE = {
   done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
 };
 
+const APPOINTMENT_STATUS_PRIORITY = {
+  pending: 0,
+  confirmed: 1,
+  rescheduled: 2,
+  done: 3,
+  cancelled: 4,
+  no_show: 5,
+};
+
+function sortAppointmentsByPriority(rows) {
+  return [...rows].sort((a, b) => {
+    const aPriority = APPOINTMENT_STATUS_PRIORITY[a?.status] ?? 3;
+    const bPriority = APPOINTMENT_STATUS_PRIORITY[b?.status] ?? 3;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+
+    const aTime = String(a?.time ?? "");
+    const bTime = String(b?.time ?? "");
+    if (aTime !== bTime) return aTime.localeCompare(bTime);
+
+    return (a?.id ?? 0) - (b?.id ?? 0);
+  });
+}
+
 function pad(n) {
   return String(n).padStart(2, "0");
 }
@@ -122,8 +145,10 @@ export default function BranchOwnerAppointments() {
     .filter((s) => s === "pending").length;
   const totalCount = Object.values(calendar).flat().length;
 
+  const sortedAppointments = sortAppointmentsByPriority(appointments);
+
   const appointmentsPagination = usePagination({
-    items: appointments,
+    items: sortedAppointments,
     pageSize: 8,
     resetDeps: [appointments.length, selectedDate, branchFilter],
   });
@@ -372,7 +397,7 @@ export default function BranchOwnerAppointments() {
               </div>
             ) : (
               <>
-                <div className="space-y-3 sm:space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                <div className="space-y-3 sm:space-y-4 max-h-[65vh] overflow-y-auto pr-1">
                   {appointmentsPagination.paginatedItems.map((apt) => (
                     <div
                       key={apt.id}

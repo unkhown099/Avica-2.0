@@ -399,6 +399,39 @@ def _booking_to_queue_entry(booking):
     return entry
 
 
+def _notify_employee_task_assigned(queue_entry):
+    """Notify employee when a task is assigned to them."""
+    assigned_employee = getattr(queue_entry, "assigned_employee", None)
+    if not assigned_employee:
+        return
+
+    user = getattr(assigned_employee, "user", None)
+    if not user:
+        return
+
+    customer_name = getattr(queue_entry, "customer_name", "Customer")
+    service = getattr(queue_entry, "service", "Service")
+    vehicle = getattr(queue_entry, "vehicle", "")
+    
+    message = f"New task assigned: {service} for {customer_name}"
+    if vehicle:
+        message += f" ({vehicle})"
+
+    try:
+        Notification.objects.create(
+            user=user,
+            title="Task Assigned",
+            message=message,
+            notification_type="task",
+        )
+    except Exception:
+        logger.exception(
+            "Failed to notify employee for task assignment entry_id=%s employee_id=%s",
+            queue_entry.id,
+            assigned_employee.id,
+        )
+
+
 # ── GET  /api/queue/ ──────────────────────────────────────────────────────────
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -674,6 +707,11 @@ def queue_assign(request, pk):
         entry.assigned_employee = employee
 
     entry.save()
+    
+    # Notify employee if a task was assigned (not if cleared)
+    if entry.assigned_employee:
+        _notify_employee_task_assigned(entry)
+    
     return Response(QueueEntrySerializer(entry).data)
 
 

@@ -386,6 +386,8 @@ function StockOverview() {
   const { isAdmin, headers, isAuthenticated } = useAuth();
 
   const [items, setItems] = useState([]);
+  const [restockRequests, setRestockRequests] = useState([]);
+  const [receivingRequestId, setReceivingRequestId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -433,6 +435,53 @@ function StockOverview() {
     fetchInventory();
   }, [fetchInventory]);
 
+  const fetchRestockRequests = useCallback(async () => {
+    if (!isAuthenticated || isAdmin) {
+      setRestockRequests([]);
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/inventory/restock-requests/`, {
+        headers,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load restock requests.");
+      const data = await res.json();
+      setRestockRequests(data ?? []);
+    } catch (err) {
+      setError(err.message || "Failed to load restock requests.");
+    }
+  }, [isAuthenticated, isAdmin, headers]);
+
+  useEffect(() => {
+    fetchRestockRequests();
+  }, [fetchRestockRequests]);
+
+  const markReceived = async (requestId) => {
+    try {
+      setReceivingRequestId(requestId);
+      setError("");
+      const res = await fetch(
+        `${API_BASE}/inventory/restock-requests/${requestId}/action/`,
+        {
+          method: "PATCH",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ action: "receive" }),
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || `Failed to mark as received (${res.status})`);
+      }
+      await Promise.all([fetchInventory(), fetchRestockRequests()]);
+    } catch (err) {
+      setError(err.message || "Failed to mark request as received.");
+    } finally {
+      setReceivingRequestId(null);
+    }
+  };
+
   // ── Derived ───────────────────────────────────────────────────────────────
   const categories = [
     "All",
@@ -467,6 +516,8 @@ function StockOverview() {
     if (qty <= minQty) return "text-amber-400";
     return "text-white";
   };
+
+  const approvedRequests = restockRequests.filter((req) => req.status === "approved");
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -527,6 +578,39 @@ function StockOverview() {
             )}
           </div>
         </div>
+
+        {!isAdmin && approvedRequests.length > 0 && (
+          <div className="mb-6 bg-gray-900/60 border border-emerald-500/20 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="mb-4">
+              <h3 className="text-lg font-black text-white">Approved Requests Awaiting Receipt</h3>
+              <p className="text-gray-500 text-sm mt-0.5">
+                Confirm receipt to finalize stock transfer and notify Admin.
+              </p>
+            </div>
+            <div className="space-y-3">
+              {approvedRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-950/60 border border-white/5 rounded-xl p-3"
+                >
+                  <div>
+                    <p className="text-white text-sm font-semibold">{req.inventory_item_name}</p>
+                    <p className="text-gray-500 text-xs">
+                      Request #{req.id} · Qty {req.quantity_requested} · {req.branch_name || "—"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => markReceived(req.id)}
+                    disabled={receivingRequestId === req.id}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white transition-all"
+                  >
+                    {receivingRequestId === req.id ? "Receiving..." : "Mark Received"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">

@@ -43,6 +43,29 @@ const STATUS_DOT = {
   no_show: "bg-red-300",
 };
 
+const APPOINTMENT_STATUS_PRIORITY = {
+  pending: 0,
+  confirmed: 1,
+  rescheduled: 2,
+  done: 3,
+  cancelled: 4,
+  no_show: 5,
+};
+
+function sortAppointmentsByPriority(rows) {
+  return [...rows].sort((a, b) => {
+    const aPriority = APPOINTMENT_STATUS_PRIORITY[a?.status] ?? 3;
+    const bPriority = APPOINTMENT_STATUS_PRIORITY[b?.status] ?? 3;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+
+    const aTime = String(a?.time ?? "");
+    const bTime = String(b?.time ?? "");
+    if (aTime !== bTime) return aTime.localeCompare(bTime);
+
+    return (a?.id ?? 0) - (b?.id ?? 0);
+  });
+}
+
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
@@ -140,12 +163,18 @@ function AdminAppointments() {
 
   const selectedDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
 
-  const dayAppointments = appointments.filter((a) => {
-    const matchDate = a.date === selectedDateStr;
-    const matchBranch =
-      branchFilter === "All Branches" || a.branch_name === branchFilter;
-    return matchDate && matchBranch;
-  });
+  const dayAppointments = useMemo(
+    () =>
+      sortAppointmentsByPriority(
+        appointments.filter((a) => {
+          const matchDate = a.date === selectedDateStr;
+          const matchBranch =
+            branchFilter === "All Branches" || a.branch_name === branchFilter;
+          return matchDate && matchBranch;
+        }),
+      ),
+    [appointments, selectedDateStr, branchFilter],
+  );
 
   const confirmedCount = appointments.filter(
     (a) => a.status === "confirmed",
@@ -429,7 +458,7 @@ function AdminAppointments() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
                   {dayAppointments.map((apt) => {
                     const statusKey = apt.status?.toLowerCase();
                     return (

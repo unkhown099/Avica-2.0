@@ -676,7 +676,7 @@ function AdminInventory() {
         icon: "success",
         title:
           action === "approve"
-            ? "Request approved — stock transferred!"
+            ? "Request approved — awaiting inventory receipt"
             : "Request rejected",
         timer: 2000,
         showConfirmButton: false,
@@ -1359,7 +1359,7 @@ function AdminInventory() {
             {transactions.length === 0 ? (
               <p className="text-sm text-gray-500">No transactions yet.</p>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 max-h-[65vh] overflow-y-auto pr-1">
                 {transactions.map((tx) => (
                   <div
                     key={tx.id}

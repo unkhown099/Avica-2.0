@@ -8,6 +8,7 @@ const PAGE_TITLES = {
   "/mechanic/schedule": "Schedule",
   "/mechanic/active-jobs": "Active Jobs",
   "/mechanic/job-history": "Job History",
+  "/mechanic/vehicle-recognition": "Vehicle Recognition",
   "/mechanic/inventory-requests": "Inventory Requests",
 };
 

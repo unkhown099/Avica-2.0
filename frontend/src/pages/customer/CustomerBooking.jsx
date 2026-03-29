@@ -933,10 +933,18 @@ function NewBookingModal({
     setAvailableSlots(null);
     setAvailabilityMeta(null);
     setCheckingAvailability(true);
-    fetch(
-      `${API_BASE}/api/bookings/available-slots/?branch_id=${form.branch.id}&date=${form.date}`,
-      { headers: authHeaders() },
-    )
+
+    const params = new URLSearchParams({
+      branch_id: String(form.branch.id),
+      date: form.date,
+    });
+    if (bookingMode === "specific" && form.preferredEmployee?.id) {
+      params.set("preferred_employee_id", String(form.preferredEmployee.id));
+    }
+
+    fetch(`${API_BASE}/api/bookings/available-slots/?${params.toString()}`, {
+      headers: authHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         setAvailableSlots(data.available_slots ?? {});
@@ -951,7 +959,7 @@ function NewBookingModal({
       })
       .finally(() => setCheckingAvailability(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.date, form.branch]);
+  }, [form.date, form.branch, bookingMode, form.preferredEmployee?.id]);
 
   useEffect(() => {
     setServicesLoading(true);
