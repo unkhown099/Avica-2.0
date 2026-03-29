@@ -13,32 +13,38 @@ def analyze_vehicle_image(base64_image: str) -> dict:
             "Content-Type": "application/json",
         },
         json={
-            "model": "qwen/qwen3.5-27b",
-            "max_tokens": 256,
+            "model": "qwen/qwen2.5-vl-72b-instruct",
+            "max_tokens": 512,
             "messages": [
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text",
-                            "text": """
-                            Analyze the vehicle and return JSON ONLY in this exact format:
+                            "text": """You are an expert automotive analyst with 20 years of experience identifying vehicles.
 
-                            {
-                              "make": "Toyota",
-                              "model": "Corolla",
-                              "year": "2015",
-                              "color": "Red",
-                              "bodyType": "Sedan",
-                              "condition": "Good",
-                              "confidence": "high",
-                              "features": ["sunroof", "alloy wheels"],
-                              "additionalNotes": "..."
-                            }
+Analyze this vehicle image and return JSON ONLY in this exact format:
 
-                            If you cannot determine a field, set it to null.
-                            Do not return anything except JSON.
-                            """
+{
+  "make": "Toyota",
+  "model": "Corolla",
+  "year": "2018-2022",
+  "color": "Red",
+  "bodyType": "Sedan",
+  "condition": "Good",
+  "confidence": "high",
+  "features": ["sunroof", "alloy wheels"],
+  "additionalNotes": "..."
+}
+
+STRICT RULES:
+- "year": ALWAYS provide your best estimate or range (e.g. "2015-2019"). NEVER return null.
+- "condition": ALWAYS choose one: "Excellent", "Good", "Fair", or "Poor" based on visible paint, body panels, and overall appearance. NEVER return null.
+- "make": ALWAYS provide your best guess even if uncertain. NEVER return null.
+- "model": provide best guess or null only if truly impossible.
+- "color": ALWAYS provide the dominant color. NEVER return null.
+- "bodyType": ALWAYS provide (Sedan, SUV, Truck, Sports Car, etc). NEVER return null.
+- Only return valid JSON. No markdown, no backticks, no explanation."""
                         },
                         {
                             "type": "image_url",
@@ -54,9 +60,13 @@ def analyze_vehicle_image(base64_image: str) -> dict:
 
     try:
         content = ai_response["choices"][0]["message"]["content"].strip()
-        if content.startswith("```"):
-            content = content.strip("```").replace("json", "").strip()
+        if "```" in content:
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+            content = content.strip()
         return json.loads(content)
     except Exception as e:
         print("ERROR PARSING AI RESPONSE:", e)
-        return {"error": "AI response not valid JSON", "raw": ai_response}
+        print("RAW RESPONSE:", json.dumps(ai_response, indent=2))
+        return {"error": "AI response not valid JSON", "raw": str(ai_response)}

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import MechanicLayout from "../employee/MechanicLayout";
-import { API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE, getAuthHeaders } from "../../hooks/useAuth.js";
 
 function StaffVehicleRecognition() {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -65,23 +65,22 @@ function StaffVehicleRecognition() {
     setApiError(null);
     try {
       const base64Image = await imageToBase64(file);
-      const getCsrfToken = () =>
-        document.cookie
-          .split("; ")
-          .find((r) => r.startsWith("csrftoken="))
-          ?.split("=")[1];
-      const response = await fetch(
-        `${API_BASE}/api/analyze-vehicle/`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCsrfToken(),
-          },
-          body: JSON.stringify({ image: base64Image }),
+
+      // Read token directly here instead of getAuthHeaders()
+      const token =
+        localStorage.getItem("access_token") ??
+        sessionStorage.getItem("access_token");
+      console.log("token at fetch time:", token?.slice(0, 20));
+
+      const response = await fetch(`${API_BASE}/api/analyze-vehicle/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-      );
+        body: JSON.stringify({ image: base64Image }),
+      });
+
       if (!response.ok) throw new Error(await response.text());
       setAnalysisResult(await response.json());
     } catch (error) {
@@ -100,6 +99,7 @@ function StaffVehicleRecognition() {
   };
 
   const conditionColor = (c = "") => {
+    if (!c) return "#6b7280"; // add this
     const lc = c.toLowerCase();
     if (lc.includes("excellent")) return "#10b981";
     if (lc.includes("good")) return "#3b82f6";
@@ -134,10 +134,11 @@ function StaffVehicleRecognition() {
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${isDragging
+                  className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
+                    isDragging
                       ? "border-red-500 bg-red-500/10"
                       : "border-white/10 hover:border-white/20"
-                    }`}
+                  }`}
                 >
                   <svg
                     className="w-16 h-16 text-gray-600 mx-auto mb-4"
