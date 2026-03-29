@@ -14,7 +14,7 @@ def analyze_vehicle_image(base64_image: str) -> dict:
         },
         json={
             "model": "qwen/qwen2.5-vl-72b-instruct",
-            "max_tokens": 512,
+            "max_tokens": 256,
             "messages": [
                 {
                     "role": "user",
