@@ -5,20 +5,20 @@ import NotificationDropdown from "../../components/NotificationDropdown.jsx";
 import logo from "../../assets/otokwikklogo.png";
 
 const PAGE_TITLES = {
-  "/mechanic/dashboard": "Dashboard",
-  "/mechanic/schedule": "Schedule",
-  "/mechanic/active-jobs": "Active Jobs",
-  "/mechanic/job-history": "Job History",
-  "/mechanic/vehicle-recognition": "Vehicle Recognition",
-  "/mechanic/inventory-requests": "Inventory Requests",
+  "/employee/dashboard": "Dashboard",
+  "/employee/schedule": "Schedule",
+  "/employee/active-jobs": "Active Jobs",
+  "/employee/job-history": "Job History",
+  "/employee/vehicle-recognition": "Vehicle Recognition",
+  "/employee/inventory-requests": "Inventory Requests",
 };
 
-function MechanicLayout({ children }) {
+function EmployeeLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
-    const title = PAGE_TITLES[location.pathname] ?? "Mechanic";
+    const title = PAGE_TITLES[location.pathname] ?? "Employee";
     document.title = `${title} | Otokwikk`;
   }, [location.pathname]);
 
@@ -68,4 +68,4 @@ function MechanicLayout({ children }) {
   );
 }
 
-export default MechanicLayout;
+export default EmployeeLayout;

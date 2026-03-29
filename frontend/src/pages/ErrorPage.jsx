@@ -71,7 +71,7 @@ function ErrorPage({ type = "404" }) {
       code: "500",
       title: "Server Error",
       message:
-        "Something went wrong on our end. Our mechanics are working hard to fix the issue. Please try again later.",
+        "Something went wrong on our end. Our employees are working hard to fix the issue. Please try again later.",
       icon: (
         <svg
           className="w-32 h-32 mx-auto mb-8 text-red-600"

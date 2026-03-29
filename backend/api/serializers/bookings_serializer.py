@@ -154,11 +154,11 @@ class BookingSerializer(serializers.ModelSerializer):
             try:
                 employee = Staff.objects.get(pk=preferred_employee_id, role="Employee", status="Active")
             except Staff.DoesNotExist:
-                raise serializers.ValidationError({"preferred_employee_id": "Selected mechanic is not available."})
+                raise serializers.ValidationError({"preferred_employee_id": "Selected employee is not available."})
 
             if branch and employee.branch_id != branch.id:
                 raise serializers.ValidationError(
-                    {"preferred_employee_id": "Selected mechanic must belong to the selected branch."}
+                    {"preferred_employee_id": "Selected employee must belong to the selected branch."}
                 )
 
         return attrs

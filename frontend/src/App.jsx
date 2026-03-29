@@ -67,11 +67,11 @@ import StaffAppointment from "./pages/staff/StaffAppointment.jsx";
 import StaffVehicleRecognition from "./pages/staff/StaffVehicleRecognition.jsx";
 import StaffQueue from "./pages/staff/StaffQueue.jsx";
 
-// Mechanic Imports
-import MechanicDashboard from "./pages/employee/MechanicDashboard.jsx";
-import MechanicSchedule from "./pages/employee/MechanicSchedule.jsx";
-import MechanicActiveJobs from "./pages/employee/MechanicActiveJobs.jsx";
-import MechanicJobHistory from "./pages/employee/MechanicJobHistory.jsx";
+// Employee Imports
+import EmployeeDashboard from "./pages/employee/EmployeeDashboard.jsx";
+import EmployeeSchedule from "./pages/employee/EmployeeSchedule.jsx";
+import EmployeeActiveJobs from "./pages/employee/EmployeeActiveJobs.jsx";
+import EmployeeJobHistory from "./pages/employee/EmployeeJobHistory.jsx";
 
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
@@ -423,41 +423,41 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-        {/* Mechanic Routes */}
+        {/* Employee Routes */}
         <Route
-          path="/mechanic/dashboard"
+          path="/employee/dashboard"
           element={
             <ProtectedRoute allowedRoles={["employee"]}>
-              <MechanicDashboard />
+              <EmployeeDashboard />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/mechanic/schedule"
+          path="/employee/schedule"
           element={
             <ProtectedRoute allowedRoles={["employee"]}>
-              <MechanicSchedule />
+              <EmployeeSchedule />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/mechanic/active-jobs"
+          path="/employee/active-jobs"
           element={
             <ProtectedRoute allowedRoles={["employee"]}>
-              <MechanicActiveJobs />
+              <EmployeeActiveJobs />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/mechanic/job-history"
+          path="/employee/job-history"
           element={
             <ProtectedRoute allowedRoles={["employee"]}>
-              <MechanicJobHistory />
+              <EmployeeJobHistory />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/mechanic/vehicle-recognition"
+          path="/employee/vehicle-recognition"
           element={
             <ProtectedRoute allowedRoles={["employee"]}>
               <StaffVehicleRecognition />
@@ -466,7 +466,7 @@ function Layout() {
         />
         <Route
           path="/staff/vehicle-recognition"
-          element={<Navigate to="/mechanic/vehicle-recognition" replace />}
+          element={<Navigate to="/employee/vehicle-recognition" replace />}
         />
 
         <Route path="*" element={<ErrorPage />} />

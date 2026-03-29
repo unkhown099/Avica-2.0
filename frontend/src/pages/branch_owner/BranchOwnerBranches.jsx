@@ -95,7 +95,7 @@ function BranchOwnerBranches() {
               <div><span class="text-[11px] text-gray-500 uppercase">Branch Manager</span><p class="text-sm text-white font-medium">${branch.manager_name || "Unassigned"}</p></div>
               <div class="flex items-center gap-6">
                 <div><span class="text-[11px] text-gray-500 uppercase">Staff</span><p class="text-sm text-white font-medium">${branch.staff_count || 0}</p></div>
-                <div><span class="text-[11px] text-gray-500 uppercase">Mechanics</span><p class="text-sm text-white font-medium">${branch.mechanic_count || 0}</p></div>
+                <div><span class="text-[11px] text-gray-500 uppercase">Employees</span><p class="text-sm text-white font-medium">${branch.employee_count || 0}</p></div>
               </div>
             </div>
           </div>
@@ -326,7 +326,7 @@ function BranchOwnerBranches() {
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     {[
                       { label: "Staff", value: branch.staff_count || 0 },
-                      { label: "Mechanics", value: branch.mechanic_count || 0 },
+                      { label: "Employees", value: branch.employee_count || 0 },
                     ].map(({ label, value }) => (
                       <div
                         key={label}
