@@ -10,13 +10,9 @@ function CustomerDashboard() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
 
-  const [stats, setStats] = useState({
-    upcoming: 0,
-    completed: 0,
-  });
+  const [stats, setStats] = useState({ upcoming: 0, completed: 0 });
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [serviceHistory, setServiceHistory] = useState([]);
-
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(null);
 
@@ -27,6 +23,16 @@ function CustomerDashboard() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
+  const conditionColor = (c) => {
+    if (!c) return "#6b7280";
+    const lc = c.toLowerCase();
+    if (lc.includes("excellent")) return "#10b981";
+    if (lc.includes("good")) return "#3b82f6";
+    if (lc.includes("fair")) return "#f59e0b";
+    if (lc.includes("poor")) return "#ef4444";
+    return "#6b7280";
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsDashboardLoading(true);
@@ -34,20 +40,13 @@ function CustomerDashboard() {
       try {
         const response = await fetch(`${API_BASE}/api/customer/dashboard/`, {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         });
-
-        if (!response.ok) {
+        if (!response.ok)
           throw new Error(
             `Failed to fetch dashboard data (${response.status})`,
           );
-        }
-
         const data = await response.json();
-
         const now = new Date();
         const trueUpcoming = (data.upcoming_bookings || []).filter((b) => {
           let bookingDateTime;
@@ -59,7 +58,6 @@ function CustomerDashboard() {
           }
           return bookingDateTime > now;
         });
-
         setStats(data.stats || { upcoming: 0, completed: 0 });
         setUpcomingBookings(trueUpcoming);
         setServiceHistory(data.service_history || []);
@@ -70,7 +68,6 @@ function CustomerDashboard() {
         setIsDashboardLoading(false);
       }
     };
-
     fetchDashboardData();
   }, []);
 
@@ -85,89 +82,34 @@ function CustomerDashboard() {
   const performCarAnalysis = async (file) => {
     setIsAnalyzing(true);
     setAnalysisResult(null);
-
-    const formData = new FormData();
-    formData.append("car_image", file);
-
     try {
-      const response = await fetch(`${API_BASE}/api/car-recognition/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: formData,
+      const token =
+        localStorage.getItem("access_token") ??
+        sessionStorage.getItem("access_token");
+      const base64Image = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => res(reader.result.split(",")[1]);
+        reader.onerror = (err) => rej(err);
       });
-
+      const response = await fetch(`${API_BASE}/api/analyze-vehicle/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ image: base64Image }),
+      });
       const data = await response.json();
-
-      if (data.success) {
-        setAnalysisResult({
-          ...data.result,
-          recommendations: generateRecommendations(data.result),
-        });
-        if (data.demo_mode)
-          console.warn("Gemini API Key not configured. Using Demo Mode.");
-      } else {
-        alert(data.message || "An error occurred during car analysis.");
-        setPreviewImage(null);
-      }
+      if (!response.ok) throw new Error(data.error || "Analysis failed");
+      setAnalysisResult(data);
     } catch (error) {
       console.error("Analysis Error:", error);
-      alert("Failed to connect to the analysis server.");
+      alert("Failed to analyze vehicle. Please try again.");
       setPreviewImage(null);
     } finally {
       setIsAnalyzing(false);
     }
-  };
-
-  const generateRecommendations = (car) => {
-    const { make, model, year, color } = car;
-    const recs = [];
-
-    recs.push({
-      title: "Ceramic Coating",
-      reason: `Protect your ${make}'s ${color} finish from UV rays and road debris.`,
-      price: "₱15,000+",
-    });
-
-    const modelLower = model.toLowerCase();
-    if (
-      modelLower.includes("fortuner") ||
-      modelLower.includes("hilux") ||
-      modelLower.includes("raptor")
-    ) {
-      recs.push({
-        title: "Undercarriage Protection",
-        reason:
-          "Essential for 4x4 vehicles to prevent rust and damage from off-road adventures.",
-        price: "₱8,500",
-      });
-    } else {
-      recs.push({
-        title: "Interior Deep Extraction",
-        reason:
-          "Keep your cabin fresh and allergen-free with our deep steam cleaning.",
-        price: "₱3,500",
-      });
-    }
-
-    const currentYear = new Date().getFullYear();
-    const carYear = parseInt(year);
-    if (!isNaN(carYear) && currentYear - carYear > 5) {
-      recs.push({
-        title: "Paint Correction",
-        reason:
-          "Restore the original shine of your vehicle by removing light scratches and swirls.",
-        price: "₱6,500+",
-      });
-    } else {
-      recs.push({
-        title: "Paint Protection Film (Front)",
-        reason:
-          "Prevent future rock chips on your relatively new vehicle's front end.",
-        price: "₱25,000+",
-      });
-    }
-
-    return recs;
   };
 
   const formatDate = (dateStr) => {
@@ -283,7 +225,6 @@ function CustomerDashboard() {
         )}
 
         {/* ── Stats Grid ── */}
-        {/* 2-col on mobile, 4-col on lg */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 sm:mb-10 md:mb-12">
           {statCards.map(({ icon, value, label, border, bg, text }) => (
             <div
@@ -330,7 +271,6 @@ function CustomerDashboard() {
           <h2 className="text-xl sm:text-2xl font-black text-white mb-3 sm:mb-4">
             Quick Actions
           </h2>
-          {/* Stack on mobile, 3-col on md+ */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
             {[
               {
@@ -399,7 +339,6 @@ function CustomerDashboard() {
             </div>
           </div>
 
-          {/* Stack vertically on mobile/tablet, side-by-side on lg */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-stretch">
             {/* Upload panel */}
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 backdrop-blur-sm flex flex-col items-center justify-center text-center relative overflow-hidden group min-h-[240px]">
@@ -431,8 +370,8 @@ function CustomerDashboard() {
                     Identify Your Car
                   </h3>
                   <p className="text-xs sm:text-sm text-gray-400 mb-6 sm:mb-8 max-w-xs">
-                    Upload a photo of your vehicle for personalised service
-                    recommendations
+                    Upload a photo of your vehicle for AI-powered identification
+                    and analysis
                   </p>
                   <label className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl cursor-pointer transition-all duration-300 shadow-lg shadow-red-600/30 text-sm sm:text-base">
                     Upload Car Photo
@@ -487,52 +426,124 @@ function CustomerDashboard() {
             {/* Results panel */}
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 backdrop-blur-sm flex flex-col min-h-[240px]">
               {analysisResult ? (
-                <div>
-                  <div className="flex flex-col xs:flex-row xs:items-start xs:justify-between gap-3 mb-6 sm:mb-8">
-                    <div>
-                      <div className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1">
-                        Detected Vehicle
-                      </div>
-                      <h3 className="text-2xl sm:text-3xl font-black text-white">
-                        {analysisResult.make} {analysisResult.model}
-                      </h3>
-                      <p className="text-gray-400 font-medium text-sm sm:text-base">
-                        {analysisResult.year} • {analysisResult.color}
-                      </p>
-                    </div>
-                    <div className="bg-emerald-500/20 text-emerald-400 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-emerald-500/30 font-bold text-xs sm:text-sm self-start whitespace-nowrap">
-                      98% Match
-                    </div>
-                  </div>
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                      Tailored Recommendations
-                    </div>
-                    {analysisResult.recommendations.map((rec, idx) => (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-black text-white mb-2">
+                    Vehicle Analysis Results
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Make", value: analysisResult.make },
+                      { label: "Model", value: analysisResult.model },
+                      { label: "Year", value: analysisResult.year },
+                      { label: "Body Type", value: analysisResult.bodyType },
+                      { label: "Confidence", value: analysisResult.confidence },
+                    ].map((field) => (
                       <div
-                        key={idx}
-                        className="bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5 hover:border-red-500/30 transition-all group/rec"
+                        key={field.label}
+                        className="bg-gray-800/60 border border-white/5 rounded-xl p-3"
                       >
-                        <div className="flex items-start sm:items-center justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-white font-bold mb-1 group-hover/rec:text-red-400 transition-colors text-sm sm:text-base">
-                              {rec.title}
-                            </h4>
-                            <p className="text-xs sm:text-sm text-gray-400">
-                              {rec.reason}
-                            </p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-base sm:text-lg font-black text-white mb-1">
-                              {rec.price}
-                            </div>
-                            <button className="text-xs font-bold text-red-400 hover:text-red-300 uppercase">
-                              Book Now
-                            </button>
-                          </div>
+                        <div className="text-xs text-gray-500 mb-1">
+                          {field.label}
+                        </div>
+                        <div className="text-white font-bold text-sm">
+                          {field.value || "Not detected"}
                         </div>
                       </div>
                     ))}
+
+                    {/* Color */}
+                    <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+                      <div className="text-xs text-gray-500 mb-1">Color</div>
+                      <div className="flex items-center gap-2">
+                        {analysisResult.color && (
+                          <div
+                            className="w-4 h-4 rounded-full border border-white/20 shrink-0"
+                            style={{
+                              backgroundColor:
+                                analysisResult.color.toLowerCase(),
+                            }}
+                          />
+                        )}
+                        <span className="text-white font-bold text-sm">
+                          {analysisResult.color || "Not detected"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Condition */}
+                    <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
+                      <div className="text-xs text-gray-500 mb-1">
+                        Estimated Condition
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{
+                            backgroundColor: conditionColor(
+                              analysisResult.condition,
+                            ),
+                          }}
+                        />
+                        <span className="text-white font-bold text-sm">
+                          {analysisResult.condition || "Not detected"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    {analysisResult.features?.length > 0 && (
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
+                        <div className="text-xs text-gray-500 mb-2">
+                          Notable Features
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {analysisResult.features.map((f, i) => (
+                            <span
+                              key={i}
+                              className="px-2.5 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-semibold"
+                            >
+                              {f}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Additional Notes */}
+                    {analysisResult.additionalNotes && (
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
+                        <div className="text-xs text-gray-500 mb-1">
+                          Additional Notes
+                        </div>
+                        <p className="text-gray-300 text-sm">
+                          {analysisResult.additionalNotes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* AI Badge */}
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                    <div className="flex items-start gap-2">
+                      <svg
+                        className="w-4 h-4 text-blue-400 mt-0.5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                      <p className="text-xs text-blue-300">
+                        <span className="font-black">AI-Powered Analysis:</span>{" "}
+                        Results are generated by AI based on the uploaded image
+                        and may vary based on image quality.
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -572,7 +583,6 @@ function CustomerDashboard() {
               View All →
             </a>
           </div>
-
           {isDashboardLoading ? (
             <div className="space-y-3 sm:space-y-4">
               {[1, 2].map((i) => (
@@ -598,7 +608,6 @@ function CustomerDashboard() {
                   key={booking.id}
                   className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300"
                 >
-                  {/* Stack fully on mobile */}
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -606,11 +615,7 @@ function CustomerDashboard() {
                           {booking.service}
                         </h3>
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                            booking.status === "confirmed"
-                              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                              : "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                          }`}
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${booking.status === "confirmed" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}
                         >
                           {booking.status.charAt(0).toUpperCase() +
                             booking.status.slice(1)}
@@ -657,8 +662,6 @@ function CustomerDashboard() {
                         )}
                       </div>
                     </div>
-
-                    {/* Price + actions: side-by-side on all sizes */}
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
                       <div className="text-lg sm:text-xl font-black text-white">
                         {booking.price}
@@ -692,7 +695,6 @@ function CustomerDashboard() {
               View All →
             </a>
           </div>
-
           {isDashboardLoading ? (
             <div className="space-y-3 sm:space-y-4">
               {[1, 2].map((i) => (
@@ -745,7 +747,6 @@ function CustomerDashboard() {
                         <span>{formatDate(service.date)}</span>
                       </div>
                     </div>
-
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
                       <div className="text-lg sm:text-xl font-black text-white">
                         {service.price}
