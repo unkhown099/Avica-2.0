@@ -16,7 +16,7 @@ const ROLE_ROUTES = {
   business_owner: "/branch-owner/dashboard",
   branch_manager: "/manager/dashboard",
   inventory: "/inventory/dashboard",
-  staff: "/staff/pos",
+  staff: "/staff/dashboard",
   employee: "/mechanic/dashboard",
   customer: "/dashboard",
 };

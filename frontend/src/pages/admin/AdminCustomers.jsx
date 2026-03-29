@@ -26,7 +26,7 @@ const SEGMENT_COLOR = {
 const SEGMENTS = ["High Value", "Regular", "New", "At Risk"];
 
 // ── Mobile customer card ──────────────────────────────────────────────────────
-function CustomerCard({ customer }) {
+function CustomerCard({ customer, onAction }) {
   const fullName = `${customer.first_name} ${customer.last_name}`;
   const color = SEGMENT_COLOR[customer.segment] ?? "#6b7280";
   return (
@@ -88,6 +88,14 @@ function CustomerCard({ customer }) {
           </span>
         </div>
       )}
+      <div className="mt-3 flex justify-end">
+        <button
+          onClick={() => onAction?.(customer)}
+          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-all"
+        >
+          Action
+        </button>
+      </div>
     </div>
   );
 }
@@ -141,6 +149,21 @@ function AdminCustomers() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [segmentFilter, setSegmentFilter] = useState("All");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [customerHistory, setCustomerHistory] = useState({
+    summary: {
+      total_services: 0,
+      total_product_purchases: 0,
+      total_service_amount: 0,
+      total_product_amount: 0,
+      total_transactions: 0,
+    },
+    services: [],
+    products: [],
+  });
 
   useEffect(() => {
     const fetch = async () => {
@@ -192,6 +215,50 @@ function AdminCustomers() {
     acc[s] = customers.filter((c) => c.segment === s).length;
     return acc;
   }, {});
+
+  const openCustomerHistory = async (customer) => {
+    setSelectedCustomer(customer);
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    setHistoryError("");
+
+    try {
+      const res = await axios.get(
+        `${API_BASE}/api/admin/customers/${customer.id}/history/`,
+        {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        },
+      );
+
+      setCustomerHistory({
+        summary: res.data?.summary ?? {
+          total_services: 0,
+          total_product_purchases: 0,
+          total_service_amount: 0,
+          total_product_amount: 0,
+          total_transactions: 0,
+        },
+        services: Array.isArray(res.data?.services) ? res.data.services : [],
+        products: Array.isArray(res.data?.products) ? res.data.products : [],
+      });
+    } catch (err) {
+      console.error("Failed to load admin customer history:", err);
+      setHistoryError("Failed to load customer history.");
+      setCustomerHistory({
+        summary: {
+          total_services: 0,
+          total_product_purchases: 0,
+          total_service_amount: 0,
+          total_product_amount: 0,
+          total_transactions: 0,
+        },
+        services: [],
+        products: [],
+      });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   const totalCustomers = customers.length;
 
@@ -326,7 +393,7 @@ function AdminCustomers() {
             </div>
           ) : (
             paginatedItems.map((customer) => (
-              <CustomerCard key={customer.id} customer={customer} />
+              <CustomerCard key={customer.id} customer={customer} onAction={openCustomerHistory} />
             ))
           )}
         </div>
@@ -435,7 +502,11 @@ function AdminCustomers() {
                     )}
                   </div>
                   <div className="col-span-1 flex justify-end">
-                    <button className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
+                    <button
+                      onClick={() => openCustomerHistory(customer)}
+                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                      title="View complete customer history"
+                    >
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -499,6 +570,129 @@ function AdminCustomers() {
               total={totalPages}
               onChange={setCurrentPage}
             />
+          </div>
+        )}
+
+        {historyOpen && (
+          <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-6xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-white/10 rounded-2xl shadow-2xl">
+              <div className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur border-b border-white/10 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-black text-white">Customer Transaction History</h2>
+                  <p className="text-sm text-gray-400 mt-0.5">
+                    {selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}`.trim() : "Customer"} · All branches
+                  </p>
+                </div>
+                <button
+                  onClick={() => setHistoryOpen(false)}
+                  className="px-3 py-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {historyLoading ? (
+                  <div className="py-20 flex items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : historyError ? (
+                  <div className="py-8 text-center text-red-300">{historyError}</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4">
+                        <p className="text-xs uppercase tracking-wider text-gray-500">Services Availed</p>
+                        <p className="text-2xl font-black text-white mt-1">{customerHistory.summary.total_services}</p>
+                      </div>
+                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4">
+                        <p className="text-xs uppercase tracking-wider text-gray-500">Product Purchases</p>
+                        <p className="text-2xl font-black text-white mt-1">{customerHistory.summary.total_product_purchases}</p>
+                      </div>
+                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4">
+                        <p className="text-xs uppercase tracking-wider text-gray-500">Service Amount</p>
+                        <p className="text-2xl font-black text-white mt-1">₱{Number(customerHistory.summary.total_service_amount || 0).toLocaleString()}</p>
+                      </div>
+                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4">
+                        <p className="text-xs uppercase tracking-wider text-gray-500">Product Amount</p>
+                        <p className="text-2xl font-black text-white mt-1">₱{Number(customerHistory.summary.total_product_amount || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-800/40 border border-white/10 rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-white/10">
+                        <h3 className="text-lg font-bold text-white">Services Availed</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Includes transaction type: walk-in or appointment</p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <div className="min-w-[900px]">
+                          <div className="grid grid-cols-12 gap-3 px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-white/10">
+                            <div className="col-span-2">Date</div>
+                            <div className="col-span-3">Service</div>
+                            <div className="col-span-2">Source</div>
+                            <div className="col-span-2">Branch</div>
+                            <div className="col-span-1">Status</div>
+                            <div className="col-span-2 text-right">Amount</div>
+                          </div>
+                          {customerHistory.services.length === 0 ? (
+                            <div className="px-5 py-8 text-gray-500 text-sm">No service transactions found.</div>
+                          ) : (
+                            customerHistory.services.map((row, idx) => (
+                              <div key={`${row.queue_entry_id}-${idx}`} className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-white/5 text-sm items-center">
+                                <div className="col-span-2 text-gray-400">{row.date ? String(row.date).slice(0, 10) : "—"}</div>
+                                <div className="col-span-3 text-white font-semibold truncate">{row.service || "—"}</div>
+                                <div className="col-span-2">
+                                  <span className="px-2 py-1 rounded-full text-xs font-semibold border bg-blue-500/15 text-blue-300 border-blue-500/30 capitalize">
+                                    {row.transaction_type === "booking" ? "appointment" : row.transaction_type}
+                                  </span>
+                                </div>
+                                <div className="col-span-2 text-gray-400 truncate">{row.branch || "—"}</div>
+                                <div className="col-span-1 text-gray-300 capitalize">{row.status || "—"}</div>
+                                <div className="col-span-2 text-right text-white font-bold">₱{Number(row.amount || 0).toLocaleString()}</div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-800/40 border border-white/10 rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-white/10">
+                        <h3 className="text-lg font-bold text-white">Product Purchases</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Extracted from processed queue transaction notes</p>
+                      </div>
+                      {customerHistory.products.length === 0 ? (
+                        <div className="px-5 py-8 text-gray-500 text-sm">No product purchases found.</div>
+                      ) : (
+                        <div className="divide-y divide-white/5">
+                          {customerHistory.products.map((row, idx) => (
+                            <div key={`${row.queue_entry_id}-product-${idx}`} className="px-5 py-4">
+                              <div className="flex items-center justify-between gap-3 mb-2">
+                                <div className="text-sm text-gray-300">
+                                  <span className="text-white font-semibold">{row.date ? String(row.date).slice(0, 10) : "—"}</span>
+                                  <span className="mx-2 text-gray-600">•</span>
+                                  <span className="capitalize">{row.transaction_type === "booking" ? "appointment" : row.transaction_type}</span>
+                                  <span className="mx-2 text-gray-600">•</span>
+                                  <span>{row.branch || "—"}</span>
+                                </div>
+                                <div className="text-sm font-bold text-emerald-300">₱{Number(row.amount || 0).toLocaleString()}</div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(Array.isArray(row.items) ? row.items : []).map((item, itemIdx) => (
+                                  <span key={`${idx}-${itemIdx}`} className="px-2.5 py-1 rounded-full text-xs border border-white/15 text-gray-200 bg-white/5">
+                                    {item.name} x{item.quantity}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

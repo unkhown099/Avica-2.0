@@ -58,6 +58,7 @@ import InventoryMovementLog from "./pages/inventory/InventoryMovementLog.jsx";
 import InventoryStockOverview from "./pages/inventory/InventoryStockOverview.jsx";
 
 // Staff Imports
+import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
 import StaffPOS from "./pages/staff/StaffPOS.jsx";
 import StaffAppointment from "./pages/staff/StaffAppointment.jsx";
 import StaffVehicleRecognition from "./pages/staff/StaffVehicleRecognition.jsx";
@@ -363,6 +364,14 @@ function Layout() {
         />
 
         {/* Staff Routes */}
+        <Route
+          path="/staff/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/staff/pos"
           element={

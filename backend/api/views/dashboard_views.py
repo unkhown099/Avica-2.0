@@ -2,11 +2,12 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from ..models import Booking, BranchScheduleConfig, Customer, QueueEntry, Rating, Staff
+from ..models import Booking, BranchScheduleConfig, Customer, Notification, QueueEntry, Rating, Staff
 from ..serializers.dashboard_serializer import DashboardStatsSerializer, RecentTransactionSerializer
 from ..serializers.manager_schedule_serializer import ManagerScheduleConfigSerializer
 from django.db.models import Avg, Count, Sum, Value, DecimalField
 from django.utils import timezone
+from django.db.models import Q
 from django.db.models.functions import Coalesce
 from collections import defaultdict
 from datetime import timedelta
@@ -368,6 +369,87 @@ class ManagerDashboardView(APIView):
             })
         except Exception as e:
             return Response({"detail": f"Server Error: {str(e)}"}, status=500)
+
+
+class StaffDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        staff = getattr(request.user, "staff_profile", None)
+        if not staff or staff.role != "Staff":
+            return Response({"detail": "Permission denied."}, status=403)
+
+        full_name = f"{staff.first_name} {staff.last_name}".strip()
+        today = timezone.localdate()
+
+        booking_scope = Booking.objects.all().select_related("user", "branch", "queue_entry").filter(
+            Q(queue_entry__assigned_employee_id=staff.id) | Q(staff=full_name)
+        )
+        if staff.branch_id:
+            booking_scope = booking_scope.filter(branch_id=staff.branch_id)
+        else:
+            booking_scope = booking_scope.none()
+
+        queue_scope = QueueEntry.objects.filter(assigned_employee_id=staff.id)
+        if staff.branch_id:
+            queue_scope = queue_scope.filter(branch_id=staff.branch_id)
+        else:
+            queue_scope = queue_scope.none()
+
+        notifications_qs = Notification.objects.filter(user=request.user)
+
+        stats = {
+            "my_assigned_jobs": queue_scope.count(),
+            "my_active_jobs": queue_scope.filter(status__in=["waiting", "in_service"]).count(),
+            "my_completed_jobs": queue_scope.filter(status="done").count(),
+            "my_paid_jobs": queue_scope.filter(payment_status="paid").count(),
+            "my_upcoming_bookings": booking_scope.filter(
+                date__gte=today,
+                status__in=["pending", "confirmed", "rescheduled"],
+            ).count(),
+            "my_bookings_today": booking_scope.filter(date=today).count(),
+            "my_unread_notifications": notifications_qs.filter(is_read=False).count(),
+            "my_notifications_today": notifications_qs.filter(created_at__date=today).count(),
+        }
+
+        recent_jobs = []
+        for booking in booking_scope.order_by("-date", "-time", "-created_at")[:8]:
+            customer_name = "Customer"
+            customer_profile = getattr(booking.user, "customer_profile", None)
+            if customer_profile:
+                customer_name = f"{customer_profile.first_name} {customer_profile.last_name}".strip()
+            elif getattr(booking.user, "email", None):
+                customer_name = booking.user.email
+
+            recent_jobs.append(
+                {
+                    "id": booking.id,
+                    "customer_name": customer_name,
+                    "service": booking.service,
+                    "date": booking.date.isoformat() if booking.date else None,
+                    "time": booking.time,
+                    "status": booking.status,
+                    "branch_name": booking.branch.name if booking.branch else "",
+                }
+            )
+
+        recent_notifications = list(
+            notifications_qs.order_by("-created_at")
+            .values("id", "title", "message", "notification_type", "created_at", "is_read")[:6]
+        )
+
+        return Response(
+            {
+                "staff": {
+                    "id": staff.id,
+                    "name": full_name,
+                    "branch_name": staff.branch.name if staff.branch else staff.branch_name,
+                },
+                "stats": stats,
+                "recent_jobs": recent_jobs,
+                "recent_notifications": recent_notifications,
+            }
+        )
 
 
 class ManagerScheduleConfigView(APIView):

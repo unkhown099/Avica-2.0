@@ -13,9 +13,9 @@ from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
 from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
-from api.views.dashboard_views import AdminDashboardView, ManagerDashboardView, ManagerScheduleConfigView
+from api.views.dashboard_views import AdminDashboardView, ManagerDashboardView, ManagerScheduleConfigView, StaffDashboardView
 from api.views.service_views import ServiceListCreateView, ServiceDetailView, ServiceCategoryListCreateView
-from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView
+from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView, ManagerCustomerHistoryView
 from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
 from api.views.inventory_views import (
     InventoryListCreateView,
@@ -136,6 +136,8 @@ urlpatterns = [
     path('services/<int:pk>/',     ServiceDetailView.as_view(),         name='service-detail'),
     path('services/categories/',   ServiceCategoryListCreateView.as_view(), name='service-categories'),
     path('customers/',             AdminCustomerListView.as_view(),     name='admin-customers'),
+    path('api/manager/customers/<int:customer_id>/history/', ManagerCustomerHistoryView.as_view(), name='manager-customer-history'),
+    path('api/admin/customers/<int:customer_id>/history/', ManagerCustomerHistoryView.as_view(), name='admin-customer-history'),
     path('inventory/',             InventoryListCreateView.as_view(),   name='inventory-list'),
     path('inventory/<int:pk>/',    InventoryDetailView.as_view(),       name='inventory-detail'),
     path('inventory/restock-requests/', RestockRequestListCreateView.as_view(), name='restock-request-list'),
@@ -160,6 +162,9 @@ urlpatterns = [
     # ── Manager endpoints ─────────────────────────────────────────────────────
     path("api/manager/dashboard/",        ManagerDashboardView.as_view()),
     path("api/manager/schedule-config/",  ManagerScheduleConfigView.as_view()),
+
+    # ── Staff endpoints ───────────────────────────────────────────────────────
+    path("api/staff/dashboard/", StaffDashboardView.as_view()),
 
     # ── Notification endpoints ───────────────────────────────────────────────
     path("api/notifications/",                NotificationListView.as_view(), name="notification-list"),

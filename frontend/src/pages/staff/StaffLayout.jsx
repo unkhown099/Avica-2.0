@@ -4,6 +4,7 @@ import UnifiedSidebar from "../../components/UnifiedSidebar.jsx";
 import NotificationDropdown from "../../components/NotificationDropdown.jsx";
 
 const PAGE_TITLES = {
+  "/staff/dashboard": "Dashboard",
   "/staff/pos": "POS",
   "/staff/appointments": "Appointments",
   "/staff/queue": "Queue Management",
