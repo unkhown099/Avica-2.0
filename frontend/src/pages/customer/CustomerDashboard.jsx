@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout.jsx";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
+import { useNavigate } from "react-router-dom";
 
 function CustomerDashboard() {
   const [user] = useState(() => getUserFromSession());
@@ -32,6 +33,7 @@ function CustomerDashboard() {
     if (lc.includes("poor")) return "#ef4444";
     return "#6b7280";
   };
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -183,7 +185,12 @@ function CustomerDashboard() {
                 Ready to keep your car looking its best?
               </p>
             </div>
-            <button className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-red-600/30 flex items-center justify-center gap-2 text-sm sm:text-base">
+            <button
+              onClick={() =>
+                navigate("/bookings", { state: { openBooking: true } })
+              }
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-red-600/30 flex items-center justify-center gap-2 text-sm sm:text-base"
+            >
               <svg
                 className="w-5 h-5 sm:w-6 sm:h-6"
                 fill="none"
@@ -278,22 +285,29 @@ function CustomerDashboard() {
                 desc: "Schedule your next appointment",
                 icon: "M12 4v16m8-8H4",
                 accent: "#ef4444",
+                path: "/bookings",
+                state: { openBooking: true },
               },
               {
                 title: "Manage Bookings",
                 desc: "View and modify appointments",
                 icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
                 accent: "#3b82f6",
+                path: "/bookings",
+                state: null,
               },
               {
                 title: "Service History",
                 desc: "Review your past services",
                 icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
                 accent: "#10b981",
+                path: "/history",
+                state: null,
               },
-            ].map(({ title, desc, icon, accent }) => (
+            ].map(({ title, desc, icon, accent, path, state }) => (
               <button
                 key={title}
+                onClick={() => navigate(path, state ? { state } : {})}
                 className="group bg-gray-900/60 border border-white/5 rounded-xl p-3 sm:p-4 backdrop-blur-sm hover:border-red-500/30 transition-all duration-300 hover:scale-[1.02] text-left flex items-center gap-3 sm:gap-4"
               >
                 <div
@@ -576,12 +590,12 @@ function CustomerDashboard() {
             <h2 className="text-xl sm:text-2xl font-black text-white">
               Upcoming Bookings
             </h2>
-            <a
-              href="/bookings"
+            <button
+              onClick={() => navigate("/bookings")}
               className="text-xs sm:text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
             >
               View All →
-            </a>
+            </button>
           </div>
           {isDashboardLoading ? (
             <div className="space-y-3 sm:space-y-4">
@@ -688,12 +702,12 @@ function CustomerDashboard() {
             <h2 className="text-xl sm:text-2xl font-black text-white">
               Recent Service History
             </h2>
-            <a
-              href="/history"
+            <button
+              onClick={() => navigate("/history")}
               className="text-xs sm:text-sm text-red-400 hover:text-red-300 font-semibold transition-colors"
             >
               View All →
-            </a>
+            </button>
           </div>
           {isDashboardLoading ? (
             <div className="space-y-3 sm:space-y-4">
