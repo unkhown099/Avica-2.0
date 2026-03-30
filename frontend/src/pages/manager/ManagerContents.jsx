@@ -191,6 +191,7 @@ function ManagerContents() {
   const toggleServiceStatus = async (service) => {
     setUpdatingServiceId(service.id);
     try {
+      console.log("USER:", user);
       const branchId = user?.branch_id;
       if (!branchId) throw new Error("No branch assigned to your account.");
 

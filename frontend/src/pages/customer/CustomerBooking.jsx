@@ -976,7 +976,7 @@ function NewBookingModal({
       .then((data) =>
         setServices(
           (Array.isArray(data) ? data : (data.results ?? [])).filter(
-            (s) => s.is_active !== false,
+            (s) => s.is_active !== false && (s.branches?.length ?? 0) > 0,
           ),
         ),
       )
@@ -1521,8 +1521,8 @@ function NewBookingModal({
               (() => {
                 const availableBranches = form.service
                   ? branches.filter((b) =>
-                    form.service.branches?.some((sb) => sb.id === b.id)
-                  )
+                      form.service.branches?.some((sb) => sb.id === b.id),
+                    )
                   : branches;
 
                 if (availableBranches.length === 0) {
@@ -1699,7 +1699,9 @@ function NewBookingModal({
             <div>
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
                 Pick a Date{" "}
-                <span className="text-yellow-500 text-[8px] sm:text-[10px]">(Tomorrow onward)</span>
+                <span className="text-yellow-500 text-[8px] sm:text-[10px]">
+                  (Tomorrow onward)
+                </span>
               </p>
               <input
                 type="date"
@@ -1720,7 +1722,8 @@ function NewBookingModal({
               {/* Warn if customer already has active booking */}
               {hasActiveBooking && (
                 <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">
-                  You already have an active booking. Please complete or cancel it before creating a new one.
+                  You already have an active booking. Please complete or cancel
+                  it before creating a new one.
                 </p>
               )}
               {scheduleWindowText && (
@@ -1790,12 +1793,13 @@ function NewBookingModal({
                                 ? "This slot is fully booked"
                                 : ""
                       }
-                      className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${active && !isDisabled
-                        ? "border-red-500 bg-red-600/15 text-white shadow-md shadow-red-600/10"
-                        : isDisabled
-                          ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
-                          : "border-white/8 bg-white/3 text-gray-400 hover:border-white/20 hover:text-white cursor-pointer"
-                        }`}
+                      className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${
+                        active && !isDisabled
+                          ? "border-red-500 bg-red-600/15 text-white shadow-md shadow-red-600/10"
+                          : isDisabled
+                            ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
+                            : "border-white/8 bg-white/3 text-gray-400 hover:border-white/20 hover:text-white cursor-pointer"
+                      }`}
                     >
                       {t}
                       {/* FIX: show correct label based on why it's disabled */}
@@ -1925,7 +1929,7 @@ function NewBookingModal({
               <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">
                 {bookingMode === "specific"
                   ? form.preferredEmployee?.full_name ||
-                  "Specific employee selected"
+                    "Specific employee selected"
                   : "General (any available employee)"}
               </div>
             </div>
@@ -2023,10 +2027,10 @@ function NewBookingModal({
           onClick={
             step > 0
               ? () => {
-                setStep((s) => s - 1);
-                setError("");
-                setFieldErrors({});
-              }
+                  setStep((s) => s - 1);
+                  setError("");
+                  setFieldErrors({});
+                }
               : onClose
           }
           className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white font-semibold text-xs sm:text-sm transition-all"
@@ -2603,19 +2607,19 @@ function BookingsPage() {
                 booking.service_name ||
                 booking.service_detail?.name ||
                 (typeof rawSvc === "string" &&
-                  rawSvc.trim() !== "" &&
-                  isNaN(rawSvc)
+                rawSvc.trim() !== "" &&
+                isNaN(rawSvc)
                   ? rawSvc
                   : typeof rawSvc === "number" ||
-                    (typeof rawSvc === "string" && !isNaN(rawSvc))
+                      (typeof rawSvc === "string" && !isNaN(rawSvc))
                     ? `Service #${rawSvc}`
                     : String(rawSvc || "Unknown Service"));
               const displayTime = toDisplayTime(booking.time);
               const rawPrice = parseFloat(booking.price);
               const priceDisplay =
                 !isNaN(rawPrice) &&
-                  booking.price != null &&
-                  booking.price !== ""
+                booking.price != null &&
+                booking.price !== ""
                   ? rawPrice > 0
                     ? `₱${rawPrice.toLocaleString("en-PH")}`
                     : "To be assessed"

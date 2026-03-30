@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework import status
-from ..models import Service, ServiceCategory
+from ..models import Service, ServiceCategory, Branch, Staff
 from ..serializers.service_serializer import ServiceSerializer
 from ..serializers.service_category_serializer import ServiceCategorySerializer
 
@@ -58,7 +58,11 @@ class ServiceListCreateView(APIView):
 
 
 class ServiceDetailView(APIView):
-    permission_classes = [IsAdminUser]
+
+    def get_permissions(self):
+        if self.request.method == "PATCH":
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get_object(self, pk):
         try:
@@ -76,6 +80,34 @@ class ServiceDetailView(APIView):
         service = self.get_object(pk)
         if not service:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        is_admin = user.is_staff or user.is_superuser
+
+        # Look up role from Staff profile (role lives on Staff, not User)
+        try:
+            staff = Staff.objects.get(user=user)
+            user_role = staff.role  # e.g. "Branch Manager"
+        except Staff.DoesNotExist:
+            user_role = None
+
+        is_manager = user_role == "Branch Manager"
+
+        # Managers may only update branch_ids — nothing else
+        if is_manager and not is_admin:
+            branch_ids = request.data.get("branch_ids")
+            if branch_ids is None:
+                return Response(
+                    {"detail": "Managers may only update branch assignments."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            service.branches.set(Branch.objects.filter(id__in=branch_ids))
+            return Response(ServiceSerializer(service).data)
+
+        # Admins can patch anything
+        if not is_admin:
+            return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = ServiceSerializer(service, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

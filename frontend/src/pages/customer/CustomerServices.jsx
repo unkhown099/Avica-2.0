@@ -63,7 +63,11 @@ function ServicesPage() {
         if (!res.ok)
           throw new Error(`Failed to fetch services (${res.status})`);
         const data = await res.json();
-        setServices(Array.isArray(data) ? data : data.results || []);
+        setServices(
+          (Array.isArray(data) ? data : data.results || []).filter(
+            (s) => (s.branches?.length ?? 0) > 0,
+          ),
+        );
       } catch (err) {
         setError(err.message || "Something went wrong.");
       } finally {

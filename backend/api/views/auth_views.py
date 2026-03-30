@@ -218,8 +218,16 @@ class LoginView(APIView):
                 )
  
             user_role, first_name, last_name, suffix, phone, profile_picture = _get_profile_data(user)
- 
-            # Build JWT with extra claims so the frontend can decode the name
+
+            # ✅ GET branch_id from Staff (if exists)
+            branch_id = None
+            try:
+                staff = Staff.objects.get(user=user)
+                branch_id = staff.branch_id
+            except Staff.DoesNotExist:
+                pass
+
+            # Build JWT with extra claims
             refresh = RefreshToken.for_user(user)
             refresh["first_name"] = first_name
             refresh["last_name"]  = last_name
@@ -228,6 +236,7 @@ class LoginView(APIView):
             refresh["role"]       = user_role
             refresh["phone"]      = phone
             refresh["profile_picture"] = profile_picture
+            refresh["branch_id"] = branch_id   # ✅ ADD THIS
 
             access_token = str(refresh.access_token)
 
@@ -244,6 +253,7 @@ class LoginView(APIView):
                         "suffix":     suffix,
                         "phone":      phone,
                         "profile_picture": profile_picture,
+                        "branch_id": branch_id,  # ✅ ADD THIS
                     },
                     "tokens": {
                         "access":  access_token,
