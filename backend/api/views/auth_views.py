@@ -121,6 +121,72 @@ class SignupView(APIView):
         )
 
 
+from django.utils.html import strip_tags
+import string
+import random
+
+def generate_temp_password(length=10):
+    """Generate a random temporary password."""
+    characters = string.ascii_letters + string.digits + "!@#$%^&*"
+    return ''.join(random.choice(characters) for i in range(length))
+
+def send_google_signup_email(user, temp_password):
+    """Send welcome email with temporary password for Google signups."""
+    subject = "Welcome to Avica! Your Temporary Password"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Inter', sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 0; }}
+            .container {{ max-width: 600px; margin: 40px auto; background: #111827; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }}
+            .header {{ background: #000000; padding: 30px; text-align: center; }}
+            .content {{ padding: 40px; text-align: center; }}
+            h1 {{ font-size: 24px; font-weight: 800; margin-bottom: 20px; color: #ffffff; }}
+            p {{ color: #9ca3af; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }}
+            .pass-box {{ background: #1f2937; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 20px; color: #dc2626; letter-spacing: 2px; font-weight: bold; margin: 20px 0; border: 1px dashed #dc2626; }}
+            .button {{ display: inline-block; background: #dc2626; color: #ffffff; padding: 14px 30px; border-radius: 12px; font-weight: 700; text-decoration: none; }}
+            .footer {{ background: rgba(0,0,0,0.2); padding: 20px; text-align: center; color: #4b5563; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <img src="cid:logo" alt="Otokwikk" style="height: 50px;">
+            </div>
+            <div class="content">
+                <h1>Account Created Successfully!</h1>
+                <p>Welcome to Avica. You've successfully signed up using your Google account.</p>
+                <p>For your security and to allow direct login later, we've generated a temporary password for you:</p>
+                <div class="pass-box">{temp_password}</div>
+                <p style="color: #ef4444; font-weight: bold;">IMPORTANT: Please change this password immediately in your account settings.</p>
+                <a href="http://localhost:5173/signin" class="button">Log In & Secure Account</a>
+            </div>
+            <div class="footer">
+                © 2026 Avica Services. Professional Auto Detailing.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    text_content = strip_tags(html_content)
+    try:
+        msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [user.email])
+        msg.attach_alternative(html_content, "text/html")
+        
+        # Attach the logo as CID
+        logo_path = os.path.join(settings.BASE_DIR.parent, "frontend", "src", "assets", "otokwikklogo.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as f:
+                logo_img = MIMEImage(f.read())
+                logo_img.add_header('Content-ID', '<logo>')
+                msg.attach(logo_img)
+        
+        msg.send()
+    except Exception as e:
+        print(f"Failed to send Google signup email: {str(e)}")
+
 def _get_profile_data(user):
     """
     Returns (role, first_name, last_name, suffix, phone) for any user.
@@ -402,38 +468,25 @@ class GoogleLoginView(APIView):
             picture = idinfo.get("picture", "")
 
             user = User.objects.filter(email=email).first()
+            is_new_user = False
+            
             if not user:
-                if not is_signup:
-                    return Response({
-                        "success": False,
-                        "requires_signup": True,
-                        "email": email,
-                        "first_name": first_name,
-                        "last_name": last_name,
-                        "picture": picture
-                    }, status=200)
-
-                # Random password since they login via Google
+                is_new_user = True
+                temp_pass = generate_temp_password()
                 user = User.objects.create(email=email)
-                user.set_unusable_password()
-                user.is_active = True  # Google accounts are pre-verified
+                user.set_password(temp_pass)  # Set the temporary password
+                user.is_active = True
                 user.email_verified = True
                 user.save()
                 
-                fname = request.data.get("first_name", first_name)
-                lname = request.data.get("last_name", last_name)
-                suffix = request.data.get("suffix", "")
-                age = request.data.get("age", None)
-                phone = request.data.get("phone", "")
-
-                # Create customer profile if new user
+                # Send the temporary password email
+                send_google_signup_email(user, temp_pass)
+                
+                # Automatically create customer profile
                 Customer.objects.create(
                     user=user,
-                    first_name=fname,
-                    last_name=lname,
-                    suffix=suffix,
-                    age=age,
-                    phone=phone,
+                    first_name=first_name,
+                    last_name=last_name,
                     profile_picture=picture,
                     loyalty_points=0
                 )
@@ -447,10 +500,18 @@ class GoogleLoginView(APIView):
                 # Update picture if it changed
                 try:
                     profile = Customer.objects.get(user=user)
-                    profile.profile_picture = picture
-                    profile.save()
+                    if not profile.profile_picture:
+                        profile.profile_picture = picture
+                        profile.save()
                 except Customer.DoesNotExist:
-                    pass
+                    # Case where user exists but profile doesn't (rare but possible)
+                    Customer.objects.create(
+                        user=user,
+                        first_name=first_name,
+                        last_name=last_name,
+                        profile_picture=picture,
+                        loyalty_points=0
+                    )
 
             user_role, profile_first_name, profile_last_name, suffix, phone, profile_picture = _get_profile_data(user)
 
@@ -465,6 +526,9 @@ class GoogleLoginView(APIView):
 
             return Response({
                 "success": True,
+                "is_new_user": is_new_user,
+                "has_usable_password": user.has_usable_password(),
+                "is_temporary": is_new_user,  # Flag to indicate if this is the first login with temp pass
                 "user": {
                     "id": user.id,
                     "email": user.email,
@@ -554,7 +618,7 @@ class ForgotPasswordView(APIView):
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="https://i.ibb.co/vzR0F7Z/otokwikklogo.png" alt="Otokwikk" style="height: 50px;">
+                    <img src="cid:logo" alt="Otokwikk" style="height: 50px;">
                 </div>
                 <div class="content">
                     <h1>Password Reset Request</h1>
@@ -575,6 +639,15 @@ class ForgotPasswordView(APIView):
         try:
             msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [user.email])
             msg.attach_alternative(html_content, "text/html")
+            
+            # Attach the logo as CID
+            logo_path = os.path.join(settings.BASE_DIR.parent, "frontend", "src", "assets", "otokwikklogo.png")
+            if os.path.exists(logo_path):
+                with open(logo_path, 'rb') as f:
+                    logo_img = MIMEImage(f.read())
+                    logo_img.add_header('Content-ID', '<logo>')
+                    msg.attach(logo_img)
+            
             msg.send()
             return Response({
                 "success": True, 
@@ -619,3 +692,13 @@ class DeleteAccountView(APIView):
             return Response({"success": True, "message": "Account deleted successfully."}, status=200)
         except Exception as e:
             return Response({"success": False, "message": str(e)}, status=500)
+class CheckEmailView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        email = request.data.get("email", "").strip()
+        if not email:
+            return Response({"success": False, "message": "Email is required"}, status=400)
+        
+        exists = User.objects.filter(email=email).exists()
+        return Response({"exists": exists}, status=status.HTTP_200_OK)
