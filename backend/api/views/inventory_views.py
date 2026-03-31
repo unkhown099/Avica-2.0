@@ -13,7 +13,7 @@ from ..serializers.inventory_transaction_serializer import InventoryTransactionS
 # Roles that can READ inventory (for POS + admin dashboard)
 READ_ROLES  = ["Admin", "Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
 # Roles that can WRITE inventory
-WRITE_ROLES = ["Inventory Manager"]
+WRITE_ROLES = ["Inventory Manager", "Staff", "Inventory", "Branch Manager"]
 RESTOCK_REQUEST_ROLES = ["Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
 
 def get_staff_role(request):

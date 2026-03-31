@@ -30,52 +30,7 @@ function Footer() {
             Professional auto detailing services across Metro Manila with precision, consistency, and premium care.
           </p>
 
-          <div className="mt-10 flex items-center gap-4 text-white/90">
-            <a
-              href="https://x.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="X"
-              className="rounded-md border border-white/10 p-2 transition hover:border-red-500/50 hover:bg-red-600/10"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M18.901 1.154h3.68l-8.03 9.178L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.471l8.59-9.816L0 1.154h7.594l5.24 6.932L18.901 1.154zm-1.29 19.492h2.04L6.486 3.24H4.298l13.313 17.406z" />
-              </svg>
-            </a>
-            <a
-              href="https://www.linkedin.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="LinkedIn"
-              className="rounded-md border border-white/10 p-2 transition hover:border-red-500/50 hover:bg-red-600/10"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M4.98 3.5C4.98 4.88 3.86 6 2.48 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8h4V24h-4V8zm7 0h3.84v2.18h.06c.53-1.01 1.84-2.18 3.79-2.18C19.24 8 21 10.05 21 13.76V24h-4v-8.93c0-2.13-.04-4.87-2.97-4.87-2.97 0-3.43 2.32-3.43 4.72V24h-4V8z" />
-              </svg>
-            </a>
-            <a
-              href="https://www.instagram.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Instagram"
-              className="rounded-md border border-white/10 p-2 transition hover:border-red-500/50 hover:bg-red-600/10"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M7.75 2h8.5A5.75 5.75 0 0122 7.75v8.5A5.75 5.75 0 0116.25 22h-8.5A5.75 5.75 0 012 16.25v-8.5A5.75 5.75 0 017.75 2zm0 1.5A4.25 4.25 0 003.5 7.75v8.5A4.25 4.25 0 007.75 20.5h8.5a4.25 4.25 0 004.25-4.25v-8.5a4.25 4.25 0 00-4.25-4.25h-8.5zm8.88 1.62a1.1 1.1 0 110 2.2 1.1 1.1 0 010-2.2zM12 7a5 5 0 110 10 5 5 0 010-10zm0 1.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" />
-              </svg>
-            </a>
-            <a
-              href="https://www.facebook.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Facebook"
-              className="rounded-md border border-white/10 p-2 transition hover:border-red-500/50 hover:bg-red-600/10"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M13.5 22v-8.2h2.8l.42-3.2H13.5V8.57c0-.93.26-1.56 1.62-1.56h1.73V4.15c-.3-.04-1.33-.13-2.52-.13-2.49 0-4.2 1.52-4.2 4.31v2.41H7.3v3.2h2.83V22h3.37z" />
-              </svg>
-            </a>
-          </div>
+
 
           <button
             onClick={handleBackToTop}

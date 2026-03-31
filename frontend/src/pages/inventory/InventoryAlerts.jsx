@@ -409,7 +409,7 @@ export default function ReorderAlerts() {
           <button
             onClick={handleExport}
             disabled={exporting || filtered.length === 0}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit"
+            className="mt-10 flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit"
           >
             <svg
               className="w-4 h-4"
