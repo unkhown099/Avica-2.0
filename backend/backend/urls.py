@@ -6,7 +6,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from api.views.auth_views import (
     SignupView, LogoutView, MeView, LoginView,
-    GoogleLoginView, VerifyEmailView, ForgotPasswordView, ResetPasswordView, DeleteAccountView
+    GoogleLoginView, VerifyEmailView, ForgotPasswordView, ResetPasswordView, DeleteAccountView, CheckEmailView
 )
 from api.views.views import generate_all_forecasts, get_latest_all_forecasts
 from api.views.staff_views import StaffView, StaffDetailView, VerifyPasswordView
@@ -84,6 +84,7 @@ urlpatterns = [
     path('token/refresh/',   TokenRefreshView.as_view(),  name='token_refresh'),
     path('logout/',          LogoutView.as_view(),        name='logout'),
     path('me/',              MeView.as_view(),            name='me'),
+    path('check-email/',     CheckEmailView.as_view(),    name='check_email'),
 
     # ── Staff management ──────────────────────────────────────────────────────
     path('staff/', StaffView.as_view(), name='staff'),

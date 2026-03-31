@@ -172,21 +172,6 @@ function SignIn() {
       );
 
       const data = await res.json();
-      if (data.requires_signup) {
-        swal.fire({
-          icon: "info",
-          title: "Account Not Found",
-          text: "You haven't signed up yet. Please create an account first.",
-          timer: 3000,
-          timerProgressBar: true,
-          showConfirmButton: true,
-          ...DARK_SWAL,
-        }).then(() => {
-          navigate("/signup");
-        });
-        return;
-      }
-
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Google Login failed");
       }
@@ -196,18 +181,36 @@ function SignIn() {
 
       const destination = ROLE_ROUTES[data.user.role] ?? "/";
 
-      // Same fix: alert before navigate
-      await swal.fire({
-        icon: "success",
-        title: "Login Successful",
-        text: "Welcome!",
-        timer: 1500,
-        timerProgressBar: true,
-        showConfirmButton: false,
-        ...DARK_SWAL,
-      });
-
-      navigate(destination);
+      // If new Google user, notify about temporary password
+      if (data.is_temporary) {
+        await swal.fire({
+          icon: "warning",
+          title: "Temporary Password Sent",
+          text: `Welcome, ${data.user.first_name}! Since you signed up via Google, we've sent a temporary password to your email (${data.user.email}). Please use it to set a secure permanent password in your account settings.`,
+          showConfirmButton: true,
+          confirmButtonText: "Go to Settings",
+          showCancelButton: true,
+          cancelButtonText: "Later",
+          ...DARK_SWAL,
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate("/settings");
+          } else {
+            navigate(destination);
+          }
+        });
+      } else {
+        await swal.fire({
+          icon: "success",
+          title: "Login Successful",
+          text: "Welcome back!",
+          timer: 1500,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          ...DARK_SWAL,
+        });
+        navigate(destination);
+      }
     } catch (err) {
       swal.fire({
         icon: "error",

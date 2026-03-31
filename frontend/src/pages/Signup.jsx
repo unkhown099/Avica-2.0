@@ -1,11 +1,91 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
 import { API_BASE } from "../hooks/useAuth.js";
 import { GoogleLogin } from "@react-oauth/google";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+
+const DARK_SWAL = {
+  background: "linear-gradient(to bottom right, #1f2937, #111827)",
+  color: "#fff",
+  confirmButtonColor: "#dc2626",
+};
+
+const ROLE_ROUTES = {
+  admin: "/admin/dashboard",
+  business_owner: "/branch-owner/dashboard",
+  branch_manager: "/manager/dashboard",
+  inventory: "/inventory/dashboard",
+  inventory_manager: "/inventory-manager/dashboard",
+  staff: "/staff/dashboard",
+  employee: "/employee/dashboard",
+  customer: "/dashboard",
+};
+
+const storeSession = (tokens, user, remember) => {
+  const store = remember ? localStorage : sessionStorage;
+  store.setItem("access_token", tokens.access);
+  store.setItem("refresh_token", tokens.refresh);
+  store.setItem("user", JSON.stringify(user));
+};
+
+// Custom Input Component for Birth Date with masking logic
+const BirthdayInput = React.forwardRef(({ value, onClick, onChange, placeholder, hasError }, ref) => {
+  const handleInputChange = (e) => {
+    let val = e.target.value.replace(/\D/g, "");
+    if (val.length > 8) val = val.substring(0, 8);
+
+    let masked = "";
+    if (val.length > 0) {
+      let mm = val.substring(0, 2);
+      if (mm.length === 1 && parseInt(mm) > 1) {
+        mm = "0" + mm;
+        val = mm + val.substring(1);
+      }
+      if (mm.length === 2 && parseInt(mm) > 12) mm = "12";
+      if (mm.length === 2 && parseInt(mm) === 0) mm = "01";
+      masked = mm;
+
+      if (val.length > 2) {
+        let dd = val.substring(2, 4);
+        if (dd.length === 1 && parseInt(dd) > 3) {
+          dd = "0" + dd;
+          val = val.substring(0, 2) + dd + val.substring(3);
+        }
+        if (dd.length === 2 && parseInt(dd) > 31) dd = "31";
+        if (dd.length === 2 && parseInt(dd) === 0) dd = "01";
+        masked += "/" + dd;
+
+        if (val.length > 4) {
+          masked += "/" + val.substring(4, 8);
+        }
+      }
+    }
+    e.target.value = masked;
+    onChange(e);
+  };
+
+  return (
+    <div className="relative w-full group">
+      <input
+        ref={ref}
+        value={value}
+        onClick={onClick}
+        placeholder={placeholder || "mm/dd/yyyy"}
+        className={`w-full px-4 py-3.5 bg-gray-900 border ${hasError ? "border-red-600 focus:ring-red-600/50" : "border-gray-700 focus:border-red-600 focus:ring-red-600/50"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 pr-12 cursor-pointer group-hover:border-gray-600`}
+        onChange={handleInputChange}
+        autoComplete="off"
+      />
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-colors group-hover:text-red-500">
+        <svg className="w-5 h-5 transition-transform duration-300 transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+    </div>
+  );
+});
 
 function SignUpPage() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -27,7 +107,6 @@ function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [showCookieModal, setShowCookieModal] = useState(false);
   const [isGoogleSignup, setIsGoogleSignup] = useState(false);
   const [errors, setErrors] = useState({});
   const [passwordStrength, setPasswordStrength] = useState({
@@ -35,6 +114,61 @@ function SignUpPage() {
     text: "",
     color: "",
   });
+
+  const [hasReadTerms, setHasReadTerms] = useState(false);
+  const [hasReadPrivacy, setHasReadPrivacy] = useState(false);
+
+  // Auto-check agreement when both documents are read
+  useEffect(() => {
+    if (hasReadTerms && hasReadPrivacy) {
+      setFormData(prev => ({ ...prev, agreeToTerms: true }));
+      if (errors.agreeToTerms) {
+        setErrors(prev => ({ ...prev, agreeToTerms: "" }));
+      }
+    }
+  }, [hasReadTerms, hasReadPrivacy]);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Real-time password and confirm password validation
+  useEffect(() => {
+    const password = formData.password;
+    const confirmPassword = formData.confirmPassword;
+
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+
+      // Password real-time validation
+      if (password) {
+        if (password.length < 8) {
+          newErrors.password = "Password must be at least 8 characters";
+        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(password)) {
+          newErrors.password = "Must include uppercase, lowercase, and number";
+        } else {
+          delete newErrors.password;
+        }
+      } else {
+        delete newErrors.password;
+      }
+
+      // Match real-time validation
+      if (confirmPassword) {
+        if (confirmPassword !== password) {
+          newErrors.confirmPassword = "Passwords do not match";
+        } else {
+          delete newErrors.confirmPassword;
+        }
+      } else {
+        delete newErrors.confirmPassword;
+      }
+
+      // To avoid infinite loop, only return new object if it actually changed
+      if (JSON.stringify(newErrors) !== JSON.stringify(prev)) {
+        return newErrors;
+      }
+      return prev;
+    });
+  }, [formData.password, formData.confirmPassword]);
 
   const countryCodes = [
     { code: "+63", country: "PH", flag: "🇵🇭" },
@@ -75,39 +209,82 @@ function SignUpPage() {
     else return { score: 3, text: "Strong", color: "bg-green-600" };
   };
 
-  const handleGoogleSuccess = (credentialResponse) => {
+  const handleGoogleSuccess = async (credentialResponse) => {
     try {
-      const base64Url = credentialResponse.credential.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      const payload = JSON.parse(jsonPayload);
+      const res = await fetch(
+        `${API_BASE}/google-login/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: credentialResponse.credential }),
+        },
+      );
 
-      setFormData(prev => ({
-        ...prev,
-        firstName: payload.given_name || "",
-        lastName: payload.family_name || "",
-        email: payload.email || "",
-      }));
-      setIsGoogleSignup(true);
-      setCurrentStep(1);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Google Signup failed");
+      }
 
+      storeSession(data.tokens, data.user, false);
+      const destination = ROLE_ROUTES[data.user.role] ?? "/";
+
+      // If new Google user, notify about temporary password
+      if (data.is_temporary) {
+        await swal.fire({
+          icon: "warning",
+          title: "Temporary Password Sent",
+          text: `Welcome, ${data.user.first_name}! We've sent a temporary password to your email (${data.user.email}). Please use it to set a secure permanent password in your account settings.`,
+          showConfirmButton: true,
+          confirmButtonText: "Go to Settings",
+          showCancelButton: true,
+          cancelButtonText: "Later",
+          ...DARK_SWAL,
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate("/settings");
+          } else {
+            navigate(destination);
+          }
+        });
+      } else {
+        await swal.fire({
+          icon: "success",
+          title: "Login Successful",
+          text: "Welcome back!",
+          timer: 1500,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          ...DARK_SWAL,
+        });
+        navigate(destination);
+      }
+    } catch (err) {
       swal.fire({
-        title: "Almost there!",
-        text: "Please complete the remaining details like Birth Date, Suffix, and your custom password to finish your sign up.",
-        icon: "info",
-        background: "linear-gradient(to bottom right, #1f2937, #111827)",
-        color: "#fff",
-        confirmButtonColor: "#dc2626",
+        icon: "error",
+        title: "Google Signup Failed",
+        text: err.message,
+        ...DARK_SWAL,
       });
-    } catch (e) {
-      console.error("Token parsing error:", e);
     }
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // Real-time validation: block numbers and force Title Case for name fields
+    if (name === "firstName" || name === "lastName") {
+      const sanitizedValue = value.replace(/[^a-zA-Z\s]/g, "");
+      // Convert to Title Case: first letter of each word caps, rest lower
+      const titleCaseValue = sanitizedValue
+        .split(" ")
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
+
+      setFormData((prev) => ({ ...prev, [name]: titleCaseValue }));
+      if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+      return;
+    }
+
     if (name === "phone") {
       const formattedPhone = formatPhoneNumber(value);
       setFormData((prev) => ({ ...prev, phone: formattedPhone }));
@@ -123,6 +300,32 @@ function SignUpPage() {
       [name]: type === "checkbox" ? checked : value,
     }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+
+    // Real-time email existence check
+    if (name === "email" && value.includes("@") && value.includes(".")) {
+      checkEmailExists(value);
+    }
+  };
+
+  const checkEmailExists = async (email) => {
+    try {
+      const res = await fetch(`${API_BASE}/check-email/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.exists) {
+        setErrors(prev => ({ ...prev, email: "This email is already registered" }));
+      } else {
+        setErrors(prev => {
+          const { email, ...rest } = prev;
+          return rest;
+        });
+      }
+    } catch (err) {
+      console.error("Email check error:", err);
+    }
   };
 
   const validateStep = (step) => {
@@ -146,13 +349,15 @@ function SignUpPage() {
         if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
           age--;
         }
-        if (age < 18) newErrors.birthDate = "You must be at least 18 years old";
+        if (age < 17) newErrors.birthDate = "You must be at least 17 years old";
         else if (age > 100) newErrors.birthDate = "You must be 100 years old or younger";
       }
     } else if (step === 2) {
       if (!formData.email.trim()) newErrors.email = "Email address is required";
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
         newErrors.email = "Email must be in format: example@domain.com";
+      else if (errors.email === "This email is already registered")
+        newErrors.email = "This email is already registered";
       if (formData.phone) {
         const phoneDigits = formData.phone.replace(/\s/g, "");
         if (!/^\d+$/.test(phoneDigits))
@@ -186,7 +391,25 @@ function SignUpPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    // For step 2, do a final re-check of email existence to be 100% sure
+    if (currentStep === 2 && formData.email) {
+      try {
+        const res = await fetch(`${API_BASE}/check-email/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: formData.email }),
+        });
+        const data = await res.json();
+        if (data.exists) {
+          setErrors(prev => ({ ...prev, email: "This email is already registered" }));
+          return;
+        }
+      } catch (err) {
+        console.error("Email check error:", err);
+      }
+    }
+
     if (validateStep(currentStep)) {
       setCurrentStep((prev) => prev + 1);
       setErrors({});
@@ -312,8 +535,17 @@ function SignUpPage() {
     </svg>
   );
 
-  const Modal = ({ isOpen, onClose, title, children }) => {
+  const Modal = ({ isOpen, onClose, title, children, onScrollEnd, hasRead }) => {
     if (!isOpen) return null;
+
+    const handleScroll = (e) => {
+      const { scrollTop, scrollHeight, clientHeight } = e.target;
+      // Use a small buffer (5px) for the scroll check
+      if (scrollHeight - scrollTop <= clientHeight + 5) {
+        if (onScrollEnd) onScrollEnd();
+      }
+    };
+
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-10">
         <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose} />
@@ -324,11 +556,21 @@ function SignUpPage() {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
-          <div className="p-8 overflow-y-auto custom-scrollbar text-gray-400 space-y-6 text-lg leading-relaxed">
+          <div
+            className="p-8 overflow-y-auto custom-scrollbar text-gray-400 space-y-6 text-lg leading-relaxed"
+            onScroll={handleScroll}
+          >
             {children}
           </div>
-          <div className="p-8 border-t border-white/5 bg-black/20 text-center">
-            <button onClick={onClose} className="px-10 py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl transition-all tracking-widest uppercase text-sm">Close</button>
+          <div className="p-8 border-t border-white/5 bg-black/20 text-center flex flex-col items-center gap-4">
+            {!hasRead && <p className="text-sm text-red-500 font-bold uppercase tracking-widest">Scroll to the bottom to acknowledge</p>}
+            <button
+              onClick={onClose}
+              disabled={!hasRead}
+              className={`px-10 py-4 font-black rounded-2xl transition-all tracking-widest uppercase text-sm ${hasRead ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
+            >
+              {hasRead ? "I Accept & Close" : "Please Read Entirely"}
+            </button>
           </div>
         </div>
       </div>
@@ -357,23 +599,7 @@ function SignUpPage() {
   );
 
 
-  const CookieContent = () => (
-    <div className="space-y-6">
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">1. WHAT ARE COOKIES?</h4>
-        <p>Cookies are small pieces of text sent to your web browser by a website you visit. They help the website remember information about your visit.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">2. HOW WE USE COOKIES</h4>
-        <p>We use cookies to maintain your session (so you don't have to keep logging in), track your settings, and improve our platform's performance based on your usage.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">3. YOUR CHOICES</h4>
-        <p>You can choose to disable cookies through your browser settings, although this may affect the availability and functionality of some features on our platform.</p>
-      </section>
-    </div>
-  );
-  const PrivacyContent = () => (
+  const PrivacyAndCookieContent = () => (
     <div className="space-y-6">
       <section>
         <h4 className="text-white font-bold mb-2 uppercase tracking-wide">1. DATA COLLECTION</h4>
@@ -386,6 +612,14 @@ function SignUpPage() {
       <section>
         <h4 className="text-white font-bold mb-2 uppercase tracking-wide">3. SERVICE TRACKING</h4>
         <p>We maintain a history of your detailing services to provide personalized recommendations and exclusive discounts. You may request your data profile at any time.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">4. WHAT ARE COOKIES?</h4>
+        <p>Cookies are small pieces of text sent to your web browser by a website you visit. They help the website remember information about your visit.</p>
+      </section>
+      <section>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">5. HOW WE USE COOKIES</h4>
+        <p>We use cookies to maintain your session (so you don't have to keep logging in), track your settings, and improve our platform's performance based on your usage.</p>
       </section>
     </div>
   );
@@ -519,7 +753,7 @@ function SignUpPage() {
                       </div>
                       {idx < 2 && (
                         <div
-                           className={`flex-1 h-1 mx-2 sm:mx-4 ${currentStep > step ? "bg-red-600" : "bg-gray-700"}`}
+                          className={`flex-1 h-1 mx-2 sm:mx-4 ${currentStep > step ? "bg-red-600" : "bg-gray-700"}`}
                         />
                       )}
                     </React.Fragment>
@@ -549,6 +783,8 @@ function SignUpPage() {
                         value={formData.firstName}
                         onChange={handleChange}
                         autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck="false"
                         className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.firstName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                         placeholder="John"
                       />
@@ -572,6 +808,8 @@ function SignUpPage() {
                         value={formData.lastName}
                         onChange={handleChange}
                         autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck="false"
                         className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.lastName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                         placeholder="Doe"
                       />
@@ -613,18 +851,22 @@ function SignUpPage() {
                       <DatePicker
                         selected={formData.birthDate ? new Date(formData.birthDate) : null}
                         onChange={(date) => {
-                          const dateString = date ? date.toISOString().split('T')[0] : "";
-                          handleChange({ target: { name: 'birthDate', value: dateString } });
+                          if (date && !isNaN(date)) {
+                            const dateStr = date.toISOString().split("T")[0];
+                            setFormData(prev => ({ ...prev, birthDate: dateStr }));
+                            if (errors.birthDate) setErrors(prev => ({ ...prev, birthDate: "" }));
+                          } else {
+                            setFormData(prev => ({ ...prev, birthDate: "" }));
+                          }
                         }}
-                        maxDate={new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+                        maxDate={new Date(new Date().setFullYear(new Date().getFullYear() - 17))}
                         minDate={new Date(new Date().setFullYear(new Date().getFullYear() - 100))}
                         showYearDropdown
                         showMonthDropdown
                         dropdownMode="select"
-                        placeholderText="Select your birth date"
-                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.birthDate ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
-                        wrapperClassName="w-full"
-                      />
+                        dateFormat="MM/dd/yyyy"
+                        placeholderText="Select your birth date (mm/dd/yyyy)"
+                        customInput={<BirthdayInput hasError={!!errors.birthDate} />} />
                       {errors.birthDate && (
                         <p className="text-red-500 text-sm mt-1">
                           {errors.birthDate}
@@ -651,6 +893,8 @@ function SignUpPage() {
                         value={formData.email}
                         onChange={handleChange}
                         autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck="false"
                         disabled={isGoogleSignup}
                         className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 ${isGoogleSignup ? 'opacity-50 cursor-not-allowed' : ''}`}
                         placeholder="john.doe@example.com"
@@ -793,6 +1037,14 @@ function SignUpPage() {
                           {errors.confirmPassword}
                         </p>
                       )}
+                      {formData.confirmPassword && !errors.confirmPassword && formData.password && (
+                        <p className="text-green-500 text-sm mt-1 flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Passwords match!
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -802,8 +1054,9 @@ function SignUpPage() {
                           id="agreeToTerms"
                           name="agreeToTerms"
                           checked={formData.agreeToTerms}
+                          disabled={!(hasReadTerms && hasReadPrivacy)}
                           onChange={handleChange}
-                          className={`w-5 h-5 mt-0.5 bg-gray-900 border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer ${errors.agreeToTerms ? "border-red-600" : ""}`}
+                          className={`w-5 h-5 mt-0.5 bg-gray-900 border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${errors.agreeToTerms ? "border-red-600" : ""}`}
                         />
                         <label
                           htmlFor="agreeToTerms"
@@ -813,31 +1066,28 @@ function SignUpPage() {
                           <button
                             type="button"
                             onClick={() => setShowTermsModal(true)}
-                            className="text-red-600 hover:text-red-500 font-semibold"
+                            className="text-red-600 hover:text-red-500 font-bold underline underline-offset-4"
                           >
                             Terms and Conditions
-                          </button>{" "}
-                          and{" "}
+                          </button>
+                          {" "}and{" "}
                           <button
                             type="button"
                             onClick={() => setShowPrivacyModal(true)}
-                            className="text-red-600 hover:text-red-500 font-semibold"
+                            className="text-red-600 hover:text-red-500 font-bold underline underline-offset-4"
                           >
-                            Privacy Policy
-                          </button>
-                          , and{" "}
-                          <button
-                            type="button"
-                            onClick={() => setShowCookieModal(true)}
-                            className="text-red-600 hover:text-red-500 font-semibold"
-                          >
-                            Cookie Policy
+                            Privacy & Cookie Policy
                           </button>
                         </label>
                       </div>
                       {errors.agreeToTerms && (
                         <p className="text-red-500 text-sm mt-1">
                           {errors.agreeToTerms}
+                        </p>
+                      )}
+                      {!(hasReadTerms && hasReadPrivacy) && (
+                        <p className="text-gray-500 text-xs mt-2 italic">
+                          * Please read both documents to acknowledge
                         </p>
                       )}
                     </div>
@@ -896,6 +1146,7 @@ function SignUpPage() {
                       shape="pill"
                       size="large"
                       width="100%"
+                      text="signup_with"
                     />
                   </div>
                   <p className="text-gray-400 text-base sm:text-lg">
@@ -914,16 +1165,24 @@ function SignUpPage() {
         </div>
       </div>
 
-      <Modal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} title="Terms and Conditions">
+      <Modal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        title="Terms and Conditions"
+        onScrollEnd={() => setHasReadTerms(true)}
+        hasRead={hasReadTerms}
+      >
         <TermsContent />
       </Modal>
 
-      <Modal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} title="Privacy Policy">
-        <PrivacyContent />
-      </Modal>
-
-      <Modal isOpen={showCookieModal} onClose={() => setShowCookieModal(false)} title="Cookie Policy">
-        <CookieContent />
+      <Modal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+        title="Privacy & Cookie Policy"
+        onScrollEnd={() => setHasReadPrivacy(true)}
+        hasRead={hasReadPrivacy}
+      >
+        <PrivacyAndCookieContent />
       </Modal>
 
       <style>{`
