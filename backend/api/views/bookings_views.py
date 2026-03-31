@@ -892,7 +892,8 @@ class StaffBookingActionView(APIView):
             booking.reschedule_status = "pending_customer"
             booking.reschedule_options = options
             booking.reschedule_selected_option = None
-            booking.reschedule_note = str(request.data.get("note", "") or "").strip()
+            booking.reschedule_note = str(request.data.get("reason", "") or request.data.get("note", "") or "").strip()
+            booking.reschedule_request_reason = str(request.data.get("request_reason", "") or "").strip()
             booking.reschedule_proposed_by = getattr(request.user, "staff_profile", None)
             booking.save(
                 update_fields=[
@@ -903,6 +904,7 @@ class StaffBookingActionView(APIView):
                     "reschedule_selected_option",
                     "reschedule_note",
                     "reschedule_proposed_by",
+                    "reschedule_request_reason",
                 ]
             )
 
@@ -1247,6 +1249,94 @@ class BookingRescheduleResponseView(APIView):
                 ),
                 email_subject="Reschedule Proposal Declined - Otokwikk",
             )
+
+        from api.serializers.bookings_serializer import BookingSerializer
+        return Response(BookingSerializer(booking).data)
+
+class BookingRescheduleRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            booking = Booking.objects.select_related("branch", "user").get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if booking.user_id != request.user.id:
+            return Response(
+                {"detail": "You can only request reschedule for your own booking."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if booking.status not in ["pending", "confirmed"]:
+            return Response(
+                {"detail": "Only pending or confirmed bookings can request a reschedule."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reason = str(request.data.get("reason", "")).strip()
+        if not reason or len(reason) < 10:
+            return Response(
+                {"detail": "Please provide a reason (at least 10 characters)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(reason) > 300:
+            return Response(
+                {"detail": "Reason must be under 300 characters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Save the request reason on the booking
+        booking.reschedule_note = reason
+        booking.save(update_fields=["reschedule_note"])
+
+        booking.reschedule_request_reason = reason
+        booking.save(update_fields=["reschedule_request_reason"])
+
+        # Notify staff and managers at the branch
+        branch = booking.branch
+        if branch:
+            recipients = Staff.objects.filter(
+                branch=branch,
+                role__in=["Staff", "Branch Manager"],
+                status="Active",
+            ).select_related("user")
+
+            notifications = []
+            appointment_time = to_display_time(str(booking.time))
+            for staff_member in recipients:
+                if not getattr(staff_member, "user_id", None):
+                    continue
+                notifications.append(
+                    Notification(
+                        user_id=staff_member.user_id,
+                        title="Customer Requested Reschedule",
+                        message=(
+                            f"{booking.user.get_username() or booking.user.email} requested a reschedule "
+                            f"for their {booking.service} appointment on {booking.date} at {appointment_time}. "
+                            f"Reason: {reason}"
+                        ),
+                        notification_type="appointment",
+                    )
+                )
+            if notifications:
+                try:
+                    Notification.objects.bulk_create(notifications)
+                except Exception:
+                    logger.exception(
+                        "Failed to notify staff for reschedule request booking_id=%s", booking.id
+                    )
+
+        # Confirm back to the customer
+        _notify_user_inapp_and_email(
+            user=booking.user,
+            title="Reschedule Request Sent",
+            message=(
+                f"Your reschedule request for {booking.service} on {booking.date} "
+                f"has been sent. Staff will propose a new time shortly."
+            ),
+            email_subject="Reschedule Request Received - Otokwikk",
+        )
 
         from api.serializers.bookings_serializer import BookingSerializer
         return Response(BookingSerializer(booking).data)

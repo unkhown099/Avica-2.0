@@ -1,23 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import StaffLayout from "./StaffLayout";
-import { API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE, getAuthHeaders } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
-
-// ─── Utilities ────────────────────────────────────────────────────────────────
-
-function authHeaders() {
-  const token =
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("access") ||
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("access_token") ||
-    sessionStorage.getItem("access") ||
-    sessionStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -120,19 +104,20 @@ function StaffAppointments() {
     setLoading(true);
     setError("");
     fetch(`${API_BASE}/api/staff/bookings/`, {
-      headers: authHeaders(),
+      headers: getAuthHeaders(),
     })
       .then((r) => {
         if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
       })
-      .then((data) =>
-      {
+      .then((data) => {
         const rows = Array.isArray(data) ? data : (data.results ?? []);
         setBookings(rows);
         setAssignedByBooking(
           rows.reduce((acc, row) => {
-            acc[row.id] = row.assigned_employee_id ? String(row.assigned_employee_id) : "";
+            acc[row.id] = row.assigned_employee_id
+              ? String(row.assigned_employee_id)
+              : "";
             return acc;
           }, {}),
         );
@@ -147,13 +132,15 @@ function StaffAppointments() {
 
   const fetchEmployees = useCallback(() => {
     fetch(`${API_BASE}/api/queue/employees/`, {
-      headers: authHeaders(),
+      headers: getAuthHeaders(),
     })
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then((data) => setEmployees(Array.isArray(data) ? data : (data.results ?? [])))
+      .then((data) =>
+        setEmployees(Array.isArray(data) ? data : (data.results ?? [])),
+      )
       .catch(() => setEmployees([]));
   }, []);
 
@@ -232,17 +219,14 @@ function StaffAppointments() {
   const handleAction = async (id, newStatus, assignedEmployeeId = null) => {
     setActionLoading(id);
     try {
-      const res = await fetch(
-        `${API_BASE}/api/staff/bookings/${id}/action/`,
-        {
-          method: "PATCH",
-          headers: authHeaders(),
-          body: JSON.stringify({
-            status: newStatus,
-            assigned_employee_id: assignedEmployeeId || null,
-          }),
-        },
-      );
+      const res = await fetch(`${API_BASE}/api/staff/bookings/${id}/action/`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          status: newStatus,
+          assigned_employee_id: assignedEmployeeId || null,
+        }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || "Action failed. Please try again.");
@@ -253,7 +237,9 @@ function StaffAppointments() {
       );
       setAssignedByBooking((prev) => ({
         ...prev,
-        [id]: updated.assigned_employee_id ? String(updated.assigned_employee_id) : "",
+        [id]: updated.assigned_employee_id
+          ? String(updated.assigned_employee_id)
+          : "",
       }));
     } catch (e) {
       alert(e.message || "Action failed. Please try again.");
@@ -268,11 +254,16 @@ function StaffAppointments() {
       html: `
         <div class="space-y-4 text-left">
           <div>
-            <label class="block text-sm font-medium text-gray-400 mb-1">Option 1 Date</label>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Reason for Reschedule <span style="color:#f87171">*</span></label>
+            <textarea id="swal-reason" rows="2" maxlength="300" placeholder="e.g. Staff unavailable, equipment maintenance..." class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm resize-none" style="width:100%"></textarea>
+            <p id="swal-reason-err" class="text-red-400 text-xs mt-1 hidden">Please provide a reason (at least 10 characters).</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Option 1 Date <span style="color:#f87171">*</span></label>
             <input id="swal-input1" type="date" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white" value="${booking.date}">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-400 mb-1">Option 1 Time (24h)</label>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Option 1 Time (24h) <span style="color:#f87171">*</span></label>
             <input id="swal-input2" type="time" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white">
           </div>
           <div>
@@ -292,7 +283,43 @@ function StaffAppointments() {
       background: "#111827",
       color: "#fff",
       preConfirm: () => {
+        const PROFANITY = [
+          "fuck",
+          "shit",
+          "ass",
+          "bitch",
+          "bastard",
+          "damn",
+          "crap",
+          "dick",
+          "piss",
+          "cunt",
+          "faggot",
+          "nigger",
+          "whore",
+          "slut",
+        ];
+        const reason = document.getElementById("swal-reason").value.trim();
+        const reasonErr = document.getElementById("swal-reason-err");
+        const lowerReason = reason.toLowerCase();
+        const hasProfanity = PROFANITY.some((w) => lowerReason.includes(w));
+
+        if (reason.length < 10) {
+          reasonErr.textContent =
+            "Please provide a reason (at least 10 characters).";
+          reasonErr.classList.remove("hidden");
+          return false;
+        }
+        if (hasProfanity) {
+          reasonErr.textContent =
+            "Please keep your message professional — no profanity.";
+          reasonErr.classList.remove("hidden");
+          return false;
+        }
+        reasonErr.classList.add("hidden");
+
         return {
+          reason,
           date1: document.getElementById("swal-input1").value,
           time1: document.getElementById("swal-input2").value,
           date2: document.getElementById("swal-input3").value,
@@ -317,8 +344,12 @@ function StaffAppointments() {
         { date: formValues.date1, time: toApiTime(formValues.time1) },
       ];
       if (formValues.date2 && formValues.time2) {
-        options.push({ date: formValues.date2, time: toApiTime(formValues.time2) });
+        options.push({
+          date: formValues.date2,
+          time: toApiTime(formValues.time2),
+        });
       }
+      const rescheduleReason = formValues.reason;
 
       setActionLoading(booking.id);
       try {
@@ -326,10 +357,11 @@ function StaffAppointments() {
           `${API_BASE}/api/staff/bookings/${booking.id}/action/`,
           {
             method: "PATCH",
-            headers: authHeaders(),
+            headers: getAuthHeaders(),
             body: JSON.stringify({
               action: "propose_reschedule",
               options,
+              reason: rescheduleReason,
             }),
           },
         );
@@ -394,9 +426,7 @@ function StaffAppointments() {
             <h1 className="text-3xl font-black text-white tracking-tight">
               Appointments
             </h1>
-            <p className="text-gray-400 mt-1">
-              View appointments
-            </p>
+            <p className="text-gray-400 mt-1">View appointments</p>
           </div>
         </div>
 
@@ -484,10 +514,11 @@ function StaffAppointments() {
                     <button
                       key={day}
                       onClick={() => setSelectedDate(day)}
-                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${isSelected
-                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                        : "hover:bg-white/5 text-gray-400 hover:text-white"
-                        }`}
+                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
+                        isSelected
+                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                          : "hover:bg-white/5 text-gray-400 hover:text-white"
+                      }`}
                     >
                       <span>{day}</span>
                       {dots.length > 0 && (
@@ -702,6 +733,34 @@ function StaffAppointments() {
                         </div>
                       )}
 
+                      {b.reschedule_request_reason &&
+                        (b.reschedule_status == null ||
+                          b.reschedule_status === "none") && (
+                          <div className="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5 flex items-start gap-2">
+                            <svg
+                              className="w-4 h-4 text-amber-400 shrink-0 mt-0.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div>
+                              <p className="text-amber-400 text-xs font-bold mb-0.5">
+                                ⚠ Customer Requested Reschedule
+                              </p>
+                              <p className="text-amber-300/80 text-xs">
+                                {b.reschedule_request_reason}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                       {(b.status === "pending" || b.status === "confirmed") && (
                         <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2">
                           {(() => {
@@ -710,51 +769,52 @@ function StaffAppointments() {
                               Boolean(b.assigned_employee_id);
                             return (
                               <>
-                          <div className="md:col-span-2">
-                            <label className="block text-xs font-semibold text-gray-500 mb-1">
-                                {isAssignmentLocked
-                                  ? "Assigned Employee (Locked)"
-                                  : "Assign Employee"}
-                            </label>
-                            <select
-                              value={assignedByBooking[b.id] ?? ""}
-                              onChange={(e) =>
-                                setAssignedByBooking((prev) => ({
-                                  ...prev,
-                                  [b.id]: e.target.value,
-                                }))
-                              }
-                                disabled={isAssignmentLocked}
-                              className="w-full bg-gray-900/70 border border-white/10 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500/50"
-                            >
-                              <option value="">Unassigned</option>
-                              {employees.map((emp) => (
-                                <option key={emp.id} value={emp.id}>
-                                  {emp.full_name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="flex items-end">
-                            {b.status === "confirmed" && !isAssignmentLocked && (
-                              <button
-                                onClick={() =>
-                                  handleAction(
-                                    b.id,
-                                    "confirmed",
-                                    assignedByBooking[b.id] || null,
-                                  )
-                                }
-                                disabled={actionLoading === b.id}
-                                className="w-full bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
-                              >
-                                Save Assignment
-                              </button>
-                            )}
-                          </div>
-                            </>
-                          );
-                        })()}
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1">
+                                    {isAssignmentLocked
+                                      ? "Assigned Employee (Locked)"
+                                      : "Assign Employee"}
+                                  </label>
+                                  <select
+                                    value={assignedByBooking[b.id] ?? ""}
+                                    onChange={(e) =>
+                                      setAssignedByBooking((prev) => ({
+                                        ...prev,
+                                        [b.id]: e.target.value,
+                                      }))
+                                    }
+                                    disabled={isAssignmentLocked}
+                                    className="w-full bg-gray-900/70 border border-white/10 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500/50"
+                                  >
+                                    <option value="">Unassigned</option>
+                                    {employees.map((emp) => (
+                                      <option key={emp.id} value={emp.id}>
+                                        {emp.full_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="flex items-end">
+                                  {b.status === "confirmed" &&
+                                    !isAssignmentLocked && (
+                                      <button
+                                        onClick={() =>
+                                          handleAction(
+                                            b.id,
+                                            "confirmed",
+                                            assignedByBooking[b.id] || null,
+                                          )
+                                        }
+                                        disabled={actionLoading === b.id}
+                                        className="w-full bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
+                                      >
+                                        Save Assignment
+                                      </button>
+                                    )}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
 
@@ -769,7 +829,10 @@ function StaffAppointments() {
                                 assignedByBooking[b.id] || null,
                               )
                             }
-                            disabled={actionLoading === b.id || !(assignedByBooking[b.id] || "").trim()}
+                            disabled={
+                              actionLoading === b.id ||
+                              !(assignedByBooking[b.id] || "").trim()
+                            }
                             className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
                           >
                             {actionLoading === b.id ? (
@@ -818,26 +881,69 @@ function StaffAppointments() {
                           </button>
                         </div>
                       )}
-                      {(b.status === "confirmed" || b.status === "rescheduled") && (
-                        <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-emerald-400 text-sm">
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          {b.status === "rescheduled" ? "Awaiting customer response" : "Confirmed"}
+                      {b.status === "rescheduled" && (
+                        <div className="pt-3 border-t border-white/5 space-y-2">
+                          <div className="flex items-center gap-2 text-indigo-400 text-sm">
+                            <svg
+                              className="w-4 h-4 shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            Awaiting customer response — no action needed
+                          </div>
+                          {b.reschedule_note && (
+                            <div className="bg-indigo-600/8 border border-indigo-600/20 rounded-lg px-3 py-2">
+                              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-1">
+                                Reason Sent to Customer
+                              </p>
+                              <p className="text-indigo-300 text-xs">
+                                {b.reschedule_note}
+                              </p>
+                            </div>
+                          )}
+                          {b.reschedule_options?.length > 0 && (
+                            <div className="bg-indigo-600/8 border border-indigo-600/20 rounded-lg px-3 py-2 space-y-1">
+                              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">
+                                Proposed Options
+                              </p>
+                              {b.reschedule_options.map((opt, i) => (
+                                <p key={i} className="text-indigo-300 text-xs">
+                                  {typeof opt === "object"
+                                    ? `${opt.date} @ ${opt.time}`
+                                    : String(opt)}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
-                      {(b.status === "confirmed" || b.status === "rescheduled") && (
-                        <div className="pt-2">
+
+                      {b.status === "confirmed" && (
+                        <div className="pt-3 border-t border-white/5 space-y-2">
+                          <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            Confirmed
+                          </div>
                           <button
                             onClick={() => handleReschedule(b)}
                             disabled={actionLoading === b.id}
@@ -909,7 +1015,6 @@ function StaffAppointments() {
             )}
           </div>
         </div>
-
       </div>
     </StaffLayout>
   );
