@@ -881,7 +881,7 @@ function NewBookingModal({
 }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
-    service: null,
+    service: [],
     branch: null,
     date: "",
     time: "",
@@ -1144,8 +1144,8 @@ function NewBookingModal({
   const canAdvance = () => {
     setError("");
     if (step === 0) {
-      if (!form.service) {
-        setError("Please select a service.");
+      if (!form.service || form.service.length === 0) {
+        setError("Please select at least one service.");
         return false;
       }
       return true;
@@ -1204,7 +1204,7 @@ function NewBookingModal({
     setError("");
     setFieldErrors({});
     try {
-      if (!form.service?.id) throw new Error("Please select a service");
+      if (!form.service?.length) throw new Error("Please select at least one service");
       if (!form.branch?.id) throw new Error("Please select a branch");
       if (!form.date || !form.time)
         throw new Error("Please select date and time");
@@ -1238,14 +1238,17 @@ function NewBookingModal({
         throw new Error("Please select a specific employee.");
 
       const payload = {
-        service: form.service.name,
+        service: form.service.map((s) => s.name).join(", "),
         branch_id: parseInt(form.branch.id, 10),
         date: form.date,
         time: formatTimeForAPI(form.time),
         vehicle,
         plate_number: plateNumber,
         notes: form.notes || "",
-        price: parseFloat(form.service.price ?? 0),
+        price: form.service.reduce(
+          (sum, s) => sum + parseFloat(s.price ?? 0),
+          0,
+        ),
         preferred_employee_id:
           bookingMode === "specific"
             ? (form.preferredEmployee?.id ?? null)
@@ -1309,7 +1312,7 @@ function NewBookingModal({
         {step === 0 && (
           <div>
             <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-              Choose a Service
+              Choose Services
             </p>
             {!servicesLoading && !servicesError && (
               <div className="mb-3">
@@ -1394,12 +1397,20 @@ function NewBookingModal({
                 {/* Mobile compact list */}
                 <div className="flex flex-col gap-2 sm:hidden">
                   {filteredServices.map((s) => {
-                    const active = form.service?.id === s.id;
+                    const active = form.service.some((item) => item.id === s.id);
                     return (
                       <button
                         key={s.id}
                         type="button"
-                        onClick={() => set("service", s)}
+                        onClick={() => {
+                          const alreadySelected = form.service.some((item) => item.id === s.id);
+                          set(
+                            "service",
+                            alreadySelected
+                              ? form.service.filter((item) => item.id !== s.id)
+                              : [...form.service, s],
+                          );
+                        }}
                         className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${active ? "border-red-500 bg-red-600/12" : "border-white/8 bg-white/3 hover:border-white/15"}`}
                       >
                         <div className="text-lg shrink-0">
@@ -1451,12 +1462,20 @@ function NewBookingModal({
                 {/* Desktop 2-col card grid */}
                 <div className="hidden sm:grid sm:grid-cols-2 gap-3">
                   {filteredServices.map((s) => {
-                    const active = form.service?.id === s.id;
+                    const active = form.service.some((item) => item.id === s.id);
                     return (
                       <button
                         key={s.id}
                         type="button"
-                        onClick={() => set("service", s)}
+                        onClick={() => {
+                          const alreadySelected = form.service.some((item) => item.id === s.id);
+                          set(
+                            "service",
+                            alreadySelected
+                              ? form.service.filter((item) => item.id !== s.id)
+                              : [...form.service, s],
+                          );
+                        }}
                         className={`p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/10" : "border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5"}`}
                       >
                         <div className="text-2xl mb-2">
@@ -1541,16 +1560,18 @@ function NewBookingModal({
               </p>
             ) : (
               (() => {
-                const availableBranches = form.service
+                const availableBranches = form.service.length
                   ? branches.filter((b) =>
-                      form.service.branches?.some((sb) => sb.id === b.id),
+                      form.service.every((s) =>
+                        s.branches?.some((sb) => sb.id === b.id),
+                      ),
                     )
                   : branches;
 
                 if (availableBranches.length === 0) {
                   return (
                     <p className="text-center py-12 text-gray-500 text-xs">
-                      No branches available for the selected service.
+                      No branches available for the selected services.
                     </p>
                   );
                 }
@@ -1987,7 +2008,12 @@ function NewBookingModal({
                       ? "Specific Employee"
                       : "General Booking",
                   ],
-                  ["Service", form.service?.name],
+                  [
+                    "Service",
+                    form.service.length
+                      ? form.service.map((s) => s.name).join(", ")
+                      : "",
+                  ],
                   ["Branch", form.branch?.name],
                   ["Date", form.date],
                   ["Time", form.time],
@@ -1997,8 +2023,13 @@ function NewBookingModal({
                   ],
                   [
                     "Price",
-                    form.service
-                      ? `₱${parseFloat(form.service.price || 0).toLocaleString()}`
+                    form.service.length
+                      ? `₱${form.service
+                          .reduce(
+                            (sum, s) => sum + parseFloat(s.price || 0),
+                            0,
+                          )
+                          .toLocaleString()}`
                       : "—",
                     true,
                   ],
