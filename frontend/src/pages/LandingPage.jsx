@@ -224,7 +224,7 @@ function LandingPage() {
           {/* Headline — clamp prevents overflow on tiny screens */}
           <h1
             className="font-black text-white mb-4 sm:mb-6 leading-[0.85] tracking-tighter
-                       text-[clamp(3rem,14vw,9rem)]"
+                       text-[clamp(3rem,14vw,8rem)]"
             style={{
               animation: "slideUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) both",
             }}

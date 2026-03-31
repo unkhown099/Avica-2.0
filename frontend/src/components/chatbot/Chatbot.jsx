@@ -103,7 +103,7 @@ export default function Chatbot({
           </div>
           <div>
             <p className="text-white font-black text-xs tracking-tight leading-tight">
-              OTOKWIKK SUPPORT
+              OTTO AI Assistant
             </p>
             <p className="text-green-400 text-[10px] font-bold tracking-widest uppercase">
               ● Online

@@ -85,6 +85,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "reschedule_options",
             "reschedule_selected_option",
             "reschedule_note",
+            "reschedule_request_reason",
             "customer_name",
             "assigned_employee_id", "assigned_employee_name",
             "preferred_employee_id", "preferred_employee_name",
