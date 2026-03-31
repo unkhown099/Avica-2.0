@@ -203,6 +203,8 @@ class Booking(models.Model):
         blank=True,
         related_name="proposed_reschedules",
     )
+    # In your Booking model
+    reschedule_request_reason = models.TextField(blank=True, null=True)
     staff        = models.CharField(max_length=100, blank=True, default="TBA")
     created_at   = models.DateTimeField(auto_now_add=True)
 

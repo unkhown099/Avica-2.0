@@ -75,6 +75,28 @@ function toDisplayTime(t) {
   return `${h}:${m} ${period}`;
 }
 
+const PROFANITY_LIST = [
+  "fuck",
+  "shit",
+  "ass",
+  "bitch",
+  "bastard",
+  "damn",
+  "crap",
+  "dick",
+  "piss",
+  "cunt",
+  "faggot",
+  "nigger",
+  "whore",
+  "slut",
+];
+
+function containsProfanity(text) {
+  const lower = text.toLowerCase();
+  return PROFANITY_LIST.some((w) => lower.includes(w));
+}
+
 // Plate number: alphanumeric only, max 8 chars
 function sanitizePlate(val) {
   return val.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
@@ -1327,31 +1349,61 @@ function OptionSelectorModal({ onClose, onSelectOption }) {
       <PanelHeader title="Choose Option" accent="Option" subtitle="Select what you'd like to do" onClose={onClose} />
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
         <div className="space-y-3">
-          {options.map(({ key, title, desc, iconBg, iconColor, ctaColor, icon, cta }) => (
-            <button
-              key={key}
-              onClick={() => onSelectOption(key)}
-              className="w-full p-4 sm:p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-black hover:border-red-600/30 hover:bg-red-600/5 transition-all duration-200 text-left group"
-            >
-              <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl ${iconBg} flex items-center justify-center transition-colors shrink-0`}>
-                  <svg className={`w-5 h-5 sm:w-7 sm:h-7 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm sm:text-xl font-bold text-white mb-1 sm:mb-2">{title}</h3>
-                  <p className="text-gray-400 text-[10px] sm:text-xs mb-2">{desc}</p>
-                  <div className={`flex items-center gap-1.5 ${ctaColor} text-[10px] sm:text-xs font-semibold`}>
-                    {cta}
-                    <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          {options.map(
+            ({ key, title, desc, iconBg, iconColor, ctaColor, icon, cta }) => (
+              <button
+                key={key}
+                onClick={() => onSelectOption(key)}
+                className="w-full p-4 sm:p-6 rounded-2xl border border-white/8 bg-gradient-to-br from-gray-900 to-black hover:border-white/20 transition-all duration-300 text-left group"
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl ${iconBg} flex items-center justify-center transition-colors shrink-0`}
+                  >
+                    <svg
+                      className={`w-5 h-5 sm:w-7 sm:h-7 ${iconColor}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d={icon}
+                      />
                     </svg>
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm sm:text-xl font-bold text-white mb-1 sm:mb-2">
+                      {title}
+                    </h3>
+                    <p className="text-gray-400 text-[10px] sm:text-xs mb-2">
+                      {desc}
+                    </p>
+                    <div
+                      className={`flex items-center gap-1.5 ${ctaColor} text-[10px] sm:text-xs font-semibold`}
+                    >
+                      {cta}
+                      <svg
+                        className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ),
+          )}
         </div>
       </div>
     </SlidePanel>
@@ -1373,8 +1425,18 @@ function Toast({ message, type = "success", onDismiss }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
           </svg>
         ) : (
-          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-3 h-3 sm:w-4 sm:h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         )}
       </div>
@@ -1386,6 +1448,455 @@ function Toast({ message, type = "success", onDismiss }) {
       </button>
       <style>{`@keyframes toastUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
     </div>
+  );
+}
+
+// ─── Reschedule Response Modal ────────────────────────────────────────────────
+
+function RescheduleResponseModal({ booking, onClose, onDecide }) {
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState(null); // Add this state declaration
+
+  const options = booking.reschedule_options ?? [];
+
+  const rawSvc = booking.service;
+  const serviceName =
+    booking.service_name ||
+    booking.service_detail?.name ||
+    (typeof rawSvc === "string" && rawSvc.trim() !== "" && isNaN(rawSvc)
+      ? rawSvc
+      : `Service #${rawSvc}`);
+
+  const handleDecision = async (decision) => {
+    if (decision === "accept" && options.length > 1 && !selected) return;
+    setLoading(true);
+    await onDecide(booking, decision, selected ?? options[0] ?? null);
+    setLoading(false);
+  };
+
+  return (
+    <CenterModal onClose={onClose}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
+        <div className="min-w-0 mr-3">
+          <h2 className="text-base sm:text-xl font-black text-white">
+            Reschedule <span className="text-indigo-400">Proposal</span>
+          </h2>
+          <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5 truncate max-w-[200px] sm:max-w-xs">
+            {serviceName}
+          </p>
+        </div>
+        <CloseBtn onClick={onClose} />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+        {/* Info banner */}
+        <div className="bg-indigo-600/10 rounded-xl border border-indigo-600/20 px-3 py-2.5 sm:p-4 flex items-start gap-2 sm:gap-3">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-indigo-600/20 flex items-center justify-center shrink-0 mt-0.5">
+            <svg
+              className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+          <div>
+            <p className="text-indigo-300 text-xs sm:text-sm font-semibold mb-0.5">
+              Staff proposed a new schedule
+            </p>
+            <p className="text-gray-400 text-[10px] sm:text-xs">
+              Your original booking has been rescheduled. Please review and
+              respond below.
+            </p>
+          </div>
+        </div>
+
+        {/* Original booking details */}
+        <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
+          <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+            Original Booking
+          </p>
+          <div className="space-y-1 text-xs sm:text-sm">
+            {[
+              ["Date", booking.date],
+              ["Time", toDisplayTime(booking.time)],
+              booking.branch && [
+                "Branch",
+                typeof booking.branch === "object"
+                  ? booking.branch.name
+                  : booking.branch,
+              ],
+            ]
+              .filter(Boolean)
+              .map(([l, v]) => (
+                <div key={l} className="flex justify-between gap-4">
+                  <span className="text-gray-500">{l}:</span>
+                  <span className="text-white font-semibold text-right line-through opacity-50">
+                    {v}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        {/* Proposed options */}
+        <div>
+          <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+            Proposed{" "}
+            {options.length > 1 ? "Options — Pick One" : "New Schedule"}
+          </p>
+          {options.length === 0 ? (
+            <p className="text-gray-500 text-xs">
+              No specific options provided. Contact the branch for details.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {options.map((opt, i) => {
+                const isActive = 
+                  selected === opt || (options.length === 1 && i === 0);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelected(opt)}
+                    className={`w-full p-3 sm:p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${
+                      isActive
+                        ? "border-indigo-500 bg-indigo-600/12"
+                        : "border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5"
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                        isActive
+                          ? "border-indigo-500 bg-indigo-500"
+                          : "border-white/30"
+                      }`}
+                    >
+                      {isActive && (
+                        <svg
+                          className="w-2.5 h-2.5 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {typeof opt === "object" ? (
+                        <>
+                          <div className="text-white font-semibold text-xs sm:text-sm">
+                            {opt.date}
+                            {opt.time && (
+                              <span className="text-indigo-300 ml-2">
+                                @ {toDisplayTime(opt.time)}
+                              </span>
+                            )}
+                          </div>
+                          {opt.note && (
+                            <div className="text-gray-500 text-[10px] mt-0.5">
+                              {opt.note}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-white font-semibold text-xs sm:text-sm">
+                          {String(opt)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="shrink-0">
+                      <svg
+                        className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
+                        />
+                      </svg>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
+        <button
+          onClick={() => handleDecision("decline")}
+          disabled={loading}
+          className="flex-1 py-2 sm:py-3 rounded-xl border border-red-600/40 bg-red-600/10 text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed font-bold text-xs sm:text-sm transition-all"
+        >
+          {loading ? "Submitting..." : "Decline"}
+        </button>
+        <button
+          onClick={() => handleDecision("accept")}
+          disabled={loading || (options.length > 1 && !selected)}
+          className="flex-1 py-2 sm:py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-1.5"
+        >
+          {loading ? (
+            <>
+              <svg
+                className="w-3.5 h-3.5 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              Submitting...
+            </>
+          ) : (
+            <>
+              Accept Reschedule
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </>
+          )}
+        </button>
+      </div>
+    </CenterModal>
+  );
+}
+
+// ─── Customer Reschedule Request Modal ───────────────────────────────────────
+
+function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const rawSvc = booking.service;
+  const serviceName =
+    booking.service_name ||
+    booking.service_detail?.name ||
+    (typeof rawSvc === "string" && rawSvc.trim() !== "" && isNaN(rawSvc)
+      ? rawSvc
+      : `Service #${rawSvc}`);
+
+  const validate = (value) => {
+    if (!value.trim()) return "Please provide a reason.";
+    if (value.trim().length < 10)
+      return "Reason must be at least 10 characters.";
+    if (value.trim().length > 300)
+      return "Reason must be under 300 characters.";
+    if (containsProfanity(value))
+      return "Please keep your message professional — no profanity allowed.";
+    return "";
+  };
+
+  const handleSubmit = async () => {
+    const err = validate(reason);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setLoading(true);
+    await onSubmit(reason.trim());
+    setLoading(false);
+  };
+
+  return (
+    <CenterModal onClose={onClose}>
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
+        <div className="min-w-0 mr-3">
+          <h2 className="text-base sm:text-xl font-black text-white">
+            Request <span className="text-indigo-400">Reschedule</span>
+          </h2>
+          <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5 truncate max-w-[200px] sm:max-w-xs">
+            {serviceName}
+          </p>
+        </div>
+        <CloseBtn onClick={onClose} />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+        {/* Info banner */}
+        <div className="bg-indigo-600/10 rounded-xl border border-indigo-600/20 px-3 py-2.5 sm:p-4 flex items-start gap-2 sm:gap-3">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-indigo-600/20 flex items-center justify-center shrink-0 mt-0.5">
+            <svg
+              className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div>
+            <p className="text-indigo-300 text-xs sm:text-sm font-semibold mb-0.5">
+              Notify staff of your request
+            </p>
+            <p className="text-gray-400 text-[10px] sm:text-xs">
+              Staff will review your request and propose a new schedule for you
+              to approve.
+            </p>
+          </div>
+        </div>
+
+        {/* Current booking info */}
+        <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
+          <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+            Current Booking
+          </p>
+          <div className="space-y-1 text-xs sm:text-sm">
+            {[
+              ["Date", booking.date],
+              ["Time", toDisplayTime(booking.time)],
+              booking.branch && [
+                "Branch",
+                typeof booking.branch === "object"
+                  ? booking.branch.name
+                  : booking.branch,
+              ],
+            ]
+              .filter(Boolean)
+              .map(([l, v]) => (
+                <div key={l} className="flex justify-between gap-4">
+                  <span className="text-gray-500">{l}:</span>
+                  <span className="text-white font-semibold text-right">
+                    {v}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        {/* Reason textarea */}
+        <div>
+          <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+            Reason for Reschedule <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            rows={4}
+            maxLength={300}
+            placeholder="e.g. I have a conflict on this date and need to move the appointment..."
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value);
+              setError("");
+            }}
+            className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none ${error ? "border-red-500" : "border-white/10"}`}
+          />
+          <div className="flex justify-between items-start mt-1">
+            {error ? (
+              <p className="text-red-400 text-[10px] sm:text-xs">{error}</p>
+            ) : (
+              <span />
+            )}
+            <p
+              className={`text-[10px] ml-auto ${reason.length > 280 ? "text-yellow-400" : "text-gray-600"}`}
+            >
+              {reason.length}/300
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
+        <button
+          onClick={onClose}
+          className="flex-1 px-3 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white font-semibold text-xs sm:text-sm transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={loading || !reason.trim()}
+          className="flex-1 py-2 sm:py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-1.5"
+        >
+          {loading ? (
+            <>
+              <svg
+                className="w-3.5 h-3.5 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              Sending...
+            </>
+          ) : (
+            <>
+              Send Request
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
+            </>
+          )}
+        </button>
+      </div>
+    </CenterModal>
   );
 }
 
@@ -1407,6 +1918,8 @@ function BookingsPage() {
   const [damageData, setDamageData] = useState(null);
   const [cancelBooking, setCancelBooking] = useState(null);
   const [rescheduleBooking, setRescheduleBooking] = useState(null);
+  const [customerRescheduleBooking, setCustomerRescheduleBooking] =
+    useState(null);
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = "success") => {
@@ -1467,20 +1980,60 @@ function BookingsPage() {
     }
   };
 
-  const handleRescheduleDecision = async (booking, decision, selectedOption = null) => {
+  const handleRescheduleDecision = async (
+    booking,
+    decision,
+    selectedOption = null,
+  ) => {
     try {
-      const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/reschedule-response/`, {
-        method: "PATCH",
-        headers: authHeaders(),
-        body: JSON.stringify({ decision, selected_option: selectedOption }),
-      });
+      const res = await fetch(
+        `${API_BASE}/api/bookings/${booking.id}/reschedule-response/`,
+        {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            decision,
+            selected_option: selectedOption,
+          }),
+        },
+      );
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || "Failed to submit response.");
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to submit response.");
+      }
       setBookings((prev) => prev.map((b) => (b.id === data.id ? data : b)));
       setRescheduleBooking(null);
-      showToast(decision === "accept" ? "Reschedule accepted successfully." : "Reschedule declined. Our team will follow up.");
+      showToast(
+        decision === "accept"
+          ? "Reschedule accepted successfully."
+          : "Reschedule declined. Our team will follow up.",
+      );
     } catch (e) {
-      showToast(e.message || "Failed to submit response.", "error");
+      showToast(e.message || "Failed to send request.", "error");
+    }
+  };
+
+  const handleCustomerRescheduleRequest = async (reason) => {
+    const booking = customerRescheduleBooking;
+    if (!booking) return;
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/bookings/${booking.id}/request-reschedule/`,
+        {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ reason }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Failed to send request.");
+      setBookings((prev) =>
+        prev.map((b) => (b.id === booking.id ? { ...b, ...data } : b)),
+      );
+      setCustomerRescheduleBooking(null);
+      showToast("Reschedule request sent! Staff will follow up.");
+    } catch (e) {
+      showToast(e.message || "Failed to send request.", "error");
     }
   };
 
@@ -1677,6 +2230,52 @@ function BookingsPage() {
                     <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">{priceDisplay}</div>
                     {booking.status !== "cancelled" && booking.status !== "done" && (
                       <div className="flex gap-2">
+                            {booking.status === "rescheduled" && (
+                              <button
+                                onClick={() => setRescheduleBooking(booking)}
+                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
+                              >
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
+                                  />
+                                </svg>
+                                View & Respond
+                              </button>
+                            )}
+                            {(booking.status === "pending" ||
+                              booking.status === "confirmed") && (
+                              <button
+                                onClick={() =>
+                                  setCustomerRescheduleBooking(booking)
+                                }
+                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
+                              >
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
+                                  />
+                                </svg>
+                                Request Reschedule
+                              </button>
+                            )}
+
                         <button
                           onClick={() => setCancelBooking(booking)}
                           className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/15 hover:bg-red-600 border border-red-600/40 hover:border-red-500 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
@@ -1720,10 +2319,32 @@ function BookingsPage() {
         <DamageDetectionModal onClose={() => setShowDamageModal(false)} onBack={handleDamageComplete} />
       )}
       {cancelBooking && (
-        <CancelBookingModal booking={cancelBooking} onClose={() => setCancelBooking(null)} onConfirm={handleCancelConfirm} />
+        <CancelBookingModal
+          booking={cancelBooking}
+          onClose={() => setCancelBooking(null)}
+          onConfirm={handleCancelConfirm}
+        />
+      )}
+      {rescheduleBooking && (
+        <RescheduleResponseModal
+          booking={rescheduleBooking}
+          onClose={() => setRescheduleBooking(null)}
+          onDecide={handleRescheduleDecision}
+        />
+      )}
+      {customerRescheduleBooking && (
+        <CustomerRescheduleModal
+          booking={customerRescheduleBooking}
+          onClose={() => setCustomerRescheduleBooking(null)}
+          onSubmit={handleCustomerRescheduleRequest}
+        />
       )}
       {toast && (
-        <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
       )}
     </CustomerLayout>
   );
