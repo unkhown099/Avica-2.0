@@ -527,3 +527,93 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.user.email}"
+
+# ── ForecastingRun ─────────────────────────────────────────
+class ForecastingRun(models.Model):
+    forecast_type = models.CharField(max_length=50)
+    scope_type = models.CharField(max_length=30)
+
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True)
+    service = models.ForeignKey(Service, on_delete=models.SET_NULL, null=True, blank=True)
+    inventory_item = models.ForeignKey(InventoryItem, on_delete=models.SET_NULL, null=True, blank=True)
+
+    model_used = models.CharField(max_length=100)
+    period_type = models.CharField(max_length=20)
+
+    prediction_start_date = models.DateField(null=True, blank=True)
+    prediction_end_date = models.DateField(null=True, blank=True)
+
+    generated_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, default='success')
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.forecast_type} - {self.period_type}"
+
+
+# ── Inventory Demand Forecast ───────────────────────────────
+class InventoryDemandForecast(models.Model):
+    forecasting_run = models.ForeignKey(ForecastingRun, on_delete=models.CASCADE)
+
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    inventory_item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE)
+
+    forecast_period_label = models.CharField(max_length=50)
+
+    predicted_quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    historical_average_quantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    current_quantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    minimum_qty = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    recommended_restock_qty = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    stock_risk_level = models.CharField(max_length=30, default='normal')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.inventory_item.name} - {self.forecast_period_label}"
+
+
+# ── Service Demand Forecast ────────────────────────────────
+class ServiceDemandForecast(models.Model):
+    forecasting_run = models.ForeignKey(ForecastingRun, on_delete=models.CASCADE)
+
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+
+    forecast_period_label = models.CharField(max_length=50)
+
+    predicted_booking_count = models.IntegerField()
+    historical_average_count = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    predicted_queue_count = models.IntegerField(null=True, blank=True)
+
+    peak_load_flag = models.BooleanField(default=False)
+    staffing_suggestion = models.CharField(max_length=150, null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.service.name} - {self.forecast_period_label}"
+
+
+# ── Service Duration Prediction ────────────────────────────
+class ServiceDurationPrediction(models.Model):
+    forecasting_run = models.ForeignKey(ForecastingRun, on_delete=models.CASCADE)
+
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+    employee = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
+
+    based_on_queue_volume = models.IntegerField(null=True, blank=True)
+    based_on_booking_volume = models.IntegerField(null=True, blank=True)
+    based_on_avg_duration_minutes = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    estimated_duration_minutes = models.DecimalField(max_digits=10, decimal_places=2)
+    estimated_wait_minutes = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.service.name} - {self.estimated_duration_minutes} mins"

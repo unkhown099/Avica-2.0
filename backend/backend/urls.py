@@ -8,6 +8,7 @@ from api.views.auth_views import (
     SignupView, LogoutView, MeView, LoginView,
     GoogleLoginView, VerifyEmailView, ForgotPasswordView, ResetPasswordView, DeleteAccountView
 )
+from api.views.views import generate_all_forecasts, get_latest_all_forecasts
 from api.views.staff_views import StaffView, StaffDetailView, VerifyPasswordView
 from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
@@ -175,4 +176,7 @@ urlpatterns = [
 
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
+  path("forecast/all/<int:branch_id>/", generate_all_forecasts, name="generate_all_forecasts"),
+    path("forecast/all/<int:branch_id>/latest/", get_latest_all_forecasts, name="get_latest_all_forecasts"),
+
 ]
