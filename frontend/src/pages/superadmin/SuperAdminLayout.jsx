@@ -6,6 +6,7 @@ import logo from "../../assets/otokwikklogo.png";
 
 const PAGE_TITLES = {
   "/super-admin/dashboard": "Dashboard",
+  "/super-admin/content": "Content Management",
 };
 
 function SuperAdminLayout({ children }) {

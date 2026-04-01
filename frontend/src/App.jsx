@@ -28,6 +28,7 @@ import HelpPage from "./pages/customer/CustomerHelp.jsx";
 // Super Admin Imports
 import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard.jsx";
 import SuperAdminUsersPage from "./pages/superadmin/SuperAdminUsersPage.jsx";
+import SuperAdminContentManagement from "./pages/superadmin/SuperAdminContentManagement.jsx";
 
 // Admin Imports
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
@@ -125,6 +126,14 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["super_admin"]}>
               <SuperAdminUsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin/content"
+          element={
+            <ProtectedRoute allowedRoles={["super_admin"]}>
+              <SuperAdminContentManagement />
             </ProtectedRoute>
           }
         />

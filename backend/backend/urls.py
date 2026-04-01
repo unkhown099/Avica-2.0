@@ -88,6 +88,10 @@ from api.views.super_admin_views import (
     SuperAdminBroadcastView,
     SuperAdminCreateView,
 )
+from api.views.landing_content_views import (
+    LandingContentPublicView,
+    LandingContentAdminView,
+)
 
 urlpatterns = [
     # ── Super Admin endpoints ─────────────────────────────────────────────────────
@@ -208,10 +212,14 @@ urlpatterns = [
     path("api/notifications/<int:pk>/read/", NotificationMarkReadView.as_view(), name="notification-mark-read"),
     path("api/notifications/mark-all-read/", NotificationMarkAllReadView.as_view(), name="notification-mark-all-read"),
 
+    # ── Landing content ───────────────────────────────────────────────────────────
+    path("api/landing-content/",              LandingContentPublicView.as_view()),   # public
+    path("super-admin/landing-content/",      LandingContentAdminView.as_view()), # admin-only
+
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
-path("forecast/all/<int:branch_id>/", generate_all_forecasts, name="generate_all_forecasts"),
-path("forecast/all/<int:branch_id>/latest/", get_latest_all_forecasts, name="get_latest_all_forecasts"),
-path("api/forecast/system/", get_latest_system_forecasts, name="system-forecast"),
-path("api/forecast/system/generate/", generate_system_forecasts, name="generate_system_forecasts"),
+    path("forecast/all/<int:branch_id>/", generate_all_forecasts, name="generate_all_forecasts"),
+    path("forecast/all/<int:branch_id>/latest/", get_latest_all_forecasts, name="get_latest_all_forecasts"),
+    path("api/forecast/system/", get_latest_system_forecasts, name="system-forecast"),
+    path("api/forecast/system/generate/", generate_system_forecasts, name="generate_system_forecasts"),
 ]

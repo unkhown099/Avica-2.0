@@ -635,3 +635,26 @@ class ServiceDurationPrediction(models.Model):
 
     def __str__(self):
         return f"{self.service.name} - {self.estimated_duration_minutes} mins"
+
+# ── LandingContent ─────────────────────────────────────────────────────────────
+class LandingContent(models.Model):
+    """
+    Singleton-style table — only one row is ever active (key='default').
+    The super admin CMS writes here; the public landing page reads from here.
+    """
+    key        = models.CharField(max_length=50, unique=True, default="default")
+    content    = models.JSONField(default=dict)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="landing_content_updates",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "landing_content"
+
+    def __str__(self):
+        return f"LandingContent [{self.key}] — {self.updated_at}"

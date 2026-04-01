@@ -7,6 +7,9 @@ import bg3 from "../assets/bg3.jpg";
 import bg4 from "../assets/bg4.jpg";
 import { useNavigate } from "react-router-dom";
 
+// ─── API base ─────────────────────────────────────────────────────────────────
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
 function getToken() {
   return (
     localStorage.getItem("access_token") ||
@@ -32,133 +35,258 @@ const roleRoutes = {
   customer: "/dashboard",
 };
 
-const branches = [
-  {
-    name: "North Caloocan",
-    id: "north",
-    mapUrl:
-      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1930.5615!2d121.023!3d14.752!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b1b477bf30a7%3A0x34a49388d0848c77!2sOtokwikk%20North%20Caloocan!5e0!3m2!1sen!2sph!4v1708740000000!5m2!1sen!2sph",
-    address: "Lot 1 Block 1, Camarin Road, North Caloocan, Metro Manila",
-    fb: "https://www.facebook.com/profile.php?id=100090897126761",
-    hours: "8:00 AM - 7:00 PM",
-    phone: "+63 9XX XXX XXXX",
+// ─── Hardcoded fallback (used only if API is unreachable) ─────────────────────
+const FALLBACK_CONTENT = {
+  hero: {
+    headline: "PRECISION",
+    headlineAccent: "DETAILING",
+    subtitle: "Experience the Art of Automotive Perfection",
+    ctaLoggedIn: "GO TO DASHBOARD",
+    ctaGuest: "BOOK YOUR EXPERIENCE",
+    signInPrompt: "Part of the elite?",
+    signInLabel: "SIGN IN HERE",
   },
-  {
-    name: "South Caloocan",
-    id: "south",
-    mapUrl:
-      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.1066!2d120.9878!3d14.6624!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b73d971961bd%3A0x44a251e7c7d1e2bc!2sOtokwikk%20South%20Caloocan!5e0!3m2!1sen!2sph!4v1742220000000!5m2!1sen!2sph",
-    address: "77 General Tinio, Morning Breeze Subdivision, Caloocan",
-    fb: "https://www.facebook.com/profile.php?id=61572528405228",
-    hours: "8:00 AM - 7:00 PM",
-    phone: "+63 9XX XXX XXXX",
+  services: {
+    sectionTitle: "OUR",
+    sectionTitleAccent: "SERVICES",
+    sectionSubtitle:
+      "Precision-driven solutions for every automotive need. We bring out the best in every vehicle.",
+    items: [
+      {
+        title: "EXTERIOR",
+        sub: "Showroom Shine",
+        desc: "Multi-stage washing process, clay bar treatment, and machine polishing for a mirror-like finish.",
+        icon: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+      },
+      {
+        title: "INTERIOR",
+        sub: "Pure Luxury",
+        desc: "Steam cleaning, leather conditioning, and deep extraction for a sterile, fresh-from-factory interior.",
+        icon: "M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z",
+      },
+      {
+        title: "PROTECTION",
+        sub: "Ultima Guard",
+        desc: "Grade-A Ceramic coatings and PPF applications providing 9H hardness and hydrophobic properties.",
+        icon: "M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z",
+      },
+    ],
   },
-];
+  branches: [
+    {
+      name: "North Caloocan",
+      id: "north",
+      mapUrl:
+        "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1930.5615!2d121.023!3d14.752!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b1b477bf30a7%3A0x34a49388d0848c77!2sOtokwikk%20North%20Caloocan!5e0!3m2!1sen!2sph!4v1708740000000!5m2!1sen!2sph",
+      address: "Lot 1 Block 1, Camarin Road, North Caloocan, Metro Manila",
+      fb: "https://www.facebook.com/profile.php?id=100090897126761",
+      hours: "8:00 AM - 7:00 PM",
+      phone: "+63 9XX XXX XXXX",
+    },
+    {
+      name: "South Caloocan",
+      id: "south",
+      mapUrl:
+        "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.1066!2d120.9878!3d14.6624!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b73d971961bd%3A0x44a251e7c7d1e2bc!2sOtokwikk%20South%20Caloocan!5e0!3m2!1sen!2sph!4v1742220000000!5m2!1sen!2sph",
+      address: "77 General Tinio, Morning Breeze Subdivision, Caloocan",
+      fb: "https://www.facebook.com/profile.php?id=61572528405228",
+      hours: "8:00 AM - 7:00 PM",
+      phone: "+63 9XX XXX XXXX",
+    },
+  ],
+  reviews: [
+    {
+      name: "SIR BJ",
+      city: "Tanza, Cavite",
+      text: "Ang ganda ng linis, may pafoot paper and wheel plastic covering pa! Dami magpapalinis pag ganyan. Heheh Dito ko na papalinis mga kotse ng skul.",
+    },
+    {
+      name: "SIR CLARENZ",
+      city: "Quezon City",
+      text: "Panalo yung engine wash nyo sir! Linis lahat! Papuntahin ko yung ninong ko dyan ipa engine wash nya yung Innova nya. Dyan ko tinuro sabi ko maganda at linis nung serbisyo nyo.",
+    },
+    {
+      name: "SIR JOHN RONAN",
+      city: "San Mateo, Rizal",
+      text: "SOLID! Worth it yung bayad! Mura na, QUALITY pa.",
+    },
+    {
+      name: "SIR GERMAINE DANCA",
+      city: "North Caloocan",
+      text: "For top notch and premium car care and affordable price.. Visit #Otokwikk at Saranay Road, Caloocan City.",
+    },
+    {
+      name: "SIR MIGS ONG",
+      city: "South Caloocan",
+      text: "Thanks heaps for the top-notch service, Otokwikk! Highly recommended! Pogi na ulit si Sky!",
+    },
+  ],
+  fbPages: [
+    {
+      name: "Otokwikk - North Caloocan",
+      url: "https://www.facebook.com/profile.php?id=100090897126761",
+    },
+    {
+      name: "Otokwikk - Tanza Cavite",
+      url: "https://www.facebook.com/otokwikk.tanzacavite",
+    },
+    {
+      name: "Otokwikk - Camarin",
+      url: "https://www.facebook.com/profile.php?id=61586571534281",
+    },
+    {
+      name: "Otokwikk - Quezon City",
+      url: "https://www.facebook.com/profile.php?id=61577247173903",
+    },
+    {
+      name: "Otokwikk - South Caloocan",
+      url: "https://www.facebook.com/profile.php?id=61572528405228",
+    },
+    {
+      name: "Otokwikk - San Mateo Rizal",
+      url: "https://www.facebook.com/profile.php?id=61556323569842",
+    },
+  ],
+  footer: {
+    tagline:
+      "Empowering car owners with precision care and premium detailing that protects every drive.",
+    copyright: "Copyright © 2026, otokwikk. All Rights Reserved.",
+    siteMapLinks: [
+      { label: "Homepage", href: "#" },
+      { label: "Services", href: "#" },
+      { label: "Branches", href: "#" },
+      { label: "Client Reviews", href: "#" },
+      { label: "Facebook Pages", href: "#" },
+      { label: "Sign In", href: "/signin" },
+      { label: "Sign Up", href: "/signup" },
+    ],
+    legalLinks: [
+      { label: "Privacy Policy", href: "#" },
+      { label: "Terms of Service", href: "#" },
+      { label: "Cookie Policy", href: "#" },
+    ],
+  },
+};
 
-const allBranches = [
-  {
-    name: "Otokwikk - North Caloocan",
-    url: "https://www.facebook.com/profile.php?id=100090897126761",
-  },
-  {
-    name: "Otokwikk - Tanza Cavite",
-    url: "https://www.facebook.com/otokwikk.tanzacavite",
-  },
-  {
-    name: "Otokwikk - Camarin",
-    url: "https://www.facebook.com/profile.php?id=61586571534281",
-  },
-  {
-    name: "Otokwikk - Quezon City",
-    url: "https://www.facebook.com/profile.php?id=61577247173903",
-  },
-  {
-    name: "Otokwikk - South Caloocan",
-    url: "https://www.facebook.com/profile.php?id=61572528405228",
-  },
-  {
-    name: "Otokwikk - San Mateo Rizal",
-    url: "https://www.facebook.com/profile.php?id=61556323569842",
-  },
-];
+function normalizeLandingContent(content) {
+  const data = content || {};
 
-const feedbacks = [
-  {
-    name: "SIR BJ",
-    city: "Tanza, Cavite",
-    text: "Ang ganda ng linis, may pafoot paper and wheel plastic covering pa! Dami magpapalinis pag ganyan. Heheh Dito ko na papalinis mga kotse ng skul.",
-  },
-  {
-    name: "SIR CLARENZ",
-    city: "Quezon City",
-    text: "Panalo yung engine wash nyo sir! Linis lahat! Papuntahin ko yung ninong ko dyan ipa engine wash nya yung Innova nya. Dyan ko tinuro sabi ko maganda at linis nung serbisyo nyo.",
-  },
-  {
-    name: "SIR JOHN RONAN",
-    city: "San Mateo, Rizal",
-    text: "SOLID! Worth it yung bayad! Mura na, QUALITY pa.",
-  },
-  {
-    name: "SIR GERMAINE DANCA",
-    city: "North Caloocan",
-    text: "For top notch and premium car care and affordable price.. Visit #Otokwikk at Saranay Road, Caloocan City.",
-  },
-  {
-    name: "SIR MIGS ONG",
-    city: "South Caloocan",
-    text: "Thanks heaps for the top-notch service, Otokwikk! Highly recommended! Pogi na ulit si Sky!",
-  },
+  return {
+    hero: { ...FALLBACK_CONTENT.hero, ...data.hero },
+    services: {
+      ...FALLBACK_CONTENT.services,
+      ...data.services,
+      items:
+        Array.isArray(data.services?.items) && data.services.items.length
+          ? data.services.items
+          : FALLBACK_CONTENT.services.items,
+    },
+    branches:
+      Array.isArray(data.branches) && data.branches.length
+        ? data.branches
+        : FALLBACK_CONTENT.branches,
+    reviews:
+      Array.isArray(data.reviews) && data.reviews.length
+        ? data.reviews
+        : FALLBACK_CONTENT.reviews,
+    fbPages:
+      Array.isArray(data.fbPages) && data.fbPages.length
+        ? data.fbPages
+        : FALLBACK_CONTENT.fbPages,
+    footer: {
+      ...FALLBACK_CONTENT.footer,
+      ...data.footer,
+      siteMapLinks:
+        Array.isArray(data.footer?.siteMapLinks) &&
+        data.footer.siteMapLinks.length
+          ? data.footer.siteMapLinks
+          : FALLBACK_CONTENT.footer.siteMapLinks,
+      legalLinks:
+        Array.isArray(data.footer?.legalLinks) && data.footer.legalLinks.length
+          ? data.footer.legalLinks
+          : FALLBACK_CONTENT.footer.legalLinks,
+    },
+  };
+}
+
+// Icon paths for each service position (index-matched, cycles if more services added)
+const SERVICE_ICONS = [
+  "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  "M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z",
+  "M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z",
 ];
 
 function LandingPage() {
   const navigate = useNavigate();
+  const [pageContent, setPageContent] = useState(null); // null = loading
+  const [contentLoaded, setContentLoaded] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [user, setUser] = useState(null);
-  const [activeBranch, setActiveBranch] = useState(branches[0]);
+  const [activeBranch, setActiveBranch] = useState(null);
   const [bgIndex, setBgIndex] = useState(0);
   const heroBgs = [bg1, bg2, bg3, bg4];
-
-  const siteMapLinks = [
-    { label: "Homepage", href: "#" },
-    { label: "Services", href: "#" },
-    { label: "Branches", href: "#" },
-    { label: "Client Reviews", href: "#" },
-    { label: "Facebook Pages", href: "#" },
-    { label: "Sign In", href: "/signin" },
-    { label: "Sign Up", href: "/signup" },
-  ];
-
-  const legalLinks = [
-    { label: "Privacy Policy", href: "#" },
-    { label: "Terms of Service", href: "#" },
-    { label: "Cookie Policy", href: "#" },
-  ];
 
   useEffect(() => {
     setUser(getUser());
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("reveal-visible");
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
+    // ── Fetch landing content from DB (public endpoint, no auth needed) ──────
+    fetch(`${API_BASE}/api/landing-content/`)
+      .then((r) => {
+        if (!r.ok) throw new Error("API error");
+        return r.json();
+      })
+      .then((data) => {
+        const normalized = normalizeLandingContent(data);
+        setPageContent(normalized);
+        setActiveBranch(normalized.branches?.[0] ?? null);
+        setContentLoaded(true);
+      })
+      .catch(() => {
+        // Fall back to hardcoded defaults so the page still renders
+        const normalized = normalizeLandingContent(FALLBACK_CONTENT);
+        setPageContent(normalized);
+        setActiveBranch(normalized.branches[0]);
+        setContentLoaded(true);
+      });
 
-    document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
-
+    // ── Hero background slideshow ─────────────────────────────────────────────
     const bgInterval = setInterval(() => {
       setBgIndex((prev) => (prev + 1) % heroBgs.length);
     }, 6000);
 
     return () => {
-      observer.disconnect();
       clearInterval(bgInterval);
     };
-  }, [heroBgs.length]);
+  }, [heroBgs.length]); // Remove the observer from here
+
+  // ── Separate useEffect for intersection observer that runs when content loads ──
+  useEffect(() => {
+    if (!contentLoaded) return;
+
+    // Small delay to ensure DOM is fully rendered
+    const timer = setTimeout(() => {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("reveal-visible");
+            }
+          });
+        },
+        { threshold: 0.1 },
+      );
+
+      document
+        .querySelectorAll(".reveal")
+        .forEach((el) => observer.observe(el));
+
+      return () => {
+        observer.disconnect();
+      };
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [contentLoaded]); // This will re-run when contentLoaded becomes true
 
   const isLoggedIn = !!getToken();
 
@@ -173,6 +301,35 @@ function LandingPage() {
   const handleBackToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // ── Loading skeleton — matches overall page bg so there's no flash ──────────
+  if (!contentLoaded || !pageContent || !activeBranch) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <svg
+          className="w-8 h-8 animate-spin text-red-600"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8H4z"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  const { hero, services, branches, reviews, fbPages, footer } = pageContent;
 
   return (
     <div className="min-h-screen bg-black font-sans selection:bg-red-600 selection:text-white">
@@ -199,7 +356,7 @@ function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/99" />
         </div>
 
-        {/* Glow orbs — hidden on very small screens to avoid overflow */}
+        {/* Glow orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none hidden sm:block">
           <div className="absolute top-20 left-10 w-64 h-64 md:w-96 md:h-96 bg-red-600/20 rounded-full blur-[120px] animate-pulse" />
           <div
@@ -221,7 +378,7 @@ function LandingPage() {
             </div>
           </div>
 
-          {/* Headline — clamp prevents overflow on tiny screens */}
+          {/* Headline */}
           <h1
             className="font-black text-white mb-4 sm:mb-6 leading-[0.85] tracking-tighter
                        text-[clamp(3rem,14vw,8rem)]"
@@ -229,10 +386,10 @@ function LandingPage() {
               animation: "slideUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) both",
             }}
           >
-            PRECISION
+            {hero.headline}
             <br />
             <span className="text-red-600 bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-400">
-              DETAILING
+              {hero.headlineAccent}
             </span>
           </h1>
 
@@ -244,7 +401,7 @@ function LandingPage() {
                 "slideUp 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both",
             }}
           >
-            Experience the Art of Automotive Perfection
+            {hero.subtitle}
           </p>
 
           <div
@@ -266,7 +423,7 @@ function LandingPage() {
                          w-full sm:w-auto"
             >
               <span className="relative z-10 flex items-center justify-center gap-3 sm:gap-4">
-                {isLoggedIn ? "GO TO DASHBOARD" : "BOOK YOUR EXPERIENCE"}
+                {isLoggedIn ? hero.ctaLoggedIn : hero.ctaGuest}
                 <svg
                   className="w-4 h-4 sm:w-5 sm:h-5 transform group-hover:translate-x-3 transition-transform duration-500"
                   fill="none"
@@ -285,12 +442,12 @@ function LandingPage() {
 
             {!isLoggedIn && (
               <p className="mt-4 sm:mt-6 text-gray-500 text-xs sm:text-sm font-medium">
-                Part of the elite?{" "}
+                {hero.signInPrompt}{" "}
                 <a
                   href="/signin"
                   className="text-red-500 hover:text-red-400 font-bold underline underline-offset-4 decoration-2 transition-all"
                 >
-                  SIGN IN HERE
+                  {hero.signInLabel}
                 </a>
               </p>
             )}
@@ -303,36 +460,19 @@ function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 reveal">
           <div className="text-center mb-12 sm:mb-16 md:mb-20">
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 uppercase tracking-tighter">
-              OUR <span className="text-red-600">SERVICES</span>
+              {services.sectionTitle}{" "}
+              <span className="text-red-600">
+                {services.sectionTitleAccent}
+              </span>
             </h2>
             <div className="w-20 sm:w-24 h-1.5 bg-red-600 mx-auto rounded-full mb-4 sm:mb-6" />
             <p className="text-gray-500 text-base sm:text-lg font-medium max-w-2xl mx-auto px-2">
-              Precision-driven solutions for every automotive need. We bring out
-              the best in every vehicle.
+              {services.sectionSubtitle}
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {[
-              {
-                icon: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-                title: "EXTERIOR",
-                sub: "Showroom Shine",
-                desc: "Multi-stage washing process, clay bar treatment, and machine polishing for a mirror-like finish.",
-              },
-              {
-                icon: "M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z",
-                title: "INTERIOR",
-                sub: "Pure Luxury",
-                desc: "Steam cleaning, leather conditioning, and deep extraction for a sterile, fresh-from-factory interior.",
-              },
-              {
-                icon: "M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z",
-                title: "PROTECTION",
-                sub: "Ultima Guard",
-                desc: "Grade-A Ceramic coatings and PPF applications providing 9H hardness and hydrophobic properties.",
-              },
-            ].map((svc, i) => (
+            {services.items.map((svc, i) => (
               <div
                 key={i}
                 className="group relative bg-white/5 backdrop-blur-xl rounded-3xl p-8 sm:p-10 border border-white/10 hover:border-red-600/50 transition-all duration-700 overflow-hidden shadow-2xl"
@@ -350,7 +490,7 @@ function LandingPage() {
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        d={svc.icon}
+                        d={svc.icon || SERVICE_ICONS[i % SERVICE_ICONS.length]}
                       />
                     </svg>
                   </div>
@@ -379,11 +519,11 @@ function LandingPage() {
               <span className="text-red-600">ANY BRANCHES</span>
             </h2>
             <p className="text-gray-400 text-base sm:text-lg max-w-xl mx-auto font-medium px-2">
-              Experience the pinnacle of automotive care at our flagship North
-              Caloocan location.
+              Experience the pinnacle of automotive care at our flagship{" "}
+              {branches[0]?.name} location.
             </p>
 
-            {/* Branch selector — full-width on mobile */}
+            {/* Branch selector */}
             <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/10 w-full sm:w-fit mx-auto mt-6 sm:mt-8 backdrop-blur-xl overflow-hidden">
               {branches.map((b) => (
                 <button
@@ -410,7 +550,9 @@ function LandingPage() {
             {/* Map iframe */}
             <div
               className={`relative group rounded-[24px] sm:rounded-[40px] overflow-hidden border border-white/10 shadow-3xl transition-all duration-700 flex-grow ${
-                isMapExpanded ? "h-[60vh] sm:h-[70vh]" : "h-[300px] sm:h-[400px] lg:h-[500px] lg:w-2/3"
+                isMapExpanded
+                  ? "h-[60vh] sm:h-[70vh]"
+                  : "h-[300px] sm:h-[400px] lg:h-[500px] lg:w-2/3"
               }`}
             >
               <button
@@ -566,7 +708,7 @@ function LandingPage() {
 
         <div className="relative">
           <div className="flex animate-marquee hover:[animation-play-state:paused] whitespace-nowrap">
-            {[...feedbacks, ...feedbacks].map((f, i) => (
+            {[...reviews, ...reviews].map((f, i) => (
               <div key={i} className="inline-block px-3 sm:px-4">
                 <div className="w-[280px] sm:w-[350px] md:w-[420px] bg-black text-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-2xl border border-white/10 whitespace-normal">
                   <p className="text-base sm:text-xl italic font-bold leading-relaxed mb-5 sm:mb-6">
@@ -603,7 +745,7 @@ function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {allBranches.map((branch, i) => (
+            {fbPages.map((branch, i) => (
               <a
                 key={i}
                 href={branch.url}
@@ -670,8 +812,7 @@ function LandingPage() {
             </div>
 
             <p className="max-w-sm text-lg sm:text-2xl leading-relaxed text-gray-200">
-              Empowering car owners with precision care and premium detailing
-              that protects every drive.
+              {footer.tagline}
             </p>
 
             <button
@@ -686,7 +827,11 @@ function LandingPage() {
                 strokeWidth="2.2"
                 aria-hidden="true"
               >
-                <path d="M12 19V6" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M12 19V6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
                 <path
                   d="m6 12 6-6 6 6"
                   strokeLinecap="round"
@@ -704,7 +849,7 @@ function LandingPage() {
                 Site Map
               </h3>
               <ul className="space-y-3 sm:space-y-4 text-base sm:text-lg text-gray-300">
-                {siteMapLinks.map((item) => (
+                {footer.siteMapLinks.map((item) => (
                   <li key={item.label}>
                     <a
                       href={item.href}
@@ -722,7 +867,7 @@ function LandingPage() {
                 Legal
               </h3>
               <ul className="space-y-3 sm:space-y-4 text-base sm:text-lg text-gray-300">
-                {legalLinks.map((item) => (
+                {footer.legalLinks.map((item) => (
                   <li key={item.label}>
                     <a
                       href={item.href}
@@ -738,7 +883,7 @@ function LandingPage() {
         </div>
 
         <div className="border-t border-white/10 bg-[#7f1d1d] px-4 sm:px-6 py-2.5 text-center text-xs font-semibold tracking-wide text-white/90">
-          Copyright © 2026, otokwikk. All Rights Reserved.
+          {footer.copyright}
         </div>
       </footer>
 
