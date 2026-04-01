@@ -69,8 +69,30 @@ from api.views.notification_views import (
     NotificationMarkAllReadView,
 )
 from api.views.damage_views import AnalyzeDamageView
+from api.views.super_admin_views import (
+    SuperAdminDashboardView,
+    SuperAdminUserListView,
+    SuperAdminUserDetailView,
+    SuperAdminRoleListView,
+    SuperAdminReportsView,
+    SuperAdminActivityLogView,
+    SuperAdminBranchOverviewView,
+    SuperAdminBroadcastView,
+    SuperAdminCreateView,
+)
 
 urlpatterns = [
+    # ── Super Admin endpoints ─────────────────────────────────────────────────────
+    path("super-admin/dashboard/",           SuperAdminDashboardView.as_view()),
+    path("super-admin/users/",               SuperAdminUserListView.as_view()),
+    path("super-admin/users/<int:pk>/",      SuperAdminUserDetailView.as_view()),
+    path("super-admin/roles/",               SuperAdminRoleListView.as_view()),
+    path("super-admin/reports/",             SuperAdminReportsView.as_view()),
+    path("super-admin/activity-log/",        SuperAdminActivityLogView.as_view()),
+    path("super-admin/branches/",            SuperAdminBranchOverviewView.as_view()),
+    path("super-admin/broadcast/",           SuperAdminBroadcastView.as_view()),
+    path("super-admin/create/",              SuperAdminCreateView.as_view()),
+
     path('admin/', admin.site.urls),
 
     # ── Authentication ────────────────────────────────────────────────────────

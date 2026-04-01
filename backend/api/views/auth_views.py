@@ -202,6 +202,7 @@ def _get_profile_data(user):
         "Employee":       "employee",
         "Inventory":      "inventory",
         "Inventory Manager": "inventory_manager",
+        "Super Admin":    "super_admin",
     }
 
     def get_pic_url(pic):

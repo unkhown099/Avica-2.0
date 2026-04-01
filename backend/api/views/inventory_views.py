@@ -11,14 +11,32 @@ from ..serializers.restock_serializer import RestockRequestSerializer
 from ..serializers.inventory_transaction_serializer import InventoryTransactionSerializer
 
 # Roles that can READ inventory (for POS + admin dashboard)
-READ_ROLES  = ["Admin", "Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
+READ_ROLES  = ["super_admin", "Admin", "Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
 # Roles that can WRITE inventory
-WRITE_ROLES = ["Inventory Manager", "Staff", "Inventory", "Branch Manager"]
-RESTOCK_REQUEST_ROLES = ["Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
+WRITE_ROLES = ["super_admin", "Inventory Manager", "Staff", "Inventory", "Branch Manager"]
+RESTOCK_REQUEST_ROLES = ["super_admin", "Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
+
+ROLE_NORMALIZATION = {
+    "Super Admin":    "super_admin",
+    "super_admin":    "super_admin",
+    "Admin":          "Admin",
+    "Business Owner": "Business Owner",
+    "Branch Manager": "Branch Manager",
+    "Staff":          "Staff",
+    "Employee":       "Employee",
+    "Inventory":      "Inventory",
+    "Inventory Manager": "Inventory Manager",
+}
+
+def normalize_staff_role(role):
+    if not role:
+        return None
+    return ROLE_NORMALIZATION.get(str(role).strip(), role)
+
 
 def get_staff_role(request):
     try:
-        return request.user.staff_profile.role
+        return normalize_staff_role(request.user.staff_profile.role)
     except Exception:
         return None
 
@@ -271,9 +289,9 @@ class RestockRequestActionView(APIView):
 
     def patch(self, request, pk):
         role = get_staff_role(request)
-        if role not in ["Inventory Manager", "Inventory"]:
+        if role not in ["super_admin", "Inventory Manager", "Inventory"]:
             return Response(
-                {"detail": "Only Inventory Manager or Inventory staff can perform this action."},
+                {"detail": "Only Inventory Manager, Inventory staff, or Super Admin can perform this action."},
                 status=403,
             )
 
@@ -290,8 +308,8 @@ class RestockRequestActionView(APIView):
             return Response({"detail": "Invalid action."}, status=400)
 
         if action in ["approve", "reject"]:
-            if role != "Inventory Manager":
-                return Response({"detail": "Only Inventory Manager can review restock requests."}, status=403)
+            if role not in ["super_admin", "Inventory Manager"]:
+                return Response({"detail": "Only Inventory Manager or Super Admin can review restock requests."}, status=403)
             if rr.status != "pending":
                 return Response({"detail": "Only pending requests can be reviewed."}, status=400)
 
@@ -360,8 +378,8 @@ class RestockRequestActionView(APIView):
             return Response(RestockRequestSerializer(rr).data)
 
         # receive action
-        if role != "Inventory":
-            return Response({"detail": "Only Inventory staff can confirm stock receipt."}, status=403)
+        if role not in ["super_admin", "Inventory"]:
+            return Response({"detail": "Only Inventory staff or Super Admin can confirm stock receipt."}, status=403)
         if not actor or actor.branch_id != rr.branch_id:
             return Response({"detail": "You can only receive stock for your assigned branch."}, status=403)
         if rr.status != "approved":
@@ -446,8 +464,8 @@ class DirectStockTransferView(APIView):
 
     def post(self, request):
         role = get_staff_role(request)
-        if role != "Inventory Manager":
-            return Response({"detail": "Only Inventory Manager can transfer stock."}, status=403)
+        if role not in ["super_admin", "Inventory Manager"]:
+            return Response({"detail": "Only Inventory Manager or Super Admin can transfer stock."}, status=403)
 
         source_item_id = request.data.get("source_item_id")
         target_branch_id = request.data.get("target_branch_id")
@@ -544,9 +562,9 @@ class InventoryTransactionHistoryView(APIView):
 
     def get(self, request):
         role = get_staff_role(request)
-        if role not in ["Inventory Manager", "Inventory", "Branch Manager"]:
+        if role not in ["super_admin", "Inventory Manager", "Inventory", "Branch Manager"]:
             return Response(
-                {"detail": "Only Inventory Manager, Inventory, or Branch Manager can view inventory transactions."},
+                {"detail": "Only Inventory Manager, Inventory, Branch Manager, or Super Admin can view inventory transactions."},
                 status=403,
             )
 

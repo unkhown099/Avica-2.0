@@ -7,6 +7,14 @@ import { useAuth, API_BASE } from "../hooks/useAuth.js";
 // ─── Menu configs per role ────────────────────────────────────────────────────
 
 const MENU_ITEMS = {
+  super_admin: [
+  {
+    name: "Dashboard",
+    path: "/super-admin/dashboard",
+    icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
+  },
+  ],
+  
   admin: [
     {
       name: "Dashboard",
@@ -246,6 +254,7 @@ const MENU_ITEMS = {
 // ─── Role Labels ──────────────────────────────────────────────────────────────
 
 const ROLE_LABELS = {
+  super_admin: { title: "Super Admin", subtitle: "System Root" },
   admin: { title: "Admin User", subtitle: "System Administrator" },
   business_owner: { title: "Branch Owner", subtitle: "Business Manager" },
   branch_manager: { title: "Manager", subtitle: "Branch Manager" },
