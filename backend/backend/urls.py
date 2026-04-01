@@ -1,4 +1,5 @@
 # backend/urls.py
+from django import views
 from django.contrib import admin
 from django.urls import path
 from django.views.generic import RedirectView
@@ -8,7 +9,13 @@ from api.views.auth_views import (
     SignupView, LogoutView, MeView, LoginView,
     GoogleLoginView, VerifyEmailView, ForgotPasswordView, ResetPasswordView, DeleteAccountView, CheckEmailView
 )
-from api.views.views import generate_all_forecasts, get_latest_all_forecasts
+from api.views.forecast_views import (
+    generate_all_forecasts,
+    get_latest_all_forecasts,
+    get_latest_system_forecasts,
+    generate_system_forecasts
+)
+
 from api.views.staff_views import StaffView, StaffDetailView, VerifyPasswordView
 from api.views.vehicle_views import AnalyzeVehicleView
 from api.views.chatbot_views import chat_with_groq
@@ -25,6 +32,7 @@ from api.views.inventory_views import (
     RestockRequestActionView,
     DirectStockTransferView,
     InventoryTransactionHistoryView,
+    InventoryDemandForecastView,
 )
 from api.views.bookings_views import (
     BookingListCreateView,
@@ -172,6 +180,7 @@ urlpatterns = [
     path('inventory/restock-requests/<int:pk>/action/', RestockRequestActionView.as_view(), name='restock-request-action'),
     path('inventory/transfer/', DirectStockTransferView.as_view(), name='inventory-transfer'),
     path('inventory/transactions/', InventoryTransactionHistoryView.as_view(), name='inventory-transactions'),
+    path('inventory/demand-forecast/', InventoryDemandForecastView.as_view(), name='inventory-demand-forecast'),
     path('appointments/',          AdminAppointmentListView.as_view(),  name='admin-appointments'),
     path('appointments/<int:pk>/', AdminAppointmentDetailView.as_view(), name='admin-appointment-detail'),
 
@@ -201,7 +210,8 @@ urlpatterns = [
 
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
-  path("forecast/all/<int:branch_id>/", generate_all_forecasts, name="generate_all_forecasts"),
-    path("forecast/all/<int:branch_id>/latest/", get_latest_all_forecasts, name="get_latest_all_forecasts"),
-
+path("forecast/all/<int:branch_id>/", generate_all_forecasts, name="generate_all_forecasts"),
+path("forecast/all/<int:branch_id>/latest/", get_latest_all_forecasts, name="get_latest_all_forecasts"),
+path("api/forecast/system/", get_latest_system_forecasts, name="system-forecast"),
+path("api/forecast/system/generate/", generate_system_forecasts, name="generate_system_forecasts"),
 ]

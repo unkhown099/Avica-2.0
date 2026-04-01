@@ -32,7 +32,6 @@ import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AdminServices from "./pages/admin/AdminServices.jsx";
 import AdminCustomers from "./pages/admin/AdminCustomers.jsx";
-import AdminInventory from "./pages/admin/AdminInventory.jsx";
 import AdminAppointments from "./pages/admin/AdminAppointments.jsx";
 import AdminBranches from "./pages/admin/AdminBranches.jsx";
 import AdminStaff from "./pages/admin/AdminStaffAccounts.jsx";

@@ -36,7 +36,7 @@ def _get_requester_staff(user):
 
 
 def _scope_to_requester_branch(queryset, requester_staff):
-    if not requester_staff or requester_staff.role == "Admin":
+    if not requester_staff or requester_staff.role in ("Admin", "Business Owner", "super_admin"):
         return queryset
     if requester_staff.branch_id:
         return queryset.filter(branch_id=requester_staff.branch_id)
@@ -772,8 +772,8 @@ def queue_history(request):
         status__in=["done", "skipped"]
     ).select_related("assigned_employee", "branch", "booking")
 
-    # Non-admin staff can only view queue history from their own branch.
-    if requester_staff and requester_staff.role != "Admin":
+    # Non-admin/owner staff can only view queue history from their own branch.
+    if requester_staff and requester_staff.role not in ("Admin", "Business Owner", "super_admin"):
         if requester_staff.branch_id:
             entries = entries.filter(branch_id=requester_staff.branch_id)
         else:

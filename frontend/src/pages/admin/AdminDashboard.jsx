@@ -19,7 +19,6 @@ import html2canvas from "html2canvas";
 import AdminLayout from "./AdminLayout.jsx";
 import { useOverview } from "../../hooks/useDashboard";
 import { ErrorBanner, exportToCSV } from "../../components/admin/DashboardUI";
-import NotificationDropdown from "../../components/NotificationDropdown.jsx";
 
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
@@ -37,6 +36,7 @@ ChartJS.register(
   Legend,
 );
 
+
 const SECTION_KEYS = ["overview", "revenue", "appointment", "customers", "inventory", "services", "employees"];
 
 const VIEWS = [
@@ -45,7 +45,7 @@ const VIEWS = [
     label: "Overview",
     icon: (
       <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 01２ ２v２a２ ２ ０ ０１－２ ２H６a２ ２ ０ ０１－２－２v－２zM１４ １６a２ ２ ０ ０１２－２h２a２ ２ ０ ０１２ ２v２a２ ２ ０ ０１－２ ２h－２a２ ２ ０ ０１－２－２v－２z" />
       </svg>
     ),
   },
@@ -103,7 +103,7 @@ const VIEWS = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V10H2v10h5m10 0v-2a4 4 0 10-8 0v2m8 0H9m4-12a4 4 0 110 8 4 4 0 010-8z" />
       </svg>
     ),
-  },
+  }
 ];
 
 const SERVICE_COLORS = ["#ef4444", "#a855f7", "#3b82f6", "#10b981", "#f59e0b", "#06b6d4"];
@@ -214,8 +214,29 @@ function normalizeStatus(s = "") {
   return String(s).toLowerCase().replace(/\s+/g, "_");
 }
 
+const WEEKDAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH_LABELS_FULL = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DEFAULT_INVENTORY_FORECAST = {
+  period: "monthly",
+  branch_filter: "All Branches",
+  time_series: [],
+  linear_regression: { slope: 0, intercept: 0, next_period_prediction: 0, trend: "stable" },
+  top_items: [],
+  risk_summary: { stockout_risk_count: 0, overstock_risk_count: 0 },
+};
+
+function parseDateInput(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function quarterOf(monthIndexZeroBased) {
+  return Math.floor(monthIndexZeroBased / 3) + 1;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function AdminDashboard() {
+export default function AdminDashboard({ dataScope = "admin" }) {
   const location = useLocation();
   const [activeView, setActiveView] = useState("overview");
   const [activeExportSection, setActiveExportSection] = useState("overview");
@@ -227,6 +248,17 @@ export default function AdminDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [queueHistory, setQueueHistory] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
+  const [inventoryForecast, setInventoryForecast] = useState(DEFAULT_INVENTORY_FORECAST);
+  const [inventoryForecastPeriod, setInventoryForecastPeriod] = useState("monthly");
+  const [serviceForecastRows, setServiceForecastRows] = useState([]);
+  const [forecastPeriod, setForecastPeriod] = useState("monthly");
+  const [forecastMonthFilter, setForecastMonthFilter] = useState(String(new Date().getMonth() + 1));
+  const [forecastQuarterFilter, setForecastQuarterFilter] = useState(String(quarterOf(new Date().getMonth())));
+  const [forecastYearFilter, setForecastYearFilter] = useState(String(new Date().getFullYear()));
+  const [appointmentPeriod, setAppointmentPeriod] = useState("monthly");
+  const [appointmentMonthFilter, setAppointmentMonthFilter] = useState(String(new Date().getMonth() + 1));
+  const [appointmentQuarterFilter, setAppointmentQuarterFilter] = useState(String(quarterOf(new Date().getMonth())));
+  const [appointmentYearFilter, setAppointmentYearFilter] = useState(String(new Date().getFullYear()));
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState("All Branches");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -244,9 +276,10 @@ export default function AdminDashboard() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-
+        const forecastRes = await fetch(`${API_BASE}/api/forecast/system/`, { headers, credentials: "include" });
+        const dashboardEndpoint = `${baseUrl}/dashboard/`;
         const [dashboardRes, customersRes, inventoryRes, appointmentsRes, queueHistoryRes] = await Promise.all([
-          fetch(`${baseUrl}/dashboard/`, { headers, credentials: "include" }),
+          fetch(dashboardEndpoint, { headers, credentials: "include" }),
           fetch(`${baseUrl}/customers/`, { headers, credentials: "include" }),
           fetch(`${baseUrl}/inventory/`, { headers, credentials: "include" }),
           fetch(`${baseUrl}/appointments/`, { headers, credentials: "include" }),
@@ -258,12 +291,14 @@ export default function AdminDashboard() {
         if (!inventoryRes.ok) throw new Error(`Inventory: ${inventoryRes.status}`);
         if (!appointmentsRes.ok) throw new Error(`Appointments: ${appointmentsRes.status}`);
 
-        const [dashboardData, customersData, inventoryData, appointmentsData, queueHistoryData] = await Promise.all([
+    
+        const [dashboardData, customersData, inventoryData, appointmentsData, queueHistoryData, forecastData] = await Promise.all([
           dashboardRes.json(),
           customersRes.json(),
           inventoryRes.json(),
           appointmentsRes.json(),
           queueHistoryRes.ok ? queueHistoryRes.json() : Promise.resolve([]),
+          forecastRes.json(),
         ]);
 
         setStats(dashboardData.stats);
@@ -272,6 +307,16 @@ export default function AdminDashboard() {
         setAnalytics(dashboardData.analytics ?? null);
         setCustomers(customersData ?? []);
         setInventoryItems(inventoryData ?? []);
+        setInventoryForecast(DEFAULT_INVENTORY_FORECAST);
+        setServiceForecastRows(
+          (forecastData?.service_forecast?.results ?? []).map((row) => ({
+            service_name: row.service_name ?? `Service ${row.service_id ?? ""}`,
+            demand: Number(row.predicted_booking_count ?? row.predicted_queue_count ?? 0),
+            predicted_revenue: Number(row.predicted_revenue ?? 0),
+            period_label: row.forecast_period_label ?? "",
+            created_at: row.created_at ?? null,
+          })),
+        );
         setAppointments(Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData.results ?? []));
         setQueueHistory(Array.isArray(queueHistoryData) ? queueHistoryData : (queueHistoryData?.results ?? []));
       } catch (err) {
@@ -281,7 +326,40 @@ export default function AdminDashboard() {
       }
     };
     fetchDashboard();
-  }, []);
+  }, [dataScope]);
+
+  useEffect(() => {
+    const fetchInventoryForecast = async () => {
+      try {
+        const token =
+          localStorage.getItem("access_token") ??
+          sessionStorage.getItem("access_token");
+        const baseUrl = API_BASE;
+        const headers = {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+        const params = new URLSearchParams({
+          period: inventoryForecastPeriod,
+          ...(inventoryBranchFilter !== "All Branches" ? { branch: inventoryBranchFilter } : {}),
+        });
+        const res = await fetch(`${baseUrl}/inventory/demand-forecast/?${params.toString()}`, {
+          headers,
+          credentials: "include",
+        });
+        if (!res.ok) {
+          setInventoryForecast(DEFAULT_INVENTORY_FORECAST);
+          return;
+        }
+        const data = await res.json();
+        setInventoryForecast(data ?? DEFAULT_INVENTORY_FORECAST);
+      } catch (err) {
+        setError(err?.message || "Failed to load inventory forecasting.");
+        setInventoryForecast(DEFAULT_INVENTORY_FORECAST);
+      }
+    };
+    fetchInventoryForecast();
+  }, [inventoryForecastPeriod, inventoryBranchFilter]);
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
@@ -324,6 +402,9 @@ export default function AdminDashboard() {
   const serviceDistribution = analytics?.service_distribution ?? [];
   const topServicesData = analytics?.top_services ?? [];
   const revenueByBranch = analytics?.revenue_by_branch ?? [];
+  const highestDemandBranch = analytics?.highest_demand_branch;
+  const branchForecastRows = Array.isArray(analytics?.branch_forecasts) ? analytics.branch_forecasts : [];
+  const branchDemandSeriesRows = Array.isArray(analytics?.branch_demand_time_series) ? analytics.branch_demand_time_series : [];
   const topServiceCards = topServicesData;
 
   const topCustomer =
@@ -341,6 +422,39 @@ export default function AdminDashboard() {
       ? true
       : (i.branch_name || "Central") === inventoryBranchFilter,
   );
+
+  const inventoryTimeSeriesData = {
+    labels: (inventoryForecast.time_series ?? []).map((row) => row.label),
+    datasets: [
+      {
+        label: `Stock Usage (${inventoryForecastPeriod === "daily" ? "Daily" : "Monthly"})`,
+        data: (inventoryForecast.time_series ?? []).map((row) => Number(row.usage ?? 0)),
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34,197,94,0.12)",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 2,
+      },
+    ],
+  };
+
+  const inventoryTopItemsData = {
+    labels: (inventoryForecast.top_items ?? []).map((row) => row.item_name),
+    datasets: [
+      {
+        label: "Usage",
+        data: (inventoryForecast.top_items ?? []).map((row) => Number(row.usage ?? 0)),
+        backgroundColor: "rgba(59,130,246,0.7)",
+        borderRadius: 6,
+      },
+    ],
+  };
+  const inventoryTrend = inventoryForecast.linear_regression?.trend ?? "stable";
+  const inventoryTrendLabel = inventoryTrend === "increasing"
+    ? "Increasing"
+    : inventoryTrend === "decreasing"
+      ? "Decreasing"
+      : "Stable";
 
   const lowStockCount = filteredInventoryItems.filter(
     (i) => normalizeInventoryStatus(i.status) === "low",
@@ -386,6 +500,19 @@ export default function AdminDashboard() {
   });
 
   const employeeWorkloadRows = useMemo(() => {
+    const backendRows = analytics?.employee_workload;
+    if (Array.isArray(backendRows) && backendRows.length) {
+      const grandTotal = backendRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
+      return backendRows.map((row) => ({
+        employee: row.employee_name ?? "Unassigned",
+        branch: row.branch ?? "Unknown Branch",
+        total: Number(row.total ?? 0),
+        completed: Number(row.completed ?? 0),
+        skipped: Number(row.skipped ?? 0),
+        share: grandTotal > 0 ? (Number(row.total ?? 0) / grandTotal) * 100 : 0,
+      }));
+    }
+
     const grouped = queueHistory.reduce((acc, entry) => {
       const assignedName =
         entry?.assigned_employee?.full_name ||
@@ -420,7 +547,37 @@ export default function AdminDashboard() {
       ...row,
       share: grandTotal > 0 ? (Number(row.total) / grandTotal) * 100 : 0,
     }));
-  }, [queueHistory]);
+  }, [queueHistory, analytics?.employee_workload]);
+
+  const highestDemandEmployee = analytics?.highest_demand_employee;
+  const highestRatedEmployee = analytics?.highest_rated_employee;
+  const employeeForecastLeader = analytics?.employee_forecast_leader;
+  const employeeRatingsRows = Array.isArray(analytics?.employee_ratings) ? analytics.employee_ratings : [];
+  const employeeForecastRows = Array.isArray(analytics?.employee_forecasts) ? analytics.employee_forecasts : [];
+
+  const employeeRatingsChartData = {
+    labels: employeeRatingsRows.slice(0, 8).map((row) => row.employee_name),
+    datasets: [
+      {
+        label: "Average Rating",
+        data: employeeRatingsRows.slice(0, 8).map((row) => Number(row.avg_rating ?? 0)),
+        backgroundColor: "rgba(245,158,11,0.75)",
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const employeeForecastChartData = {
+    labels: employeeForecastRows.slice(0, 8).map((row) => row.employee_name),
+    datasets: [
+      {
+        label: "Predicted Next Jobs",
+        data: employeeForecastRows.slice(0, 8).map((row) => Number(row.predicted_next_jobs ?? 0)),
+        backgroundColor: "rgba(99,102,241,0.75)",
+        borderRadius: 6,
+      },
+    ],
+  };
 
   const employeeWorkloadPagination = usePagination({
     items: employeeWorkloadRows,
@@ -428,23 +585,201 @@ export default function AdminDashboard() {
     resetDeps: [employeeWorkloadRows.length],
   });
 
+  const filteredAppointments = useMemo(() => {
+    const selectedYear = Number(appointmentYearFilter);
+    return appointments.filter((apt) => {
+      const date = parseDateInput(apt.date ?? apt.created_at);
+      if (!date || date.getFullYear() !== selectedYear) return false;
+      if (appointmentPeriod === "monthly") return date.getMonth() + 1 === Number(appointmentMonthFilter);
+      if (appointmentPeriod === "quarterly") return quarterOf(date.getMonth()) === Number(appointmentQuarterFilter);
+      return true;
+    });
+  }, [appointments, appointmentPeriod, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter]);
+
   const appointmentsPagination = usePagination({
-    items: appointments,
+    items: filteredAppointments,
     pageSize: 5,
-    resetDeps: [appointments.length],
+    resetDeps: [filteredAppointments.length],
   });
 
-  const appointmentStatusCounts = appointments.reduce(
-    (acc, apt) => {
-      const key = normalizeStatus(apt.status);
-      if (key === "confirmed") acc.confirmed += 1;
-      else if (key === "pending") acc.pending += 1;
-      else if (key === "cancelled") acc.cancelled += 1;
-      else if (key === "no_show") acc.noShow += 1;
+  const appointmentEvents = useMemo(() => {
+    return appointments
+      .map((apt) => {
+        const date = parseDateInput(apt.date ?? apt.created_at);
+        if (!date) return null;
+        return {
+          status: normalizeStatus(apt.status),
+          dayName: WEEKDAY_LABELS[date.getDay()],
+          month: date.getMonth() + 1,
+          monthLabel: MONTH_LABELS_FULL[date.getMonth()],
+          quarter: quarterOf(date.getMonth()),
+          year: date.getFullYear(),
+          dateKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+          cancellationReason: apt.cancel_reason || apt.cancellation_reason || apt.reason || apt.notes || "Unspecified",
+        };
+      })
+      .filter(Boolean);
+  }, [appointments]);
+
+  const appointmentYears = useMemo(() => {
+    const years = Array.from(new Set(appointmentEvents.map((row) => row.year))).sort((a, b) => b - a);
+    return years.length ? years : [new Date().getFullYear()];
+  }, [appointmentEvents]);
+
+  useEffect(() => {
+    if (!appointmentYears.includes(Number(appointmentYearFilter))) {
+      setAppointmentYearFilter(String(appointmentYears[0]));
+    }
+  }, [appointmentYears, appointmentYearFilter]);
+
+  const filteredAppointmentEvents = useMemo(() => {
+    const selectedYear = Number(appointmentYearFilter);
+    return appointmentEvents.filter((row) => {
+      if (row.year !== selectedYear) return false;
+      if (appointmentPeriod === "monthly") return row.month === Number(appointmentMonthFilter);
+      if (appointmentPeriod === "quarterly") return row.quarter === Number(appointmentQuarterFilter);
+      return true;
+    });
+  }, [appointmentEvents, appointmentPeriod, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter]);
+
+  const filteredAppointmentStatusCounts = useMemo(() => {
+    return filteredAppointmentEvents.reduce(
+      (acc, row) => {
+        if (row.status === "done" || row.status === "completed") acc.completed += 1;
+        else if (row.status === "confirmed") acc.confirmed += 1;
+        else if (row.status === "pending") acc.pending += 1;
+        else if (row.status === "cancelled") acc.cancelled += 1;
+        else if (row.status === "no_show") acc.noShow += 1;
+        else acc.other += 1;
+        return acc;
+      },
+      { completed: 0, confirmed: 0, pending: 0, cancelled: 0, noShow: 0, other: 0 },
+    );
+  }, [filteredAppointmentEvents]);
+
+  const peakDaysRows = useMemo(() => {
+    const seed = WEEKDAY_LABELS.reduce((acc, day) => ({ ...acc, [day]: 0 }), {});
+    filteredAppointmentEvents.forEach((row) => {
+      seed[row.dayName] += 1;
+    });
+    return WEEKDAY_LABELS.map((day) => ({ day, count: seed[day] }));
+  }, [filteredAppointmentEvents]);
+
+  const cancellationReasonRows = useMemo(() => {
+    const grouped = filteredAppointmentEvents
+      .filter((row) => row.status === "cancelled")
+      .reduce((acc, row) => {
+        const reason = String(row.cancellationReason || "Unspecified").trim() || "Unspecified";
+        acc[reason] = (acc[reason] ?? 0) + 1;
+        return acc;
+      }, {});
+    return Object.entries(grouped)
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [filteredAppointmentEvents]);
+
+  const appointmentTimelineRows = useMemo(() => {
+    const grouped = filteredAppointmentEvents.reduce((acc, row) => {
+      acc[row.dateKey] = (acc[row.dateKey] ?? 0) + 1;
       return acc;
-    },
-    { confirmed: 0, pending: 0, cancelled: 0, noShow: 0 },
-  );
+    }, {});
+    return Object.entries(grouped)
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [filteredAppointmentEvents]);
+
+  const serviceEvents = useMemo(() => {
+    const rows = [];
+    appointments.forEach((apt) => {
+      const date = parseDateInput(apt.date ?? apt.created_at);
+      if (!date) return;
+      rows.push({
+        service: apt.service ?? "Unknown Service",
+        dayName: WEEKDAY_LABELS[date.getDay()],
+        monthLabel: MONTH_LABELS_FULL[date.getMonth()],
+        month: date.getMonth() + 1,
+        quarter: quarterOf(date.getMonth()),
+        year: date.getFullYear(),
+        dateKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+      });
+    });
+    return rows;
+  }, [appointments]);
+
+  const forecastYears = useMemo(() => {
+    const years = Array.from(new Set(serviceEvents.map((row) => row.year))).sort((a, b) => b - a);
+    return years.length ? years : [new Date().getFullYear()];
+  }, [serviceEvents]);
+
+  useEffect(() => {
+    if (!forecastYears.includes(Number(forecastYearFilter))) {
+      setForecastYearFilter(String(forecastYears[0]));
+    }
+  }, [forecastYears, forecastYearFilter]);
+
+  const filteredServiceEvents = useMemo(() => {
+    const selectedYear = Number(forecastYearFilter);
+    return serviceEvents.filter((row) => {
+      if (row.year !== selectedYear) return false;
+      if (forecastPeriod === "monthly") return row.month === Number(forecastMonthFilter);
+      if (forecastPeriod === "quarterly") return row.quarter === Number(forecastQuarterFilter);
+      return true;
+    });
+  }, [serviceEvents, forecastPeriod, forecastMonthFilter, forecastQuarterFilter, forecastYearFilter]);
+
+  const demandByService = useMemo(() => {
+    const grouped = filteredServiceEvents.reduce((acc, row) => {
+      acc[row.service] = (acc[row.service] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(grouped)
+      .map(([service, demand]) => ({ service, demand }))
+      .sort((a, b) => b.demand - a.demand);
+  }, [filteredServiceEvents]);
+
+  const demandByDay = useMemo(() => {
+    const seed = WEEKDAY_LABELS.reduce((acc, day) => ({ ...acc, [day]: 0 }), {});
+    filteredServiceEvents.forEach((row) => {
+      seed[row.dayName] += 1;
+    });
+    return WEEKDAY_LABELS.map((day) => ({ day, demand: seed[day] }));
+  }, [filteredServiceEvents]);
+
+  const demandByMonth = useMemo(() => {
+    const seed = MONTH_LABELS_FULL.reduce((acc, month) => ({ ...acc, [month]: 0 }), {});
+    serviceEvents
+      .filter((row) => row.year === Number(forecastYearFilter))
+      .forEach((row) => {
+        seed[row.monthLabel] += 1;
+      });
+    return MONTH_LABELS_FULL.map((month) => ({ month, demand: seed[month] }));
+  }, [serviceEvents, forecastYearFilter]);
+
+  const timeSeriesRows = useMemo(() => {
+    const grouped = filteredServiceEvents.reduce((acc, row) => {
+      acc[row.dateKey] = (acc[row.dateKey] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(grouped)
+      .map(([label, demand]) => ({ label, demand }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [filteredServiceEvents]);
+
+  const forecastSummary = useMemo(() => {
+    const topService = demandByService[0];
+    const peakDay = [...demandByDay].sort((a, b) => b.demand - a.demand)[0];
+    const peakMonth = [...demandByMonth].sort((a, b) => b.demand - a.demand)[0];
+    const totalDemand = filteredServiceEvents.length;
+    const forecastRevenue = serviceForecastRows.reduce((sum, row) => sum + Number(row.predicted_revenue ?? 0), 0);
+    return {
+      totalDemand,
+      topService: topService ? `${topService.service} (${topService.demand})` : "No data",
+      peakDay: peakDay?.demand ? `${peakDay.day} (${peakDay.demand})` : "No data",
+      peakMonth: peakMonth?.demand ? `${peakMonth.month} (${peakMonth.demand})` : "No data",
+      forecastRevenue,
+    };
+  }, [demandByService, demandByDay, demandByMonth, filteredServiceEvents.length, serviceForecastRows]);
 
   // ── Stat cards config ────────────────────────────────────────────────────
   const statCards = [
@@ -592,6 +927,42 @@ export default function AdminDashboard() {
     ],
   };
 
+  const branchForecastBarData = {
+    labels: branchForecastRows.slice(0, 8).map((row) => row.branch),
+    datasets: [
+      {
+        label: "Predicted Next Demand",
+        data: branchForecastRows.slice(0, 8).map((row) => Number(row.predicted_next_demand ?? 0)),
+        backgroundColor: "rgba(99,102,241,0.75)",
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const branchDemandTimeSeriesData = useMemo(() => {
+    const labels = branchDemandSeriesRows.map((row) => row.label);
+    const branches = Array.from(
+      new Set(
+        branchDemandSeriesRows.flatMap((row) =>
+          Object.keys(row).filter((key) => key !== "label"),
+        ),
+      ),
+    );
+
+    const palette = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#f97316", "#22c55e"];
+    const datasets = branches.slice(0, 8).map((branch, idx) => ({
+      label: branch,
+      data: branchDemandSeriesRows.map((row) => Number(row[branch] ?? 0)),
+      borderColor: palette[idx % palette.length],
+      backgroundColor: `${palette[idx % palette.length]}22`,
+      fill: false,
+      tension: 0.25,
+      pointRadius: 1.5,
+    }));
+
+    return { labels, datasets };
+  }, [branchDemandSeriesRows]);
+
   const revenueBarOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -640,6 +1011,130 @@ export default function AdminDashboard() {
     },
   };
 
+  const demandTimeSeriesData = {
+    labels: timeSeriesRows.map((row) => row.label),
+    datasets: [
+      {
+        label: "Service Demand",
+        data: timeSeriesRows.map((row) => row.demand),
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34,197,94,0.12)",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 2,
+      },
+    ],
+  };
+
+  const demandBarByServiceData = {
+    labels: demandByService.slice(0, 8).map((row) => row.service),
+    datasets: [
+      {
+        label: "Demand Count",
+        data: demandByService.slice(0, 8).map((row) => row.demand),
+        backgroundColor: "rgba(59,130,246,0.7)",
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const demandBarByDayData = {
+    labels: demandByDay.map((row) => row.day),
+    datasets: [
+      {
+        label: "Bookings",
+        data: demandByDay.map((row) => row.demand),
+        backgroundColor: "rgba(234,88,12,0.7)",
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const demandBarBaseOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: "bottom",
+        labels: { color: "#9ca3af", usePointStyle: true, padding: 10, font: { size: 10 } },
+      },
+      tooltip: CHART_BASE.tooltip,
+    },
+    scales: {
+      x: { grid: CHART_BASE.grid, ticks: { ...CHART_BASE.ticks, maxRotation: 45, minRotation: 45 } },
+      y: { beginAtZero: true, grid: CHART_BASE.grid, ticks: CHART_BASE.ticks },
+    },
+  };
+
+  const appointmentStatusData = {
+    labels: ["Completed", "Confirmed", "Pending", "Cancelled", "No Show", "Other"],
+    datasets: [
+      {
+        label: "Appointments",
+        data: [
+          filteredAppointmentStatusCounts.completed,
+          filteredAppointmentStatusCounts.confirmed,
+          filteredAppointmentStatusCounts.pending,
+          filteredAppointmentStatusCounts.cancelled,
+          filteredAppointmentStatusCounts.noShow,
+          filteredAppointmentStatusCounts.other,
+        ],
+        backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#f97316", "#9ca3af"],
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const appointmentPeakDayData = {
+    labels: peakDaysRows.map((row) => row.day),
+    datasets: [
+      {
+        label: "Appointments",
+        data: peakDaysRows.map((row) => row.count),
+        backgroundColor: "rgba(59,130,246,0.7)",
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const cancellationReasonPieData = {
+    labels: cancellationReasonRows.map((row) => row.reason),
+    datasets: [
+      {
+        data: cancellationReasonRows.map((row) => row.count),
+        backgroundColor: SERVICE_COLORS.slice(0, Math.max(1, cancellationReasonRows.length)),
+        borderWidth: 2,
+        borderColor: "#111827",
+      },
+    ],
+  };
+
+  const appointmentTimelineData = {
+    labels: appointmentTimelineRows.map((row) => row.label),
+    datasets: [
+      {
+        label: "Appointments",
+        data: appointmentTimelineRows.map((row) => row.count),
+        borderColor: "#a855f7",
+        backgroundColor: "rgba(168,85,247,0.12)",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 2,
+      },
+    ],
+  };
+
+  const topPeakDay = [...peakDaysRows].sort((a, b) => b.count - a.count)[0];
+  const peakMonthRow = Object.entries(
+    filteredAppointmentEvents.reduce((acc, row) => {
+      acc[row.monthLabel] = (acc[row.monthLabel] ?? 0) + 1;
+      return acc;
+    }, {}),
+  )
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => b.count - a.count)[0];
+
   const tierDistribution = customers.reduce((acc, c) => {
     const segment = c.segment || "New";
     acc[segment] = (acc[segment] ?? 0) + 1;
@@ -669,7 +1164,7 @@ export default function AdminDashboard() {
       );
     } else if (activeView === "appointment") {
       exportToCSV(
-        appointments.map((a) => [
+        filteredAppointments.map((a) => [
           a.date ?? "—",
           a.time ?? "—",
           a.customer_name ?? "—",
@@ -863,10 +1358,7 @@ export default function AdminDashboard() {
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 print:hidden">
-            <NotificationDropdown />
-
-          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2 print:hidden" />
         </div>
 
         {/* ── Error Banner ────────────────────────────────────────────────── */}
@@ -905,11 +1397,36 @@ export default function AdminDashboard() {
         </button>
       </div>
     </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
-              {loading
-                ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
-                : statCards.map((card, i) => <StatCard key={i} {...card} />)}
-            </div>
+            {(() => {
+              const overviewKpiCards = [
+                ...statCards,
+                ...(dataScope === "manager"
+                  ? []
+                  : [{
+                      title: "Highest Demand Branch",
+                      value: highestDemandBranch ? highestDemandBranch.branch : "No data",
+                      sub: highestDemandBranch ? `${Number(highestDemandBranch.total_demand ?? 0).toLocaleString()} total demand` : "Branch forecast summary",
+                      accentBg: "bg-indigo-500/10",
+                      accentText: "text-indigo-400",
+                      border: "border-indigo-500/20",
+                    }]),
+                {
+                  title: "Top Rated Employee",
+                  value: highestRatedEmployee ? highestRatedEmployee.employee_name : "No ratings yet",
+                  sub: highestRatedEmployee ? `${Number(highestRatedEmployee.avg_rating ?? 0).toFixed(2)} avg rating` : "Employee performance signal",
+                  accentBg: "bg-amber-500/10",
+                  accentText: "text-amber-400",
+                  border: "border-amber-500/20",
+                },
+              ];
+              return (
+                <div className={`grid grid-cols-2 sm:grid-cols-3 ${dataScope === "manager" ? "xl:grid-cols-5" : "xl:grid-cols-6"} gap-2 sm:gap-4 mb-4 sm:mb-8`}>
+                  {loading
+                    ? Array.from({ length: overviewKpiCards.length }).map((_, i) => <SkeletonCard key={i} />)
+                    : overviewKpiCards.map((card, i) => <StatCard key={i} {...card} />)}
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
               {/* Line Chart */}
@@ -971,6 +1488,32 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Appointment Status Snapshot</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Operational health from appointments</p>
+                <div className="h-40 sm:h-56">
+                  <Bar data={appointmentStatusData} options={demandBarBaseOptions} />
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Branch Demand Forecast</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Expected branch load next period</p>
+                <div className="h-40 sm:h-56">
+                  <Bar data={branchForecastBarData} options={demandBarBaseOptions} />
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Employee Demand Forecast</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Who may need more staffing support</p>
+                <div className="h-40 sm:h-56">
+                  <Bar data={employeeForecastChartData} options={demandBarBaseOptions} />
                 </div>
               </div>
             </div>
@@ -1153,8 +1696,8 @@ export default function AdminDashboard() {
     </button>
   </div>
 </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
-              {[
+            {(() => {
+              const revenueKpiCards = [
                 {
                   title: "Total Revenue (Q1)",
                   value: stats ? `₱${Number(stats.total_revenue ?? 0).toLocaleString()}` : "—",
@@ -1193,16 +1736,60 @@ export default function AdminDashboard() {
                     </svg>
                   ),
                 },
-              ].map((c, i) => (
-                <StatCard key={i} {...c} />
-              ))}
-            </div>
+                ...(dataScope === "manager"
+                  ? []
+                  : [{
+                      title: "Highest Demand Branch",
+                      value: highestDemandBranch
+                        ? `${highestDemandBranch.branch} (${Number(highestDemandBranch.total_demand ?? 0)})`
+                        : "No data",
+                      sub: highestDemandBranch
+                        ? `Forecast next: ${Number(highestDemandBranch.predicted_next_demand ?? 0).toLocaleString()}`
+                        : "No forecast yet",
+                      accentBg: "bg-indigo-500/10",
+                      accentText: "text-indigo-400",
+                      border: "border-indigo-500/20",
+                      icon: (
+                        <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M5 7v10a2 2 0 002 2h3m4 0h3a2 2 0 002-2V7M9 12h6m-6 4h6M9 8h6" />
+                        </svg>
+                      ),
+                    }]),
+              ];
+              return (
+                <div className={`grid grid-cols-1 ${dataScope === "manager" ? "sm:grid-cols-3" : "sm:grid-cols-4"} gap-2 sm:gap-4 mb-4 sm:mb-8`}>
+                  {revenueKpiCards.map((c, i) => (
+                    <StatCard key={i} {...c} />
+                  ))}
+                </div>
+              );
+            })()}
 
             <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm mb-4 sm:mb-6">
-              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Revenue by Branch</h3>
+                  <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">
+                    {dataScope === "manager" ? "Branch Revenue" : "Revenue by Branch"}
+                  </h3>
               <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Live totals from appointments and paid walk-ins</p>
               <div className="h-40 sm:h-72">
                 <Bar data={revenueBarData} options={revenueBarOptions} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-4 sm:mb-6">
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Branch Demand Time Series</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Daily demand trend per branch</p>
+                <div className="h-40 sm:h-72">
+                  <Line data={branchDemandTimeSeriesData} options={lineChartOptions} />
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Branch Demand Forecast</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Predicted next demand via linear regression</p>
+                <div className="h-40 sm:h-72">
+                  <Bar data={branchForecastBarData} options={demandBarBaseOptions} />
+                </div>
               </div>
             </div>
 
@@ -1286,11 +1873,63 @@ export default function AdminDashboard() {
   </div>
 </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
+          <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-4 backdrop-blur-sm mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end sm:justify-between">
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-white">Appointment Analytics Filters</h3>
+                <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Analyze appointment trends by period</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+                <select
+                  value={appointmentPeriod}
+                  onChange={(e) => setAppointmentPeriod(e.target.value)}
+                  className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                {appointmentPeriod === "monthly" && (
+                  <select
+                    value={appointmentMonthFilter}
+                    onChange={(e) => setAppointmentMonthFilter(e.target.value)}
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                  >
+                    {MONTH_LABELS_FULL.map((label, index) => (
+                      <option key={label} value={String(index + 1)}>{label}</option>
+                    ))}
+                  </select>
+                )}
+                {appointmentPeriod === "quarterly" && (
+                  <select
+                    value={appointmentQuarterFilter}
+                    onChange={(e) => setAppointmentQuarterFilter(e.target.value)}
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                  >
+                    <option value="1">Q1</option>
+                    <option value="2">Q2</option>
+                    <option value="3">Q3</option>
+                    <option value="4">Q4</option>
+                  </select>
+                )}
+                <select
+                  value={appointmentYearFilter}
+                  onChange={(e) => setAppointmentYearFilter(e.target.value)}
+                  className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                >
+                  {appointmentYears.map((year) => (
+                    <option key={year} value={String(year)}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-8">
             {[
               {
                 title: "Total Appointments",
-                value: appointments.length.toLocaleString(),
+                value: filteredAppointmentEvents.length.toLocaleString(),
                 accentBg: "bg-blue-500/10",
                 accentText: "text-blue-400",
                 border: "border-blue-500/20",
@@ -1302,7 +1941,7 @@ export default function AdminDashboard() {
               },
               {
                 title: "Confirmed",
-                value: appointmentStatusCounts.confirmed.toLocaleString(),
+                value: filteredAppointmentStatusCounts.confirmed.toLocaleString(),
                 accentBg: "bg-emerald-500/10",
                 accentText: "text-emerald-400",
                 border: "border-emerald-500/20",
@@ -1314,7 +1953,7 @@ export default function AdminDashboard() {
               },
               {
                 title: "Pending",
-                value: appointmentStatusCounts.pending.toLocaleString(),
+                value: filteredAppointmentStatusCounts.pending.toLocaleString(),
                 accentBg: "bg-amber-500/10",
                 accentText: "text-amber-400",
                 border: "border-amber-500/20",
@@ -1326,7 +1965,7 @@ export default function AdminDashboard() {
               },
               {
                 title: "Cancelled / No Show",
-                value: (appointmentStatusCounts.cancelled + appointmentStatusCounts.noShow).toLocaleString(),
+                value: (filteredAppointmentStatusCounts.cancelled + filteredAppointmentStatusCounts.noShow).toLocaleString(),
                 accentBg: "bg-red-500/10",
                 accentText: "text-red-400",
                 border: "border-red-500/20",
@@ -1336,9 +1975,62 @@ export default function AdminDashboard() {
                   </svg>
                 ),
               },
+              {
+                title: "Peak Month",
+                value: peakMonthRow?.count ? `${peakMonthRow.month} (${peakMonthRow.count})` : "No data",
+                accentBg: "bg-violet-500/10",
+                accentText: "text-violet-400",
+                border: "border-violet-500/20",
+                icon: (
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                ),
+              },
             ].map((c, i) => (
               <StatCard key={i} {...c} />
             ))}
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Status Distribution</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Completed, cancelled, no-show and more</p>
+              <div className="h-40 sm:h-64">
+                <Bar data={appointmentStatusData} options={demandBarBaseOptions} />
+              </div>
+            </div>
+
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Cancellation Reasons</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Top reasons for cancelled appointments</p>
+              <div className="h-40 sm:h-64 flex items-center justify-center">
+                {cancellationReasonRows.length === 0 ? (
+                  <div className="text-gray-600 text-xs sm:text-sm text-center">No cancelled appointments in this period.</div>
+                ) : (
+                  <Doughnut data={cancellationReasonPieData} options={doughnutChartOptions} />
+                )}
+              </div>
+            </div>
+
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Peak Day for Appointments</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Highest demand day insight</p>
+              <div className="h-40 sm:h-64">
+                <Bar data={appointmentPeakDayData} options={demandBarBaseOptions} />
+              </div>
+              <p className="text-xs text-cyan-300 mt-3 font-semibold">
+                Peak day: {topPeakDay?.count ? `${topPeakDay.day} (${topPeakDay.count})` : "No data"}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm mb-4 sm:mb-6">
+            <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Appointment Time Series</h3>
+            <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Daily appointment volume for selected period</p>
+            <div className="h-40 sm:h-72">
+              <Line data={appointmentTimelineData} options={lineChartOptions} />
+            </div>
           </div>
 
           <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
@@ -1713,6 +2405,76 @@ export default function AdminDashboard() {
               ))}
             </div>
 
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm mb-4 sm:mb-6">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end sm:justify-between">
+                <div>
+                  <h3 className="text-sm sm:text-lg font-black text-white">Inventory Demand Forecasting</h3>
+                  <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Time series + linear regression to predict stock usage</p>
+                </div>
+                <select
+                  value={inventoryForecastPeriod}
+                  onChange={(e) => setInventoryForecastPeriod(e.target.value)}
+                  className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm w-full sm:w-auto"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="daily">Daily</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-4 mt-4">
+                <StatCard
+                  title="Next Period Usage"
+                  value={Number(inventoryForecast.linear_regression?.next_period_prediction ?? 0).toLocaleString()}
+                  sub="Linear regression estimate"
+                  accentBg="bg-emerald-500/10"
+                  accentText="text-emerald-400"
+                  border="border-emerald-500/20"
+                />
+                <StatCard
+                  title="Usage Trend"
+                  value={inventoryTrendLabel}
+                  sub={`Slope: ${Number(inventoryForecast.linear_regression?.slope ?? 0).toFixed(2)}`}
+                  accentBg="bg-blue-500/10"
+                  accentText="text-blue-400"
+                  border="border-blue-500/20"
+                />
+                <StatCard
+                  title="Stockout Risk"
+                  value={String(Number(inventoryForecast.risk_summary?.stockout_risk_count ?? 0))}
+                  sub="Items at/under reorder level"
+                  accentBg="bg-red-500/10"
+                  accentText="text-red-400"
+                  border="border-red-500/20"
+                />
+                <StatCard
+                  title="Overstock Risk"
+                  value={String(Number(inventoryForecast.risk_summary?.overstock_risk_count ?? 0))}
+                  sub="Potential excess stock"
+                  accentBg="bg-amber-500/10"
+                  accentText="text-amber-400"
+                  border="border-amber-500/20"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-4 sm:mb-6">
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Predicted Stock Usage</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">How much inventory is consumed per selected period</p>
+                <div className="h-40 sm:h-72">
+                  <Line data={inventoryTimeSeriesData} options={lineChartOptions} />
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Highest Usage Items</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Supplies with the strongest demand signal</p>
+                <div className="h-40 sm:h-72">
+                  <Bar data={inventoryTopItemsData} options={demandBarBaseOptions} />
+                </div>
+              </div>
+            </div>
+
             <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
               <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -1858,7 +2620,7 @@ export default function AdminDashboard() {
     </button>
   </div>
 </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
                 {
                   title: "Total Services",
@@ -1898,9 +2660,107 @@ export default function AdminDashboard() {
                     </svg>
                   ),
                 },
+                {
+                  title: "Highest Demand Day",
+                  value: forecastSummary.peakDay,
+                  accentBg: "bg-orange-500/10",
+                  accentText: "text-orange-400",
+                  border: "border-orange-500/20",
+                  sub: `Peak Month: ${forecastSummary.peakMonth}`,
+                  icon: (
+                    <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  ),
+                },
               ].map((c, i) => (
                 <StatCard key={i} {...c} />
               ))}
+            </div>
+
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm mb-4 sm:mb-6">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end sm:justify-between">
+                <div>
+                  <h3 className="text-sm sm:text-lg font-black text-white">Service Demand Forecasting</h3>
+                  <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Time-series demand with monthly, quarterly, and yearly filters</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+                  <select
+                    value={forecastPeriod}
+                    onChange={(e) => setForecastPeriod(e.target.value)}
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                  {forecastPeriod === "monthly" && (
+                    <select
+                      value={forecastMonthFilter}
+                      onChange={(e) => setForecastMonthFilter(e.target.value)}
+                      className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                    >
+                      {MONTH_LABELS_FULL.map((label, index) => (
+                        <option key={label} value={String(index + 1)}>{label}</option>
+                      ))}
+                    </select>
+                  )}
+                  {forecastPeriod === "quarterly" && (
+                    <select
+                      value={forecastQuarterFilter}
+                      onChange={(e) => setForecastQuarterFilter(e.target.value)}
+                      className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                    >
+                      <option value="1">Q1</option>
+                      <option value="2">Q2</option>
+                      <option value="3">Q3</option>
+                      <option value="4">Q4</option>
+                    </select>
+                  )}
+                  <select
+                    value={forecastYearFilter}
+                    onChange={(e) => setForecastYearFilter(e.target.value)}
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                  >
+                    {forecastYears.map((year) => (
+                      <option key={year} value={String(year)}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-4 mt-4">
+                <StatCard title="Filtered Demand" value={forecastSummary.totalDemand} accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20" />
+                <StatCard title="Top Demand Service" value={forecastSummary.topService} accentBg="bg-blue-500/10" accentText="text-blue-400" border="border-blue-500/20" />
+                <StatCard title="Peak Day" value={forecastSummary.peakDay} accentBg="bg-orange-500/10" accentText="text-orange-400" border="border-orange-500/20" />
+                <StatCard title="Forecast Revenue" value={`₱${forecastSummary.forecastRevenue.toLocaleString()}`} accentBg="bg-emerald-500/10" accentText="text-emerald-400" border="border-emerald-500/20" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-4 sm:mb-6">
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Service Demand Time Series</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Demand trend by date for selected period</p>
+                <div className="h-40 sm:h-72">
+                  <Line data={demandTimeSeriesData} options={lineChartOptions} />
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Highest Demand Services</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Top services by demand count</p>
+                <div className="h-40 sm:h-72">
+                  <Bar data={demandBarByServiceData} options={demandBarBaseOptions} />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm mb-4 sm:mb-6">
+              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Peak Day Distribution</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Which day has the highest service demand</p>
+              <div className="h-40 sm:h-72">
+                <Bar data={demandBarByDayData} options={demandBarBaseOptions} />
+              </div>
             </div>
 
             <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
@@ -2043,7 +2903,7 @@ export default function AdminDashboard() {
   </div>
 </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-8">
             {[
               {
                 title: "Assigned Employees",
@@ -2087,9 +2947,60 @@ export default function AdminDashboard() {
                   </svg>
                 ),
               },
+              {
+                title: "Highest Demand Employee",
+                value: highestDemandEmployee
+                  ? `${highestDemandEmployee.employee_name} (${highestDemandEmployee.total})`
+                  : "No data",
+                sub: "Most assigned jobs",
+                accentBg: "bg-indigo-500/10",
+                accentText: "text-indigo-400",
+                border: "border-indigo-500/20",
+                icon: (
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4m10-2v4m-2-2h4M6 17v4m-2-2h4m8-2v4m-2-2h4M9 13h6M9 9h6" />
+                  </svg>
+                ),
+              },
+              {
+                title: "Highest Rated Employee",
+                value: highestRatedEmployee
+                  ? `${highestRatedEmployee.employee_name} (${Number(highestRatedEmployee.avg_rating ?? 0).toFixed(2)})`
+                  : "No data",
+                sub: highestRatedEmployee ? `${highestRatedEmployee.total_ratings} ratings` : "No ratings yet",
+                accentBg: "bg-amber-500/10",
+                accentText: "text-amber-400",
+                border: "border-amber-500/20",
+                icon: (
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l2.037 6.26a1 1 0 00.95.69h6.58c.969 0 1.371 1.24.588 1.81l-5.322 3.867a1 1 0 00-.364 1.118l2.037 6.26c.3.921-.755 1.688-1.54 1.118l-5.322-3.867a1 1 0 00-1.176 0l-5.322 3.867c-.784.57-1.838-.197-1.539-1.118l2.037-6.26a1 1 0 00-.364-1.118L.894 11.687c-.783-.57-.38-1.81.588-1.81h6.58a1 1 0 00.95-.69l2.037-6.26z" />
+                  </svg>
+                ),
+              },
             ].map((c, i) => (
               <StatCard key={i} {...c} />
             ))}
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-4 sm:mb-6">
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Employee Demand Forecast</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">
+                Predicted next-job demand from recent workload trend
+                {employeeForecastLeader ? ` • Leader: ${employeeForecastLeader.employee_name}` : ""}
+              </p>
+              <div className="h-40 sm:h-72">
+                <Bar data={employeeForecastChartData} options={demandBarBaseOptions} />
+              </div>
+            </div>
+
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Employee Ratings</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Top-rated employees by customer feedback</p>
+              <div className="h-40 sm:h-72">
+                <Bar data={employeeRatingsChartData} options={demandBarBaseOptions} />
+              </div>
+            </div>
           </div>
 
           <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm">
@@ -2174,6 +3085,8 @@ export default function AdminDashboard() {
             )}
           </div>
         </section>
+
+        
         )}
         </div>
       </div>

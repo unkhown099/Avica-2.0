@@ -16,9 +16,8 @@ class AdminCustomerListView(APIView):
         requester_staff = getattr(request.user, "staff_profile", None)
         customers = Customer.objects.select_related("user").all()
 
-        # Non-admin staff only see customers in their branch, except Business Owner
-        # who should see cross-branch customer totals for dashboard parity.
-        if requester_staff and requester_staff.role not in ("Admin", "Business Owner"):
+        # Non-admin/global staff only see customers in their branch.
+        if requester_staff and requester_staff.role not in ("Admin", "Business Owner", "super_admin"):
             if requester_staff.branch_id:
                 customer_user_ids = Booking.objects.filter(
                     branch_id=requester_staff.branch_id

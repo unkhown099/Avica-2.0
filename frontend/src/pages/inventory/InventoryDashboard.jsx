@@ -1,6 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import InventoryLayout from "./InventoryLayout";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar, Line } from "react-chartjs-2";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function normalizeStatus(status) {
@@ -70,9 +84,22 @@ export default function InventoryDashboard({
 }) {
   const { isAuthenticated, isAdmin, role, headers } = useAuth();
   const isInventoryManager = role === "inventory_manager";
+  const isInventoryUser = role === "inventory";
 
   const [items, setItems]               = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [forecastPeriod, setForecastPeriod] = useState("monthly");
+  const [inventoryForecast, setInventoryForecast] = useState({
+    period: "monthly",
+    branch_filter: "All Branches",
+    time_series: [],
+    linear_regression: { slope: 0, intercept: 0, next_period_prediction: 0, trend: "stable" },
+    top_items: [],
+    top_branches: [],
+    highest_demand_product: null,
+    highest_stock_needed_branch: null,
+    risk_summary: { stockout_risk_count: 0, overstock_risk_count: 0 },
+  });
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
 
@@ -140,6 +167,16 @@ export default function InventoryDashboard({
             );
           }
         }
+
+        const forecastParams = new URLSearchParams({ period: forecastPeriod });
+        const forecastRes = await fetch(`${API_BASE}/inventory/demand-forecast/?${forecastParams.toString()}`, {
+          headers,
+          credentials: "include",
+        });
+        if (forecastRes.ok) {
+          const forecastData = await forecastRes.json();
+          setInventoryForecast((prev) => ({ ...prev, ...(forecastData ?? {}) }));
+        }
       } catch (err) {
         setError(err.message || "Failed to load inventory data.");
       } finally {
@@ -148,7 +185,7 @@ export default function InventoryDashboard({
     };
 
     fetchAll();
-  }, [isAuthenticated, isAdmin]); // re-run if auth state changes
+  }, [isAuthenticated, isAdmin, headers, forecastPeriod]); // re-run if auth state changes
 
   // ── Derived stats ───────────────────────────────────────────────────────────
   const totalSKUs      = items.length;
@@ -205,6 +242,58 @@ export default function InventoryDashboard({
       pct: totalSKUs ? Math.round((count / totalSKUs) * 100) : 0,
       color: CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
     }));
+
+  const forecastTrend = inventoryForecast.linear_regression?.trend ?? "stable";
+  const forecastTrendLabel =
+    forecastTrend === "increasing" ? "Increasing" : forecastTrend === "decreasing" ? "Decreasing" : "Stable";
+  const highestDemandProduct = inventoryForecast.highest_demand_product ?? inventoryForecast.top_items?.[0] ?? null;
+  const highestStockNeededBranch =
+    inventoryForecast.highest_stock_needed_branch ?? inventoryForecast.top_branches?.[0] ?? null;
+  const suggestedRestockWindow =
+    Number(inventoryForecast.linear_regression?.next_period_prediction ?? 0) > 0
+      ? forecastPeriod === "daily"
+        ? "Restock within 1-3 days"
+        : "Restock within this month"
+      : "Monitor stock; no urgent restock signal";
+
+  const inventoryUsageSeriesData = useMemo(() => ({
+    labels: (inventoryForecast.time_series ?? []).map((row) => row.label),
+    datasets: [
+      {
+        label: `Stock Usage (${forecastPeriod === "daily" ? "Daily" : "Monthly"})`,
+        data: (inventoryForecast.time_series ?? []).map((row) => Number(row.usage ?? 0)),
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34,197,94,0.12)",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 2,
+      },
+    ],
+  }), [inventoryForecast.time_series, forecastPeriod]);
+
+  const topDemandItemsBarData = useMemo(() => ({
+    labels: (inventoryForecast.top_items ?? []).map((row) => row.item_name),
+    datasets: [
+      {
+        label: "Usage",
+        data: (inventoryForecast.top_items ?? []).map((row) => Number(row.usage ?? 0)),
+        backgroundColor: "rgba(59,130,246,0.72)",
+        borderRadius: 6,
+      },
+    ],
+  }), [inventoryForecast.top_items]);
+
+  const topDemandBranchesBarData = useMemo(() => ({
+    labels: (inventoryForecast.top_branches ?? []).map((row) => row.branch_name),
+    datasets: [
+      {
+        label: "Stock Needed",
+        data: (inventoryForecast.top_branches ?? []).map((row) => Number(row.stock_needed ?? 0)),
+        backgroundColor: "rgba(239,68,68,0.7)",
+        borderRadius: 6,
+      },
+    ],
+  }), [inventoryForecast.top_branches]);
 
   const stats = [
     {
@@ -536,6 +625,116 @@ export default function InventoryDashboard({
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {(isInventoryManager || isInventoryUser) && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-black text-white">Demand Forecasting</h3>
+                <p className="text-gray-500 text-sm mt-0.5">Time series + linear regression for stock planning</p>
+              </div>
+              <select
+                value={forecastPeriod}
+                onChange={(e) => setForecastPeriod(e.target.value)}
+                className="bg-gray-900 border border-white/10 text-gray-200 text-sm rounded-lg px-3 py-2"
+              >
+                <option value="daily">Daily</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+                <p className="text-gray-500 text-sm">Predicted Next Usage</p>
+                <p className="text-white text-2xl font-black mt-1">
+                  {Number(inventoryForecast.linear_regression?.next_period_prediction ?? 0).toLocaleString()}
+                </p>
+                <p className="text-emerald-400 text-xs mt-1">Projection for next {forecastPeriod === "daily" ? "day" : "month"}</p>
+              </div>
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+                <p className="text-gray-500 text-sm">Trend Direction</p>
+                <p className="text-white text-2xl font-black mt-1">{forecastTrendLabel}</p>
+                <p className="text-gray-400 text-xs mt-1">Slope: {Number(inventoryForecast.linear_regression?.slope ?? 0).toFixed(2)}</p>
+              </div>
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+                <p className="text-gray-500 text-sm">Highest Demand Product</p>
+                <p className="text-white text-lg font-black mt-1">
+                  {highestDemandProduct?.item_name ?? "No data"}
+                </p>
+                <p className="text-blue-400 text-xs mt-1">
+                  Usage: {Number(highestDemandProduct?.usage ?? 0).toLocaleString()}
+                </p>
+              </div>
+              {isInventoryManager ? (
+                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+                  <p className="text-gray-500 text-sm">Highest Stock Needed Branch</p>
+                  <p className="text-white text-lg font-black mt-1">
+                    {highestStockNeededBranch?.branch_name ?? "No data"}
+                  </p>
+                  <p className="text-red-400 text-xs mt-1">
+                    Needed: {Number(highestStockNeededBranch?.stock_needed ?? 0).toLocaleString()}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+                  <p className="text-gray-500 text-sm">Recommended Restock Timing</p>
+                  <p className="text-white text-lg font-black mt-1">{suggestedRestockWindow}</p>
+                  <p className="text-amber-400 text-xs mt-1">
+                    Based on branch demand trend and projected usage
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+              <div className="xl:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6">
+                <h4 className="text-white font-black mb-3">Stock Usage Time Series</h4>
+                <div className="h-64">
+                  <Line
+                    data={inventoryUsageSeriesData}
+                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#9ca3af" } } }, scales: { x: { ticks: { color: "#6b7280" }, grid: { color: "rgba(255,255,255,0.05)" } }, y: { ticks: { color: "#6b7280" }, grid: { color: "rgba(255,255,255,0.05)" }, beginAtZero: true } } }}
+                  />
+                </div>
+              </div>
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6">
+                <h4 className="text-white font-black mb-3">Demand Risk Summary</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Stockout Risk</span>
+                    <span className="text-red-400 font-black">{Number(inventoryForecast.risk_summary?.stockout_risk_count ?? 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Overstock Risk</span>
+                    <span className="text-amber-400 font-black">{Number(inventoryForecast.risk_summary?.overstock_risk_count ?? 0)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={`grid grid-cols-1 ${isInventoryManager ? "xl:grid-cols-2" : "xl:grid-cols-1"} gap-6`}>
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6">
+                <h4 className="text-white font-black mb-3">Top Demand Products</h4>
+                <div className="h-64">
+                  <Bar
+                    data={topDemandItemsBarData}
+                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#9ca3af" } } }, scales: { x: { ticks: { color: "#6b7280" }, grid: { display: false } }, y: { ticks: { color: "#6b7280" }, grid: { color: "rgba(255,255,255,0.05)" }, beginAtZero: true } } }}
+                  />
+                </div>
+              </div>
+              {isInventoryManager && (
+                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6">
+                  <h4 className="text-white font-black mb-3">Branch Stock Needed</h4>
+                  <div className="h-64">
+                    <Bar
+                      data={topDemandBranchesBarData}
+                      options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#9ca3af" } } }, scales: { x: { ticks: { color: "#6b7280" }, grid: { display: false } }, y: { ticks: { color: "#6b7280" }, grid: { color: "rgba(255,255,255,0.05)" }, beginAtZero: true } } }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

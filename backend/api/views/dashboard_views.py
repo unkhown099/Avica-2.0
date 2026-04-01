@@ -1,8 +1,8 @@
 # api/views/dashboard_views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from ..models import Booking, BranchScheduleConfig, Customer, Notification, QueueEntry, Rating, Staff
+from rest_framework.permissions import IsAuthenticated
+from ..models import Booking, Branch, BranchScheduleConfig, Customer, Notification, QueueEntry, Rating, Staff
 from ..serializers.dashboard_serializer import DashboardStatsSerializer, RecentTransactionSerializer
 from ..serializers.manager_schedule_serializer import ManagerScheduleConfigSerializer
 from django.db.models import Avg, Count, Sum, Value, DecimalField
@@ -76,15 +76,52 @@ def clean_price(value):
 
 
 class AdminDashboardView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        requester_staff = getattr(request.user, "staff_profile", None)
+        if not requester_staff:
+            return Response({"detail": "Staff access required."}, status=403)
+
+        allowed_roles = {"Admin", "Business Owner", "super_admin", "Branch Manager"}
+        if requester_staff.role not in allowed_roles:
+            return Response({"detail": "Permission denied."}, status=403)
+
         now = timezone.now()
         current_year = now.year
+        branch_id_raw = request.query_params.get("branch_id")
+        selected_branch = None
+        branch_scope = "all"
+
+        if requester_staff.role == "Branch Manager":
+            if not requester_staff.branch_id:
+                return Response({"detail": "No branch assigned to this manager profile."}, status=400)
+            selected_branch = requester_staff.branch
+            branch_scope = "single_branch"
+        elif branch_id_raw not in [None, ""]:
+            try:
+                selected_branch = Branch.objects.get(pk=int(branch_id_raw))
+            except (ValueError, Branch.DoesNotExist):
+                return Response({"detail": "Invalid branch_id."}, status=400)
+            branch_scope = "single_branch"
+
+        queue_scope = QueueEntry.objects.all()
+        booking_scope = Booking.objects.all()
+        rating_scope = Rating.objects.all()
+        customer_scope = Customer.objects.all()
+
+        if selected_branch:
+            queue_scope = queue_scope.filter(
+                Q(branch_id=selected_branch.id) |
+                Q(branch__isnull=True, branch_name=selected_branch.name)
+            )
+            booking_scope = booking_scope.filter(branch_id=selected_branch.id)
+            rating_scope = rating_scope.filter(booking__branch_id=selected_branch.id)
+            customer_scope = customer_scope.filter(user__bookings__branch_id=selected_branch.id).distinct()
 
         # ── Stats ────────────────────────────────────────────────────────────
         paid_revenue = float(
-            QueueEntry.objects.filter(payment_status="paid").aggregate(
+            queue_scope.filter(payment_status="paid").aggregate(
                 t=Coalesce(
                     Sum("price"),
                     Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
@@ -93,10 +130,10 @@ class AdminDashboardView(APIView):
             or 0
         )
         total_revenue = paid_revenue
-        total_customers = Customer.objects.count()
-        services_completed = QueueEntry.objects.filter(status="done").count()
+        total_customers = customer_scope.count()
+        services_completed = queue_scope.filter(status="done").count()
         try:
-            avg_satisfaction = Rating.objects.aggregate(Avg("score"))["score__avg"] or 0
+            avg_satisfaction = rating_scope.aggregate(Avg("score"))["score__avg"] or 0
         except Exception:
             avg_satisfaction = 0
 
@@ -108,7 +145,7 @@ class AdminDashboardView(APIView):
         }).data
 
         # ── Monthly Chart Data (current year) ────────────────────────────────
-        paid_entries_this_year = QueueEntry.objects.filter(
+        paid_entries_this_year = queue_scope.filter(
             payment_status="paid",
             completed_at__year=current_year,
         )
@@ -121,7 +158,7 @@ class AdminDashboardView(APIView):
             monthly_revenue[month] += clean_price(q.price)
 
         monthly_services = defaultdict(int)
-        queue_this_year = QueueEntry.objects.filter(
+        queue_this_year = queue_scope.filter(
             status="done", completed_at__year=current_year
         ).values("completed_at__month").annotate(count=Count("id"))
         for row in queue_this_year:
@@ -137,20 +174,18 @@ class AdminDashboardView(APIView):
         today = now.date()
         thirty_days_ago = now - timedelta(days=30)
 
-        bookings_today = Booking.objects.filter(created_at__date=today).count()
-        new_customers_30d = Customer.objects.filter(
-            user__created_at__gte=thirty_days_ago
-        ).count()
+        bookings_today = booking_scope.filter(created_at__date=today).count()
+        new_customers_30d = customer_scope.filter(user__created_at__gte=thirty_days_ago).count()
 
-        total_queue_entries = QueueEntry.objects.count()
-        done_queue_entries = QueueEntry.objects.filter(status="done").count()
+        total_queue_entries = queue_scope.count()
+        done_queue_entries = queue_scope.filter(status="done").count()
         completion_rate = (
             round((done_queue_entries / total_queue_entries) * 100, 1)
             if total_queue_entries > 0
             else 0.0
         )
 
-        paid_queue_entries = QueueEntry.objects.filter(payment_status="paid").count()
+        paid_queue_entries = queue_scope.filter(payment_status="paid").count()
         payment_rate = (
             round((paid_queue_entries / total_queue_entries) * 100, 1)
             if total_queue_entries > 0
@@ -158,7 +193,7 @@ class AdminDashboardView(APIView):
         )
 
         service_counts = list(
-            QueueEntry.objects.filter(
+            queue_scope.filter(
                 status="done",
                 completed_at__year=current_year,
                 completed_at__month=now.month,
@@ -180,7 +215,7 @@ class AdminDashboardView(APIView):
         ]
 
         top_services_qs = (
-            QueueEntry.objects.filter(status="done", payment_status="paid")
+            queue_scope.filter(status="done", payment_status="paid")
             .values("service")
             .annotate(
                 count=Count("id"),
@@ -203,7 +238,7 @@ class AdminDashboardView(APIView):
         revenue_by_branch_map = defaultdict(float)
 
         paid_branch_revenue = (
-            QueueEntry.objects.filter(payment_status="paid")
+            queue_scope.filter(payment_status="paid")
             .values("branch__name", "branch_name")
             .annotate(
                 revenue=Coalesce(
@@ -226,9 +261,219 @@ class AdminDashboardView(APIView):
             )[:8]
         ]
 
+        branch_daily_demand_map = defaultdict(lambda: defaultdict(int))
+        for entry in queue_scope.select_related("branch").all():
+            branch_name = entry.branch.name if entry.branch else entry.branch_name or "Unassigned"
+            base_dt = entry.completed_at or entry.queued_at
+            if not base_dt:
+                continue
+            branch_daily_demand_map[branch_name][base_dt.date().isoformat()] += 1
+
+        all_branch_day_labels = sorted(
+            {label for branch_map in branch_daily_demand_map.values() for label in branch_map.keys()}
+        )
+        branch_demand_time_series = []
+        for label in all_branch_day_labels:
+            point = {"label": label}
+            for branch_name in sorted(branch_daily_demand_map.keys()):
+                point[branch_name] = branch_daily_demand_map[branch_name].get(label, 0)
+            branch_demand_time_series.append(point)
+
+        branch_forecasts = []
+        for branch_name, daily_map in branch_daily_demand_map.items():
+            labels = sorted(daily_map.keys())
+            values = [daily_map[label] for label in labels]
+            n = len(values)
+            if n > 0:
+                x_vals = list(range(n))
+                x_sum = sum(x_vals)
+                y_sum = sum(values)
+                x2_sum = sum(x * x for x in x_vals)
+                xy_sum = sum(x * y for x, y in zip(x_vals, values))
+                denominator = (n * x2_sum) - (x_sum * x_sum)
+                slope = ((n * xy_sum) - (x_sum * y_sum)) / denominator if denominator else 0
+                intercept = (y_sum - slope * x_sum) / n if n else 0
+                next_value = max(0, round((slope * n) + intercept, 2))
+            else:
+                slope = 0
+                next_value = 0
+
+            trend = "increasing" if slope > 0.2 else "decreasing" if slope < -0.2 else "stable"
+            total_demand = sum(values)
+            branch_forecasts.append({
+                "branch": branch_name,
+                "total_demand": total_demand,
+                "slope": round(slope, 4),
+                "predicted_next_demand": next_value,
+                "trend": trend,
+            })
+
+        branch_forecasts.sort(
+            key=lambda row: (row["predicted_next_demand"], row["total_demand"]),
+            reverse=True,
+        )
+        highest_demand_branch = branch_forecasts[0] if branch_forecasts else None
+
+        employee_workload = defaultdict(lambda: {
+            "employee_id": None,
+            "employee_name": "Unassigned",
+            "branch": "Unknown Branch",
+            "total": 0,
+            "completed": 0,
+            "skipped": 0,
+        })
+
+        employee_daily_demand_map = defaultdict(lambda: defaultdict(int))
+        for entry in queue_scope.select_related("assigned_employee", "branch").all():
+            if entry.assigned_employee:
+                employee_name = f"{entry.assigned_employee.first_name} {entry.assigned_employee.last_name}".strip()
+                employee_id = entry.assigned_employee.id
+                branch_name = (
+                    entry.branch.name
+                    if entry.branch
+                    else entry.assigned_employee.branch.name if entry.assigned_employee.branch else entry.assigned_employee.branch_name or "Unknown Branch"
+                )
+            else:
+                employee_name = "Unassigned"
+                employee_id = None
+                branch_name = entry.branch.name if entry.branch else entry.branch_name or "Unknown Branch"
+
+            workload = employee_workload[employee_name]
+            workload["employee_id"] = employee_id
+            workload["employee_name"] = employee_name
+            workload["branch"] = branch_name
+            workload["total"] += 1
+            if entry.status == "done":
+                workload["completed"] += 1
+            if entry.status == "skipped":
+                workload["skipped"] += 1
+
+            base_dt = entry.completed_at or entry.queued_at
+            if base_dt:
+                employee_daily_demand_map[employee_name][base_dt.date().isoformat()] += 1
+
+        employee_workload_rows = sorted(
+            employee_workload.values(),
+            key=lambda row: (row["total"], row["completed"]),
+            reverse=True,
+        )
+        highest_demand_employee = employee_workload_rows[0] if employee_workload_rows else None
+
+        rating_rows = (
+            rating_scope.select_related("booking__queue_entry__assigned_employee")
+            .exclude(booking__queue_entry__assigned_employee__isnull=True)
+            .values(
+                "booking__queue_entry__assigned_employee_id",
+                "booking__queue_entry__assigned_employee__first_name",
+                "booking__queue_entry__assigned_employee__last_name",
+            )
+            .annotate(avg_rating=Avg("score"), total_ratings=Count("id"))
+            .order_by("-avg_rating", "-total_ratings")
+        )
+        employee_ratings = [
+            {
+                "employee_id": row["booking__queue_entry__assigned_employee_id"],
+                "employee_name": (
+                    f"{row['booking__queue_entry__assigned_employee__first_name']} "
+                    f"{row['booking__queue_entry__assigned_employee__last_name']}"
+                ).strip(),
+                "avg_rating": round(float(row["avg_rating"] or 0), 2),
+                "total_ratings": row["total_ratings"],
+            }
+            for row in rating_rows
+        ]
+        highest_rated_employee = employee_ratings[0] if employee_ratings else None
+
+        employee_forecast_rows = []
+        for row in employee_workload_rows:
+            employee_name = row["employee_name"]
+            daily = employee_daily_demand_map.get(employee_name, {})
+            labels = sorted(daily.keys())
+            values = [daily[label] for label in labels]
+            n = len(values)
+            if n > 0:
+                x_vals = list(range(n))
+                x_sum = sum(x_vals)
+                y_sum = sum(values)
+                x2_sum = sum(x * x for x in x_vals)
+                xy_sum = sum(x * y for x, y in zip(x_vals, values))
+                denominator = (n * x2_sum) - (x_sum * x_sum)
+                slope = ((n * xy_sum) - (x_sum * y_sum)) / denominator if denominator else 0
+                intercept = (y_sum - slope * x_sum) / n if n else 0
+                next_value = max(0, round((slope * n) + intercept, 2))
+            else:
+                slope = 0
+                next_value = 0
+
+            trend = "increasing" if slope > 0.2 else "decreasing" if slope < -0.2 else "stable"
+            employee_forecast_rows.append({
+                "employee_id": row["employee_id"],
+                "employee_name": employee_name,
+                "slope": round(slope, 4),
+                "predicted_next_jobs": next_value,
+                "trend": trend,
+                "total_jobs": row["total"],
+            })
+
+        employee_forecast_rows.sort(
+            key=lambda row: (row["predicted_next_jobs"], row["total_jobs"]),
+            reverse=True,
+        )
+        employee_forecast_leader = employee_forecast_rows[0] if employee_forecast_rows else None
+
+        moving_average_points = []
+        for idx, label in enumerate(chart_labels):
+            start_idx = max(0, idx - 2)
+            window = chart_revenue[start_idx:idx + 1]
+            moving_average_points.append(
+                {
+                    "label": label,
+                    "revenue": round(float(chart_revenue[idx]), 2),
+                    "moving_avg_3": round(sum(window) / len(window), 2) if window else 0,
+                }
+            )
+
+        yearly_rows = (
+            queue_scope.filter(payment_status="paid", completed_at__isnull=False)
+            .values("completed_at__year")
+            .annotate(
+                revenue=Coalesce(
+                    Sum("price"),
+                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                )
+            )
+            .order_by("completed_at__year")
+        )
+        yearly_revenue = [
+            {"year": row["completed_at__year"], "revenue": float(row["revenue"] or 0)}
+            for row in yearly_rows
+            if row["completed_at__year"] is not None
+        ]
+
+        cagr_percent = 0.0
+        if len(yearly_revenue) >= 2:
+            first = yearly_revenue[0]
+            last = yearly_revenue[-1]
+            year_span = int(last["year"]) - int(first["year"])
+            if first["revenue"] > 0 and year_span > 0:
+                cagr_percent = round((((last["revenue"] / first["revenue"]) ** (1 / year_span)) - 1) * 100, 2)
+
+        demand_by_branch_rows = (
+            queue_scope.values("branch__name", "branch_name")
+            .annotate(demand=Count("id"))
+            .order_by("-demand")
+        )
+        demand_by_branch = [
+            {
+                "branch": row["branch__name"] or row["branch_name"] or "Unassigned",
+                "demand": row["demand"],
+            }
+            for row in demand_by_branch_rows
+        ]
+
         # ── Recent Transactions ───────────────────────────────────────────────
         recent_transactions = []
-        recent_paid_entries = QueueEntry.objects.filter(
+        recent_paid_entries = queue_scope.filter(
             payment_status="paid",
         ).order_by("-completed_at", "-queued_at")[:5]
         for q in recent_paid_entries:
@@ -263,6 +508,9 @@ class AdminDashboardView(APIView):
                 "services": chart_services,
             },
             "analytics": {
+                "scope": branch_scope,
+                "branch_id": selected_branch.id if selected_branch else None,
+                "branch_name": selected_branch.name if selected_branch else None,
                 "bookings_today": bookings_today,
                 "new_customers_30d": new_customers_30d,
                 "completion_rate": completion_rate,
@@ -270,6 +518,19 @@ class AdminDashboardView(APIView):
                 "service_distribution": service_distribution,
                 "top_services": top_services,
                 "revenue_by_branch": revenue_by_branch,
+                "moving_average_revenue_3": moving_average_points,
+                "yearly_revenue": yearly_revenue,
+                "revenue_cagr_percent": cagr_percent,
+                "demand_by_branch": demand_by_branch,
+                "employee_workload": employee_workload_rows,
+                "employee_ratings": employee_ratings[:10],
+                "employee_forecasts": employee_forecast_rows[:10],
+                "highest_demand_employee": highest_demand_employee,
+                "highest_rated_employee": highest_rated_employee,
+                "employee_forecast_leader": employee_forecast_leader,
+                "branch_demand_time_series": branch_demand_time_series,
+                "branch_forecasts": branch_forecasts[:10],
+                "highest_demand_branch": highest_demand_branch,
             },
         })
 

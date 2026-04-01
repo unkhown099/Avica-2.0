@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated  # ← changed
 from rest_framework import status
 from django.utils import timezone
 from django.db import transaction
+from collections import defaultdict
 from ..models import InventoryItem, RestockRequest, InventoryTransaction, Staff, Notification
 from ..serializers.inventory_serializer import InventoryItemSerializer
 from ..serializers.restock_serializer import RestockRequestSerializer
@@ -13,7 +14,7 @@ from ..serializers.inventory_transaction_serializer import InventoryTransactionS
 # Roles that can READ inventory (for POS + admin dashboard)
 READ_ROLES  = ["super_admin", "Admin", "Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
 # Roles that can WRITE inventory
-WRITE_ROLES = ["super_admin", "Inventory Manager", "Staff", "Inventory", "Branch Manager"]
+WRITE_ROLES = ["super_admin", "Inventory Manager", "Staff", "Inventory", "Branch Manager", "Admin"]
 RESTOCK_REQUEST_ROLES = ["super_admin", "Business Owner", "Branch Manager", "Staff", "Inventory", "Inventory Manager"]
 
 ROLE_NORMALIZATION = {
@@ -117,7 +118,9 @@ class InventoryListCreateView(APIView):
         requester_staff = getattr(request.user, "staff_profile", None)
         qs = InventoryItem.objects.select_related("branch").all()
 
-        if requester_staff and requester_staff.role != "Inventory Manager":
+        # Global roles can view inventory across branches; branch-scoped roles stay restricted.
+        global_roles = {"super_admin", "Admin", "Business Owner", "Inventory Manager"}
+        if requester_staff and role not in global_roles:
             if requester_staff.branch_id:
                 qs = qs.filter(branch_id=requester_staff.branch_id)
             else:
@@ -585,3 +588,148 @@ class InventoryTransactionHistoryView(APIView):
 
         qs = qs[:limit]
         return Response(InventoryTransactionSerializer(qs, many=True).data)
+
+
+class InventoryDemandForecastView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        role = get_staff_role(request)
+        if role not in READ_ROLES:
+            return Response({"detail": "Permission denied."}, status=403)
+
+        period = request.query_params.get("period", "monthly")
+        if period not in ["daily", "monthly"]:
+            return Response({"detail": "period must be daily or monthly."}, status=400)
+
+        branch_name = request.query_params.get("branch")
+        item_limit_raw = request.query_params.get("item_limit", "8")
+        try:
+            item_limit = max(1, min(int(item_limit_raw), 20))
+        except (TypeError, ValueError):
+            item_limit = 8
+
+        transactions_qs = InventoryTransaction.objects.select_related("inventory_item").all()
+        inventory_qs = InventoryItem.objects.select_related("branch").filter(is_active=True)
+
+        requester_staff = getattr(request.user, "staff_profile", None)
+        if role in ["Inventory", "Branch Manager", "Staff", "Employee"] and requester_staff and requester_staff.branch:
+            allowed_branch_name = requester_staff.branch.name
+            transactions_qs = transactions_qs.filter(branch_name=allowed_branch_name)
+            inventory_qs = inventory_qs.filter(branch=requester_staff.branch)
+        elif role in ["Inventory", "Branch Manager", "Staff", "Employee"]:
+            return Response(
+                {
+                    "period": period,
+                    "branch_filter": "Unassigned",
+                    "time_series": [],
+                    "linear_regression": {"slope": 0, "intercept": 0, "next_period_prediction": 0, "trend": "stable"},
+                    "top_items": [],
+                    "risk_summary": {"stockout_risk_count": 0, "overstock_risk_count": 0},
+                }
+            )
+
+        if branch_name and branch_name != "All Branches":
+            transactions_qs = transactions_qs.filter(branch_name=branch_name)
+            inventory_qs = inventory_qs.filter(branch__name=branch_name)
+
+        usage_by_period = defaultdict(int)
+        item_usage = defaultdict(int)
+        branch_usage = defaultdict(int)
+
+        for tx in transactions_qs:
+            if not tx.created_at:
+                continue
+            change = int(tx.quantity_changed or 0)
+            usage = abs(change) if change < 0 else 0
+            if usage <= 0:
+                continue
+
+            label = tx.created_at.strftime("%Y-%m-%d") if period == "daily" else tx.created_at.strftime("%Y-%m")
+            usage_by_period[label] += usage
+            item_key = tx.inventory_item.name if tx.inventory_item else "Unknown Item"
+            item_usage[item_key] += usage
+            branch_key = tx.branch_name or "Unassigned"
+            branch_usage[branch_key] += usage
+
+        sorted_labels = sorted(usage_by_period.keys())
+        points = [usage_by_period[label] for label in sorted_labels]
+        n = len(points)
+
+        if n > 0:
+            x_values = list(range(n))
+            x_sum = sum(x_values)
+            y_sum = sum(points)
+            x2_sum = sum(x * x for x in x_values)
+            xy_sum = sum(x * y for x, y in zip(x_values, points))
+            denominator = (n * x2_sum) - (x_sum * x_sum)
+            slope = ((n * xy_sum) - (x_sum * y_sum)) / denominator if denominator else 0
+            intercept = (y_sum - (slope * x_sum)) / n if n else 0
+            next_prediction = max(0, round((slope * n) + intercept, 2))
+        else:
+            slope = 0
+            intercept = 0
+            next_prediction = 0
+
+        if slope > 0.5:
+            trend = "increasing"
+        elif slope < -0.5:
+            trend = "decreasing"
+        else:
+            trend = "stable"
+
+        top_items = [
+            {"item_name": name, "usage": usage}
+            for name, usage in sorted(item_usage.items(), key=lambda row: row[1], reverse=True)[:item_limit]
+        ]
+
+        branch_stock_needed = defaultdict(int)
+        avg_per_period = (sum(points) / n) if n else 0
+        stockout_risk_count = 0
+        overstock_risk_count = 0
+        for item in inventory_qs:
+            qty = int(item.quantity or 0)
+            reorder_level = int(item.minimum_qty or 0)
+            branch_key = item.branch.name if item.branch else "Unassigned"
+            branch_stock_needed[branch_key] += max(0, reorder_level - qty)
+            if qty <= reorder_level:
+                stockout_risk_count += 1
+            if avg_per_period > 0 and qty > (avg_per_period * 6):
+                overstock_risk_count += 1
+
+        top_branches = [
+            {
+                "branch_name": name,
+                "usage": branch_usage.get(name, 0),
+                "stock_needed": stock_needed,
+            }
+            for name, stock_needed in sorted(
+                branch_stock_needed.items(),
+                key=lambda row: (row[1], branch_usage.get(row[0], 0)),
+                reverse=True,
+            )[:item_limit]
+        ]
+        highest_demand_product = top_items[0] if top_items else None
+        highest_stock_needed_branch = top_branches[0] if top_branches else None
+
+        return Response(
+            {
+                "period": period,
+                "branch_filter": branch_name or "All Branches",
+                "time_series": [{"label": label, "usage": usage_by_period[label]} for label in sorted_labels],
+                "linear_regression": {
+                    "slope": round(slope, 4),
+                    "intercept": round(intercept, 4),
+                    "next_period_prediction": next_prediction,
+                    "trend": trend,
+                },
+                "top_items": top_items,
+                "top_branches": top_branches,
+                "highest_demand_product": highest_demand_product,
+                "highest_stock_needed_branch": highest_stock_needed_branch,
+                "risk_summary": {
+                    "stockout_risk_count": stockout_risk_count,
+                    "overstock_risk_count": overstock_risk_count,
+                },
+            }
+        )

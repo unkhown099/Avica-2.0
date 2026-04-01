@@ -558,7 +558,12 @@ class ForecastingRun(models.Model):
 class InventoryDemandForecast(models.Model):
     forecasting_run = models.ForeignKey(ForecastingRun, on_delete=models.CASCADE)
 
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     inventory_item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE)
 
     forecast_period_label = models.CharField(max_length=50)
@@ -582,7 +587,12 @@ class InventoryDemandForecast(models.Model):
 class ServiceDemandForecast(models.Model):
     forecasting_run = models.ForeignKey(ForecastingRun, on_delete=models.CASCADE)
 
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
 
     forecast_period_label = models.CharField(max_length=50)
@@ -605,7 +615,12 @@ class ServiceDemandForecast(models.Model):
 class ServiceDurationPrediction(models.Model):
     forecasting_run = models.ForeignKey(ForecastingRun, on_delete=models.CASCADE)
 
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
     employee = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
 

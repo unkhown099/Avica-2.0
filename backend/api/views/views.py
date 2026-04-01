@@ -1,50 +1,18 @@
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
 
 from api.models import (
-    Branch,
     ForecastingRun,
     InventoryDemandForecast,
     ServiceDemandForecast,
     ServiceDurationPrediction,
 )
-from api.services.forecasting_service import run_all_forecasts_for_branch
 
 
-def generate_all_forecasts(request, branch_id):
-    branch = get_object_or_404(Branch, id=branch_id, is_active=True)
-
-    runs = run_all_forecasts_for_branch(branch)
-
-    return JsonResponse({
-        "message": "All forecasts generated successfully",
-        "branch": branch.name,
-        "inventory_run": {
-            "run_id": runs["inventory_run"].id,
-            "status": runs["inventory_run"].status,
-            "notes": runs["inventory_run"].notes,
-        },
-        "service_run": {
-            "run_id": runs["service_run"].id,
-            "status": runs["service_run"].status,
-            "notes": runs["service_run"].notes,
-        },
-        "duration_run": {
-            "run_id": runs["duration_run"].id,
-            "status": runs["duration_run"].status,
-            "notes": runs["duration_run"].notes,
-        },
-    })
-
-
-def get_latest_all_forecasts(request, branch_id):
-    branch = get_object_or_404(Branch, id=branch_id, is_active=True)
-
+def get_latest_system_forecasts(request):
     inventory_run = (
         ForecastingRun.objects.filter(
             forecast_type="inventory",
-            scope_type="branch",
-            branch=branch,
+            scope_type="system",
         )
         .order_by("-generated_at")
         .first()
@@ -53,8 +21,7 @@ def get_latest_all_forecasts(request, branch_id):
     service_run = (
         ForecastingRun.objects.filter(
             forecast_type="service",
-            scope_type="branch",
-            branch=branch,
+            scope_type="system",
         )
         .order_by("-generated_at")
         .first()
@@ -63,8 +30,7 @@ def get_latest_all_forecasts(request, branch_id):
     duration_run = (
         ForecastingRun.objects.filter(
             forecast_type="duration",
-            scope_type="branch",
-            branch=branch,
+            scope_type="system",
         )
         .order_by("-generated_at")
         .first()
@@ -81,8 +47,10 @@ def get_latest_all_forecasts(request, branch_id):
 
         for row in rows:
             inventory_results.append({
-                "inventory_item_id": row.inventory_item.id,
-                "inventory_item_name": row.inventory_item.name,
+                "inventory_item_id": row.inventory_item.id if row.inventory_item else None,
+                "inventory_item_name": row.inventory_item.name if row.inventory_item else None,
+                "branch_id": row.branch.id if row.branch else None,
+                "branch_name": row.branch.name if row.branch else "System",
                 "forecast_period_label": row.forecast_period_label,
                 "predicted_quantity": str(row.predicted_quantity),
                 "historical_average_quantity": str(row.historical_average_quantity) if row.historical_average_quantity is not None else None,
@@ -100,8 +68,10 @@ def get_latest_all_forecasts(request, branch_id):
 
         for row in rows:
             service_results.append({
-                "service_id": row.service.id,
-                "service_name": row.service.name,
+                "service_id": row.service.id if row.service else None,
+                "service_name": row.service.name if row.service else None,
+                "branch_id": row.branch.id if row.branch else None,
+                "branch_name": row.branch.name if row.branch else "System",
                 "forecast_period_label": row.forecast_period_label,
                 "predicted_booking_count": row.predicted_booking_count,
                 "historical_average_count": str(row.historical_average_count) if row.historical_average_count is not None else None,
@@ -118,8 +88,10 @@ def get_latest_all_forecasts(request, branch_id):
 
         for row in rows:
             duration_results.append({
-                "service_id": row.service.id,
-                "service_name": row.service.name,
+                "service_id": row.service.id if row.service else None,
+                "service_name": row.service.name if row.service else None,
+                "branch_id": row.branch.id if row.branch else None,
+                "branch_name": row.branch.name if row.branch else "System",
                 "employee_id": row.employee.id if row.employee else None,
                 "employee_name": f"{row.employee.first_name} {row.employee.last_name}" if row.employee else None,
                 "based_on_queue_volume": row.based_on_queue_volume,
@@ -131,28 +103,25 @@ def get_latest_all_forecasts(request, branch_id):
             })
 
     return JsonResponse({
-        "branch": {
-            "id": branch.id,
-            "name": branch.name,
-        },
+        "scope": "system",
         "inventory_forecast": {
             "run_id": inventory_run.id if inventory_run else None,
             "status": inventory_run.status if inventory_run else None,
-            "notes": inventory_run.notes if inventory_run else "No inventory forecast found",
+            "notes": inventory_run.notes if inventory_run else "No system inventory forecast found",
             "generated_at": inventory_run.generated_at.isoformat() if inventory_run else None,
             "results": inventory_results,
         },
         "service_forecast": {
             "run_id": service_run.id if service_run else None,
             "status": service_run.status if service_run else None,
-            "notes": service_run.notes if service_run else "No service forecast found",
+            "notes": service_run.notes if service_run else "No system service forecast found",
             "generated_at": service_run.generated_at.isoformat() if service_run else None,
             "results": service_results,
         },
         "duration_forecast": {
             "run_id": duration_run.id if duration_run else None,
             "status": duration_run.status if duration_run else None,
-            "notes": duration_run.notes if duration_run else "No duration forecast found",
+            "notes": duration_run.notes if duration_run else "No system duration forecast found",
             "generated_at": duration_run.generated_at.isoformat() if duration_run else None,
             "results": duration_results,
         },
