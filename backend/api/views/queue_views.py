@@ -126,6 +126,7 @@ def _notify_booking_customer_event(booking_id, event_key):
             title=config["title"],
             message=config["message"],
             notification_type="appointment",
+            target_path="/bookings",
         )
     except Exception:
         logger.exception("Failed to create %s notification for booking_id=%s", event_key, booking_id)
@@ -219,6 +220,7 @@ def _notify_queue_customer_event(entry, event_key):
             title=config["title"],
             message=config["message"],
             notification_type="appointment",
+            target_path="/bookings",
         )
     except Exception:
         logger.exception("Failed to create %s notification for queue_entry_id=%s", event_key, entry.id)
@@ -423,6 +425,7 @@ def _notify_employee_task_assigned(queue_entry):
             title="Task Assigned",
             message=message,
             notification_type="task",
+            target_path="/employee/active-jobs",
         )
     except Exception:
         logger.exception(

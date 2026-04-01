@@ -523,6 +523,7 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     notification_type = models.CharField(max_length=50, default="general")
+    target_path = models.CharField(max_length=255, blank=True, default="")
 
     class Meta:
         db_table = "notifications"

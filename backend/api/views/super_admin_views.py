@@ -17,6 +17,31 @@ from api.permissions import IsSuperAdmin
 
 User = get_user_model()
 
+def _notification_dashboard_path_for_user(user):
+    try:
+        if user.customer_profile:
+            return "/dashboard"
+    except Exception:
+        pass
+
+    role = None
+    try:
+        role = user.staff_profile.role
+    except Exception:
+        role = None
+
+    role_routes = {
+        "super_admin": "/super-admin/dashboard",
+        "Admin": "/admin/dashboard",
+        "Business Owner": "/branch-owner/dashboard",
+        "Branch Manager": "/manager/dashboard",
+        "Inventory Manager": "/inventory-manager/dashboard",
+        "Inventory": "/inventory/dashboard",
+        "Staff": "/staff/dashboard",
+        "Employee": "/employee/dashboard",
+    }
+    return role_routes.get(role, "/")
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 1. OVERVIEW DASHBOARD
@@ -631,7 +656,13 @@ class SuperAdminBroadcastView(APIView):
             users = users.filter(staff_profile__branch_id=branch_id)
 
         notifications = [
-            Notification(user=u, title=title, message=message, notification_type="broadcast")
+            Notification(
+                user=u,
+                title=title,
+                message=message,
+                notification_type="broadcast",
+                target_path=_notification_dashboard_path_for_user(u),
+            )
             for u in users
         ]
         Notification.objects.bulk_create(notifications)

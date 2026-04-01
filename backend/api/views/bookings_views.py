@@ -213,6 +213,7 @@ def _notify_customer_booking_status(booking, status_value):
             title=config["title"],
             message=config["message"],
             notification_type="appointment",
+            target_path="/bookings",
         )
     except Exception:
         logger.exception(
@@ -248,7 +249,7 @@ def _notify_customer_booking_status(booking, status_value):
         )
 
 
-def _notify_user_inapp_and_email(*, user, title, message, email_subject):
+def _notify_user_inapp_and_email(*, user, title, message, email_subject, target_path=""):
     if not user:
         return
     try:
@@ -257,6 +258,7 @@ def _notify_user_inapp_and_email(*, user, title, message, email_subject):
             title=title,
             message=message,
             notification_type="appointment",
+            target_path=target_path or "/bookings",
         )
     except Exception:
         logger.exception("Failed to create notification for user_id=%s", getattr(user, "id", None))
@@ -312,6 +314,7 @@ def _notify_staff_and_manager_new_booking(booking):
                 title="New Appointment",
                 message=message,
                 notification_type="appointment",
+                target_path="/staff/appointments" if staff_member.role == "Staff" else "/manager/appointments",
             )
         )
 
@@ -359,6 +362,7 @@ def _notify_staff_and_manager_cancellation(booking):
                 title="Appointment Cancelled",
                 message=message,
                 notification_type="appointment",
+                target_path="/staff/appointments" if staff_member.role == "Staff" else "/manager/appointments",
             )
         )
 
@@ -916,6 +920,7 @@ class StaffBookingActionView(APIView):
                     f"{_format_reschedule_options(options)}. Please accept or decline in your bookings."
                 ),
                 email_subject="Reschedule Options for Your Appointment - Otokwikk",
+                target_path="/bookings",
             )
 
             from api.serializers.bookings_serializer import BookingSerializer
@@ -1128,6 +1133,7 @@ class StaffBookingActionView(APIView):
                     "Please accept or decline in your bookings."
                 ),
                 email_subject="Reschedule Proposal for Your Appointment - Otokwikk",
+                target_path="/bookings",
             )
 
         from api.serializers.bookings_serializer import BookingSerializer
@@ -1216,12 +1222,14 @@ class BookingRescheduleResponseView(APIView):
                     f"{booking.date} at {booking.time}."
                 ),
                 email_subject="Customer Accepted Reschedule Proposal - Otokwikk",
+                target_path="/manager/appointments",
             )
             _notify_user_inapp_and_email(
                 user=booking.user,
                 title="Reschedule Confirmed",
                 message=f"Your appointment is now confirmed for {booking.date} at {booking.time}.",
                 email_subject="Your Appointment Has Been Rescheduled - Otokwikk",
+                target_path="/bookings",
             )
         else:
             booking.status = booking.reschedule_previous_status or "confirmed"
@@ -1240,6 +1248,7 @@ class BookingRescheduleResponseView(APIView):
                 title="Customer Declined Reschedule",
                 message=f"The customer declined the reschedule proposal for {booking.service}.",
                 email_subject="Customer Declined Reschedule Proposal - Otokwikk",
+                target_path="/manager/appointments",
             )
             _notify_user_inapp_and_email(
                 user=booking.user,
@@ -1248,6 +1257,7 @@ class BookingRescheduleResponseView(APIView):
                     "You declined the proposed schedule. Our team will contact you with another option."
                 ),
                 email_subject="Reschedule Proposal Declined - Otokwikk",
+                target_path="/bookings",
             )
 
         from api.serializers.bookings_serializer import BookingSerializer
@@ -1317,6 +1327,7 @@ class BookingRescheduleRequestView(APIView):
                             f"Reason: {reason}"
                         ),
                         notification_type="appointment",
+                        target_path="/staff/appointments" if staff_member.role == "Staff" else "/manager/appointments",
                     )
                 )
             if notifications:
@@ -1336,6 +1347,7 @@ class BookingRescheduleRequestView(APIView):
                 f"has been sent. Staff will propose a new time shortly."
             ),
             email_subject="Reschedule Request Received - Otokwikk",
+            target_path="/bookings",
         )
 
         from api.serializers.bookings_serializer import BookingSerializer

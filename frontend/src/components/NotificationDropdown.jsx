@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { API_BASE, useAuth } from "../hooks/useAuth.js";
+import { useNavigate } from "react-router-dom";
 
 const timeAgo = (date) => {
     const seconds = Math.floor((new Date() - new Date(date)) / 1000);
@@ -17,7 +18,8 @@ const timeAgo = (date) => {
 };
 
 const NotificationDropdown = () => {
-    const { headers } = useAuth();
+    const { headers, role } = useAuth();
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -58,13 +60,147 @@ const NotificationDropdown = () => {
     const markAsRead = async (id) => {
         try {
             await fetch(`${API_BASE}/api/notifications/${id}/read/`, {
-                method: "POST",
+                method: "PATCH",
                 headers
             });
             fetchNotifications();
         } catch (err) {
             console.error(err);
         }
+    };
+
+    const getRoleBaseRoute = () => {
+        const baseByRole = {
+            super_admin: "/super-admin/dashboard",
+            admin: "/admin/dashboard",
+            business_owner: "/branch-owner/dashboard",
+            branch_manager: "/manager/dashboard",
+            inventory_manager: "/inventory-manager/dashboard",
+            inventory: "/inventory/dashboard",
+            staff: "/staff/dashboard",
+            employee: "/employee/dashboard",
+            customer: "/dashboard",
+        };
+        return baseByRole[role] ?? "/";
+    };
+
+    const resolveNotificationRoute = (notification) => {
+        if (notification?.target_path) {
+            return notification.target_path;
+        }
+
+        const source = `${notification?.title ?? ""} ${notification?.message ?? ""} ${notification?.notification_type ?? ""}`.toLowerCase();
+        const routeGroups = {
+            super_admin: {
+                inventory: "/super-admin/dashboard",
+                appointments: "/super-admin/dashboard",
+                customers: "/super-admin/users",
+                users: "/super-admin/users",
+                content: "/super-admin/content",
+            },
+            admin: {
+                inventory: "/admin/inventory",
+                stock: "/admin/inventory",
+                product: "/admin/inventory",
+                appointments: "/admin/appointments",
+                booking: "/admin/appointments",
+                customers: "/admin/customers",
+                service: "/admin/services",
+                services: "/admin/services",
+                staff: "/admin/staff",
+                branch: "/admin/branches",
+                revenue: "/admin/dashboard",
+                forecast: "/admin/dashboard",
+                analytics: "/admin/dashboard",
+            },
+            business_owner: {
+                inventory: "/branch-owner/inventory",
+                stock: "/branch-owner/inventory",
+                appointments: "/branch-owner/appointments",
+                booking: "/branch-owner/appointments",
+                service: "/branch-owner/services",
+                services: "/branch-owner/services",
+                branch: "/branch-owner/branches",
+                account: "/branch-owner/accounts",
+                user: "/branch-owner/accounts",
+                revenue: "/branch-owner/dashboard",
+                forecast: "/branch-owner/dashboard",
+                analytics: "/branch-owner/dashboard",
+            },
+            branch_manager: {
+                inventory: "/manager/inventory",
+                stock: "/manager/inventory",
+                appointments: "/manager/appointments",
+                booking: "/manager/appointments",
+                customer: "/manager/customers",
+                history: "/manager/history",
+                content: "/manager/contents",
+                account: "/manager/accounts",
+                revenue: "/manager/dashboard",
+                forecast: "/manager/dashboard",
+                analytics: "/manager/dashboard",
+            },
+            inventory_manager: {
+                inventory: "/inventory-manager/inventory",
+                stock: "/inventory-manager/inventory",
+                product: "/inventory-manager/inventory",
+                movement: "/inventory-manager/transactions",
+                transaction: "/inventory-manager/transactions",
+                alert: "/inventory-manager/dashboard",
+                forecast: "/inventory-manager/dashboard",
+                analytics: "/inventory-manager/dashboard",
+            },
+            inventory: {
+                inventory: "/inventory/stock",
+                stock: "/inventory/stock",
+                product: "/inventory/stock",
+                movement: "/inventory/movement-log",
+                transaction: "/inventory/movement-log",
+                alert: "/inventory/alerts",
+                forecast: "/inventory/dashboard",
+                analytics: "/inventory/dashboard",
+            },
+            staff: {
+                queue: "/staff/queue",
+                appointment: "/staff/appointments",
+                booking: "/staff/appointments",
+                pos: "/staff/pos",
+                vehicle: "/staff/vehicle-recognition",
+            },
+            employee: {
+                schedule: "/employee/schedule",
+                active: "/employee/active-jobs",
+                job: "/employee/job-history",
+                vehicle: "/employee/vehicle-recognition",
+            },
+            customer: {
+                appointment: "/bookings",
+                booking: "/bookings",
+                service: "/services",
+                history: "/history",
+                profile: "/profile",
+                settings: "/settings",
+            },
+        };
+
+        const roleMap = routeGroups[role] ?? {};
+        for (const [keyword, targetRoute] of Object.entries(roleMap)) {
+            if (source.includes(keyword)) {
+                return targetRoute;
+            }
+        }
+
+        return getRoleBaseRoute();
+    };
+
+    const handleNotificationClick = async (notification) => {
+        if (!notification?.is_read) {
+            await markAsRead(notification.id);
+        }
+
+        setIsOpen(false);
+        const targetRoute = resolveNotificationRoute(notification);
+        navigate(targetRoute);
     };
 
     const markAllRead = async () => {
@@ -121,7 +257,7 @@ const NotificationDropdown = () => {
                             notifications.map((n) => (
                                 <div
                                     key={n.id}
-                                    onClick={() => !n.is_read && markAsRead(n.id)}
+                                    onClick={() => handleNotificationClick(n)}
                                     className={`p-4 border-b border-white/5 hover:bg-white/5 transition-all cursor-pointer ${!n.is_read ? 'bg-red-500/5' : ''}`}
                                 >
                                     <div className="flex gap-3">

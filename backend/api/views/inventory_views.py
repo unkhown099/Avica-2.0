@@ -79,7 +79,7 @@ def _log_inventory_transaction(
     )
 
 
-def _notify_roles(*, roles, title, message, branch_id=None, notification_type="inventory"):
+def _notify_roles(*, roles, title, message, branch_id=None, notification_type="inventory", target_path=""):
     recipients = Staff.objects.filter(role__in=roles, status="Active").select_related("user")
     if branch_id is not None:
         recipients = recipients.filter(branch_id=branch_id)
@@ -94,6 +94,7 @@ def _notify_roles(*, roles, title, message, branch_id=None, notification_type="i
                 title=title,
                 message=message,
                 notification_type=notification_type,
+                target_path=target_path,
             )
         )
 
@@ -282,6 +283,7 @@ class RestockRequestListCreateView(APIView):
                     f"{rr.inventory_item.name} for {rr.branch.name}."
                 ),
                 notification_type="inventory",
+                target_path="/inventory-manager/inventory",
             )
             return Response(RestockRequestSerializer(rr).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -364,6 +366,7 @@ class RestockRequestActionView(APIView):
                         f"has been approved. Please confirm when stock is received."
                     ),
                     notification_type="inventory",
+                    target_path="/inventory/alerts",
                 )
             else:
                 rr.status = "rejected"
@@ -457,6 +460,7 @@ class RestockRequestActionView(APIView):
                 f"({rr.inventory_item.name}, qty {rr.quantity_requested}) in {rr.branch.name}."
             ),
             notification_type="inventory",
+            target_path="/inventory-manager/transactions",
         )
 
         return Response(RestockRequestSerializer(rr).data)
