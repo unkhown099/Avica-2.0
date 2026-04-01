@@ -12,6 +12,7 @@ const DARK_SWAL = {
 };
 
 const ROLE_ROUTES = {
+  super_admin: "/super-admin/dashboard",
   admin: "/admin/dashboard",
   business_owner: "/branch-owner/dashboard",
   branch_manager: "/manager/dashboard",
@@ -21,6 +22,20 @@ const ROLE_ROUTES = {
   employee: "/employee/dashboard",
   customer: "/dashboard",
 };
+
+function normalizeRole(rawRole) {
+  const map = {
+    "Admin": "admin",
+    "Business Owner": "business_owner",
+    "Branch Manager": "branch_manager",
+    "Staff": "staff",
+    "Employee": "employee",
+    "Inventory": "inventory",
+    "Inventory Manager": "inventory_manager",
+    "Super Admin": "super_admin",
+  };
+  return map[rawRole] ?? rawRole ?? null;
+}
 
 function SignIn() {
   const navigate = useNavigate();
@@ -85,9 +100,11 @@ function SignIn() {
         throw new Error(data.message || "Invalid email or password");
       }
 
+      const normalizedRole = normalizeRole(data.user.role);
+      data.user.role = normalizedRole;
       storeSession(data.tokens, data.user, formData.rememberMe);
 
-      const destination = ROLE_ROUTES[data.user.role] ?? "/";
+      const destination = ROLE_ROUTES[normalizedRole] ?? "/";
 
       // Fire the alert FIRST, navigate only after it's dismissed.
       // This prevents SweetAlert2's backdrop from mounting on the destination
@@ -177,9 +194,11 @@ function SignIn() {
       }
 
       // Google login always uses sessionStorage (no "remember me" checkbox)
+      const normalizedRole = normalizeRole(data.user.role);
+      data.user.role = normalizedRole;
       storeSession(data.tokens, data.user, false);
 
-      const destination = ROLE_ROUTES[data.user.role] ?? "/";
+      const destination = ROLE_ROUTES[normalizedRole] ?? "/";
 
       // If new Google user, notify about temporary password
       if (data.is_temporary) {

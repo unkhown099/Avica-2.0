@@ -25,6 +25,9 @@ import CustomerProfile from "./pages/customer/CustomerProfile.jsx";
 import CustomerSettings from "./pages/customer/CustomerSettings.jsx";
 import HelpPage from "./pages/customer/CustomerHelp.jsx";
 
+// Super Admin Imports
+import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard.jsx";
+
 // Admin Imports
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AdminServices from "./pages/admin/AdminServices.jsx";
@@ -107,6 +110,16 @@ function Layout() {
         <Route path="/signin" element={<SignIn />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/* Super Admin Routes */}
+        <Route
+          path="/super-admin/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["super_admin"]}>
+              <SuperAdminDashboard />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Customer Routes */}
         <Route

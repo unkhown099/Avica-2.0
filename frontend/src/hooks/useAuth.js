@@ -66,8 +66,8 @@ export function useAuth() {
     }
 
     // Role comes from the JWT (added via custom SimpleJWT serializer)
-    const role = payload.role ?? payload.user_role ?? null;
-    const isAdmin = ["admin", "business_owner"].includes(role);
+    const role = normalizeRole(payload.role ?? payload.user_role ?? null);
+    const isAdmin = ["admin", "business_owner", "super_admin"].includes(role);
 
     // Merge JWT claims with the richer profile stored at login time.
     // JWT is the source of truth for id/email/role; stored profile fills in
@@ -112,4 +112,19 @@ export function getAuthHeaders() {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+// ── Role normalizer ───────────────────────────────────────────────────────────
+function normalizeRole(raw) {
+  const map = {
+    "Admin":             "admin",
+    "Business Owner":    "business_owner",
+    "Branch Manager":    "branch_manager",
+    "Staff":             "staff",
+    "Employee":          "employee",
+    "Inventory":         "inventory",
+    "Inventory Manager": "inventory_manager",
+    "Super Admin":       "super_admin",  // ← new
+  };
+  return map[raw] ?? raw ?? null;
 }

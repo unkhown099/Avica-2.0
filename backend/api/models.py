@@ -113,6 +113,7 @@ class BranchScheduleConfig(models.Model):
 # ── Staff ─────────────────────────────────────────────────────────────────────
 class Staff(models.Model):
     ROLE_CHOICES = [
+        ("super_admin",    "Super Admin"),
         ("Admin",          "Admin"),
         ("Business Owner", "Business Owner"),
         ("Branch Manager", "Branch Manager"),
