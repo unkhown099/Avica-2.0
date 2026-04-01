@@ -5,14 +5,18 @@ import Swal from "sweetalert2";
 import { useAuth, API_BASE } from "../hooks/useAuth.js";
 
 // ─── Menu configs per role ────────────────────────────────────────────────────
+// Items with `type: "divider"` render as a section label, not a nav link.
 
 const MENU_ITEMS = {
   super_admin: [
+    { type: "divider", label: "Overview" },
     {
       name: "Dashboard",
       path: "/super-admin/dashboard",
       icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
     },
+
+    { type: "divider", label: "User Management" },
     {
       name: "User & Role Management",
       path: "/super-admin/users",
@@ -23,6 +27,8 @@ const MENU_ITEMS = {
         { key: "add-user", label: "Add User" },
       ],
     },
+
+    { type: "divider", label: "Content" },
     {
       name: "Content Management",
       path: "/super-admin/content",
@@ -34,6 +40,8 @@ const MENU_ITEMS = {
         { key: "approvals", label: "Pending Approvals" },
       ],
     },
+
+    { type: "divider", label: "System" },
     {
       name: "System Settings",
       path: "/super-admin/settings",
@@ -53,6 +61,8 @@ const MENU_ITEMS = {
         { key: "features", label: "Feature Toggles" },
       ],
     },
+
+    { type: "divider", label: "Security & Monitoring" },
     {
       name: "Security & Backup",
       path: "/super-admin/security",
@@ -76,6 +86,7 @@ const MENU_ITEMS = {
   ],
 
   admin: [
+    { type: "divider", label: "Overview" },
     {
       name: "Dashboard",
       path: "/admin/dashboard",
@@ -90,11 +101,20 @@ const MENU_ITEMS = {
         { key: "employees", label: "Employees" },
       ],
     },
+
+    { type: "divider", label: "Operations" },
     {
       name: "Services",
       path: "/admin/services",
       icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
     },
+    {
+      name: "Appointments",
+      path: "/admin/appointments",
+      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    },
+
+    { type: "divider", label: "People" },
     {
       name: "Customers",
       path: "/admin/customers",
@@ -105,11 +125,8 @@ const MENU_ITEMS = {
       path: "/admin/staff",
       icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
     },
-    {
-      name: "Appointments",
-      path: "/admin/appointments",
-      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-    },
+
+    { type: "divider", label: "Location" },
     {
       name: "Branches",
       path: "/admin/branches",
@@ -118,6 +135,7 @@ const MENU_ITEMS = {
   ],
 
   business_owner: [
+    { type: "divider", label: "Overview" },
     {
       name: "Dashboard",
       path: "/branch-owner/dashboard",
@@ -131,6 +149,8 @@ const MENU_ITEMS = {
         { key: "services", label: "Services" },
       ],
     },
+
+    { type: "divider", label: "Operations" },
     {
       name: "Appointments",
       path: "/branch-owner/appointments",
@@ -147,6 +167,8 @@ const MENU_ITEMS = {
       icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
       alertBadge: true,
     },
+
+    { type: "divider", label: "Management" },
     {
       name: "Employee Accounts",
       path: "/branch-owner/accounts",
@@ -160,6 +182,7 @@ const MENU_ITEMS = {
   ],
 
   branch_manager: [
+    { type: "divider", label: "Overview" },
     {
       name: "Dashboard",
       path: "/manager/dashboard",
@@ -174,6 +197,8 @@ const MENU_ITEMS = {
         { key: "employees", label: "Employees" },
       ],
     },
+
+    { type: "divider", label: "Operations" },
     {
       name: "Appointments",
       path: "/manager/appointments",
@@ -186,11 +211,6 @@ const MENU_ITEMS = {
       alertBadge: true,
     },
     {
-      name: "Account Management",
-      path: "/manager/accounts",
-      icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
-    },
-    {
       name: "History",
       path: "/manager/history",
       icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
@@ -199,11 +219,20 @@ const MENU_ITEMS = {
         { key: "inventory-transaction", label: "Inventory Transaction" },
       ],
     },
+
+    { type: "divider", label: "People" },
     {
       name: "Customer Management",
       path: "/manager/customers",
       icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
     },
+    {
+      name: "Account Management",
+      path: "/manager/accounts",
+      icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+    },
+
+    { type: "divider", label: "Configuration" },
     {
       name: "Contents",
       path: "/manager/contents",
@@ -217,11 +246,13 @@ const MENU_ITEMS = {
   ],
 
   staff: [
+    { type: "divider", label: "Overview" },
     {
       name: "Dashboard",
       path: "/staff/dashboard",
       icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
     },
+    { type: "divider", label: "Work" },
     {
       name: "POS",
       path: "/staff/pos",
@@ -240,11 +271,13 @@ const MENU_ITEMS = {
   ],
 
   employee: [
+    { type: "divider", label: "Overview" },
     {
       name: "Dashboard",
       path: "/employee/dashboard",
       icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
     },
+    { type: "divider", label: "My Work" },
     {
       name: "Active Jobs",
       path: "/employee/active-jobs",
@@ -256,23 +289,26 @@ const MENU_ITEMS = {
       icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
     },
     {
-      name: "Job History",
-      path: "/employee/job-history",
-      icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
-    },
-    {
       name: "Vehicle Recognition",
       path: "/employee/vehicle-recognition",
       icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9",
     },
+    { type: "divider", label: "Records" },
+    {
+      name: "Job History",
+      path: "/employee/job-history",
+      icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+    },
   ],
 
   inventory: [
+    { type: "divider", label: "Overview" },
     {
       name: "Dashboard",
       path: "/inventory/dashboard",
       icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
     },
+    { type: "divider", label: "Stock" },
     {
       name: "Stock Overview",
       path: "/inventory/stock",
@@ -284,6 +320,7 @@ const MENU_ITEMS = {
       icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
       alertBadge: true,
     },
+    { type: "divider", label: "Records" },
     {
       name: "Movement Log",
       path: "/inventory/movement-log",
@@ -292,17 +329,20 @@ const MENU_ITEMS = {
   ],
 
   inventory_manager: [
+    { type: "divider", label: "Overview" },
     {
       name: "Dashboard",
       path: "/inventory-manager/dashboard",
       icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
     },
+    { type: "divider", label: "Stock" },
     {
       name: "Inventory",
       path: "/inventory-manager/inventory",
       icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
       alertBadge: true,
     },
+    { type: "divider", label: "Records" },
     {
       name: "Transaction History",
       path: "/inventory-manager/transactions",
@@ -324,6 +364,19 @@ const ROLE_LABELS = {
   inventory_manager: { title: "Inventory Manager", subtitle: "Stock & Supply" },
 };
 
+// ─── Section Divider component ────────────────────────────────────────────────
+
+function SectionDivider({ label }) {
+  return (
+    <div className="flex items-center gap-2 px-5 pt-4 pb-1">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-gray-800/70" />
+    </div>
+  );
+}
+
 // ─── Unified Sidebar ──────────────────────────────────────────────────────────
 
 function UnifiedSidebar({ isOpen, onClose }) {
@@ -333,6 +386,13 @@ function UnifiedSidebar({ isOpen, onClose }) {
 
   const [alertCount, setAlertCount] = useState(null);
   const [expandedItems, setExpandedItems] = useState({});
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("sidebar_collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   const menuItems = MENU_ITEMS[role] ?? [];
   const roleLabel = ROLE_LABELS[role] ?? { title: "User", subtitle: "" };
@@ -389,6 +449,15 @@ function UnifiedSidebar({ isOpen, onClose }) {
       return updated;
     });
   }, [location.pathname, role]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("sidebar_collapsed", collapsed ? "1" : "0");
+    } catch {
+      // ignore
+    }
+    document.documentElement.style.setProperty("--sidebar-width", collapsed ? "5rem" : "15rem");
+  }, [collapsed]);
 
   const isActive = (path) => location.pathname === path;
 
@@ -458,7 +527,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
           flex flex-col z-40 shadow-2xl
           transition-all duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0 lg:w-64
+          lg:translate-x-0 ${collapsed ? "lg:w-20" : "lg:w-64"}
         `}
       >
         {/* Logo Section with Close Button */}
@@ -470,6 +539,16 @@ function UnifiedSidebar({ isOpen, onClose }) {
               className="h-10 md:h-12 object-contain transition-all duration-300 hover:scale-105"
             />
           </div>
+          <button
+            onClick={() => setCollapsed((prev) => !prev)}
+            className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg bg-gray-800/50 hover:bg-gray-700 text-gray-300 transition-all duration-200"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
           <button
             onClick={onClose}
             className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800/50 hover:bg-red-600/20 text-gray-400 hover:text-red-500 transition-all duration-200"
@@ -492,11 +571,17 @@ function UnifiedSidebar({ isOpen, onClose }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 overflow-y-auto">
-          {menuItems.map((item) => {
+        <nav className="flex-1 py-2 overflow-y-auto">
+          {menuItems.map((item, index) => {
+            // ── Divider / section label ──────────────────────────────────
+            if (item.type === "divider") {
+              return collapsed ? null : <SectionDivider key={`divider-${index}`} label={item.label} />;
+            }
+
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expandedItems[item.path] ?? false;
 
+            // ── Collapsible parent ───────────────────────────────────────
             if (hasChildren) {
               const active = location.pathname === item.path;
               return (
@@ -514,6 +599,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
                         ? "bg-gradient-to-r from-red-600/20 to-transparent text-white border-l-4 border-red-600"
                         : "text-gray-400 hover:text-white hover:bg-gray-800/50 border-l-4 border-transparent"
                     }`}
+                    title={item.name}
                   >
                     <svg
                       className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
@@ -530,11 +616,11 @@ function UnifiedSidebar({ isOpen, onClose }) {
                         d={item.icon}
                       />
                     </svg>
-                    <span className="font-medium text-sm flex-1 text-left">
+                    <span className={`font-medium text-sm flex-1 text-left ${collapsed ? "lg:hidden" : ""}`}>
                       {item.name}
                     </span>
                     <svg
-                      className={`w-4 h-4 transition-transform duration-200 ${
+                      className={`w-4 h-4 transition-transform duration-200 ${collapsed ? "lg:hidden" : ""} ${
                         isExpanded ? "rotate-90" : "rotate-0"
                       }`}
                       fill="none"
@@ -550,7 +636,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
                     </svg>
                   </button>
 
-                  {isExpanded && (
+                  {isExpanded && !collapsed && (
                     <div className="ml-10 mt-1 space-y-1">
                       {item.children.map((child, idx) => {
                         const childTo = `${item.path}#${child.key}`;
@@ -582,6 +668,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
               );
             }
 
+            // ── Plain nav link ───────────────────────────────────────────
             const active = isActive(item.path);
             const showBadge =
               item.alertBadge && alertCount != null && alertCount > 0;
@@ -596,6 +683,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
                     ? "bg-gradient-to-r from-red-600/20 to-transparent text-white border-l-4 border-red-600"
                     : "text-gray-400 hover:text-white hover:bg-gray-800/50 border-l-4 border-transparent"
                 }`}
+                title={item.name}
               >
                 <svg
                   className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
@@ -612,9 +700,9 @@ function UnifiedSidebar({ isOpen, onClose }) {
                     d={item.icon}
                   />
                 </svg>
-                <span className="font-medium text-sm flex-1">{item.name}</span>
+                <span className={`font-medium text-sm flex-1 ${collapsed ? "lg:hidden" : ""}`}>{item.name}</span>
 
-                {showBadge && (
+                {showBadge && !collapsed && (
                   <span
                     className={`text-xs font-bold px-2 py-0.5 rounded-full animate-pulse ${
                       active
@@ -648,7 +736,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
                 />
               </svg>
             </div>
-            <div className="flex-1 min-w-0">
+            <div className={`flex-1 min-w-0 ${collapsed ? "lg:hidden" : ""}`}>
               <p className="text-white font-semibold text-sm truncate">
                 {user?.first_name && user?.last_name
                   ? `${user.first_name} ${user.last_name}`
@@ -662,6 +750,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-800/50 hover:bg-red-600/20 text-gray-400 hover:text-red-400 rounded-xl transition-all duration-200 group"
+            title="Logout"
           >
             <svg
               className="w-5 h-5 transition-transform group-hover:translate-x-1"
@@ -676,7 +765,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
               />
             </svg>
-            <span className="font-medium text-sm">Logout</span>
+            <span className={`font-medium text-sm ${collapsed ? "lg:hidden" : ""}`}>Logout</span>
           </button>
         </div>
       </aside>

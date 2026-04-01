@@ -251,16 +251,20 @@ export default function InventoryDashboard({
     inventoryForecast.highest_stock_needed_branch ?? inventoryForecast.top_branches?.[0] ?? null;
   const suggestedRestockWindow =
     Number(inventoryForecast.linear_regression?.next_period_prediction ?? 0) > 0
-      ? forecastPeriod === "daily"
+      ? forecastPeriod === "weekly"
         ? "Restock within 1-3 days"
-        : "Restock within this month"
+        : forecastPeriod === "monthly"
+          ? "Restock within this month"
+          : forecastPeriod === "quarterly"
+            ? "Restock within this quarter"
+            : "Restock within this year"
       : "Monitor stock; no urgent restock signal";
 
   const inventoryUsageSeriesData = useMemo(() => ({
     labels: (inventoryForecast.time_series ?? []).map((row) => row.label),
     datasets: [
       {
-        label: `Stock Usage (${forecastPeriod === "daily" ? "Daily" : "Monthly"})`,
+        label: `Stock Usage (${forecastPeriod.charAt(0).toUpperCase()}${forecastPeriod.slice(1)})`,
         data: (inventoryForecast.time_series ?? []).map((row) => Number(row.usage ?? 0)),
         borderColor: "#22c55e",
         backgroundColor: "rgba(34,197,94,0.12)",
@@ -640,8 +644,10 @@ export default function InventoryDashboard({
                 onChange={(e) => setForecastPeriod(e.target.value)}
                 className="bg-gray-900 border border-white/10 text-gray-200 text-sm rounded-lg px-3 py-2"
               >
-                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
               </select>
             </div>
 
@@ -651,7 +657,9 @@ export default function InventoryDashboard({
                 <p className="text-white text-2xl font-black mt-1">
                   {Number(inventoryForecast.linear_regression?.next_period_prediction ?? 0).toLocaleString()}
                 </p>
-                <p className="text-emerald-400 text-xs mt-1">Projection for next {forecastPeriod === "daily" ? "day" : "month"}</p>
+                <p className="text-emerald-400 text-xs mt-1">
+                  Projection for next {forecastPeriod === "weekly" ? "week" : forecastPeriod === "monthly" ? "month" : forecastPeriod === "quarterly" ? "quarter" : "year"}
+                </p>
               </div>
               <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
                 <p className="text-gray-500 text-sm">Trend Direction</p>

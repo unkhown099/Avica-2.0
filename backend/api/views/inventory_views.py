@@ -599,8 +599,8 @@ class InventoryDemandForecastView(APIView):
             return Response({"detail": "Permission denied."}, status=403)
 
         period = request.query_params.get("period", "monthly")
-        if period not in ["daily", "monthly"]:
-            return Response({"detail": "period must be daily or monthly."}, status=400)
+        if period not in ["weekly", "monthly", "quarterly", "yearly"]:
+            return Response({"detail": "period must be weekly, monthly, quarterly, or yearly."}, status=400)
 
         branch_name = request.query_params.get("branch")
         item_limit_raw = request.query_params.get("item_limit", "8")
@@ -645,7 +645,15 @@ class InventoryDemandForecastView(APIView):
             if usage <= 0:
                 continue
 
-            label = tx.created_at.strftime("%Y-%m-%d") if period == "daily" else tx.created_at.strftime("%Y-%m")
+            if period == "weekly":
+                iso = tx.created_at.isocalendar()
+                label = f"{iso.year}-W{iso.week:02d}"
+            elif period == "monthly":
+                label = tx.created_at.strftime("%Y-%m")
+            elif period == "quarterly":
+                label = f"{tx.created_at.year}-Q{((tx.created_at.month - 1) // 3) + 1}"
+            else:
+                label = tx.created_at.strftime("%Y")
             usage_by_period[label] += usage
             item_key = tx.inventory_item.name if tx.inventory_item else "Unknown Item"
             item_usage[item_key] += usage

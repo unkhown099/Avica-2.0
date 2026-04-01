@@ -235,6 +235,14 @@ function quarterOf(monthIndexZeroBased) {
   return Math.floor(monthIndexZeroBased / 3) + 1;
 }
 
+function weekOfYear(date) {
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminDashboard({ dataScope = "admin" }) {
   const location = useLocation();
@@ -252,10 +260,12 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const [inventoryForecastPeriod, setInventoryForecastPeriod] = useState("monthly");
   const [serviceForecastRows, setServiceForecastRows] = useState([]);
   const [forecastPeriod, setForecastPeriod] = useState("monthly");
+  const [forecastWeekFilter, setForecastWeekFilter] = useState(String(weekOfYear(new Date())));
   const [forecastMonthFilter, setForecastMonthFilter] = useState(String(new Date().getMonth() + 1));
   const [forecastQuarterFilter, setForecastQuarterFilter] = useState(String(quarterOf(new Date().getMonth())));
   const [forecastYearFilter, setForecastYearFilter] = useState(String(new Date().getFullYear()));
   const [appointmentPeriod, setAppointmentPeriod] = useState("monthly");
+  const [appointmentWeekFilter, setAppointmentWeekFilter] = useState(String(weekOfYear(new Date())));
   const [appointmentMonthFilter, setAppointmentMonthFilter] = useState(String(new Date().getMonth() + 1));
   const [appointmentQuarterFilter, setAppointmentQuarterFilter] = useState(String(quarterOf(new Date().getMonth())));
   const [appointmentYearFilter, setAppointmentYearFilter] = useState(String(new Date().getFullYear()));
@@ -427,7 +437,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     labels: (inventoryForecast.time_series ?? []).map((row) => row.label),
     datasets: [
       {
-        label: `Stock Usage (${inventoryForecastPeriod === "daily" ? "Daily" : "Monthly"})`,
+        label: `Stock Usage (${inventoryForecastPeriod.charAt(0).toUpperCase()}${inventoryForecastPeriod.slice(1)})`,
         data: (inventoryForecast.time_series ?? []).map((row) => Number(row.usage ?? 0)),
         borderColor: "#22c55e",
         backgroundColor: "rgba(34,197,94,0.12)",
@@ -590,11 +600,12 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     return appointments.filter((apt) => {
       const date = parseDateInput(apt.date ?? apt.created_at);
       if (!date || date.getFullYear() !== selectedYear) return false;
+      if (appointmentPeriod === "weekly") return weekOfYear(date) === Number(appointmentWeekFilter);
       if (appointmentPeriod === "monthly") return date.getMonth() + 1 === Number(appointmentMonthFilter);
       if (appointmentPeriod === "quarterly") return quarterOf(date.getMonth()) === Number(appointmentQuarterFilter);
       return true;
     });
-  }, [appointments, appointmentPeriod, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter]);
+  }, [appointments, appointmentPeriod, appointmentWeekFilter, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter]);
 
   const appointmentsPagination = usePagination({
     items: filteredAppointments,
@@ -613,6 +624,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
           month: date.getMonth() + 1,
           monthLabel: MONTH_LABELS_FULL[date.getMonth()],
           quarter: quarterOf(date.getMonth()),
+          week: weekOfYear(date),
           year: date.getFullYear(),
           dateKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
           cancellationReason: apt.cancel_reason || apt.cancellation_reason || apt.reason || apt.notes || "Unspecified",
@@ -636,11 +648,12 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     const selectedYear = Number(appointmentYearFilter);
     return appointmentEvents.filter((row) => {
       if (row.year !== selectedYear) return false;
+      if (appointmentPeriod === "weekly") return row.week === Number(appointmentWeekFilter);
       if (appointmentPeriod === "monthly") return row.month === Number(appointmentMonthFilter);
       if (appointmentPeriod === "quarterly") return row.quarter === Number(appointmentQuarterFilter);
       return true;
     });
-  }, [appointmentEvents, appointmentPeriod, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter]);
+  }, [appointmentEvents, appointmentPeriod, appointmentWeekFilter, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter]);
 
   const filteredAppointmentStatusCounts = useMemo(() => {
     return filteredAppointmentEvents.reduce(
@@ -700,6 +713,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         monthLabel: MONTH_LABELS_FULL[date.getMonth()],
         month: date.getMonth() + 1,
         quarter: quarterOf(date.getMonth()),
+        week: weekOfYear(date),
         year: date.getFullYear(),
         dateKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
       });
@@ -722,11 +736,12 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     const selectedYear = Number(forecastYearFilter);
     return serviceEvents.filter((row) => {
       if (row.year !== selectedYear) return false;
+      if (forecastPeriod === "weekly") return row.week === Number(forecastWeekFilter);
       if (forecastPeriod === "monthly") return row.month === Number(forecastMonthFilter);
       if (forecastPeriod === "quarterly") return row.quarter === Number(forecastQuarterFilter);
       return true;
     });
-  }, [serviceEvents, forecastPeriod, forecastMonthFilter, forecastQuarterFilter, forecastYearFilter]);
+  }, [serviceEvents, forecastPeriod, forecastWeekFilter, forecastMonthFilter, forecastQuarterFilter, forecastYearFilter]);
 
   const demandByService = useMemo(() => {
     const grouped = filteredServiceEvents.reduce((acc, row) => {
@@ -1879,16 +1894,28 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 <h3 className="text-sm sm:text-base font-black text-white">Appointment Analytics Filters</h3>
                 <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Analyze appointment trends by period</p>
               </div>
-              <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
-                <select
-                  value={appointmentPeriod}
-                  onChange={(e) => setAppointmentPeriod(e.target.value)}
-                  className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                >
+                <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+                  <select
+                    value={appointmentPeriod}
+                    onChange={(e) => setAppointmentPeriod(e.target.value)}
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                  >
+                  <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
                   <option value="quarterly">Quarterly</option>
                   <option value="yearly">Yearly</option>
                 </select>
+                {appointmentPeriod === "weekly" && (
+                  <select
+                    value={appointmentWeekFilter}
+                    onChange={(e) => setAppointmentWeekFilter(e.target.value)}
+                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                  >
+                    {Array.from({ length: 53 }, (_, i) => (
+                      <option key={i + 1} value={String(i + 1)}>W{i + 1}</option>
+                    ))}
+                  </select>
+                )}
                 {appointmentPeriod === "monthly" && (
                   <select
                     value={appointmentMonthFilter}
@@ -2416,8 +2443,10 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   onChange={(e) => setInventoryForecastPeriod(e.target.value)}
                   className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm w-full sm:w-auto"
                 >
+                  <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
-                  <option value="daily">Daily</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="yearly">Yearly</option>
                 </select>
               </div>
 
@@ -2682,7 +2711,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end sm:justify-between">
                 <div>
                   <h3 className="text-sm sm:text-lg font-black text-white">Service Demand Forecasting</h3>
-                  <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Time-series demand with monthly, quarterly, and yearly filters</p>
+                  <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Time-series demand with weekly, monthly, quarterly, and yearly filters</p>
                 </div>
                 <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
                   <select
@@ -2690,10 +2719,22 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                     onChange={(e) => setForecastPeriod(e.target.value)}
                     className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
                   >
+                    <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                     <option value="quarterly">Quarterly</option>
                     <option value="yearly">Yearly</option>
                   </select>
+                  {forecastPeriod === "weekly" && (
+                    <select
+                      value={forecastWeekFilter}
+                      onChange={(e) => setForecastWeekFilter(e.target.value)}
+                      className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+                    >
+                      {Array.from({ length: 53 }, (_, i) => (
+                        <option key={i + 1} value={String(i + 1)}>W{i + 1}</option>
+                      ))}
+                    </select>
+                  )}
                   {forecastPeriod === "monthly" && (
                     <select
                       value={forecastMonthFilter}

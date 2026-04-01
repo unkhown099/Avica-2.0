@@ -93,7 +93,11 @@ const formatActionLabel = (actionType) => {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
-function MovementLog() {
+function MovementLog({
+  LayoutComponent = InventoryLayout,
+  pageTitle = "Movement Log",
+  subtitle = "Track all inventory changes, transfers, and usage patterns.",
+}) {
   const { headers, isAuthenticated } = useAuth();
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -205,16 +209,16 @@ function MovementLog() {
   ).length;
 
   return (
-    <InventoryLayout>
+    <LayoutComponent>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tight">
-              Movement Log
+              {pageTitle}
             </h1>
             <p className="text-gray-400 mt-1">
-              Track all inventory changes, transfers, and usage patterns.
+              {subtitle}
             </p>
           </div>
           <button className="mt-10 flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit">
@@ -491,7 +495,7 @@ function MovementLog() {
           />
         </div>
       </div>
-    </InventoryLayout>
+    </LayoutComponent>
   );
 }
 

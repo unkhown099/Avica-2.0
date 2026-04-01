@@ -24,7 +24,7 @@ function SuperAdminLayout({ children }) {
     <div className="min-h-screen bg-gray-950">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="lg:ml-60 min-h-screen flex flex-col">
+      <div className="lg:ml-[var(--sidebar-width)] min-h-screen flex flex-col">
         {/* Mobile Header */}
         <header className="lg:hidden flex items-center gap-4 px-4 py-3 bg-gray-900 sticky top-0 z-10 shadow-md border-b border-gray-800">
           <button
