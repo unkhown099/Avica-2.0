@@ -29,6 +29,10 @@ import HelpPage from "./pages/customer/CustomerHelp.jsx";
 import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard.jsx";
 import SuperAdminUsersPage from "./pages/superadmin/SuperAdminUsersPage.jsx";
 import SuperAdminContentManagement from "./pages/superadmin/SuperAdminContentManagement.jsx";
+import SuperAdminSystemSettings from "./pages/superadmin/SuperAdminSystemSettings.jsx";
+import SuperAdminReports from "./pages/superadmin/SuperAdminReports.jsx";
+import SuperAdminSecurity from "./pages/superadmin/SuperAdminSecurity.jsx";
+import SuperAdminPlugin from "./pages/superadmin/SuperAdminPlugin.jsx";
 
 // Admin Imports
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
@@ -134,6 +138,38 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["super_admin"]}>
               <SuperAdminContentManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin/settings"
+          element={
+            <ProtectedRoute allowedRoles={["super_admin"]}>
+              <SuperAdminSystemSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin/plugins"
+          element={
+            <ProtectedRoute allowedRoles={["super_admin"]}>
+              <SuperAdminPlugin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin/security"
+          element={
+            <ProtectedRoute allowedRoles={["super_admin"]}>
+              <SuperAdminSecurity />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin/reports"
+          element={
+            <ProtectedRoute allowedRoles={["super_admin"]}>
+              <SuperAdminReports />
             </ProtectedRoute>
           }
         />
