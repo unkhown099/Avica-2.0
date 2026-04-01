@@ -1,13 +1,13 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Sum, Avg, Q
+from django.db.models import Count, Sum, Q
+from django.db.models.functions import TruncMonth, TruncDate
 from django.utils import timezone
 from datetime import timedelta
 
-from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+from django.db.models import F
 
 from api.models import (
     Staff, Branch, Customer, Booking, QueueEntry,
@@ -16,11 +16,6 @@ from api.models import (
 from api.permissions import IsSuperAdmin
 
 User = get_user_model()
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def super_admin_permissions():
-    return [IsAuthenticated, IsSuperAdmin]
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -33,19 +28,19 @@ class SuperAdminDashboardView(APIView):
         today = timezone.now().date()
         this_month_start = today.replace(day=1)
 
-        # Counts
+        # ── Basic counts ──────────────────────────────────────────────────────
         total_users     = User.objects.count()
         total_staff     = Staff.objects.count()
         total_customers = Customer.objects.count()
         total_branches  = Branch.objects.count()
         total_services  = Service.objects.count()
 
-        # Bookings
-        total_bookings = Booking.objects.count()
-        bookings_today = Booking.objects.filter(date=today).count()
+        # ── Bookings ──────────────────────────────────────────────────────────
+        total_bookings      = Booking.objects.count()
+        bookings_today      = Booking.objects.filter(date=today).count()
         bookings_this_month = Booking.objects.filter(date__gte=this_month_start).count()
 
-        # Revenue
+        # ── Revenue ───────────────────────────────────────────────────────────
         revenue_total = Booking.objects.filter(
             status="done"
         ).aggregate(total=Sum("price"))["total"] or 0
@@ -54,55 +49,221 @@ class SuperAdminDashboardView(APIView):
             status="done", date__gte=this_month_start
         ).aggregate(total=Sum("price"))["total"] or 0
 
-        # Staff by role breakdown
+        # ── Staff by role ─────────────────────────────────────────────────────
         staff_by_role = list(
             Staff.objects.values("role").annotate(count=Count("id")).order_by("-count")
         )
 
-        # Queue stats
-        active_queue = QueueEntry.objects.filter(
-            status__in=["waiting", "in_service"]
+        # ── Queue & inventory ─────────────────────────────────────────────────
+        active_queue  = QueueEntry.objects.filter(status__in=["waiting", "in_service"]).count()
+        low_inventory = InventoryItem.objects.filter(
+            is_active=True, quantity__lte=F("minimum_qty")
         ).count()
 
-        # Low inventory
-        low_inventory = InventoryItem.objects.filter(
-            is_active=True, quantity__lte=models_min_qty()
-        ).count()
+        # ── Monthly revenue — last 7 months ───────────────────────────────────
+        seven_months_ago = _months_ago(today, 6)
+
+        monthly_revenue_qs = (
+            Booking.objects
+            .filter(status="done", date__gte=seven_months_ago)
+            .annotate(month=TruncMonth("date"))
+            .values("month")
+            .annotate(total=Sum("price"))
+            .order_by("month")
+        )
+        monthly_revenue_labels, monthly_revenue_data = _fill_months(
+            monthly_revenue_qs, "total", today, 7
+        )
+
+        # ── Monthly bookings — last 7 months ──────────────────────────────────
+        monthly_bookings_qs = (
+            Booking.objects
+            .filter(date__gte=seven_months_ago)
+            .annotate(month=TruncMonth("date"))
+            .values("month")
+            .annotate(total=Count("id"))
+            .order_by("month")
+        )
+        monthly_bookings_labels, monthly_bookings_data = _fill_months(
+            monthly_bookings_qs, "total", today, 7
+        )
+
+        # ── Monthly new customers — last 7 months ─────────────────────────────
+        monthly_customers_qs = (
+            User.objects
+            .filter(
+                customer_profile__isnull=False,
+                created_at__date__gte=seven_months_ago
+            )
+            .annotate(month=TruncMonth("created_at"))
+            .values("month")
+            .annotate(total=Count("id"))
+            .order_by("month")
+        )
+        _, monthly_customers_data = _fill_months(monthly_customers_qs, "total", today, 7)
+
+        # ── Monthly new staff — last 7 months ─────────────────────────────────
+        monthly_staff_qs = (
+            User.objects
+            .filter(
+                staff_profile__isnull=False,
+                created_at__date__gte=seven_months_ago
+            )
+            .annotate(month=TruncMonth("created_at"))
+            .values("month")
+            .annotate(total=Count("id"))
+            .order_by("month")
+        )
+        _, monthly_staff_data = _fill_months(monthly_staff_qs, "total", today, 7)
+
+        # ── Revenue by branch ─────────────────────────────────────────────────
+        branch_revenue_qs = (
+            Booking.objects
+            .filter(status="done")
+            .values("branch__name")
+            .annotate(total=Sum("price"))
+            .order_by("branch__name")
+        )
+        branches_list       = [b["branch__name"] or "Unknown" for b in branch_revenue_qs]
+        revenue_by_branch   = [float(b["total"] or 0)          for b in branch_revenue_qs]
+
+        # ── Queue by branch ───────────────────────────────────────────────────
+        queue_by_branch_qs = (
+            QueueEntry.objects
+            .filter(status__in=["waiting", "in_service"])
+            .values("branch__name")
+            .annotate(total=Count("id"))
+            .order_by("branch__name")
+        )
+        queue_branches_list = [b["branch__name"] or "Unknown" for b in queue_by_branch_qs]
+        queue_by_branch     = [b["total"]                      for b in queue_by_branch_qs]
+
+        # ── Daily bookings — last 30 days ─────────────────────────────────────
+        thirty_days_ago = today - timedelta(days=29)
+        daily_bookings_qs = (
+            Booking.objects
+            .filter(date__gte=thirty_days_ago)
+            .annotate(day=TruncDate("date"))
+            .values("day")
+            .annotate(total=Count("id"))
+            .order_by("day")
+        )
+        daily_labels, daily_bookings_data = _fill_days(daily_bookings_qs, today)
+
+        # ── Bookings by status ────────────────────────────────────────────────
+        bookings_by_status_qs = (
+            Booking.objects.values("status").annotate(count=Count("id"))
+        )
+        bookings_by_status = [b["count"] for b in bookings_by_status_qs]
+        bookings_status_labels = [b["status"] for b in bookings_by_status_qs]
+
+        # ── Services by name (top 5) ──────────────────────────────────────────
+        # FIX: Query Booking model since Service doesn't have booking relationship
+        services_qs = (
+            Booking.objects
+            .values("service")
+            .annotate(total=Count("id"))
+            .order_by("-total")[:5]
+        )
+        service_names = [s["service"] for s in services_qs]
+        service_counts = [s["total"] for s in services_qs]
 
         return Response({
+            # ── Core stats ────────────────────────────────────────────────────
             "users": {
-                "total": total_users,
-                "staff": total_staff,
+                "total":     total_users,
+                "staff":     total_staff,
                 "customers": total_customers,
             },
-            "branches": total_branches,
-            "services": total_services,
+            "branches":             total_branches,
+            "services":             total_services,
             "bookings": {
-                "total": total_bookings,
-                "today": bookings_today,
+                "total":      total_bookings,
+                "today":      bookings_today,
                 "this_month": bookings_this_month,
             },
             "revenue": {
-                "total": float(revenue_total),
+                "total":      float(revenue_total),
                 "this_month": float(revenue_this_month),
             },
-            "staff_by_role": staff_by_role,
+            "staff_by_role":        staff_by_role,
             "active_queue_entries": active_queue,
-            "low_stock_items": low_inventory,
+            "low_stock_items":      low_inventory,
+
+            # ── Chart data ────────────────────────────────────────────────────
+            "chart_labels":          monthly_revenue_labels,   # shared x-axis labels
+            "monthly_revenue":       monthly_revenue_data,
+            "monthly_bookings":      monthly_bookings_data,
+            "monthly_customers":     monthly_customers_data,
+            "monthly_staff":         monthly_staff_data,
+            "branches_list":         branches_list,
+            "revenue_by_branch":     revenue_by_branch,
+            "queue_branches_list":   queue_branches_list,
+            "queue_by_branch":       queue_by_branch,
+            "daily_labels":          daily_labels,
+            "daily_bookings":        daily_bookings_data,
+            "bookings_status_labels": bookings_status_labels,
+            "bookings_by_status":    bookings_by_status,
+            "service_names":         service_names,
+            "service_counts":        service_counts,
         })
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Helpers
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def _months_ago(today, n):
+    """Return the first day of the month N months before today's month."""
+    month = today.month - n
+    year  = today.year + month // 12
+    month = month % 12 or 12
+    return today.replace(year=year, month=month, day=1)
 
 
-def models_min_qty():
-    """Returns a Q object reference — used inline above."""
-    from django.db.models import F
-    return F("minimum_qty")
+def _fill_months(queryset, value_key, today, count):
+    """
+    Build two parallel lists (labels, values) for the last `count` months,
+    filling 0 for months with no data.
+    """
+    from calendar import month_abbr
+
+    # Build lookup: "YYYY-MM" → value
+    lookup = {}
+    for row in queryset:
+        key = row["month"].strftime("%Y-%m")
+        lookup[key] = float(row[value_key] or 0)
+
+    labels = []
+    values = []
+    for i in range(count - 1, -1, -1):
+        # Walk backwards from this month
+        month = today.month - i
+        year  = today.year + (month - 1) // 12 if month <= 0 else today.year
+        month = month % 12 or 12
+        key   = f"{year}-{month:02d}"
+        labels.append(month_abbr[month])
+        values.append(lookup.get(key, 0))
+
+    return labels, values
+
+
+def _fill_days(queryset, today):
+    """
+    Build two parallel lists (labels, values) for the last 30 days,
+    filling 0 for days with no data.
+    """
+    lookup = {row["day"]: row["total"] for row in queryset}
+    labels = []
+    values = []
+    for i in range(29, -1, -1):
+        day = today - timedelta(days=i)
+        labels.append(str(day.day))
+        values.append(lookup.get(day, 0))
+    return labels, values
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 2. USER MANAGEMENT
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class SuperAdminUserListView(APIView):
-    """List all users with their role, status, and profile info."""
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def get(self, request):
@@ -110,7 +271,6 @@ class SuperAdminUserListView(APIView):
             "staff_profile", "customer_profile"
         ).order_by("-created_at")
 
-        # Optional filters
         role   = request.query_params.get("role")
         search = request.query_params.get("search")
 
@@ -164,7 +324,6 @@ class SuperAdminUserListView(APIView):
 
 
 class SuperAdminUserDetailView(APIView):
-    """Activate / deactivate / promote a user."""
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def get_object(self, pk):
@@ -210,22 +369,13 @@ class SuperAdminUserDetailView(APIView):
         return Response(data)
 
     def patch(self, request, pk):
-        """
-        Allowed fields:
-          is_active      → activate / deactivate account
-          staff_role     → change Staff role
-          staff_status   → change Staff status
-          staff_branch   → reassign branch (branch id)
-        """
         user = self.get_object(pk)
         if not user:
             return Response({"error": "User not found."}, status=404)
 
-        # Prevent Super Admin from deactivating themselves
         if user == request.user and request.data.get("is_active") is False:
             return Response(
-                {"error": "You cannot deactivate your own account."},
-                status=400,
+                {"error": "You cannot deactivate your own account."}, status=400
             )
 
         changed = []
@@ -236,7 +386,6 @@ class SuperAdminUserDetailView(APIView):
 
         user.save()
 
-        # Staff profile updates
         if hasattr(user, "staff_profile"):
             s = user.staff_profile
             if "staff_role" in request.data:
@@ -266,21 +415,19 @@ class SuperAdminUserDetailView(APIView):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 3. ROLE MANAGEMENT — list valid roles & bulk-reassign
+# 3. ROLE MANAGEMENT
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class SuperAdminRoleListView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def get(self, request):
         roles = [r[0] for r in Staff.ROLE_CHOICES]
-        breakdown = {
-            r: Staff.objects.filter(role=r).count() for r in roles
-        }
+        breakdown = {r: Staff.objects.filter(role=r).count() for r in roles}
         return Response({"roles": roles, "breakdown": breakdown})
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 4. SYSTEM REPORTS & MONITORING
+# 4. SYSTEM REPORTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class SuperAdminReportsView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
@@ -304,9 +451,9 @@ class SuperAdminReportsView(APIView):
         last_30 = today - timedelta(days=30)
         return Response({
             "period": "last_30_days",
-            "new_users":     User.objects.filter(created_at__date__gte=last_30).count(),
-            "new_bookings":  Booking.objects.filter(created_at__date__gte=last_30).count(),
-            "revenue":       float(
+            "new_users":      User.objects.filter(created_at__date__gte=last_30).count(),
+            "new_bookings":   Booking.objects.filter(created_at__date__gte=last_30).count(),
+            "revenue":        float(
                 Booking.objects.filter(
                     status="done", date__gte=last_30
                 ).aggregate(t=Sum("price"))["t"] or 0
@@ -317,7 +464,7 @@ class SuperAdminReportsView(APIView):
         })
 
     def _revenue_report(self, request):
-        days = int(request.query_params.get("days", 30))
+        days  = int(request.query_params.get("days", 30))
         since = timezone.now().date() - timedelta(days=days)
 
         by_branch = list(
@@ -328,7 +475,7 @@ class SuperAdminReportsView(APIView):
         )
         total = sum(b["revenue"] or 0 for b in by_branch)
         return Response({
-            "period_days": days,
+            "period_days":   days,
             "total_revenue": float(total),
             "by_branch": [
                 {**b, "revenue": float(b["revenue"] or 0)}
@@ -337,7 +484,7 @@ class SuperAdminReportsView(APIView):
         })
 
     def _bookings_report(self, request):
-        days = int(request.query_params.get("days", 30))
+        days  = int(request.query_params.get("days", 30))
         since = timezone.now().date() - timedelta(days=days)
 
         by_status = list(
@@ -352,48 +499,44 @@ class SuperAdminReportsView(APIView):
             .order_by("-count")[:10]
         )
         return Response({
-            "period_days": days,
-            "by_status":   by_status,
-            "top_services": by_service,
+            "period_days":   days,
+            "by_status":     by_status,
+            "top_services":  by_service,
         })
 
     def _staff_report(self):
-        staff_qs = Staff.objects.select_related("branch").all()
         data = []
-        for s in staff_qs:
-            bookings_handled = Booking.objects.filter(
-                branch=s.branch, status="done"
-            ).count()
+        for s in Staff.objects.select_related("branch").all():
+            bookings_handled = Booking.objects.filter(branch=s.branch, status="done").count()
             data.append({
-                "id":     s.id,
-                "name":   f"{s.first_name} {s.last_name}",
-                "role":   s.role,
-                "branch": s.branch.name if s.branch else s.branch_name,
-                "status": s.status,
+                "id":                 s.id,
+                "name":               f"{s.first_name} {s.last_name}",
+                "role":               s.role,
+                "branch":             s.branch.name if s.branch else s.branch_name,
+                "status":             s.status,
                 "bookings_in_branch": bookings_handled,
             })
         return Response(data)
 
     def _inventory_report(self):
-        from django.db.models import F
-        items = InventoryItem.objects.select_related("branch").filter(is_active=True)
+        items       = InventoryItem.objects.select_related("branch").filter(is_active=True)
         out_of_stock = items.filter(quantity=0)
         low_stock    = items.filter(quantity__gt=0, quantity__lte=F("minimum_qty"))
         return Response({
-            "total_items":    items.count(),
-            "out_of_stock":   out_of_stock.count(),
-            "low_stock":      low_stock.count(),
+            "total_items":      items.count(),
+            "out_of_stock":     out_of_stock.count(),
+            "low_stock":        low_stock.count(),
             "out_of_stock_list": list(
                 out_of_stock.values("id", "name", "branch__name", "quantity", "minimum_qty")
             ),
-            "low_stock_list": list(
+            "low_stock_list":   list(
                 low_stock.values("id", "name", "branch__name", "quantity", "minimum_qty")
             ),
         })
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 5. ACTIVITY LOG (Notification table as audit trail)
+# 5. ACTIVITY LOG
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class SuperAdminActivityLogView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
@@ -401,7 +544,6 @@ class SuperAdminActivityLogView(APIView):
     def get(self, request):
         logs = Notification.objects.select_related("user").order_by("-created_at")
 
-        # Filters
         user_id = request.query_params.get("user_id")
         ntype   = request.query_params.get("type")
         days    = request.query_params.get("days")
@@ -412,10 +554,9 @@ class SuperAdminActivityLogView(APIView):
             logs = logs.filter(notification_type=ntype)
         if days:
             since = timezone.now() - timedelta(days=int(days))
-            logs = logs.filter(created_at__gte=since)
+            logs  = logs.filter(created_at__gte=since)
 
-        logs = logs[:200]   # cap at 200 entries
-
+        logs = logs[:200]
         data = [
             {
                 "id":         n.id,
@@ -432,7 +573,7 @@ class SuperAdminActivityLogView(APIView):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 6. SYSTEM-WIDE BRANCH OVERVIEW
+# 6. BRANCH OVERVIEW
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class SuperAdminBranchOverviewView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
@@ -448,7 +589,6 @@ class SuperAdminBranchOverviewView(APIView):
             revenue = Booking.objects.filter(
                 branch=b, status="done"
             ).aggregate(t=Sum("price"))["t"] or 0
-
             data.append({
                 "id":            b.id,
                 "name":          b.name,
@@ -465,19 +605,12 @@ class SuperAdminBranchOverviewView(APIView):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 7. BROADCAST NOTIFICATION (push to any/all users)
+# 7. BROADCAST NOTIFICATION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class SuperAdminBroadcastView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def post(self, request):
-        """
-        Body:
-          title       : str  (required)
-          message     : str  (required)
-          target      : "all" | "staff" | "customers" | "branch"  (default: "all")
-          branch_id   : int  (required if target == "branch")
-        """
         title   = request.data.get("title", "").strip()
         message = request.data.get("message", "").strip()
         target  = request.data.get("target", "all")
@@ -498,12 +631,7 @@ class SuperAdminBroadcastView(APIView):
             users = users.filter(staff_profile__branch_id=branch_id)
 
         notifications = [
-            Notification(
-                user=u,
-                title=title,
-                message=message,
-                notification_type="broadcast",
-            )
+            Notification(user=u, title=title, message=message, notification_type="broadcast")
             for u in users
         ]
         Notification.objects.bulk_create(notifications)
@@ -515,13 +643,9 @@ class SuperAdminBroadcastView(APIView):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 8. CREATE SUPER ADMIN ACCOUNT
+# 8. CREATE SUPER ADMIN
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class SuperAdminCreateView(APIView):
-    """
-    Only an existing Super Admin can create another Super Admin.
-    POST body: email, password, first_name, last_name, phone
-    """
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def post(self, request):
@@ -547,7 +671,6 @@ class SuperAdminCreateView(APIView):
             is_superuser=True,
             email_verified=True,
         )
-
         Staff.objects.create(
             user=user,
             first_name=first_name,
