@@ -179,7 +179,7 @@ REST_FRAMEWORK = {
 AUTH_USER_MODEL = "api.User"
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "TOKEN_OBTAIN_SERIALIZER": "api.serializers.token_serializer.CustomTokenObtainPairSerializer",
 
