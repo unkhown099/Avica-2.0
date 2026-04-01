@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import CustomerLayout from "./CustomerLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
@@ -553,6 +559,26 @@ function DamageDetectionModal({ onClose, onBack }) {
   const [uploading, setUploading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [error, setError] = useState("");
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const canvasRefs = useRef({});
+
+  const SEVERITY_COLORS = {
+    Minor: {
+      stroke: "#facc15",
+      fill: "rgba(250,204,21,0.15)",
+      label: "bg-yellow-600/20 text-yellow-400",
+    },
+    Moderate: {
+      stroke: "#f97316",
+      fill: "rgba(249,115,22,0.15)",
+      label: "bg-orange-600/20 text-orange-400",
+    },
+    Severe: {
+      stroke: "#ef4444",
+      fill: "rgba(239,68,68,0.15)",
+      label: "bg-red-600/20 text-red-400",
+    },
+  };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -566,6 +592,7 @@ function DamageDetectionModal({ onClose, onBack }) {
     ]);
     setError("");
   };
+
   const removeImage = (index) => {
     setImages((prev) => {
       const n = [...prev];
@@ -573,7 +600,93 @@ function DamageDetectionModal({ onClose, onBack }) {
       n.splice(index, 1);
       return n;
     });
+    if (activeImageIndex >= images.length - 1) setActiveImageIndex(0);
   };
+
+  // Draw bounding boxes on canvas after image loads
+  const drawAnnotations = useCallback((canvas, imgElement, damages) => {
+    if (!canvas || !imgElement) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width = imgElement.naturalWidth || imgElement.width;
+    canvas.height = imgElement.naturalHeight || imgElement.height;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    damages.forEach((dmg, i) => {
+      const bb = dmg.boundingBox;
+      if (!bb) return;
+
+      const x = bb.x * canvas.width;
+      const y = bb.y * canvas.height;
+      const w = bb.width * canvas.width;
+      const h = bb.height * canvas.height;
+
+      const colors = SEVERITY_COLORS[dmg.severity] || SEVERITY_COLORS.Minor;
+
+      // Fill
+      ctx.fillStyle = colors.fill;
+      ctx.fillRect(x, y, w, h);
+
+      // Border
+      ctx.strokeStyle = colors.stroke;
+      ctx.lineWidth = Math.max(2, canvas.width * 0.003);
+      ctx.strokeRect(x, y, w, h);
+
+      // Corner accents
+      const cs = Math.min(w, h) * 0.2;
+      ctx.lineWidth = Math.max(3, canvas.width * 0.004);
+      [
+        [x, y, cs, 0, 0, cs],
+        [x + w, y, -cs, 0, 0, cs],
+        [x, y + h, cs, 0, 0, -cs],
+        [x + w, y + h, -cs, 0, 0, -cs],
+      ].forEach(([sx, sy, dx1, dy1, dx2, dy2]) => {
+        ctx.beginPath();
+        ctx.moveTo(sx + dx1, sy + dy1);
+        ctx.lineTo(sx, sy);
+        ctx.lineTo(sx + dx2, sy + dy2);
+        ctx.stroke();
+      });
+
+      // Label badge
+      const label = `#${i + 1} ${dmg.type}`;
+      const fontSize = Math.max(11, canvas.width * 0.018);
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      const textW = ctx.measureText(label).width;
+      const padX = fontSize * 0.6;
+      const padY = fontSize * 0.4;
+      const badgeH = fontSize + padY * 2;
+      const badgeW = textW + padX * 2;
+      const badgeX = x;
+      const badgeY = y - badgeH - 4 < 0 ? y + 4 : y - badgeH - 4;
+
+      // Badge background
+      ctx.fillStyle = colors.stroke;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+      ctx.fill();
+
+      // Badge text
+      ctx.fillStyle = "#000";
+      ctx.fillText(label, badgeX + padX, badgeY + padY + fontSize * 0.85);
+    });
+  }, []);
+
+  // Re-draw whenever active image or results change
+  useEffect(() => {
+    if (!analysisResult) return;
+    const damages = analysisResult.damages || [];
+    const canvas = canvasRefs.current[activeImageIndex];
+    const img = document.getElementById(`damage-preview-${activeImageIndex}`);
+    if (!canvas || !img) return;
+
+    if (img.complete) {
+      drawAnnotations(canvas, img, damages);
+    } else {
+      img.onload = () => drawAnnotations(canvas, img, damages);
+    }
+  }, [analysisResult, activeImageIndex, drawAnnotations]);
+
   const analyzeDamage = async () => {
     if (images.length === 0) {
       setError("Please upload at least one image");
@@ -610,6 +723,7 @@ function DamageDetectionModal({ onClose, onBack }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Analysis failed");
       setAnalysisResult(data);
+      setActiveImageIndex(0);
     } catch (err) {
       console.error(err);
       setError("Failed to analyze images. Please try again.");
@@ -626,8 +740,10 @@ function DamageDetectionModal({ onClose, onBack }) {
         subtitle="Upload photos for AI analysis"
         onClose={onClose}
       />
+
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
         {!analysisResult ? (
+          /* ── Upload state ── */
           <>
             <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
               Upload Vehicle Photos
@@ -666,6 +782,7 @@ function DamageDetectionModal({ onClose, onBack }) {
                 JPG, PNG, HEIC — max 10MB each
               </p>
             </div>
+
             {images.length > 0 && (
               <div className="mb-4 sm:mb-6">
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
@@ -702,6 +819,7 @@ function DamageDetectionModal({ onClose, onBack }) {
                 </div>
               </div>
             )}
+
             <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                 Tips for best results
@@ -722,8 +840,10 @@ function DamageDetectionModal({ onClose, onBack }) {
             </div>
           </>
         ) : (
-          <div>
-            <div className="flex items-center gap-2 sm:gap-3 mb-4">
+          /* ── Results state ── */
+          <div className="space-y-4">
+            {/* Success header */}
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-green-600/20 flex items-center justify-center">
                 <svg
                   className="w-4 h-4 sm:w-6 sm:h-6 text-green-500"
@@ -745,43 +865,191 @@ function DamageDetectionModal({ onClose, onBack }) {
                 </p>
                 <p className="text-gray-500 text-[10px] sm:text-xs">
                   Confidence: {(analysisResult.confidence * 100).toFixed(0)}%
+                  {analysisResult.damages?.some((d) => d.boundingBox) && (
+                    <span className="ml-2 text-red-400">
+                      · Damage locations marked on photo
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
-            <div className="space-y-2 mb-4">
+
+            {/* ── Annotated image viewer ── */}
+            {images.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
+                  Annotated Photo{images.length > 1 ? "s" : ""}
+                </p>
+
+                {/* Image tabs if multiple */}
+                {images.length > 1 && (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {images.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveImageIndex(i)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                          activeImageIndex === i
+                            ? "bg-red-600 border-red-500 text-white"
+                            : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        Photo {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Canvas overlay on image */}
+                <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black">
+                  <img
+                    id={`damage-preview-${activeImageIndex}`}
+                    src={images[activeImageIndex]?.preview}
+                    alt="Annotated vehicle"
+                    className="w-full block"
+                    onLoad={(e) => {
+                      const canvas = canvasRefs.current[activeImageIndex];
+                      drawAnnotations(
+                        canvas,
+                        e.target,
+                        analysisResult.damages || [],
+                      );
+                    }}
+                  />
+                  <canvas
+                    ref={(el) => {
+                      canvasRefs.current[activeImageIndex] = el;
+                    }}
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                    style={{ mixBlendMode: "normal" }}
+                  />
+                  {/* Legend overlay */}
+                  {analysisResult.damages?.some((d) => d.boundingBox) && (
+                    <div className="absolute bottom-2 left-2 flex flex-col gap-1">
+                      {["Minor", "Moderate", "Severe"].map((sev) => {
+                        const has = analysisResult.damages.some(
+                          (d) => d.severity === sev && d.boundingBox,
+                        );
+                        if (!has) return null;
+                        const c = SEVERITY_COLORS[sev];
+                        return (
+                          <div
+                            key={sev}
+                            className="flex items-center gap-1 bg-black/70 rounded px-1.5 py-0.5"
+                          >
+                            <div
+                              className="w-2.5 h-2.5 rounded-sm border"
+                              style={{
+                                borderColor: c.stroke,
+                                backgroundColor: c.fill,
+                              }}
+                            />
+                            <span className="text-[9px] text-white font-medium">
+                              {sev}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* No boxes notice */}
+                {!analysisResult.damages?.some((d) => d.boundingBox) &&
+                  analysisResult.damages?.length > 0 && (
+                    <p className="text-gray-600 text-[10px] text-center">
+                      AI could not precisely localize damages in this photo. See
+                      descriptions below.
+                    </p>
+                  )}
+              </div>
+            )}
+
+            {/* Damage list */}
+            <div className="space-y-2">
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
                 Detected Damages
               </p>
-              {analysisResult.damages.map((d, i) => (
-                <div
-                  key={i}
-                  className="bg-white/4 rounded-xl p-3 border border-white/8"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-white font-semibold text-xs sm:text-sm">
-                      {d.type}
-                    </span>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full ${d.severity === "Minor" ? "bg-yellow-600/20 text-yellow-400" : d.severity === "Moderate" ? "bg-orange-600/20 text-orange-400" : "bg-red-600/20 text-red-400"}`}
+              {analysisResult.damages?.length === 0 ? (
+                <p className="text-gray-500 text-xs">No damage detected.</p>
+              ) : (
+                analysisResult.damages.map((d, i) => (
+                  <div
+                    key={i}
+                    className="bg-white/4 rounded-xl p-3 border border-white/8 flex items-start gap-3"
+                  >
+                    {/* Number badge matching canvas color */}
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-black shrink-0 mt-0.5"
+                      style={{
+                        backgroundColor:
+                          SEVERITY_COLORS[d.severity]?.stroke ?? "#facc15",
+                      }}
                     >
-                      {d.severity}
-                    </span>
+                      {i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-white font-semibold text-xs sm:text-sm">
+                          {d.type}
+                        </span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full ${SEVERITY_COLORS[d.severity]?.label ?? "bg-gray-600/20 text-gray-400"}`}
+                        >
+                          {d.severity}
+                        </span>
+                      </div>
+                      <p className="text-gray-400 text-[10px] sm:text-xs">
+                        📍 {d.location}
+                      </p>
+                      <p className="text-gray-500 text-[9px] sm:text-[10px]">
+                        Confidence: {(d.confidence * 100).toFixed(0)}%
+                        {d.boundingBox ? " · Marked on photo" : ""}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-gray-400 text-[10px] sm:text-xs">
-                    Location: {d.location}
-                  </p>
-                  <p className="text-gray-500 text-[9px] sm:text-[10px]">
-                    Confidence: {(d.confidence * 100).toFixed(0)}%
-                  </p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
-            <div className="mb-4">
+
+            {/* Matched services */}
+            {analysisResult.matchedServices?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
+                  Recommended Services
+                </p>
+                {analysisResult.matchedServices.map((svc) => (
+                  <div
+                    key={svc.id}
+                    className="bg-red-600/8 border border-red-600/20 rounded-xl p-3 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-white font-semibold text-xs sm:text-sm truncate">
+                        {svc.name}
+                      </p>
+                      <p className="text-gray-500 text-[10px]">
+                        {svc.category}
+                      </p>
+                    </div>
+                    <div className="text-red-400 font-black text-sm shrink-0">
+                      ₱{parseFloat(svc.price).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+                <p className="text-gray-600 text-[9px]">
+                  These services will be pre-selected when you proceed to
+                  booking.
+                </p>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            <div>
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                 Recommendations
               </p>
               <ul className="space-y-1.5">
-                {analysisResult.recommendations.map((r, i) => (
+                {analysisResult.recommendations?.map((r, i) => (
                   <li
                     key={i}
                     className="flex items-start gap-1.5 text-gray-300"
@@ -792,6 +1060,8 @@ function DamageDetectionModal({ onClose, onBack }) {
                 ))}
               </ul>
             </div>
+
+            {/* Cost estimate */}
             <div className="bg-red-600/10 rounded-xl p-3 sm:p-4 border border-red-600/20">
               <p className="text-gray-400 text-[10px] sm:text-xs mb-1">
                 Estimated Repair Cost
@@ -805,6 +1075,7 @@ function DamageDetectionModal({ onClose, onBack }) {
             </div>
           </div>
         )}
+
         {error && (
           <div className="mt-3 flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-3 py-2.5 text-red-400 text-[10px] sm:text-xs">
             <svg
@@ -824,10 +1095,12 @@ function DamageDetectionModal({ onClose, onBack }) {
           </div>
         )}
       </div>
+
+      {/* Footer */}
       <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
         <button
           onClick={onClose}
-          className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 font-semibold text-xs sm:text-sm transition-all duration-200"
+          className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 font-semibold text-xs sm:text-sm transition-all duration-200"
         >
           Cancel
         </button>
@@ -901,8 +1174,9 @@ function NewBookingModal({
   initialServiceId = null,
 }) {
   const [step, setStep] = useState(0);
+  const damageServicesSynced = useRef(false);
   const [form, setForm] = useState({
-    services: [],
+    services: initialDamageData?.matchedServices ?? [],
     branch: null,
     date: "",
     time: "",
@@ -1034,6 +1308,25 @@ function NewBookingModal({
     setStep((prev) => (prev < 1 ? 1 : prev));
   }, [initialServiceId, services]);
 
+  // ── Sync matchedServices from damage analysis once full service list loads ──
+  useEffect(() => {
+    if (damageServicesSynced.current) return; // ← only run once
+    if (!initialDamageData?.matchedServices?.length || services.length === 0)
+      return;
+
+    const fullyHydrated = initialDamageData.matchedServices
+      .map((dmgSvc) => services.find((s) => s.id === dmgSvc.id) ?? dmgSvc)
+      .filter(Boolean);
+
+    if (fullyHydrated.length === 0) return;
+
+    damageServicesSynced.current = true;
+    setForm((prev) => ({
+      ...prev,
+      services: fullyHydrated,
+    }));
+  }, [initialDamageData, services]);
+
   useEffect(() => {
     setCategoriesLoading(true);
     fetch(`${import.meta.env.VITE_API_BASE_URL}/services/categories/`, {
@@ -1144,7 +1437,7 @@ function NewBookingModal({
     );
   }, [branches, form.services]);
 
-      useEffect(() => {
+  useEffect(() => {
     if (!form.branch || !form.services || form.services.length === 0) return;
     const stillAvailable = availableBranchesForSelectedServices.some(
       (b) => b.id === form.branch.id,
@@ -1159,8 +1452,6 @@ function NewBookingModal({
     form.services,
     bookingMode,
   ]);
-
-
 
   useEffect(() => {
     if (selectedCategory === "all") return;

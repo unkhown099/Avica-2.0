@@ -169,7 +169,7 @@ function CustomerDashboard() {
                 Welcome back,&nbsp;{displayFirst}!
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-gray-400">
-                Ready to keep your car looking its best?
+                Ready to keep your vehicle looking its best?
               </p>
             </div>
 
@@ -321,7 +321,7 @@ function CustomerDashboard() {
         {/* ── Car AI Analysis ── */}
         <div className="mb-8 sm:mb-10 md:mb-12">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-black text-white">Car AI Analysis</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-white">Vehicle AI Analysis</h2>
             <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 bg-red-500/10 rounded-full border border-red-500/30">
               <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full animate-pulse" />
               <span className="text-[10px] sm:text-xs font-bold text-red-400 uppercase tracking-widest">Powered by AI</span>
@@ -340,18 +340,18 @@ function CustomerDashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg sm:text-xl font-black text-white mb-2">Identify Your Car</h3>
+                  <h3 className="text-lg sm:text-xl font-black text-white mb-2">Identify Your Vehicle</h3>
                   <p className="text-xs sm:text-sm text-gray-400 mb-6 sm:mb-8 max-w-xs">
                     Upload a photo of your vehicle for AI-powered identification and analysis
                   </p>
                   <label className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl cursor-pointer transition-all duration-200 shadow-lg shadow-red-600/30 text-sm sm:text-base">
-                    Upload Car Photo
+                    Upload Vehicle Photo
                     <input type="file" className="hidden" accept="image/*" onChange={handleCarImageUpload} />
                   </label>
                 </>
               ) : (
                 <div className="w-full h-full relative group/preview">
-                  <img src={previewImage} alt="Car preview" className="w-full h-48 sm:h-64 object-cover rounded-xl border border-white/10" />
+                  <img src={previewImage} alt="Vehicle preview" className="w-full h-48 sm:h-64 object-cover rounded-xl border border-white/10" />
                   {isAnalyzing && (
                     <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-3 sm:mb-4" />
