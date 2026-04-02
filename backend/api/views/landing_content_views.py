@@ -78,6 +78,23 @@ DEFAULT_CONTENT = {
         {"name": "Otokwikk - South Caloocan",  "url": "https://www.facebook.com/profile.php?id=61572528405228"},
         {"name": "Otokwikk - San Mateo Rizal", "url": "https://www.facebook.com/profile.php?id=61556323569842"},
     ],
+    "posts": [
+        {
+            "key": "terms",
+            "title": "Terms & Conditions",
+            "body": "Use of the Otokwikk platform constitutes acceptance of our terms and conditions. Customers must agree to our policies before booking services.",
+        },
+        {
+            "key": "privacy",
+            "title": "Privacy Policy",
+            "body": "We collect information to improve your experience, process bookings, and maintain secure operations. Personal data is never sold to third parties.",
+        },
+        {
+            "key": "cookie",
+            "title": "Cookie Policy",
+            "body": "We use cookies to keep you signed in, remember your preferences, and optimize performance across the Otokwikk platform.",
+        },
+    ],
     "footer": {
         "tagline": "Empowering car owners with precision care and premium detailing that protects every drive.",
         "copyright": "Copyright © 2026, otokwikk. All Rights Reserved.",
@@ -176,7 +193,7 @@ class LandingContentAdminView(APIView):
                 status=400,
             )
 
-        required_keys = {"hero", "services", "branches", "reviews", "fbPages", "footer"}
+        required_keys = {"hero", "services", "branches", "reviews", "fbPages", "posts", "footer"}
         missing = required_keys - set(content.keys())
         if missing:
             return Response(

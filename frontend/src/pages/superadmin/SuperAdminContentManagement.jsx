@@ -46,6 +46,23 @@ const EMPTY_CONTENT = {
   branches: [],
   reviews: [],
   fbPages: [],
+  posts: [
+    {
+      key: "terms",
+      title: "Terms & Conditions",
+      body: "Use of the Otokwikk platform constitutes acceptance of our terms and conditions. Customers must agree to our policies before booking services.",
+    },
+    {
+      key: "privacy",
+      title: "Privacy Policy",
+      body: "We collect information to improve your experience, process bookings, and maintain secure operations. Personal data is never sold to third parties.",
+    },
+    {
+      key: "cookie",
+      title: "Cookie Policy",
+      body: "We use cookies to keep you signed in, remember your preferences, and optimize performance across the Otokwikk platform.",
+    },
+  ],
   footer: {
     tagline: "",
     copyright: "",
@@ -681,6 +698,262 @@ function FooterEditor({ data, onChange }) {
   );
 }
 
+function PostsEditor() {
+  const [content, setContent] = useState(null);
+  const [status, setStatus] = useState("loading");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [lastSaved, setLastSaved] = useState(null);
+
+  useEffect(() => {
+    fetchContentFromAPI()
+      .then((c) => {
+        setContent(c);
+        setStatus("idle");
+      })
+      .catch(() => {
+        setContent(EMPTY_CONTENT);
+        setErrorMsg(
+          "Could not reach server — showing empty content. Changes will save to DB when connection is restored.",
+        );
+        setStatus("error");
+      });
+  }, []);
+
+  const updatePost = (index, key) => (value) => {
+    setContent((prev) => {
+      const posts = Array.isArray(prev.posts) ? [...prev.posts] : [];
+      posts[index] = { ...posts[index], [key]: value };
+      return { ...prev, posts };
+    });
+    setStatus("idle");
+  };
+
+  const addPost = () => {
+    setContent((prev) => {
+      const posts = Array.isArray(prev.posts) ? [...prev.posts] : [];
+      posts.push({
+        key: `post-${Date.now()}`,
+        title: "New Post",
+        body: "Write the content here.",
+      });
+      return { ...prev, posts };
+    });
+    setStatus("idle");
+  };
+
+  const removePost = (index) => {
+    setContent((prev) => {
+      const posts = Array.isArray(prev.posts)
+        ? prev.posts.filter((_, i) => i !== index)
+        : [];
+      return { ...prev, posts };
+    });
+    setStatus("idle");
+  };
+
+  const handleSave = async () => {
+    setStatus("saving");
+    try {
+      const result = await saveContentToAPI(content);
+      setLastSaved(
+        result.updated_at ? new Date(result.updated_at) : new Date(),
+      );
+      setStatus("saved");
+    } catch {
+      setErrorMsg("Save failed. Check your connection and try again.");
+      setStatus("error");
+    }
+  };
+
+  const handleReset = async () => {
+    if (
+      !window.confirm("Reset all content to defaults? This cannot be undone.")
+    )
+      return;
+    setStatus("saving");
+    try {
+      const result = await apiFetch("/super-admin/landing-content/", {
+        method: "DELETE",
+      });
+      setContent(result.content);
+      setLastSaved(
+        result.updated_at ? new Date(result.updated_at) : new Date(),
+      );
+      setStatus("saved");
+    } catch {
+      setErrorMsg("Reset failed — content could not be reset on the server.");
+      setStatus("error");
+    }
+  };
+
+  if (status === "loading" || !content) {
+    return (
+      <div className="flex items-center justify-center h-48 gap-3 text-gray-500 text-sm">
+        <svg
+          className="w-4 h-4 animate-spin text-red-500"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8H4z"
+          />
+        </svg>
+        Loading editable posts…
+      </div>
+    );
+  }
+
+  const posts = Array.isArray(content.posts) ? content.posts : [];
+
+  return (
+    <div>
+      <div className="sticky top-0 z-20 rounded-2xl border border-white/10 bg-gray-900/95 backdrop-blur px-5 py-3 flex items-center justify-between gap-3 mb-6">
+        <span className="text-xs font-medium min-w-0">
+          {status === "saved" && (
+            <span className="text-green-400 flex items-center gap-1.5">
+              <svg
+                className="w-3.5 h-3.5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              Saved to database
+              {lastSaved && (
+                <span className="text-gray-500 font-normal ml-1">
+                  · {lastSaved.toLocaleTimeString()}
+                </span>
+              )}
+            </span>
+          )}
+          {status === "saving" && (
+            <span className="text-yellow-400 flex items-center gap-1.5">
+              <svg
+                className="w-3.5 h-3.5 animate-spin flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8H4z"
+                />
+              </svg>
+              Saving to database…
+            </span>
+          )}
+          {status === "error" && (
+            <span className="text-red-400 flex items-center gap-1.5 truncate">
+              <svg
+                className="w-3.5 h-3.5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span className="truncate">{errorMsg}</span>
+            </span>
+          )}
+          {status === "idle" && (
+            <span className="text-gray-500">Unsaved changes</span>
+          )}
+        </span>
+        <div className="flex gap-2 flex-shrink-0">
+          <button
+            onClick={handleReset}
+            disabled={status === "saving"}
+            className="rounded-xl px-4 py-2 text-xs font-bold bg-white/5 text-gray-400 hover:bg-white/10 transition-colors disabled:opacity-40"
+          >
+            Reset Defaults
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={status === "saving"}
+            className="rounded-xl px-5 py-2 text-xs font-black bg-red-600 text-white hover:bg-red-700 transition-colors shadow-lg shadow-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {status === "saving" ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <Card title="Editable posts" accent>
+          <p className="text-sm text-gray-300">
+            Edit the Terms & Conditions, Privacy Policy, Cookie Policy, or add new post content that can be published later.
+          </p>
+        </Card>
+
+        {posts.map((post, index) => (
+          <Card key={post.key || index} title={post.title || `Post ${index + 1}`}>
+            <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+              <Field
+                label="Post Title"
+                value={post.title || ""}
+                onChange={updatePost(index, "title")}
+              />
+              <Field
+                label="Post Key"
+                value={post.key || ""}
+                onChange={updatePost(index, "key")}
+                placeholder="Unique internal key"
+              />
+            </div>
+            <Field
+              label="Content"
+              value={post.body || ""}
+              onChange={updatePost(index, "body")}
+              textarea
+            />
+            <button
+              onClick={() => removePost(index)}
+              className="text-xs text-red-500 hover:text-red-400 font-bold"
+            >
+              — Remove post
+            </button>
+          </Card>
+        ))}
+
+        <button
+          onClick={addPost}
+          className="w-full rounded-xl border border-dashed border-white/20 py-3 text-xs font-bold text-gray-500 hover:text-white hover:border-white/40 transition-colors"
+        >
+          + Add Post
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Pages section (the full landing editor) ──────────────────────────────────
 const PAGE_TABS = [
   { key: "hero", label: "Hero" },
@@ -1138,39 +1411,7 @@ function MediaLibrary() {
 function SectionContent({ sectionKey }) {
   switch (sectionKey) {
     case "posts":
-      return (
-        <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 space-y-4">
-          <div className="text-sm text-gray-400">
-            A list of your latest posts and draft content.
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {[
-              { title: "Spring Salon Guide", status: "Published" },
-              { title: "New Service Rollout", status: "Draft" },
-              { title: "Membership Benefits", status: "Published" },
-              { title: "Holiday Hours", status: "Pending Review" },
-            ].map((post) => (
-              <div
-                key={post.title}
-                className="rounded-2xl border border-white/10 bg-gray-950 p-4"
-              >
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="text-sm font-semibold text-white">
-                    {post.title}
-                  </div>
-                  <span className="text-xs uppercase tracking-wide text-gray-400">
-                    {post.status}
-                  </span>
-                </div>
-                <div className="text-xs text-gray-500">
-                  Edit and publish content directly from this section once your
-                  backend is wired up.
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
+      return <PostsEditor />;
     case "media":
       return <MediaLibrary />;
     case "approvals":
