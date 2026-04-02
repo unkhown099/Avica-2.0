@@ -300,7 +300,7 @@ function Layout() {
         <Route
           path="/admin/branches"
           element={
-            <ProtectedRoute allowedRoles={["admin"]}>
+            <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
               <AdminBranches />
             </ProtectedRoute>
           }

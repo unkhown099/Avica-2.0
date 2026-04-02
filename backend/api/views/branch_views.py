@@ -2,7 +2,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 
 from api.models import Branch
 from api.serializers.branch_serializer import BranchSerializer
@@ -12,7 +12,7 @@ class BranchListCreateView(APIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [IsAuthenticated()]
+            return [AllowAny()]
         return [IsAdminUser()]
 
     def get(self, request):

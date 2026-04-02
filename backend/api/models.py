@@ -83,6 +83,10 @@ class Branch(models.Model):
     name      = models.CharField(max_length=100)
     address   = models.CharField(max_length=200)
     hours     = models.CharField(max_length=100)
+    phone     = models.CharField(max_length=20, blank=True, default="")
+    fb_url    = models.URLField(max_length=500, blank=True, default="")
+    latitude  = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     slots     = models.PositiveIntegerField(default=5)
     is_active = models.BooleanField(default=True)
 

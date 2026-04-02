@@ -21,6 +21,10 @@ const EMPTY_FORM = {
   name: "",
   address: "",
   hours: "",
+  phone: "",
+  fb_url: "",
+  latitude: "",
+  longitude: "",
   slots: 5,
   is_active: true,
 };
@@ -30,12 +34,16 @@ function BranchModal({ onClose, onSaved, editBranch }) {
   const [form, setForm] = useState(
     isEdit
       ? {
-          name: editBranch.name,
-          address: editBranch.address,
-          hours: editBranch.hours,
-          slots: editBranch.slots,
-          is_active: editBranch.is_active,
-        }
+        name: editBranch.name || "",
+        address: editBranch.address || "",
+        hours: editBranch.hours || "",
+        phone: editBranch.phone || "",
+        fb_url: editBranch.fb_url || "",
+        latitude: editBranch.latitude || "",
+        longitude: editBranch.longitude || "",
+        slots: editBranch.slots || 5,
+        is_active: editBranch.is_active ?? true,
+      }
       : EMPTY_FORM,
   );
   const [saving, setSaving] = useState(false);
@@ -51,7 +59,12 @@ function BranchModal({ onClose, onSaved, editBranch }) {
     setSaving(true);
     setError(null);
     try {
-      const payload = { ...form, slots: Number(form.slots) };
+      const payload = {
+        ...form,
+        slots: Number(form.slots),
+        latitude: form.latitude ? parseFloat(form.latitude) : null,
+        longitude: form.longitude ? parseFloat(form.longitude) : null,
+      };
       if (isEdit)
         await axios.patch(`${API}/branches/${editBranch.id}/`, payload, {
           headers: authHeaders(),
@@ -74,8 +87,8 @@ function BranchModal({ onClose, onSaved, editBranch }) {
     } catch (err) {
       setError(
         err.response?.data?.detail ??
-          JSON.stringify(err.response?.data) ??
-          err.message,
+        JSON.stringify(err.response?.data) ??
+        err.message,
       );
     } finally {
       setSaving(false);
@@ -91,14 +104,14 @@ function BranchModal({ onClose, onSaved, editBranch }) {
       }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full sm:max-w-md bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div className="w-full sm:max-w-lg bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/10 sticky top-0 bg-gray-900 z-10">
           <div>
             <h2 className="text-lg font-black text-white">
               {isEdit ? "Edit Branch" : "Create New Branch"}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Stats populate automatically from records
+              Fill in all details including location for the landing page map
             </p>
           </div>
           <button
@@ -128,110 +141,112 @@ function BranchModal({ onClose, onSaved, editBranch }) {
             </div>
           )}
 
-          {[
-            {
-              label: "Branch Name",
-              name: "name",
-              placeholder: "e.g. San Mateo Rizal",
-            },
-            {
-              label: "Address",
-              name: "address",
-              placeholder: "e.g. 123 Main St, San Mateo, Rizal",
-            },
-            {
-              label: "Operating Hours",
-              name: "hours",
-              placeholder: "e.g. Mon–Sat 8:00 AM – 6:00 PM",
-            },
-          ].map(({ label, name, placeholder }) => (
-            <div key={name}>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5">
-                {label}
-              </label>
-              <input
-                name={name}
-                value={form[name]}
-                onChange={handle}
-                required
-                placeholder={placeholder}
-                className={inputCls}
-              />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1.5">Branch Name</label>
+              <input name="name" value={form.name} onChange={handle} required placeholder="e.g. San Mateo Rizal" className={inputCls} />
             </div>
-          ))}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1.5">Operating Hours</label>
+              <input name="hours" value={form.hours} onChange={handle} required placeholder="e.g. 8:00 AM - 7:00 PM" className={inputCls} />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 mb-1.5">Full Address</label>
+            <input name="address" value={form.address} onChange={handle} required placeholder="e.g. 123 Main St, Caloocan, Metro Manila" className={inputCls} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1.5">Phone Number</label>
+              <input name="phone" value={form.phone} onChange={handle} placeholder="e.g. +63 9XX XXX XXXX" className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1.5">Facebook URL</label>
+              <input name="fb_url" value={form.fb_url} onChange={handle} placeholder="https://facebook.com/..." className={inputCls} />
+            </div>
+          </div>
+
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-4">
+            <h4 className="text-xs font-black text-red-500 uppercase tracking-widest">Map Configuration</h4>
+
+            {/* Mini Map Picker */}
+            <div className="relative rounded-xl overflow-hidden border border-white/10 h-48 bg-gray-950">
+              <div
+                id="modal-map-picker"
+                className="w-full h-full z-0 cursor-crosshair"
+                ref={(el) => {
+                  if (el && !el._leaflet_id) {
+                    const lat = parseFloat(form.latitude) || 14.65;
+                    const lng = parseFloat(form.longitude) || 121.05;
+
+                    const mmap = window.L.map(el, {
+                      center: [lat, lng],
+                      zoom: 12,
+                      zoomControl: false
+                    });
+
+                    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png', {
+                      attribution: '&copy; CARTO'
+                    }).addTo(mmap);
+
+                    let marker = null;
+                    if (form.latitude && form.longitude) {
+                      marker = window.L.marker([lat, lng]).addTo(mmap);
+                    }
+
+                    mmap.on('click', (e) => {
+                      const { lat, lng } = e.latlng;
+                      setForm(f => ({ ...f, latitude: lat.toFixed(7), longitude: lng.toFixed(7) }));
+                      if (marker) marker.setLatLng(e.latlng);
+                      else marker = window.L.marker(e.latlng).addTo(mmap);
+                    });
+
+                    // Store map instance if needed, but here simple is better
+                    el._map = mmap;
+                  }
+                }}
+              />
+              <div className="absolute top-2 left-2 z-10 pointer-events-none bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                Click map to pick location
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1">Latitude</label>
+                <input name="latitude" type="number" step="0.0000001" value={form.latitude} onChange={handle} placeholder="14.752" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1">Longitude</label>
+                <input name="longitude" type="number" step="0.0000001" value={form.longitude} onChange={handle} placeholder="121.023" className={inputCls} />
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5">
-                Service Slots
-              </label>
-              <input
-                name="slots"
-                type="number"
-                min={1}
-                value={form.slots}
-                onChange={handle}
-                required
-                className={inputCls}
-              />
+              <label className="block text-xs font-semibold text-gray-400 mb-1.5">Service Slots</label>
+              <input name="slots" type="number" min={1} value={form.slots} onChange={handle} required className={inputCls} />
             </div>
             <div className="flex flex-col justify-end pb-0.5">
-              <label
-                className="flex items-center gap-3 cursor-pointer bg-white/5 border border-white/10 rounded-xl px-4 py-2.5"
-                onClick={() =>
-                  setForm((f) => ({ ...f, is_active: !f.is_active }))
-                }
-              >
+              <label className="flex items-center gap-3 cursor-pointer bg-white/5 border border-white/10 rounded-xl px-4 py-2.5"
+                onClick={() => setForm((f) => ({ ...f, is_active: !f.is_active }))}>
                 <div className="relative shrink-0">
-                  <div
-                    className={`w-9 h-5 rounded-full transition-all ${form.is_active ? "bg-emerald-500" : "bg-gray-700"}`}
-                  />
-                  <div
-                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${form.is_active ? "left-4" : "left-0.5"}`}
-                  />
+                  <div className={`w-9 h-5 rounded-full transition-all ${form.is_active ? "bg-emerald-500" : "bg-gray-700"}`} />
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${form.is_active ? "left-4" : "left-0.5"}`} />
                 </div>
-                <span className="text-sm text-gray-300 font-medium">
-                  Active
-                </span>
+                <span className="text-sm text-gray-300 font-medium">Active</span>
               </label>
             </div>
           </div>
 
-          {!isEdit && (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 flex gap-2.5 items-start">
-              <svg
-                className="w-4 h-4 text-blue-400 mt-0.5 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <p className="text-xs text-blue-300 leading-relaxed">
-                Branch manager, staff counts, services completed, revenue &
-                satisfaction are automatically computed from records.
-              </p>
-            </div>
-          )}
-
           <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm rounded-xl transition-all"
-            >
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm rounded-xl transition-all">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-red-600/30"
-            >
+            <button type="submit" disabled={saving} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-red-600/30">
               {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Branch"}
             </button>
           </div>
@@ -533,7 +548,7 @@ function AdminBranches() {
           </p>
           <button
             onClick={openCreate}
-className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"          >
+            className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"          >
             <svg
               className="w-4 h-4"
               fill="none"

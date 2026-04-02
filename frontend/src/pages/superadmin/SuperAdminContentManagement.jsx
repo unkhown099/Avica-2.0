@@ -341,86 +341,43 @@ function ServicesEditor({ data, onChange }) {
   );
 }
 
-function BranchesEditor({ data, onChange }) {
-  const setField = (i, key) => (val) => {
-    const updated = data.map((b, idx) =>
-      idx === i ? { ...b, [key]: val } : b,
-    );
-    onChange(updated);
-  };
-  const addBranch = () =>
-    onChange([
-      ...data,
-      {
-        name: "New Branch",
-        id: `branch-${Date.now()}`,
-        address: "",
-        hours: "8:00 AM - 7:00 PM",
-        phone: "",
-        fb: "",
-        mapUrl: "",
-      },
-    ]);
-  const removeBranch = (i) => onChange(data.filter((_, idx) => idx !== i));
-
+function BranchesEditor() {
   return (
-    <div className="space-y-4">
-      {data.map((branch, i) => (
-        <Card key={i} title={branch.name || `Branch ${i + 1}`} accent={i === 0}>
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Branch Name"
-              value={branch.name}
-              onChange={setField(i, "name")}
-            />
-            <Field
-              label="Branch ID"
-              value={branch.id}
-              onChange={setField(i, "id")}
-            />
+    <div className="space-y-6">
+      <div className="rounded-3xl bg-blue-500/10 border border-blue-500/20 p-8 text-center">
+        <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-black text-white mb-3">Centralized Management</h3>
+        <p className="text-gray-400 text-sm max-w-md mx-auto leading-relaxed mb-8">
+          Branch details, map coordinates, and operational settings are now managed in the dedicated
+          <span className="text-white font-bold"> Branch Management</span> page.
+          This ensures your landing page map and booking system stay perfectly synchronized.
+        </p>
+        <a
+          href="/admin/branches"
+          className="inline-flex items-center gap-3 bg-red-600 hover:bg-red-700 text-white font-black px-8 py-3.5 rounded-2xl transition-all shadow-xl shadow-red-900/40 transform hover:-translate-y-1 active:scale-95"
+        >
+          GO TO BRANCHES
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[
+          { t: "Dynamic Pins", d: "Add Latitude/Longitude in Branch settings to automatically place pins on the live map." },
+          { t: "Auto-Sync", d: "Changes saved in Branch Management reflect instantly on the landing page dropdown." }
+        ].map((item, i) => (
+          <div key={i} className="bg-white/5 border border-white/5 p-5 rounded-2xl">
+            <h4 className="text-xs font-black text-red-500 uppercase tracking-widest mb-2">{item.t}</h4>
+            <p className="text-xs text-gray-500">{item.d}</p>
           </div>
-          <Field
-            label="Address"
-            value={branch.address}
-            onChange={setField(i, "address")}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Operating Hours"
-              value={branch.hours}
-              onChange={setField(i, "hours")}
-            />
-            <Field
-              label="Phone"
-              value={branch.phone}
-              onChange={setField(i, "phone")}
-            />
-          </div>
-          <Field
-            label="Facebook URL"
-            value={branch.fb}
-            onChange={setField(i, "fb")}
-          />
-          <Field
-            label="Google Maps Embed URL"
-            value={branch.mapUrl}
-            onChange={setField(i, "mapUrl")}
-            textarea
-          />
-          <button
-            onClick={() => removeBranch(i)}
-            className="text-xs text-red-500 hover:text-red-400 font-bold"
-          >
-            — Remove branch
-          </button>
-        </Card>
-      ))}
-      <button
-        onClick={addBranch}
-        className="w-full rounded-xl border border-dashed border-white/20 py-3 text-xs font-bold text-gray-500 hover:text-white hover:border-white/40 transition-colors"
-      >
-        + Add Branch
-      </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -732,11 +689,10 @@ function PagesEditor() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
-                activeTab === tab.key
-                  ? "bg-red-600 text-white shadow shadow-red-900/30"
-                  : "bg-gray-800 text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
+              className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab.key
+                ? "bg-red-600 text-white shadow shadow-red-900/30"
+                : "bg-gray-800 text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
             >
               {tab.label}
             </button>
@@ -752,7 +708,7 @@ function PagesEditor() {
         <ServicesEditor data={content.services} onChange={update("services")} />
       )}
       {activeTab === "branches" && (
-        <BranchesEditor data={content.branches} onChange={update("branches")} />
+        <BranchesEditor />
       )}
       {activeTab === "reviews" && (
         <ReviewsEditor data={content.reviews} onChange={update("reviews")} />

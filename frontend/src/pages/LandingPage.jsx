@@ -198,7 +198,7 @@ function normalizeLandingContent(content) {
       ...data.footer,
       siteMapLinks:
         Array.isArray(data.footer?.siteMapLinks) &&
-        data.footer.siteMapLinks.length
+          data.footer.siteMapLinks.length
           ? data.footer.siteMapLinks
           : FALLBACK_CONTENT.footer.siteMapLinks,
       legalLinks:
@@ -221,74 +221,154 @@ function LandingPage() {
   const [pageContent, setPageContent] = useState(null); // null = loading
   const [contentLoaded, setContentLoaded] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
-  const [user, setUser] = useState(null);
-  const [activeBranch, setActiveBranch] = useState(null);
   const [bgIndex, setBgIndex] = useState(0);
   const heroBgs = [bg1, bg2, bg3, bg4];
+
+  // ─── External Dynamic Data ────────────────────────────────────────────────
+  const [branches, setBranches] = useState([]);
+  const [activeBranch, setActiveBranch] = useState(null);
+  const [user, setUser] = useState(null);
+  const [mapType, setMapType] = useState('dark');
+
+  // ─── Map logic ─────────────────────────────────────────────────────────────
+  const mapRef = React.useRef(null);
+  const mapInstanceRef = React.useRef(null);
+  const markersRef = React.useRef([]);
+  const tileLayerRef = React.useRef(null);
+
+  // Re-size map when expanded
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      setTimeout(() => mapInstanceRef.current.invalidateSize(), 300);
+    }
+  }, [isMapExpanded]);
+
+  useEffect(() => {
+    if (!contentLoaded || !branches.length || !mapRef.current || !window.L) return;
+
+    if (!mapInstanceRef.current) {
+      const map = window.L.map(mapRef.current, {
+        center: [14.6, 121.0],
+        zoom: 11,
+        zoomControl: false,
+      });
+      window.L.control.zoom({ position: 'bottomright' }).addTo(map);
+      mapInstanceRef.current = map;
+    }
+
+    const map = mapInstanceRef.current;
+
+    // Manage tile layers
+    if (tileLayerRef.current) tileLayerRef.current.remove();
+
+    tileLayerRef.current = window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CARTO',
+      maxZoom: 20
+    }).addTo(map);
+
+    // Clear old markers
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+
+    // Add pins for all branches
+    branches.forEach(b => {
+      if (b.latitude && b.longitude) {
+        const marker = window.L.marker([b.latitude, b.longitude], {
+          icon: window.L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div style="background-color: ${activeBranch?.id === b.id ? '#ef4444' : '#ffffff'}; width: 14px; height: 14px; border-radius: 50%; border: 3px solid ${activeBranch?.id === b.id ? 'white' : '#ef4444'}; box-shadow: 0 0 15px ${activeBranch?.id === b.id ? 'rgba(239, 68, 68, 0.6)' : 'rgba(0,0,0,0.3)'}; transition: all 0.3s ease;"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          })
+        }).addTo(map);
+
+        marker.on('click', () => setActiveBranch(b));
+        markersRef.current.push(marker);
+      }
+    });
+
+    // Fly to active branch
+    if (activeBranch && activeBranch.latitude && activeBranch.longitude) {
+      map.flyTo([activeBranch.latitude, activeBranch.longitude], 15, {
+        duration: 2,
+        easeLinearity: 0.25
+      });
+    }
+
+  }, [contentLoaded, branches, activeBranch]);
+
+  // ─── Component Init ───────────────────────────────────────────────────────
+  const getUser = () => {
+    try {
+      const u = localStorage.getItem("user") || sessionStorage.getItem("user");
+      return u ? JSON.parse(u) : null;
+    } catch { return null; }
+  };
 
   useEffect(() => {
     setUser(getUser());
 
-    // ── Fetch landing content from DB (public endpoint, no auth needed) ──────
+    // 1. Fetch Landing CMS Content
     fetch(`${API_BASE}/api/landing-content/`)
-      .then((r) => {
-        if (!r.ok) throw new Error("API error");
-        return r.json();
-      })
-      .then((data) => {
-        const normalized = normalizeLandingContent(data);
-        setPageContent(normalized);
-        setActiveBranch(normalized.branches?.[0] ?? null);
+      .then(r => r.ok ? r.json() : FALLBACK_CONTENT)
+      .then(data => {
+        setPageContent(normalizeLandingContent(data));
         setContentLoaded(true);
       })
       .catch(() => {
-        // Fall back to hardcoded defaults so the page still renders
-        const normalized = normalizeLandingContent(FALLBACK_CONTENT);
-        setPageContent(normalized);
-        setActiveBranch(normalized.branches[0]);
+        setPageContent(normalizeLandingContent(FALLBACK_CONTENT));
         setContentLoaded(true);
       });
 
-    // ── Hero background slideshow ─────────────────────────────────────────────
+    // 2. Hero Slideshow
     const bgInterval = setInterval(() => {
-      setBgIndex((prev) => (prev + 1) % heroBgs.length);
+      setBgIndex(p => (p + 1) % heroBgs.length);
     }, 6000);
 
-    return () => {
-      clearInterval(bgInterval);
-    };
-  }, [heroBgs.length]); // Remove the observer from here
+    return () => clearInterval(bgInterval);
+  }, []);
 
-  // ── Separate useEffect for intersection observer that runs when content loads ──
+  // 3. Reveal Observer
   useEffect(() => {
     if (!contentLoaded) return;
-
-    // Small delay to ensure DOM is fully rendered
+    let obs;
     const timer = setTimeout(() => {
-      const observer = new IntersectionObserver(
+      obs = new IntersectionObserver(
         (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add("reveal-visible");
-            }
+          entries.forEach((e) => {
+            if (e.isIntersecting) e.target.classList.add("reveal-visible");
           });
         },
         { threshold: 0.1 },
       );
+      document.querySelectorAll(".reveal").forEach((el) => obs.observe(el));
+    }, 150);
 
-      document
-        .querySelectorAll(".reveal")
-        .forEach((el) => observer.observe(el));
+    return () => {
+      clearTimeout(timer);
+      if (obs) obs.disconnect();
+    };
+  }, [contentLoaded]);
 
-      return () => {
-        observer.disconnect();
-      };
-    }, 100);
+  // 4. Standalone Branch Fetch (Single Source of Truth)
+  useEffect(() => {
+    fetch(`${API_BASE}/branches/`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        const activeOnly = Array.isArray(data) ? data.filter(b => b.is_active) : [];
+        const finalBranches = activeOnly.length > 0 ? activeOnly : FALLBACK_CONTENT.branches;
 
-    return () => clearTimeout(timer);
-  }, [contentLoaded]); // This will re-run when contentLoaded becomes true
+        setBranches(finalBranches);
+        setActiveBranch(finalBranches[0]);
+      })
+      .catch(err => {
+        console.error("Branches fetch failed:", err);
+        setBranches(FALLBACK_CONTENT.branches);
+        setActiveBranch(FALLBACK_CONTENT.branches[0]);
+      });
+  }, []);
 
-  const isLoggedIn = !!getToken();
+  const isLoggedIn = !!getToken(); function getToken() { return localStorage.getItem("access_token") || sessionStorage.getItem("access_token"); }
 
   const handleBooking = () => {
     if (isLoggedIn && user) {
@@ -303,7 +383,7 @@ function LandingPage() {
   };
 
   // ── Loading skeleton — matches overall page bg so there's no flash ──────────
-  if (!contentLoaded || !pageContent || !activeBranch) {
+  if (!contentLoaded || !pageContent) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <svg
@@ -329,7 +409,8 @@ function LandingPage() {
     );
   }
 
-  const { hero, services, branches, reviews, fbPages, footer } = pageContent;
+  const { hero, services, reviews, fbPages, footer, branches: cmsBranches } = pageContent;
+  const currentStation = activeBranch || (cmsBranches?.length ? cmsBranches[0] : FALLBACK_CONTENT.branches[0]);
 
   return (
     <div className="min-h-screen bg-black font-sans selection:bg-red-600 selection:text-white">
@@ -342,11 +423,10 @@ function LandingPage() {
           {heroBgs.map((bg, index) => (
             <div
               key={index}
-              className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-[2000ms] ease-in-out ${
-                index === bgIndex
-                  ? "opacity-100 scale-110"
-                  : "opacity-0 scale-100"
-              }`}
+              className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-[2000ms] ease-in-out ${index === bgIndex
+                ? "opacity-100 scale-110"
+                : "opacity-0 scale-100"
+                }`}
               style={{
                 backgroundImage: `url(${bg})`,
                 filter: "brightness(0.35)",
@@ -514,99 +594,65 @@ function LandingPage() {
       <section className="py-20 sm:py-24 bg-neutral-900 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 reveal">
           <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white mb-4 uppercase tracking-tighter leading-tight">
-              VISIT OUR SHOP AT{" "}
-              <span className="text-red-600">ANY BRANCHES</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter leading-tight">
+              LOOCATE OUR <span className="text-red-600">STATIONS</span>
             </h2>
             <p className="text-gray-400 text-base sm:text-lg max-w-xl mx-auto font-medium px-2">
-              Experience the pinnacle of automotive care at our flagship{" "}
-              {branches[0]?.name} location.
+              Select a branch below to view its location and contact information.
             </p>
 
-            {/* Branch selector */}
-            <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/10 w-full sm:w-fit mx-auto mt-6 sm:mt-8 backdrop-blur-xl overflow-hidden">
-              {branches.map((b) => (
-                <button
-                  key={b.id}
-                  onClick={() => setActiveBranch(b)}
-                  className={`flex-1 sm:flex-none px-4 sm:px-8 py-3 rounded-xl font-black text-xs sm:text-sm transition-all duration-500 tracking-widest ${
-                    activeBranch.id === b.id
-                      ? "bg-red-600 text-white shadow-lg"
-                      : "text-gray-500 hover:text-white"
-                  }`}
-                >
-                  {b.name.toUpperCase()}
-                </button>
-              ))}
+            {/* Premium Branch Dropdown */}
+            <div className="mt-8 relative w-full sm:w-72 mx-auto z-30">
+              <select
+                value={activeBranch?.id}
+                onChange={(e) => setActiveBranch(branches.find(b => String(b.id) === e.target.value))}
+                className="w-full bg-black/60 text-white font-black text-sm uppercase tracking-[0.2em] px-6 py-4 rounded-2xl border border-white/10 appearance-none focus:outline-none focus:border-red-600 transition-all cursor-pointer shadow-2xl backdrop-blur-xl"
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id} className="bg-neutral-900 py-2">
+                    {b.name.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-red-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
 
-          {/* Map + Info layout */}
-          <div
-            className={`flex flex-col ${
-              isMapExpanded ? "" : "lg:flex-row"
-            } gap-6 sm:gap-10 items-stretch transition-all duration-700`}
-          >
-            {/* Map iframe */}
-            <div
-              className={`relative group rounded-[24px] sm:rounded-[40px] overflow-hidden border border-white/10 shadow-3xl transition-all duration-700 flex-grow ${
-                isMapExpanded
-                  ? "h-[60vh] sm:h-[70vh]"
-                  : "h-[300px] sm:h-[400px] lg:h-[500px] lg:w-2/3"
-              }`}
-            >
-              <button
-                onClick={() => setIsMapExpanded(!isMapExpanded)}
-                className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 bg-black/80 hover:bg-red-600 text-white p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/20 transition-all shadow-2xl backdrop-blur-md"
-              >
-                {isMapExpanded ? (
-                  <svg
-                    className="w-4 h-4 sm:w-5 sm:h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
+          <div className={`flex flex-col ${isMapExpanded ? 'lg:flex-col' : 'lg:flex-row'} gap-6 sm:gap-10 items-stretch transition-all duration-1000 ease-in-out`}>
+            {/* Interactive Leaflet Map */}
+            <div className={`relative group rounded-[24px] sm:rounded-[40px] overflow-hidden border border-white/10 shadow-3xl transition-all duration-1000 ease-in-out bg-gray-900 ${isMapExpanded ? 'h-[600px] sm:h-[800px] lg:w-full' : 'h-[400px] sm:h-[500px] lg:w-2/3'}`}>
+              <div ref={mapRef} className={`w-full h-full z-0 transition-all duration-700 ${mapType === 'dark' ? 'grayscale-[0.3] hover:grayscale-0' : ''}`} />
+
+              {/* Map Controls */}
+              <div className="absolute top-4 left-4 z-10 pointer-events-none">
+                <div className="bg-black/80 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-[10px] font-black text-red-500 uppercase tracking-[0.2em] shadow-2xl">
+                  {currentStation?.name || 'Live Precision Map'}
+                </div>
+              </div>
+
+              <div className="absolute top-4 right-4 z-20 flex gap-2">
+                <button
+                  onClick={() => setIsMapExpanded(prev => !prev)}
+                  className="bg-black/70 backdrop-blur-md p-2.5 rounded-xl border border-white/10 text-white hover:bg-white/10 transition-all shadow-2xl active:scale-95"
+                  title={isMapExpanded ? "Collapse Map" : "Expand Map"}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {isMapExpanded ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 9L4 4m0 0v5m0-5h5m11 0l-5 5m5-5v5m0-5h-5M4 20l5-5m-5 5v-5m0 5h5m11 0l-5-5m5 5v-5m0 5h-5" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 3l6 6m0 0v-5m0 5h-5M9 3L3 9m0 0v-5m0 5h5M15 21l6-6m0 0v5m0-5h-5M9 21l-6-6m0 0v5m0-5h5" />
+                    )}
                   </svg>
-                ) : (
-                  <svg
-                    className="w-4 h-4 sm:w-5 sm:h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-                    />
-                  </svg>
-                )}
-              </button>
-              <iframe
-                title={`Otokwikk ${activeBranch.name}`}
-                src={activeBranch.mapUrl}
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen=""
-                loading="lazy"
-                className="grayscale opacity-90 contrast-125 hover:grayscale-0 hover:opacity-100 transition-all duration-1000"
-              />
+                </button>
+              </div>
             </div>
 
             {/* Station info + FB button */}
-            <div
-              className={`${
-                isMapExpanded ? "hidden" : "flex"
-              } flex-col gap-4 sm:gap-6 lg:w-1/3`}
-            >
+            <div className="flex flex-col gap-4 sm:gap-6 lg:w-1/3">
               <div className="bg-white/5 backdrop-blur-xl rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 border border-white/10 hover:border-red-600/30 transition-all flex-grow shadow-2xl">
                 <h3 className="text-xl sm:text-2xl font-black text-white mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4">
                   <span className="w-1.5 h-7 sm:h-8 bg-red-600 rounded-full" />
@@ -617,17 +663,17 @@ function LandingPage() {
                     {
                       icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
                       label: "ADDRESS",
-                      value: activeBranch.address,
+                      value: currentStation.address,
                     },
                     {
                       icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
                       label: "OPERATING HOURS",
-                      value: activeBranch.hours,
+                      value: currentStation.hours,
                     },
                     {
                       icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
                       label: "CONTACT LINE",
-                      value: activeBranch.phone,
+                      value: currentStation.phone || "Coming Soon",
                     },
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3 sm:gap-4">
@@ -659,21 +705,23 @@ function LandingPage() {
                 </div>
               </div>
 
-              <a
-                href={activeBranch.fb}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full group bg-red-600 hover:bg-red-700 text-white font-black py-5 sm:py-6 rounded-[20px] sm:rounded-[24px] transition-all duration-500 flex items-center justify-center gap-3 sm:gap-4 text-base sm:text-lg shadow-[0_15px_30px_rgba(220,38,38,0.3)] hover:shadow-[0_20px_40px_rgba(220,38,38,0.5)] transform hover:-translate-y-2"
-              >
-                FACEBOOK PAGE
-                <svg
-                  className="w-5 h-5 sm:w-6 sm:h-6 transform group-hover:translate-x-3 transition-transform"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
+              {currentStation.fb_url && (
+                <a
+                  href={currentStation.fb_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full group bg-red-600 hover:bg-red-700 text-white font-black py-5 sm:py-6 rounded-[20px] sm:rounded-[24px] transition-all duration-500 flex items-center justify-center gap-3 sm:gap-4 text-base sm:text-lg shadow-[0_15px_30px_rgba(220,38,38,0.3)] hover:shadow-[0_20px_40px_rgba(220,38,38,0.5)] transform hover:-translate-y-2"
                 >
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-              </a>
+                  FACEBOOK PAGE
+                  <svg
+                    className="w-5 h-5 sm:w-6 sm:h-6 transform group-hover:translate-x-3 transition-transform"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                </a>
+              )}
             </div>
           </div>
         </div>
