@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../components/Landing/LandingNav.jsx";
+import BorderGlow from "../components/Landing/BorderGlow.jsx";
 import logo from "../assets/otokwikklogo.png";
 import { useNavigate } from "react-router-dom";
 
@@ -285,6 +286,7 @@ function LandingPage() {
   }
 
   const { hero, services, branches, reviews, fbPages, footer } = pageContent;
+  const filteredServices = Array.isArray(services.items) ? services.items : [];
 
   return (
     <div className="min-h-screen bg-black font-sans selection:bg-red-600 selection:text-white">
@@ -322,33 +324,32 @@ function LandingPage() {
           />
         </div>
 
-        {/* Hero content */}
-        <div className="relative z-10 text-center px-4 sm:px-8 lg:px-12 max-w-5xl mx-auto pt-24 pb-16 w-full">
-          {/* Logo card */}
-          <div className="mb-6 sm:mb-8 inline-block animate-[fadeIn_1s_ease-out]">
-            <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-              <img
-                src={logo}
-                alt="Otokwikk logo"
-                className="h-10 sm:h-14 md:h-16 object-contain filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-              />
+          <div className="relative text-center">
+            {/* Logo card */}
+            <div className="mb-6 sm:mb-8 inline-block animate-[fadeIn_1s_ease-out]">
+              <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+                <img
+                  src={logo}
+                  alt="Otokwikk logo"
+                  className="h-10 sm:h-14 md:h-16 object-contain filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Headline */}
-          <h1
-            className="font-black text-white mb-4 sm:mb-6 leading-[0.85] tracking-tighter
+            {/* Headline */}
+            <h1
+              className="font-black text-white mb-4 sm:mb-6 leading-[0.85] tracking-tighter
                        text-[clamp(3rem,14vw,8rem)]"
-            style={{
-              animation: "slideUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) both",
-            }}
-          >
-            {hero.headline}
-            <br />
-            <span className="text-red-600 bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-400">
-              {hero.headlineAccent}
-            </span>
-          </h1>
+              style={{
+                animation: "slideUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) both",
+              }}
+            >
+              {hero.headline}
+              <br />
+              <span className="text-red-600 bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-400">
+                {hero.headlineAccent}
+              </span>
+            </h1>
 
           <p
             className="text-xs sm:text-sm md:text-lg text-gray-400 mb-8 sm:mb-10 font-bold
@@ -425,39 +426,46 @@ function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {services.items.map((svc, i) => (
-              <div
+            {filteredServices.map((svc, i) => (
+              <BorderGlow
                 key={i}
-                className="group relative bg-white/5 backdrop-blur-xl rounded-3xl p-8 sm:p-10 border border-white/10 hover:border-red-600/50 transition-all duration-700 overflow-hidden shadow-2xl"
+                className="group relative overflow-hidden"
+                borderRadius={32}
+                glowRadius={36}
+                glowIntensity={0.8}
+                colors={["#f97316", "#f43f5e", "#8b5cf6"]}
+                backgroundColor="rgba(15, 23, 42, 0.85)"
               >
-                <div className="absolute -right-10 -top-10 w-40 h-40 bg-red-600/5 rounded-full blur-[60px] group-hover:bg-red-600/15 transition-all duration-700" />
-                <div className="relative z-10">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 bg-red-600/20 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 border border-red-600/30 group-hover:rotate-[15deg] transition-all duration-500">
-                    <svg
-                      className="w-7 h-7 sm:w-9 sm:h-9 text-red-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d={svc.icon || SERVICE_ICONS[i % SERVICE_ICONS.length]}
-                      />
-                    </svg>
+                <div className="relative z-10 p-8 sm:p-10">
+                  <div className="absolute -right-10 -top-10 w-40 h-40 bg-red-600/5 rounded-full blur-[60px] group-hover:bg-red-600/15 transition-all duration-700" />
+                  <div className="relative z-10">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-red-600/20 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 border border-red-600/30 group-hover:rotate-[15deg] transition-all duration-500">
+                      <svg
+                        className="w-7 h-7 sm:w-9 sm:h-9 text-red-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d={svc.icon || SERVICE_ICONS[i % SERVICE_ICONS.length]}
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-black text-white mb-2 sm:mb-3 tracking-tighter">
+                      {svc.title}
+                      <span className="block text-red-600 text-base sm:text-lg font-bold mt-1">
+                        {svc.sub}
+                      </span>
+                    </h3>
+                    <p className="text-gray-400 text-base sm:text-lg leading-relaxed font-medium">
+                      {svc.desc}
+                    </p>
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-black text-white mb-2 sm:mb-3 tracking-tighter">
-                    {svc.title}
-                    <span className="block text-red-600 text-base sm:text-lg font-bold mt-1">
-                      {svc.sub}
-                    </span>
-                  </h3>
-                  <p className="text-gray-400 text-base sm:text-lg leading-relaxed font-medium">
-                    {svc.desc}
-                  </p>
                 </div>
-              </div>
+              </BorderGlow>
             ))}
           </div>
         </div>
@@ -540,57 +548,67 @@ function LandingPage() {
                 isMapExpanded ? "hidden" : "flex"
               } flex-col gap-4 sm:gap-6 lg:w-1/3`}
             >
-              <div className="bg-white/5 backdrop-blur-xl rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 border border-white/10 hover:border-red-600/30 transition-all flex-grow shadow-2xl">
-                <h3 className="text-xl sm:text-2xl font-black text-white mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4">
-                  <span className="w-1.5 h-7 sm:h-8 bg-red-600 rounded-full" />
-                  STATION INFO
-                </h3>
-                <div className="space-y-6 sm:space-y-8">
-                  {[
-                    {
-                      icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
-                      label: "ADDRESS",
-                      value: activeBranch.address,
-                    },
-                    {
-                      icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-                      label: "OPERATING HOURS",
-                      value: activeBranch.hours,
-                    },
-                    {
-                      icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
-                      label: "CONTACT LINE",
-                      value: activeBranch.phone,
-                    },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-start gap-3 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600/10 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 border border-red-600/20 shadow-inner">
-                        <svg
-                          className="w-5 h-5 sm:w-6 sm:h-6 text-red-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d={item.icon}
-                          />
-                        </svg>
+              <BorderGlow
+                className="flex-grow"
+                borderRadius={32}
+                glowRadius={38}
+                glowIntensity={0.9}
+                colors={["#38bdf8", "#a855f7", "#fb7185"]}
+                backgroundColor="rgba(10, 14, 27, 0.9)"
+                animated
+              >
+                <div className="p-6 sm:p-8">
+                  <h3 className="text-xl sm:text-2xl font-black text-white mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4">
+                    <span className="w-1.5 h-7 sm:h-8 bg-red-600 rounded-full" />
+                    STATION INFO
+                  </h3>
+                  <div className="space-y-6 sm:space-y-8">
+                    {[
+                      {
+                        icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                        label: "ADDRESS",
+                        value: activeBranch.address,
+                      },
+                      {
+                        icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+                        label: "OPERATING HOURS",
+                        value: activeBranch.hours,
+                      },
+                      {
+                        icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
+                        label: "CONTACT LINE",
+                        value: activeBranch.phone,
+                      },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-start gap-3 sm:gap-4">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600/10 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 border border-red-600/20 shadow-inner">
+                          <svg
+                            className="w-5 h-5 sm:w-6 sm:h-6 text-red-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2.5}
+                              d={item.icon}
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-red-600 font-black text-[10px] sm:text-xs tracking-widest mb-1">
+                            {item.label}
+                          </p>
+                          <p className="text-gray-300 text-base sm:text-lg font-bold leading-tight">
+                            {item.value}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-red-600 font-black text-[10px] sm:text-xs tracking-widest mb-1">
-                          {item.label}
-                        </p>
-                        <p className="text-gray-300 text-base sm:text-lg font-bold leading-tight">
-                          {item.value}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </BorderGlow>
 
               <a
                 href={activeBranch.fb}
