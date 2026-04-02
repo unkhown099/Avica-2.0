@@ -659,3 +659,33 @@ class LandingContent(models.Model):
 
     def __str__(self):
         return f"LandingContent [{self.key}] — {self.updated_at}"
+
+
+class MediaAsset(models.Model):
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "Image"
+        DOCUMENT = "document", "Document"
+        OTHER = "other", "Other"
+
+    name = models.CharField(max_length=255)
+    file = models.FileField(upload_to="media_assets/")
+    media_type = models.CharField(
+        max_length=20,
+        choices=MediaType.choices,
+        default=MediaType.IMAGE,
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_media_assets",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "media_asset"
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"MediaAsset [{self.name}]"

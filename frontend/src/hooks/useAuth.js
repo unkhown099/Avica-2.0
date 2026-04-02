@@ -3,7 +3,7 @@ import { useMemo } from "react";
 const API_BASE_RAW = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 export const API_BASE = API_BASE_RAW.endsWith("/") ? API_BASE_RAW.slice(0, -1) : API_BASE_RAW;
 
-// ── JWT decoder (no library needed) ──────────────────────────────────────────
+// ── JWT decoder ──────────────────────────────────────────────────────────────
 function decodeJWT(token) {
   try {
     const payload = token.split(".")[1];
@@ -19,8 +19,7 @@ function isExpired(payload) {
   return Date.now() >= payload.exp * 1000;
 }
 
-// ── Token resolution ──────────────────────────────────────────────────────────
-function resolveToken() {
+function getAccessToken() {
   return (
     localStorage.getItem("access_token") ??
     sessionStorage.getItem("access_token") ??
@@ -28,9 +27,76 @@ function resolveToken() {
   );
 }
 
-// ── Stored user profile (set by your login response) ─────────────────────────
-// Your login endpoint should do: localStorage.setItem("user", JSON.stringify(responseUser))
-// This gives us first_name, last_name, branch, etc. that aren't in the JWT.
+function getRefreshToken() {
+  return (
+    localStorage.getItem("refresh_token") ??
+    sessionStorage.getItem("refresh_token") ??
+    null
+  );
+}
+
+function setAccessToken(token) {
+  localStorage.setItem("access_token", token);
+}
+
+function clearTokens() {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  sessionStorage.removeItem("access_token");
+  sessionStorage.removeItem("refresh_token");
+}
+
+export async function refreshAccessToken() {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/token/refresh/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refresh }),
+    });
+
+    if (!res.ok) throw new Error("Refresh failed");
+
+    const data = await res.json();
+
+    setAccessToken(data.access);
+    return data.access;
+  } catch {
+    clearTokens();
+    return null;
+  }
+}
+
+export async function getAuthHeadersAsync() {
+  let token = getAccessToken();
+
+  if (token) {
+    const payload = decodeJWT(token);
+
+    // If expired → try refresh
+    if (!payload || isExpired(payload)) {
+      token = await refreshAccessToken();
+    }
+  }
+
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+export function getAuthHeaders() {
+  const token = getAccessToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 function resolveStoredUser() {
   try {
     const raw =
@@ -43,7 +109,6 @@ function resolveStoredUser() {
   }
 }
 
-// ── Main hook ─────────────────────────────────────────────────────────────────
 export function useAuth() {
   return useMemo(() => {
     const empty = {
@@ -55,38 +120,29 @@ export function useAuth() {
       headers: {},
     };
 
-    const token = resolveToken();
+    let token = getAccessToken();
     if (!token) return empty;
 
-    const payload = decodeJWT(token);
+    let payload = decodeJWT(token);
+
     if (!payload || isExpired(payload)) {
-      localStorage.removeItem("access_token");
-      sessionStorage.removeItem("access_token");
       return empty;
     }
 
-    // Role comes from the JWT (added via custom SimpleJWT serializer)
     const role = normalizeRole(payload.role ?? payload.user_role ?? null);
     const isAdmin = ["admin", "business_owner", "super_admin"].includes(role);
 
-    // Merge JWT claims with the richer profile stored at login time.
-    // JWT is the source of truth for id/email/role; stored profile fills in
-    // display fields (first_name, last_name, branch_name, etc.)
     const stored = resolveStoredUser();
 
     const user = {
-      // From JWT (always present if token is valid)
       id: payload.user_id ?? payload.id ?? null,
       email: payload.email ?? stored?.email ?? null,
-      // From stored profile (set by login response)
       first_name: stored?.first_name ?? null,
       last_name: stored?.last_name ?? null,
       full_name: stored?.full_name ?? stored?.name ?? null,
       branch_id: stored?.branch_id ?? stored?.branch?.id ?? null,
       branch_name: stored?.branch_name ?? stored?.branch?.name ?? null,
-      // Pass through the whole stored object in case other fields are needed
       ...stored,
-      // Re-apply JWT fields so they always win over stored values
       id: payload.user_id ?? payload.id ?? null,
       email: payload.email ?? stored?.email ?? null,
     };
@@ -105,16 +161,6 @@ export function useAuth() {
   }, []);
 }
 
-// ── Standalone helper (use outside React components) ─────────────────────────
-export function getAuthHeaders() {
-  const token = resolveToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-// ── Role normalizer ───────────────────────────────────────────────────────────
 function normalizeRole(raw) {
   const map = {
     "Admin":             "admin",
@@ -124,7 +170,7 @@ function normalizeRole(raw) {
     "Employee":          "employee",
     "Inventory":         "inventory",
     "Inventory Manager": "inventory_manager",
-    "Super Admin":       "super_admin",  // ← new
+    "Super Admin":       "super_admin",
   };
   return map[raw] ?? raw ?? null;
 }

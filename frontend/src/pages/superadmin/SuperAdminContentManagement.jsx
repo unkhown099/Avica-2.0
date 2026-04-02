@@ -1,166 +1,56 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
+import { apiFetch } from "../../hooks/api.js";
+import { getAuthHeadersAsync, API_BASE } from "../../hooks/useAuth";
 
-// ─── API helpers ──────────────────────────────────────────────────────────────
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
-function getToken() {
-  return (
-    localStorage.getItem("access_token") ||
-    sessionStorage.getItem("access_token")
-  );
-}
+// ─── Normalize media URLs to always use the correct backend host ──────────────
+const toMediaUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE}${url}`;
+};
 
 async function fetchContentFromAPI() {
-  const res = await fetch(`${API_BASE}/super-admin/landing-content/`, {
-    headers: { Authorization: `Bearer ${getToken()}` },
-  });
-  if (!res.ok) throw new Error("Failed to load content");
-  const data = await res.json();
+  const data = await apiFetch("/super-admin/landing-content/");
   return data.content;
 }
 
+// Save landing content to API
 async function saveContentToAPI(content) {
-  const res = await fetch(`${API_BASE}/super-admin/landing-content/`, {
+  return apiFetch("/super-admin/landing-content/", {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getToken()}`,
-    },
     body: JSON.stringify({ content }),
   });
-  if (!res.ok) throw new Error("Failed to save content");
-  return res.json();
 }
 
-// ─── Default content (fallback if API is unreachable) ────────────────────────
-const DEFAULT_CONTENT = {
+// ─── Minimal fallback content shape ─────────────────────────────────────────
+const EMPTY_CONTENT = {
   hero: {
-    headline: "PRECISION",
-    headlineAccent: "DETAILING",
-    subtitle: "Experience the Art of Automotive Perfection",
+    headline: "",
+    headlineAccent: "",
+    subtitle: "",
     ctaLoggedIn: "GO TO DASHBOARD",
     ctaGuest: "BOOK YOUR EXPERIENCE",
-    signInPrompt: "Part of the elite?",
+    signInPrompt: "",
     signInLabel: "SIGN IN HERE",
+    imageUrl: "",
+    images: [],
   },
   services: {
-    sectionTitle: "OUR",
-    sectionTitleAccent: "SERVICES",
-    sectionSubtitle:
-      "Precision-driven solutions for every automotive need. We bring out the best in every vehicle.",
-    items: [
-      {
-        title: "EXTERIOR",
-        sub: "Showroom Shine",
-        desc: "Multi-stage washing process, clay bar treatment, and machine polishing for a mirror-like finish.",
-      },
-      {
-        title: "INTERIOR",
-        sub: "Pure Luxury",
-        desc: "Steam cleaning, leather conditioning, and deep extraction for a sterile, fresh-from-factory interior.",
-      },
-      {
-        title: "PROTECTION",
-        sub: "Ultima Guard",
-        desc: "Grade-A Ceramic coatings and PPF applications providing 9H hardness and hydrophobic properties.",
-      },
-    ],
+    sectionTitle: "",
+    sectionTitleAccent: "",
+    sectionSubtitle: "",
+    items: [],
   },
-  branches: [
-    {
-      name: "North Caloocan",
-      id: "north",
-      address: "Lot 1 Block 1, Camarin Road, North Caloocan, Metro Manila",
-      hours: "8:00 AM - 7:00 PM",
-      phone: "+63 9XX XXX XXXX",
-      fb: "https://www.facebook.com/profile.php?id=100090897126761",
-      mapUrl:
-        "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1930.5615!2d121.023!3d14.752!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b1b477bf30a7%3A0x34a49388d0848c77!2sOtokwikk%20North%20Caloocan!5e0!3m2!1sen!2sph!4v1708740000000!5m2!1sen!2sph",
-    },
-    {
-      name: "South Caloocan",
-      id: "south",
-      address: "77 General Tinio, Morning Breeze Subdivision, Caloocan",
-      hours: "8:00 AM - 7:00 PM",
-      phone: "+63 9XX XXX XXXX",
-      fb: "https://www.facebook.com/profile.php?id=61572528405228",
-      mapUrl:
-        "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.1066!2d120.9878!3d14.6624!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397b73d971961bd%3A0x44a251e7c7d1e2bc!2sOtokwikk%20South%20Caloocan!5e0!3m2!1sen!2sph!4v1742220000000!5m2!1sen!2sph",
-    },
-  ],
-  reviews: [
-    {
-      name: "SIR BJ",
-      city: "Tanza, Cavite",
-      text: "Ang ganda ng linis, may pafoot paper and wheel plastic covering pa! Dami magpapalinis pag ganyan. Heheh Dito ko na papalinis mga kotse ng skul.",
-    },
-    {
-      name: "SIR CLARENZ",
-      city: "Quezon City",
-      text: "Panalo yung engine wash nyo sir! Linis lahat! Papuntahin ko yung ninong ko dyan ipa engine wash nya yung Innova nya.",
-    },
-    {
-      name: "SIR JOHN RONAN",
-      city: "San Mateo, Rizal",
-      text: "SOLID! Worth it yung bayad! Mura na, QUALITY pa.",
-    },
-    {
-      name: "SIR GERMAINE DANCA",
-      city: "North Caloocan",
-      text: "For top notch and premium car care and affordable price.. Visit #Otokwikk at Saranay Road, Caloocan City.",
-    },
-    {
-      name: "SIR MIGS ONG",
-      city: "South Caloocan",
-      text: "Thanks heaps for the top-notch service, Otokwikk! Highly recommended! Pogi na ulit si Sky!",
-    },
-  ],
-  fbPages: [
-    {
-      name: "Otokwikk - North Caloocan",
-      url: "https://www.facebook.com/profile.php?id=100090897126761",
-    },
-    {
-      name: "Otokwikk - Tanza Cavite",
-      url: "https://www.facebook.com/otokwikk.tanzacavite",
-    },
-    {
-      name: "Otokwikk - Camarin",
-      url: "https://www.facebook.com/profile.php?id=61586571534281",
-    },
-    {
-      name: "Otokwikk - Quezon City",
-      url: "https://www.facebook.com/profile.php?id=61577247173903",
-    },
-    {
-      name: "Otokwikk - South Caloocan",
-      url: "https://www.facebook.com/profile.php?id=61572528405228",
-    },
-    {
-      name: "Otokwikk - San Mateo Rizal",
-      url: "https://www.facebook.com/profile.php?id=61556323569842",
-    },
-  ],
+  branches: [],
+  reviews: [],
+  fbPages: [],
   footer: {
-    tagline:
-      "Empowering car owners with precision care and premium detailing that protects every drive.",
-    copyright: "Copyright © 2026, otokwikk. All Rights Reserved.",
-    siteMapLinks: [
-      { label: "Homepage", href: "#" },
-      { label: "Services", href: "#" },
-      { label: "Branches", href: "#" },
-      { label: "Client Reviews", href: "#" },
-      { label: "Facebook Pages", href: "#" },
-      { label: "Sign In", href: "/signin" },
-      { label: "Sign Up", href: "/signup" },
-    ],
-    legalLinks: [
-      { label: "Privacy Policy", href: "#" },
-      { label: "Terms of Service", href: "#" },
-      { label: "Cookie Policy", href: "#" },
-    ],
+    tagline: "",
+    copyright: "",
+    siteMapLinks: [],
+    legalLinks: [],
   },
 };
 
@@ -213,7 +103,75 @@ function Card({ title, children, accent }) {
 // ─── Section editors ──────────────────────────────────────────────────────────
 
 function HeroEditor({ data, onChange }) {
+  const [mediaAssets, setMediaAssets] = useState([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [assetName, setAssetName] = useState("");
+
   const set = (key) => (val) => onChange({ ...data, [key]: val });
+
+  const loadMediaAssets = useCallback(async () => {
+    setMediaError("");
+    setMediaLoading(true);
+    try {
+      const assets = await apiFetch("/super-admin/media-assets/");
+      setMediaAssets(
+        assets
+          .filter((a) => a.media_type === "image")
+          .map((a) => ({ ...a, url: toMediaUrl(a.url) })),
+      );
+    } catch {
+      setMediaError("Unable to load media library.");
+    } finally {
+      setMediaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMediaAssets();
+  }, [loadMediaAssets]);
+
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setMediaError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (assetName.trim()) {
+        formData.append("name", assetName.trim());
+      }
+
+      const headers = await getAuthHeadersAsync();
+      delete headers["Content-Type"];
+
+      const response = await fetch(`${API_BASE}/super-admin/media-assets/`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const asset = await response.json();
+      const normalized = { ...asset, url: toMediaUrl(asset.url) };
+      setMediaAssets((prev) => [normalized, ...prev]);
+      setAssetName("");
+      onChange({ ...data, imageUrl: normalized.url });
+    } catch {
+      setMediaError("Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card title="Headline" accent>
@@ -234,6 +192,139 @@ function HeroEditor({ data, onChange }) {
           value={data.subtitle}
           onChange={set("subtitle")}
         />
+      </Card>
+      <Card title="Hero Background">
+        <Field
+          label="Background Image URL"
+          value={data.imageUrl || ""}
+          onChange={set("imageUrl")}
+          placeholder="Paste direct image URL or choose from media assets"
+        />
+        {data.imageUrl && (
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/30">
+            <img
+              src={data.imageUrl}
+              alt="Selected hero preview"
+              className="w-full h-52 object-cover"
+            />
+          </div>
+        )}
+        <Card title="Hero Background Slideshow">
+          <div className="text-xs text-gray-400 mb-2">
+            Select multiple images to cycle through as a slideshow. Click to add/remove.
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {mediaAssets.map((asset) => {
+              const isSelected = (data.images ?? []).includes(asset.url);
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => {
+                    const current = data.images ?? [];
+                    const next = isSelected
+                      ? current.filter((u) => u !== asset.url)
+                      : [...current, asset.url];
+                    set("images")(next);
+                  }}
+                  className={`group overflow-hidden rounded-3xl border text-left transition ${
+                    isSelected
+                      ? "border-red-500 ring-2 ring-red-500/40"
+                      : "border-white/10"
+                  } bg-gray-950`}
+                >
+                  <div className="relative h-32 overflow-hidden">
+                    <img
+                      src={asset.url}
+                      alt={asset.name}
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    />
+                    {isSelected && (
+                      <div className="absolute inset-0 bg-red-600/30 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-3 py-2">
+                    <div className="text-xs text-gray-300 truncate">{asset.name}</div>
+                    <div className="text-[11px] text-red-400 mt-0.5">
+                      {isSelected ? "✓ Selected" : "Click to add"}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {(data.images ?? []).length > 0 && (
+            <div className="text-xs text-green-400 mt-2">
+              {data.images.length} image{data.images.length > 1 ? "s" : ""} selected for slideshow
+            </div>
+          )}
+        </Card>
+        <Field
+          label="Upload asset label"
+          value={assetName}
+          onChange={setAssetName}
+          placeholder="Optional file label"
+        />
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <label className="flex items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-sm font-black text-white cursor-pointer hover:border-white/40">
+            {uploading ? "Uploading…" : "Upload image file"}
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleUpload}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={loadMediaAssets}
+            disabled={mediaLoading}
+            className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {mediaLoading ? "Refreshing…" : "Refresh media library"}
+          </button>
+        </div>
+        {mediaError && <div className="text-sm text-red-400">{mediaError}</div>}
+        {mediaAssets.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-xs uppercase tracking-[0.3em] text-gray-400">
+              Choose an image from your media library
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {mediaAssets.map((asset) => (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => {
+                    console.log("Selected asset URL:", asset.url);
+                    set("imageUrl")(asset.url);
+                  }}
+                  className="group overflow-hidden rounded-3xl border border-white/10 bg-gray-950 text-left"
+                >
+                  <div className="relative h-32 overflow-hidden">
+                    <img
+                      src={asset.url}
+                      alt={asset.name}
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                  <div className="px-3 py-3">
+                    <div className="text-xs text-gray-300 truncate">
+                      {asset.name}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-1">
+                      Use for hero banner
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
       <Card title="CTA Buttons">
         <Field
@@ -601,14 +692,12 @@ const PAGE_TABS = [
 ];
 
 function PagesEditor() {
-  const [content, setContent] = useState(null); // null = loading
+  const [content, setContent] = useState(null);
   const [activeTab, setActiveTab] = useState("hero");
-  // "idle" | "loading" | "saving" | "saved" | "error"
   const [status, setStatus] = useState("loading");
   const [errorMsg, setErrorMsg] = useState("");
   const [lastSaved, setLastSaved] = useState(null);
 
-  // Load from API on mount
   useEffect(() => {
     fetchContentFromAPI()
       .then((c) => {
@@ -616,8 +705,10 @@ function PagesEditor() {
         setStatus("idle");
       })
       .catch(() => {
-        setContent(DEFAULT_CONTENT);
-        setErrorMsg("Could not reach server — showing defaults. Changes will save to DB when connection is restored.");
+        setContent(EMPTY_CONTENT);
+        setErrorMsg(
+          "Could not reach server — showing empty content. Changes will save to DB when connection is restored.",
+        );
         setStatus("error");
       });
   }, []);
@@ -631,10 +722,13 @@ function PagesEditor() {
   );
 
   const handleSave = async () => {
+    console.log("Saving imageUrl:", content.hero.imageUrl); // ← add this
     setStatus("saving");
     try {
       const result = await saveContentToAPI(content);
-      setLastSaved(result.updated_at ? new Date(result.updated_at) : new Date());
+      setLastSaved(
+        result.updated_at ? new Date(result.updated_at) : new Date(),
+      );
       setStatus("saved");
     } catch {
       setErrorMsg("Save failed. Check your connection and try again.");
@@ -643,15 +737,22 @@ function PagesEditor() {
   };
 
   const handleReset = async () => {
-    if (!window.confirm("Reset all content to defaults? This cannot be undone.")) return;
-    setContent(DEFAULT_CONTENT);
+    if (
+      !window.confirm("Reset all content to defaults? This cannot be undone.")
+    )
+      return;
     setStatus("saving");
     try {
-      const result = await saveContentToAPI(DEFAULT_CONTENT);
-      setLastSaved(result.updated_at ? new Date(result.updated_at) : new Date());
+      const result = await apiFetch("/super-admin/landing-content/", {
+        method: "DELETE",
+      });
+      setContent(result.content);
+      setLastSaved(
+        result.updated_at ? new Date(result.updated_at) : new Date(),
+      );
       setStatus("saved");
     } catch {
-      setErrorMsg("Reset failed — content was reset locally but could not be saved to the server.");
+      setErrorMsg("Reset failed — content could not be reset on the server.");
       setStatus("error");
     }
   };
@@ -659,9 +760,24 @@ function PagesEditor() {
   if (status === "loading" || !content) {
     return (
       <div className="flex items-center justify-center h-48 gap-3 text-gray-500 text-sm">
-        <svg className="w-4 h-4 animate-spin text-red-500" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        <svg
+          className="w-4 h-4 animate-spin text-red-500"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8H4z"
+          />
         </svg>
         Loading content from database…
       </div>
@@ -675,8 +791,18 @@ function PagesEditor() {
         <span className="text-xs font-medium min-w-0">
           {status === "saved" && (
             <span className="text-green-400 flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              <svg
+                className="w-3.5 h-3.5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Saved to database
               {lastSaved && (
@@ -688,17 +814,42 @@ function PagesEditor() {
           )}
           {status === "saving" && (
             <span className="text-yellow-400 flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              <svg
+                className="w-3.5 h-3.5 animate-spin flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8H4z"
+                />
               </svg>
               Saving to database…
             </span>
           )}
           {status === "error" && (
             <span className="text-red-400 flex items-center gap-1.5 truncate">
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-3.5 h-3.5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span className="truncate">{errorMsg}</span>
             </span>
@@ -767,6 +918,222 @@ function PagesEditor() {
   );
 }
 
+// ─── Media library manager ─────────────────────────────────────────────────
+function MediaLibrary() {
+  const [assets, setAssets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [assetName, setAssetName] = useState("");
+
+  const loadAssets = useCallback(async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const data = await apiFetch("/super-admin/media-assets/");
+      setAssets(data.map((a) => ({ ...a, url: toMediaUrl(a.url) })));
+    } catch {
+      setError(
+        "Could not load media assets. Check your network or permissions.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAssets();
+  }, [loadAssets]);
+
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (assetName.trim()) {
+        formData.append("name", assetName.trim());
+      }
+
+      const headers = await getAuthHeadersAsync();
+      delete headers["Content-Type"];
+
+      const response = await fetch(`${API_BASE}/super-admin/media-assets/`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const asset = await response.json();
+      setAssets((prev) => [{ ...asset, url: toMediaUrl(asset.url) }, ...prev]);
+      setAssetName("");
+      event.target.value = "";
+    } catch {
+      setError("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (assetId) => {
+    if (!window.confirm("Delete this media asset?")) return;
+
+    try {
+      const headers = await getAuthHeadersAsync();
+      delete headers["Content-Type"];
+
+      const response = await fetch(
+        `${API_BASE}/super-admin/media-assets/${assetId}/`,
+        {
+          method: "DELETE",
+          headers,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Delete failed");
+      }
+
+      setAssets((prev) => prev.filter((item) => item.id !== assetId));
+    } catch {
+      setError("Unable to delete asset. Try again.");
+    }
+  };
+
+  const handleCopyUrl = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      setError("Copy to clipboard failed.");
+    }
+  };
+
+  return (
+    <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 space-y-6">
+      <div className="text-sm text-gray-400 mb-3">
+        Browse, upload, and manage your media assets. Use image URLs from here
+        in the Hero editor.
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-4">
+          <Card title="Upload Media" accent>
+            <Field
+              label="Asset label"
+              value={assetName}
+              onChange={setAssetName}
+              placeholder="Optional name for the uploaded file"
+            />
+            <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-sm font-black text-white hover:border-white/40">
+              <span>{uploading ? "Uploading…" : "Select file to upload"}</span>
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                hidden
+                onChange={handleUpload}
+              />
+            </label>
+            <p className="text-xs text-gray-500">
+              Upload an image asset, then choose it in the Hero editor for the
+              landing hero.
+            </p>
+          </Card>
+          {error && (
+            <div className="rounded-2xl border border-red-500/20 bg-red-950/50 p-4 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-gray-950 p-4 min-h-[160px]">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <div className="text-xs uppercase tracking-[0.3em] text-gray-500">
+                Media assets
+              </div>
+              <div className="text-sm text-gray-300">
+                {assets.length} item{assets.length === 1 ? "" : "s"}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={loadAssets}
+              disabled={loading}
+              className="rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="text-sm text-gray-400">Loading assets…</div>
+          ) : (
+            <div className="space-y-3">
+              {assets.length === 0 && (
+                <div className="text-sm text-gray-400">
+                  No media assets yet. Upload a file to get started.
+                </div>
+              )}
+              {assets.map((asset) => (
+                <div
+                  key={asset.id}
+                  className="rounded-3xl border border-white/10 bg-black/40 p-3 flex items-start gap-3"
+                >
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/5 flex items-center justify-center">
+                    {asset.media_type === "image" ? (
+                      <img
+                        src={asset.url}
+                        alt={asset.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400 uppercase">
+                        {asset.media_type}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-white truncate">
+                      {asset.name}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {asset.url}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyUrl(asset.url)}
+                        className="rounded-xl bg-white/5 px-2 py-1 text-xs font-semibold text-gray-200 hover:bg-white/10"
+                      >
+                        Copy URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(asset.id)}
+                        className="rounded-xl bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/20"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Other section stubs (posts, media, approvals) ───────────────────────────
 function SectionContent({ sectionKey }) {
   switch (sectionKey) {
@@ -805,30 +1172,7 @@ function SectionContent({ sectionKey }) {
         </div>
       );
     case "media":
-      return (
-        <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6">
-          <div className="text-sm text-gray-400 mb-6">
-            Browse, upload, and manage your media assets here.
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              { file: "hero-banner.jpg", type: "Image" },
-              { file: "service-menu.pdf", type: "Document" },
-              { file: "team-photo.png", type: "Image" },
-            ].map((asset) => (
-              <div
-                key={asset.file}
-                className="rounded-2xl border border-white/10 bg-gray-950 p-4"
-              >
-                <div className="text-sm font-semibold text-white">
-                  {asset.file}
-                </div>
-                <div className="text-xs text-gray-500 mt-2">{asset.type}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
+      return <MediaLibrary />;
     case "approvals":
       return (
         <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6">
@@ -881,7 +1225,6 @@ function SectionContent({ sectionKey }) {
   }
 }
 
-
 // ─── Main export ─────────────────────────────────────────────────────────────
 const SECTION_KEYS = ["pages", "posts", "media", "approvals"];
 const SECTION_TITLES = {
@@ -898,7 +1241,6 @@ export default function SuperAdminContentManagement() {
   useEffect(() => {
     if (location.pathname !== "/super-admin/content") return;
     const hash = location.hash.replace("#", "");
-
     if (SECTION_KEYS.includes(hash)) {
       setActiveSection(hash);
     } else {
@@ -929,6 +1271,26 @@ export default function SuperAdminContentManagement() {
             </div>
           </div>
         </div>
+
+        {/* Top-level section tabs */}
+        <div className="rounded-2xl border border-white/10 bg-gray-900/80 p-3">
+          <div className="flex flex-wrap gap-2">
+            {SECTION_KEYS.map((key) => (
+              <button
+                key={key}
+                onClick={() => setActiveSection(key)}
+                className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+                  activeSection === key
+                    ? "bg-red-600 text-white shadow shadow-red-900/30"
+                    : "bg-gray-800 text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {SECTION_TITLES[key]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <SectionContent sectionKey={activeSection} />
       </div>
     </SuperAdminLayout>
