@@ -103,7 +103,7 @@ const VIEWS = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V10H2v10h5m10 0v-2a4 4 0 10-8 0v2m8 0H9m4-12a4 4 0 110 8 4 4 0 010-8z" />
       </svg>
     ),
-  }
+  },
 ];
 
 const SERVICE_COLORS = ["#ef4444", "#a855f7", "#3b82f6", "#10b981", "#f59e0b", "#06b6d4"];
@@ -627,6 +627,15 @@ export default function AdminDashboard({ dataScope = "admin" }) {
           week: weekOfYear(date),
           year: date.getFullYear(),
           dateKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+          hour: (() => {
+            const timeValue = String(apt.time ?? apt.appointment_time ?? "").trim();
+            if (timeValue) {
+              const [rawHour] = timeValue.split(":");
+              const parsedHour = Number(rawHour);
+              if (!Number.isNaN(parsedHour) && parsedHour >= 0 && parsedHour <= 23) return parsedHour;
+            }
+            return date.getHours();
+          })(),
           cancellationReason: apt.cancel_reason || apt.cancellation_reason || apt.reason || apt.notes || "Unspecified",
         };
       })
@@ -701,6 +710,73 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       .map(([label, count]) => ({ label, count }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [filteredAppointmentEvents]);
+
+  const peakHoursRows = useMemo(() => {
+    const grouped = filteredAppointmentEvents.reduce((acc, row) => {
+      const hour = Number(row.hour ?? 0);
+      const safeHour = Number.isNaN(hour) ? 0 : Math.min(23, Math.max(0, hour));
+      const label = `${String(safeHour).padStart(2, "0")}:00`;
+      acc[label] = (acc[label] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(grouped)
+      .map(([hour, count]) => ({ hour, count }))
+      .sort((a, b) => a.hour.localeCompare(b.hour));
+  }, [filteredAppointmentEvents]);
+
+  const appointmentForecast = useMemo(() => {
+    const historical = appointmentTimelineRows.map((row) => Number(row.count ?? 0));
+    if (!historical.length) {
+      return { next7Total: 0, next30Total: 0, dailyAverage: 0, slope: 0, next14Series: [] };
+    }
+    const n = historical.length;
+    const xVals = historical.map((_, idx) => idx);
+    const xSum = xVals.reduce((sum, x) => sum + x, 0);
+    const ySum = historical.reduce((sum, y) => sum + y, 0);
+    const x2Sum = xVals.reduce((sum, x) => sum + x * x, 0);
+    const xySum = historical.reduce((sum, y, idx) => sum + (xVals[idx] * y), 0);
+    const denominator = (n * x2Sum) - (xSum * xSum);
+    const slope = denominator ? ((n * xySum) - (xSum * ySum)) / denominator : 0;
+
+    const forecastTotal = (horizon, window = 7) => {
+      const simulated = [...historical];
+      let total = 0;
+      for (let i = 0; i < horizon; i += 1) {
+        const lookback = simulated.slice(Math.max(0, simulated.length - window));
+        const movingAverage = lookback.reduce((sum, value) => sum + value, 0) / Math.max(1, lookback.length);
+        const predicted = Math.max(0, movingAverage + (slope * (i + 1)));
+        simulated.push(predicted);
+        total += predicted;
+      }
+      return total;
+    };
+
+    const next14Series = [];
+    const baseDate = appointmentTimelineRows.length
+      ? new Date(`${appointmentTimelineRows[appointmentTimelineRows.length - 1].label}T00:00:00`)
+      : new Date();
+    const simulated = [...historical];
+    for (let i = 0; i < 14; i += 1) {
+      const lookback = simulated.slice(Math.max(0, simulated.length - 7));
+      const movingAverage = lookback.reduce((sum, value) => sum + value, 0) / Math.max(1, lookback.length);
+      const predicted = Math.max(0, movingAverage + (slope * (i + 1)));
+      simulated.push(predicted);
+      const d = new Date(baseDate);
+      d.setDate(baseDate.getDate() + i + 1);
+      next14Series.push({
+        label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+        count: predicted,
+      });
+    }
+
+    return {
+      next7Total: Number(forecastTotal(7).toFixed(1)),
+      next30Total: Number(forecastTotal(30).toFixed(1)),
+      dailyAverage: Number((historical.reduce((sum, value) => sum + value, 0) / n).toFixed(2)),
+      slope: Number(slope.toFixed(4)),
+      next14Series,
+    };
+  }, [appointmentTimelineRows]);
 
   const serviceEvents = useMemo(() => {
     const rows = [];
@@ -1140,7 +1216,54 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     ],
   };
 
+  const appointmentForecastLineData = {
+    labels: [
+      ...appointmentTimelineRows.map((row) => row.label),
+      ...appointmentForecast.next14Series.map((row) => row.label),
+    ],
+    datasets: [
+      {
+        label: "Actual Appointments",
+        data: [
+          ...appointmentTimelineRows.map((row) => Number(row.count ?? 0)),
+          ...Array.from({ length: appointmentForecast.next14Series.length }, () => null),
+        ],
+        borderColor: "#a855f7",
+        backgroundColor: "rgba(168,85,247,0.12)",
+        fill: false,
+        tension: 0.35,
+        pointRadius: 2,
+      },
+      {
+        label: "Forecasted Bookings",
+        data: [
+          ...Array.from({ length: appointmentTimelineRows.length }, () => null),
+          ...appointmentForecast.next14Series.map((row) => Number(row.count ?? 0)),
+        ],
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34,197,94,0.12)",
+        fill: false,
+        tension: 0.35,
+        pointRadius: 2,
+        borderDash: [6, 4],
+      },
+    ],
+  };
+
+  const peakHourData = {
+    labels: peakHoursRows.map((row) => row.hour),
+    datasets: [
+      {
+        label: "Appointments",
+        data: peakHoursRows.map((row) => row.count),
+        backgroundColor: "rgba(14,165,233,0.7)",
+        borderRadius: 6,
+      },
+    ],
+  };
+
   const topPeakDay = [...peakDaysRows].sort((a, b) => b.count - a.count)[0];
+  const topPeakHour = [...peakHoursRows].sort((a, b) => b.count - a.count)[0];
   const peakMonthRow = Object.entries(
     filteredAppointmentEvents.reduce((acc, row) => {
       acc[row.monthLabel] = (acc[row.monthLabel] ?? 0) + 1;
@@ -1162,6 +1285,11 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     { tier: "At Risk", color: "#ea580c" },
     { tier: "New", color: "#9ca3af" },
   ].map((row) => ({ ...row, count: tierDistribution[row.tier] ?? 0 }));
+
+  const avgRevenuePerAppointment =
+    Number(stats?.total_revenue ?? 0) / Math.max(1, appointments.length);
+  const forecastRevenue7 = Number((avgRevenuePerAppointment * appointmentForecast.next7Total).toFixed(2));
+  const forecastRevenue30 = Number((avgRevenuePerAppointment * appointmentForecast.next30Total).toFixed(2));
 
   // ── Export handler ───────────────────────────────────────────────────────
   const handleExportCSV = () => {
