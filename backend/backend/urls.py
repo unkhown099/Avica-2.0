@@ -89,6 +89,9 @@ from api.views.super_admin_views import (
     SuperAdminBranchOverviewView,
     SuperAdminBroadcastView,
     SuperAdminCreateView,
+    SuperAdminSystemSettingsView,
+    SuperAdminPluginView,
+    SuperAdminPluginDetailView,
 )
 from api.views.landing_content_views import (
     LandingContentPublicView,
@@ -108,6 +111,9 @@ urlpatterns = [
     path("super-admin/branches/",            SuperAdminBranchOverviewView.as_view()),
     path("super-admin/broadcast/",           SuperAdminBroadcastView.as_view()),
     path("super-admin/create/",              SuperAdminCreateView.as_view()),
+    path("super-admin/settings/", SuperAdminSystemSettingsView.as_view()),
+    path('super-admin/plugins/', SuperAdminPluginView.as_view(), name='super-admin-plugins'),
+    path('super-admin/plugins/<int:pk>/', SuperAdminPluginDetailView.as_view(), name='super-admin-plugin-detail'),
 
     path('admin/', admin.site.urls),
 
