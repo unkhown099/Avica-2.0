@@ -3,6 +3,7 @@ import CustomerLayout from "./CustomerLayout.jsx";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
 import { useNavigate } from "react-router-dom";
+import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 function CustomerDashboard() {
   const [user] = useState(() => getUserFromSession());
@@ -13,6 +14,8 @@ function CustomerDashboard() {
 
   const [stats, setStats] = useState({ upcoming: 0, completed: 0 });
   const [upcomingBookings, setUpcomingBookings] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [chatQueueId, setChatQueueId] = useState(null);
   const [serviceHistory, setServiceHistory] = useState([]);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(null);
@@ -60,6 +63,7 @@ function CustomerDashboard() {
         });
         setStats(data.stats || { upcoming: 0, completed: 0 });
         setUpcomingBookings(trueUpcoming);
+        setActiveSessions(data.active_sessions || []);
         setServiceHistory(data.service_history || []);
       } catch (error) {
         console.error("Dashboard fetch error:", error);
@@ -135,10 +139,10 @@ function CustomerDashboard() {
   const lastServiceValue = serviceHistory?.[0] ? formatDate(serviceHistory[0].date) : "—";
 
   const statCards = [
-    { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", value: stats.upcoming,          label: "Upcoming",          border: "border-red-500/20",    bg: "bg-red-500/10",    text: "text-red-400" },
-    { icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",                                            value: stats.completed,         label: "Completed",         border: "border-emerald-500/20", bg: "bg-emerald-500/10", text: "text-emerald-400" },
-    { icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",                                              value: nextAppointmentValue,    label: "Next Appointment",  border: "border-blue-500/20",   bg: "bg-blue-500/10",   text: "text-blue-400" },
-    { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", value: lastServiceValue,        label: "Last Service Date", border: "border-amber-500/20",  bg: "bg-amber-500/10",  text: "text-amber-400" },
+    { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", value: stats.upcoming, label: "Upcoming", border: "border-red-500/20", bg: "bg-red-500/10", text: "text-red-400" },
+    { icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", value: stats.completed, label: "Completed", border: "border-emerald-500/20", bg: "bg-emerald-500/10", text: "text-emerald-400" },
+    { icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", value: nextAppointmentValue, label: "Next Appointment", border: "border-blue-500/20", bg: "bg-blue-500/10", text: "text-blue-400" },
+    { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", value: lastServiceValue, label: "Last Service Date", border: "border-amber-500/20", bg: "bg-amber-500/10", text: "text-amber-400" },
   ];
 
   // ── Reusable tooltip wrapper for blocked booking buttons ──
@@ -180,11 +184,10 @@ function CustomerDashboard() {
                 onClick={() =>
                   navigate("/bookings", { state: { openBooking: true } })
                 }
-                className={`w-full sm:w-auto font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base ${
-                  !isDashboardLoading && hasActiveBooking
+                className={`w-full sm:w-auto font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base ${!isDashboardLoading && hasActiveBooking
                     ? "bg-red-600/30 text-red-300/50 cursor-not-allowed shadow-none"
                     : "bg-red-600 hover:bg-red-500 text-white hover:scale-105 shadow-red-600/30"
-                }`}
+                  }`}
               >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -293,11 +296,10 @@ function CustomerDashboard() {
                   <button
                     disabled={blocked}
                     onClick={() => { if (!blocked) navigate(path, state ? { state } : {}); }}
-                    className={`group w-full bg-gray-900/60 border border-white/5 rounded-xl p-3 sm:p-4 backdrop-blur-sm transition-all duration-200 text-left flex items-center gap-3 sm:gap-4 ${
-                      blocked
+                    className={`group w-full bg-gray-900/60 border border-white/5 rounded-xl p-3 sm:p-4 backdrop-blur-sm transition-all duration-200 text-left flex items-center gap-3 sm:gap-4 ${blocked
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:border-red-500/30 hover:scale-[1.02]"
-                    }`}
+                      }`}
                   >
                     <div
                       className={`w-9 h-9 sm:w-10 sm:h-10 bg-red-500/10 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-300 ${blocked ? "" : "group-hover:scale-110"}`}
@@ -377,10 +379,10 @@ function CustomerDashboard() {
                   <h3 className="text-lg font-black text-white mb-2">Vehicle Analysis Results</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: "Make",       value: analysisResult.make },
-                      { label: "Model",      value: analysisResult.model },
-                      { label: "Year",       value: analysisResult.year },
-                      { label: "Body Type",  value: analysisResult.bodyType },
+                      { label: "Make", value: analysisResult.make },
+                      { label: "Model", value: analysisResult.model },
+                      { label: "Year", value: analysisResult.year },
+                      { label: "Body Type", value: analysisResult.bodyType },
                       { label: "Confidence", value: analysisResult.confidence },
                     ].map((field) => (
                       <div key={field.label} className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
@@ -567,11 +569,10 @@ function CustomerDashboard() {
                           <button
                             disabled={!isDashboardLoading && hasActiveBooking}
                             onClick={() => { if (!hasActiveBooking) navigate("/bookings", { state: { openBooking: true } }); }}
-                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 shadow-lg shadow-red-600/20 ${
-                              !isDashboardLoading && hasActiveBooking
+                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 shadow-lg shadow-red-600/20 ${!isDashboardLoading && hasActiveBooking
                                 ? "bg-red-600/20 text-red-400/50 cursor-not-allowed shadow-none"
                                 : "bg-red-600 hover:bg-red-500 text-white"
-                            }`}
+                              }`}
                           >
                             Book Again
                           </button>

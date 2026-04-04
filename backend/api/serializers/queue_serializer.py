@@ -118,3 +118,28 @@ class BookingToQueueSerializer(serializers.Serializer):
 class AssignEmployeeSerializer(serializers.Serializer):
     """Payload for assigning an employee to a queue entry."""
     employee_id = serializers.IntegerField(allow_null=True)
+
+from api.models import ServiceMessage
+
+class ServiceMessageSerializer(serializers.ModelSerializer):
+    sender_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceMessage
+        fields = [
+            "id", "queue_entry", "sender_user", "sender_type", 
+            "sender_name", "message", "is_read", "created_at"
+        ]
+        read_only_fields = ["id", "created_at", "sender_name", "sender_user"]
+
+    def get_sender_name(self, obj):
+        if obj.sender_type == "employee" and obj.sender_user:
+            # check if staff
+            if hasattr(obj.sender_user, "staff_profile"):
+                return f"{obj.sender_user.staff_profile.first_name} {obj.sender_user.staff_profile.last_name}"
+            return "Employee"
+        elif obj.sender_type == "customer":
+            if obj.sender_user and hasattr(obj.sender_user, "customer_profile"):
+                return f"{obj.sender_user.customer_profile.first_name} {obj.sender_user.customer_profile.last_name}"
+            return "Customer"
+        return "System"

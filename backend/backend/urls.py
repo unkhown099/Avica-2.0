@@ -56,6 +56,7 @@ from api.views.queue_views import (
     queue_available_products,
     queue_add_products,
     queue_edit_service_details,
+    queue_messages,
 )
 from api.views.customer_history import CustomerHistoryAPIView
 from api.views.ratings_views import RatingCreateView
@@ -160,6 +161,7 @@ urlpatterns = [
     path('api/queue/<int:pk>/products/', queue_available_products, name='queue-products'),
     path('api/queue/<int:pk>/add-products/', queue_add_products, name='queue-add-products'),
     path('api/queue/<int:pk>/service-details/', queue_edit_service_details, name='queue-service-details'),
+    path('api/queue/<int:pk>/messages/', queue_messages, name='queue-messages'),
 
     # ── Customer dashboard & history ──────────────────────────────────────────
     path('api/customer/dashboard/', CustomerDashboardAPIView.as_view(), name='customer-dashboard'),

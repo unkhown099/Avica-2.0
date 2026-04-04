@@ -888,11 +888,10 @@ function DamageDetectionModal({ onClose, onBack }) {
                       <button
                         key={i}
                         onClick={() => setActiveImageIndex(i)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                          activeImageIndex === i
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${activeImageIndex === i
                             ? "bg-red-600 border-red-500 text-white"
                             : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                        }`}
+                          }`}
                       >
                         Photo {i + 1}
                       </button>
@@ -1737,8 +1736,8 @@ function NewBookingModal({
                             "services",
                             alreadySelected
                               ? form.services.filter(
-                                  (selected) => selected.id !== s.id,
-                                )
+                                (selected) => selected.id !== s.id,
+                              )
                               : [...(form.services || []), s],
                           );
                         }}
@@ -1792,8 +1791,8 @@ function NewBookingModal({
                             "services",
                             alreadySelected
                               ? form.services.filter(
-                                  (selected) => selected.id !== s.id,
-                                )
+                                (selected) => selected.id !== s.id,
+                              )
                               : [...(form.services || []), s],
                           );
                         }}
@@ -1925,6 +1924,22 @@ function NewBookingModal({
                                 {b.slots} slots open
                               </span>
                             </div>
+                            {b.latitude && b.longitude && (
+                              <div className="mt-1.5 sm:mt-2">
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${b.latitude},${b.longitude}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-blue-400 hover:text-blue-300 font-semibold px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all hover:scale-105 duration-200"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                  </svg>
+                                  View in Map
+                                </a>
+                              </div>
+                            )}
                           </div>
                           {active && <SelectedBadge />}
                         </button>
@@ -2122,13 +2137,12 @@ function NewBookingModal({
                                 ? "This slot is fully booked"
                                 : ""
                       }
-                      className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${
-                        active && !isDisabled
+                      className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${active && !isDisabled
                           ? "border-red-500 bg-red-600/20 text-white shadow-md shadow-red-600/20 ring-1 ring-red-500/40"
                           : isDisabled
                             ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
                             : "border-white/8 bg-white/3 text-gray-400 hover:border-red-500/40 hover:bg-red-600/8 hover:text-white cursor-pointer"
-                      }`}
+                        }`}
                     >
                       {t}
                       {isDisabled &&
@@ -2284,7 +2298,7 @@ function NewBookingModal({
               <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">
                 {bookingMode === "specific"
                   ? form.preferredEmployee?.full_name ||
-                    "Specific employee selected"
+                  "Specific employee selected"
                   : "General (any available employee)"}
               </div>
             </div>
@@ -2337,8 +2351,8 @@ function NewBookingModal({
                     "Price",
                     form.services && form.services.length > 0
                       ? `₱${form.services
-                          .reduce((sum, s) => sum + parseFloat(s.price || 0), 0)
-                          .toLocaleString()}`
+                        .reduce((sum, s) => sum + parseFloat(s.price || 0), 0)
+                        .toLocaleString()}`
                       : "—",
                     true,
                   ],
@@ -2389,10 +2403,10 @@ function NewBookingModal({
           onClick={
             step > 0
               ? () => {
-                  setStep((s) => s - 1);
-                  setError("");
-                  setFieldErrors({});
-                }
+                setStep((s) => s - 1);
+                setError("");
+                setFieldErrors({});
+              }
               : onClose
           }
           className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 font-semibold text-xs sm:text-sm transition-all duration-200"
@@ -2750,18 +2764,16 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
                     key={i}
                     type="button"
                     onClick={() => setSelected(opt)}
-                    className={`w-full p-3 sm:p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${
-                      isActive
+                    className={`w-full p-3 sm:p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${isActive
                         ? "border-indigo-500 bg-indigo-600/12"
                         : "border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5"
-                    }`}
+                      }`}
                   >
                     <div
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                        isActive
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isActive
                           ? "border-indigo-500 bg-indigo-500"
                           : "border-white/30"
-                      }`}
+                        }`}
                     >
                       {isActive && (
                         <svg
@@ -3291,11 +3303,10 @@ function BookingsPage() {
                 if (!newBookingDisabled) setShowOptionModal(true);
               }}
               disabled={newBookingDisabled}
-              className={`flex items-center gap-1.5 font-bold px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm transition-all duration-200 shadow-xl ${
-                newBookingDisabled
+              className={`flex items-center gap-1.5 font-bold px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm transition-all duration-200 shadow-xl ${newBookingDisabled
                   ? "bg-red-600/30 text-red-300/50 cursor-not-allowed shadow-none"
                   : "bg-red-600 hover:bg-red-500 text-white hover:scale-105 shadow-red-600/30"
-              }`}
+                }`}
             >
               <svg
                 className="w-4 h-4 sm:w-5 sm:h-5"
@@ -3406,11 +3417,10 @@ function BookingsPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`flex-shrink-0 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-semibold text-[10px] sm:text-xs capitalize transition-all duration-200 ${
-                filter === f
+              className={`flex-shrink-0 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-semibold text-[10px] sm:text-xs capitalize transition-all duration-200 ${filter === f
                   ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
                   : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40 hover:bg-red-600/10"
-              }`}
+                }`}
             >
               {f}
             </button>
@@ -3492,19 +3502,19 @@ function BookingsPage() {
                 booking.service_name ||
                 booking.service_detail?.name ||
                 (typeof rawSvc === "string" &&
-                rawSvc.trim() !== "" &&
-                isNaN(rawSvc)
+                  rawSvc.trim() !== "" &&
+                  isNaN(rawSvc)
                   ? rawSvc
                   : typeof rawSvc === "number" ||
-                      (typeof rawSvc === "string" && !isNaN(rawSvc))
+                    (typeof rawSvc === "string" && !isNaN(rawSvc))
                     ? `Service #${rawSvc}`
                     : String(rawSvc || "Unknown Service"));
               const displayTime = toDisplayTime(booking.time);
               const rawPrice = parseFloat(booking.price);
               const priceDisplay =
                 !isNaN(rawPrice) &&
-                booking.price != null &&
-                booking.price !== ""
+                  booking.price != null &&
+                  booking.price !== ""
                   ? rawPrice > 0
                     ? `₱${rawPrice.toLocaleString("en-PH")}`
                     : "To be assessed"
@@ -3606,28 +3616,28 @@ function BookingsPage() {
                             )}
                             {(booking.status === "pending" ||
                               booking.status === "confirmed") && (
-                              <button
-                                onClick={() =>
-                                  setCustomerRescheduleBooking(booking)
-                                }
-                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
-                              >
-                                <svg
-                                  className="w-3 h-3"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                                <button
+                                  onClick={() =>
+                                    setCustomerRescheduleBooking(booking)
+                                  }
+                                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
-                                  />
-                                </svg>
-                                Request Reschedule
-                              </button>
-                            )}
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
+                                    />
+                                  </svg>
+                                  Request Reschedule
+                                </button>
+                              )}
 
                             <button
                               onClick={() => setCancelBooking(booking)}

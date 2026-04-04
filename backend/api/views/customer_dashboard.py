@@ -63,6 +63,24 @@ class CustomerDashboardAPIView(APIView):
             for b in upcoming
         ]
 
+        # Active queue entries (waiting or in_service)
+        active_entries = QueueEntry.objects.filter(
+            Q(booking__user=user) | Q(customer_user=user),
+            status__in=["waiting", "in_service"]
+        ).order_by("position")
+
+        active_data = [
+            {
+                "id": q.id,
+                "service": resolve_service(q),
+                "status": q.status,
+                "position": q.position,
+                "assigned_employee": q.assigned_employee.first_name if q.assigned_employee else None,
+                "queued_at": q.queued_at.isoformat() if q.queued_at else None,
+            }
+            for q in active_entries
+        ]
+
         history_data = [
             {
                 "id": q.id,
@@ -92,5 +110,6 @@ class CustomerDashboardAPIView(APIView):
         return Response({
             "stats": stats,
             "upcoming_bookings": upcoming_data,
+            "active_sessions": active_data,
             "service_history": history_data,
         })

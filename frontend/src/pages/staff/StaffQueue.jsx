@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import StaffLayout from "./StaffLayout";
 import Swal from "sweetalert2";
 import { API_BASE } from "../../hooks/useAuth.js";
+import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -506,6 +507,7 @@ function QueueDetailModal({
   employees,
   onAction,
   onAssign,
+  onMessageCustomer,
   actionLoading,
   assignLoading,
 }) {
@@ -562,20 +564,20 @@ function QueueDetailModal({
             ))}
           </div>
 
-      {entry.notes && (
-        <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-2 text-gray-500 text-xs">
-          📝 {entry.notes}
-        </div>
-      )}
+          {entry.notes && (
+            <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-2 text-gray-500 text-xs">
+              📝 {entry.notes}
+            </div>
+          )}
 
           {(entry.status === "waiting" || entry.status === "in_service") && (
             <div>
-          <AssignDropdown
-            entry={entry}
-            employees={employees}
-            onAssign={onAssign}
-            assigning={isAssigning}
-          />
+              <AssignDropdown
+                entry={entry}
+                employees={employees}
+                onAssign={onAssign}
+                assigning={isAssigning}
+              />
             </div>
           )}
 
@@ -599,6 +601,18 @@ function QueueDetailModal({
                 Mark as Done
               </button>
             )}
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={() => onMessageCustomer(entry.id)}
+              className="w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              Message Customer
+            </button>
           </div>
         </div>
       </div>
@@ -1052,6 +1066,7 @@ function StaffQueue() {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(null);
   const [assignLoading, setAssignLoading] = useState(null);
+  const [chatQueueId, setChatQueueId] = useState(null);
   const [showWalkIn, setShowWalkIn] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [draggingEntry, setDraggingEntry] = useState(null);
@@ -1581,15 +1596,30 @@ function StaffQueue() {
         />
       )}
 
-      <QueueDetailModal
-        entry={selectedEntry}
-        onClose={() => setSelectedEntry(null)}
-        employees={employees}
-        onAction={handleAction}
-        onAssign={handleAssign}
-        actionLoading={actionLoading}
-        assignLoading={assignLoading}
-      />
+      {selectedEntry && (
+        <QueueDetailModal
+          entry={selectedEntry}
+          onClose={() => setSelectedEntry(null)}
+          employees={employees}
+          onAction={handleAction}
+          onAssign={handleAssign}
+          onMessageCustomer={(id) => {
+            setChatQueueId(id);
+            setSelectedEntry(null);
+          }}
+          actionLoading={actionLoading}
+          assignLoading={assignLoading}
+        />
+      )}
+
+      {chatQueueId && (
+        <ServiceChatModal
+          queueId={chatQueueId}
+          isEmployee={true}
+          onClose={() => setChatQueueId(null)}
+          currentUserStr="Employee"
+        />
+      )}
     </StaffLayout>
   );
 }

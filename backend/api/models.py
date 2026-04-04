@@ -663,3 +663,19 @@ class LandingContent(models.Model):
 
     def __str__(self):
         return f"LandingContent [{self.key}] — {self.updated_at}"
+
+# ── ServiceMessage ────────────────────────────────────────────────────────────
+class ServiceMessage(models.Model):
+    queue_entry = models.ForeignKey(QueueEntry, on_delete=models.CASCADE, related_name="messages")
+    sender_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    sender_type = models.CharField(max_length=20, choices=[("employee", "Employee"), ("customer", "Customer")])
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "service_messages"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.sender_type} - {self.queue_entry.id}: {self.message[:20]}"
