@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { API_BASE } from "../../hooks/useAuth.js";
+import { apiFetch } from "../../hooks/api";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 import {
   Chart as ChartJS,
@@ -675,31 +675,20 @@ export default function SuperAdminDashboard() {
   const [error, setError]         = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const fetchDashboard = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+const fetchDashboard = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      const token =
-        localStorage.getItem("access_token") ??
-        sessionStorage.getItem("access_token");
+    const result = await apiFetch("/super-admin/dashboard/");
+    setData(result);
 
-      const res = await fetch(`${API_BASE}/super-admin/dashboard/`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: "include",
-      });
-
-      if (!res.ok) throw new Error(`Failed to load dashboard (${res.status})`);
-      setData(await res.json());
-    } catch (err) {
-      setError(err.message || "Failed to load dashboard data.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    setError(err.message || "Failed to load dashboard data.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => { fetchDashboard(); }, []);
 

@@ -150,7 +150,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 CSRF_TRUSTED_ORIGINS = [
@@ -184,6 +185,8 @@ SIMPLE_JWT = {
     "TOKEN_OBTAIN_SERIALIZER": "api.serializers.token_serializer.CustomTokenObtainPairSerializer",
 
 }
+
+CORS_URLS_REGEX = r".*"
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")

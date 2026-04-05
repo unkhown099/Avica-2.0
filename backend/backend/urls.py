@@ -1,5 +1,7 @@
 # backend/urls.py
 from django import views
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path
 from django.views.generic import RedirectView
@@ -87,10 +89,15 @@ from api.views.super_admin_views import (
     SuperAdminBranchOverviewView,
     SuperAdminBroadcastView,
     SuperAdminCreateView,
+    SuperAdminSystemSettingsView,
+    SuperAdminPluginView,
+    SuperAdminPluginDetailView,
 )
 from api.views.landing_content_views import (
     LandingContentPublicView,
     LandingContentAdminView,
+    MediaAssetListView,
+    MediaAssetDetailView,
 )
 
 urlpatterns = [
@@ -104,6 +111,9 @@ urlpatterns = [
     path("super-admin/branches/",            SuperAdminBranchOverviewView.as_view()),
     path("super-admin/broadcast/",           SuperAdminBroadcastView.as_view()),
     path("super-admin/create/",              SuperAdminCreateView.as_view()),
+    path("super-admin/settings/", SuperAdminSystemSettingsView.as_view()),
+    path('super-admin/plugins/', SuperAdminPluginView.as_view(), name='super-admin-plugins'),
+    path('super-admin/plugins/<int:pk>/', SuperAdminPluginDetailView.as_view(), name='super-admin-plugin-detail'),
 
     path('admin/', admin.site.urls),
 
@@ -215,6 +225,8 @@ urlpatterns = [
     # ── Landing content ───────────────────────────────────────────────────────────
     path("api/landing-content/",              LandingContentPublicView.as_view()),   # public
     path("super-admin/landing-content/",      LandingContentAdminView.as_view()), # admin-only
+    path("super-admin/media-assets/",         MediaAssetListView.as_view()),
+    path("super-admin/media-assets/<int:pk>/", MediaAssetDetailView.as_view()),
 
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
@@ -223,3 +235,6 @@ urlpatterns = [
     path("api/forecast/system/", get_latest_system_forecasts, name="system-forecast"),
     path("api/forecast/system/generate/", generate_system_forecasts, name="generate_system_forecasts"),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

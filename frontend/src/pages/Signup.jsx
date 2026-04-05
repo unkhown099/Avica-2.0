@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
@@ -117,6 +117,9 @@ function SignUpPage() {
 
   const [hasReadTerms, setHasReadTerms] = useState(false);
   const [hasReadPrivacy, setHasReadPrivacy] = useState(false);
+  const [landingPosts, setLandingPosts] = useState([]);
+  const [policyLoading, setPolicyLoading] = useState(true);
+  const [policyError, setPolicyError] = useState("");
 
   // Auto-check agreement when both documents are read
   useEffect(() => {
@@ -127,6 +130,30 @@ function SignUpPage() {
       }
     }
   }, [hasReadTerms, hasReadPrivacy]);
+
+  useEffect(() => {
+    const loadLandingContent = async () => {
+      setPolicyLoading(true);
+      setPolicyError("");
+      try {
+        const response = await fetch(`${API_BASE}/api/landing-content/`);
+        if (!response.ok) {
+          throw new Error(`Failed to load landing content: ${response.status}`);
+        }
+        const data = await response.json();
+        setLandingPosts(Array.isArray(data.posts) ? data.posts : []);
+      } catch (error) {
+        console.error(error);
+        setPolicyError("Unable to load policy content.");
+        setLandingPosts([]);
+      } finally {
+        setPolicyLoading(false);
+      }
+    };
+
+    loadLandingContent();
+  }, []);
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -536,6 +563,16 @@ function SignUpPage() {
   );
 
   const Modal = ({ isOpen, onClose, title, children, onScrollEnd, hasRead }) => {
+    const contentRef = useRef(null);
+
+    useEffect(() => {
+      if (!isOpen || !contentRef.current) return;
+      const el = contentRef.current;
+      if (el.scrollHeight <= el.clientHeight) {
+        if (onScrollEnd) onScrollEnd();
+      }
+    }, [isOpen, children, onScrollEnd]);
+
     if (!isOpen) return null;
 
     const handleScroll = (e) => {
@@ -557,6 +594,7 @@ function SignUpPage() {
             </button>
           </div>
           <div
+            ref={contentRef}
             className="p-8 overflow-y-auto custom-scrollbar text-gray-400 space-y-6 text-lg leading-relaxed"
             onScroll={handleScroll}
           >
@@ -577,52 +615,69 @@ function SignUpPage() {
     );
   };
 
-  const TermsContent = () => (
-    <div className="space-y-6">
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">1. SERVICE DESCRIPTION</h4>
-        <p>Otokwikk provides premium automotive detailing services, including exterior restoration, interior sterilization, and various protection packages. By booking a service, you agree to our quality standards and operational procedures.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">2. BOOKING & CANCELLATIONS</h4>
-        <p>Reservations must be made at least 24 hours in advance. Cancellations made less than 12 hours before the scheduled appointment may be subject to a rescheduling fee at the branch's discretion.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">3. CUSTOMER RESPONSIBILITIES</h4>
-        <p>Customers must remove all personal belongings from their vehicles before handing them over to Otokwikk staff. Otokwikk is not liable for any lost or damaged personal items left inside the vehicle.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">4. LIABILITY</h4>
-        <p>While we use aerospace-grade products and surgical precision, Otokwikk is not responsible for pre-existing paint defects, clear coat failure, or structural damage that may become prominent during the restoration process.</p>
-      </section>
-    </div>
-  );
+  const getPostByKey = (key) =>
+    landingPosts.find((post) => post.key === key);
 
+  const renderPostBody = (post) => {
+    if (!post) return null;
+    return (
+      <section key={post.key}>
+        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">
+          {post.title}
+        </h4>
+        <p>{post.body}</p>
+      </section>
+    );
+  };
 
-  const PrivacyAndCookieContent = () => (
-    <div className="space-y-6">
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">1. DATA COLLECTION</h4>
-        <p>We collect personal information such as name, email, and phone number solely for account management, service scheduling, and quality assurance purposes.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">2. USAGE & SECURITY</h4>
-        <p>Your data is stored securely and is never shared with third parties for marketing purposes. We use industry-standard encryption to protect your account details.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">3. SERVICE TRACKING</h4>
-        <p>We maintain a history of your detailing services to provide personalized recommendations and exclusive discounts. You may request your data profile at any time.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">4. WHAT ARE COOKIES?</h4>
-        <p>Cookies are small pieces of text sent to your web browser by a website you visit. They help the website remember information about your visit.</p>
-      </section>
-      <section>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">5. HOW WE USE COOKIES</h4>
-        <p>We use cookies to maintain your session (so you don't have to keep logging in), track your settings, and improve our platform's performance based on your usage.</p>
-      </section>
-    </div>
-  );
+  const TermsContent = () => {
+    if (policyLoading) {
+      return <div className="text-gray-400">Loading terms and conditions…</div>;
+    }
+
+    if (policyError) {
+      return <div className="text-red-400">{policyError}</div>;
+    }
+
+    const termsPost = getPostByKey("terms");
+    if (!termsPost) {
+      return (
+        <div className="text-gray-400">
+          Terms and conditions content is not available at the moment.
+        </div>
+      );
+    }
+
+    return <div className="space-y-6">{renderPostBody(termsPost)}</div>;
+  };
+
+  const PrivacyAndCookieContent = () => {
+    if (policyLoading) {
+      return <div className="text-gray-400">Loading privacy and cookie policy…</div>;
+    }
+
+    if (policyError) {
+      return <div className="text-red-400">{policyError}</div>;
+    }
+
+    const privacyPost = getPostByKey("privacy");
+    const cookiePost = getPostByKey("cookie");
+
+    if (!privacyPost && !cookiePost) {
+      return (
+        <div className="text-gray-400">
+          Privacy and cookie policy content is not available at the moment.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {privacyPost && renderPostBody(privacyPost)}
+        {cookiePost && renderPostBody(cookiePost)}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-black flex items-start lg:items-center justify-center px-3 sm:px-6 py-16 sm:py-10 relative overflow-x-hidden overflow-y-auto">

@@ -663,3 +663,172 @@ class LandingContent(models.Model):
 
     def __str__(self):
         return f"LandingContent [{self.key}] — {self.updated_at}"
+
+
+class MediaAsset(models.Model):
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "Image"
+        DOCUMENT = "document", "Document"
+        OTHER = "other", "Other"
+
+    name = models.CharField(max_length=255)
+    file = models.FileField(upload_to="media_assets/")
+    media_type = models.CharField(
+        max_length=20,
+        choices=MediaType.choices,
+        default=MediaType.IMAGE,
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_media_assets",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "media_asset"
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"MediaAsset [{self.name}]"
+
+# ── Plugin / Extension ─────────────────────────────────────────────────────────
+class Plugin(models.Model):
+    """
+    Manage system plugins and extensions that can be enabled/disabled.
+    """
+    PLUGIN_CATEGORIES = [
+        ("analytics", "Analytics & Tracking"),
+        ("notifications", "Notifications & Alerts"),
+        ("integrations", "Third-party Integrations"),
+        ("automation", "Automation"),
+        ("reporting", "Reporting & Analytics"),
+        ("payment", "Payment Gateways"),
+        ("marketing", "Marketing Tools"),
+        ("other", "Other"),
+    ]
+    
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("inactive", "Inactive"),
+        ("installed", "Installed (Disabled)"),
+        ("needs_update", "Needs Update"),
+        ("error", "Error"),
+    ]
+    
+    # Basic Info
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True, help_text="Unique identifier for the plugin")
+    description = models.TextField()
+    version = models.CharField(max_length=20, default="1.0.0")
+    author = models.CharField(max_length=100, blank=True, default="")
+    website = models.URLField(blank=True, default="")
+    category = models.CharField(max_length=50, choices=PLUGIN_CATEGORIES, default="other")
+    
+    # Status & Configuration
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="inactive")
+    is_system = models.BooleanField(default=False, help_text="System plugins cannot be uninstalled")
+    settings = models.JSONField(default=dict, blank=True, help_text="Plugin-specific settings")
+    
+    # Installation Tracking
+    installed_at = models.DateTimeField(auto_now_add=True)
+    installed_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="installed_plugins",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    
+    # Dependencies
+    dependencies = models.JSONField(default=list, blank=True, help_text="List of plugin slugs required")
+    conflicts = models.JSONField(default=list, blank=True, help_text="List of plugin slugs that conflict")
+    
+    # Permissions (which roles can access/modify this plugin)
+    accessible_by_roles = models.JSONField(default=list, blank=True, help_text="List of staff roles that can manage this plugin")
+    
+    class Meta:
+        db_table = "plugins"
+        ordering = ["category", "name"]
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_status_display()})"
+    
+    @property
+    def is_active(self):
+        return self.status == "active"
+    
+    def activate(self):
+        """Activate the plugin"""
+        # Check dependencies first
+        if self.dependencies:
+            missing = []
+            for dep_slug in self.dependencies:
+                if not Plugin.objects.filter(slug=dep_slug, status="active").exists():
+                    missing.append(dep_slug)
+            if missing:
+                raise ValueError(f"Cannot activate: Missing dependencies: {', '.join(missing)}")
+        
+        # Check conflicts
+        if self.conflicts:
+            conflicting = []
+            for conf_slug in self.conflicts:
+                if Plugin.objects.filter(slug=conf_slug, status="active").exists():
+                    conflicting.append(conf_slug)
+            if conflicting:
+                raise ValueError(f"Cannot activate: Conflicting plugins active: {', '.join(conflicting)}")
+        
+        self.status = "active"
+        self.save()
+    
+    def deactivate(self):
+        """Deactivate the plugin"""
+        if self.is_system:
+            raise ValueError("System plugins cannot be deactivated")
+        self.status = "inactive"
+        self.save()
+    
+    def update_settings(self, new_settings):
+        """Update plugin settings (merges with existing)"""
+        self.settings.update(new_settings)
+        self.save()
+
+
+# ── Plugin Log / Activity ─────────────────────────────────────────────────────
+class PluginLog(models.Model):
+    """
+    Track plugin installation, activation, deactivation, and errors.
+    """
+    ACTION_CHOICES = [
+        ("install", "Installed"),
+        ("uninstall", "Uninstalled"),
+        ("activate", "Activated"),
+        ("deactivate", "Deactivated"),
+        ("update", "Updated"),
+        ("error", "Error"),
+        ("config_change", "Configuration Changed"),
+    ]
+    
+    plugin = models.ForeignKey(Plugin, on_delete=models.CASCADE, related_name="logs")
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    message = models.TextField(blank=True, default="")
+    performed_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="plugin_actions",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = "plugin_logs"
+        ordering = ["-created_at"]
+    
+    def __str__(self):
+        return f"{self.plugin.name} - {self.action} at {self.created_at}"

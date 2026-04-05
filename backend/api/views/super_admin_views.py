@@ -1,9 +1,10 @@
+import json
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Sum, Q
 from django.db.models.functions import TruncMonth, TruncDate
 from django.utils import timezone
 from datetime import timedelta
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -11,7 +12,8 @@ from django.db.models import F
 
 from api.models import (
     Staff, Branch, Customer, Booking, QueueEntry,
-    Service, InventoryItem, Notification
+    Service, InventoryItem, Notification, Plugin,
+    PluginLog
 )
 from api.permissions import IsSuperAdmin
 
@@ -715,3 +717,348 @@ class SuperAdminCreateView(APIView):
             {"message": f"Super Admin '{email}' created successfully."},
             status=201,
         )
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 9. SYSTEM SETTINGS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 
+SETTINGS_CACHE_KEY = "super_admin_system_settings"
+ 
+SETTINGS_DEFAULTS = {
+    "general": {
+        "siteName": "Otokwikk",
+        "siteTagline": "Your automotive companion",
+        "siteMode": "live",
+        "maintenanceMessage": "",
+        "defaultLanguage": "en",
+        "defaultTimezone": "Asia/Manila",
+        "supportUrl": "https://support.otokwikk.com",
+    },
+    "email": {
+        "mailHost": "",
+        "mailPort": 587,
+        "mailFrom": "",
+        "supportEmail": "",
+        "emailVerificationRequired": True,
+        "welcomeEmailEnabled": True,
+    },
+    "security": {
+        "requireStrongPasswords": True,
+        "sessionTimeoutMinutes": 60,
+        "allowTwoFactor": True,
+        "maxLoginAttempts": 5,
+        "lockoutDurationMinutes": 15,
+        "allowGoogleOAuth": True,
+        "allowFacebookOAuth": False,
+    },
+}
+ 
+# ── Allowed keys per section (whitelist to prevent arbitrary key injection) ──
+ALLOWED_KEYS = {
+    "general": set(SETTINGS_DEFAULTS["general"].keys()),
+    "email":   set(SETTINGS_DEFAULTS["email"].keys()),
+    "security": set(SETTINGS_DEFAULTS["security"].keys()),
+}
+ 
+ 
+def _load_settings():
+    """
+    Load settings from cache (fast path) or fall back to DB / defaults.
+    Uses Django's cache framework — works with any configured cache backend
+    (memcached, Redis, local-memory, etc.).
+    """
+    cached = cache.get(SETTINGS_CACHE_KEY)
+    if cached:
+        return cached
+ 
+    # Try to load from DB if you have a SystemSetting model.
+    # For now we fall back to defaults and persist in cache only.
+    # Replace this block with DB reads once you create the model.
+    settings_data = _deep_copy_defaults()
+    cache.set(SETTINGS_CACHE_KEY, settings_data, timeout=None)  # no expiry
+    return settings_data
+ 
+ 
+def _save_settings(data):
+    cache.set(SETTINGS_CACHE_KEY, data, timeout=None)
+    # TODO: persist to DB once SystemSetting model is available
+ 
+ 
+def _deep_copy_defaults():
+    import copy
+    return copy.deepcopy(SETTINGS_DEFAULTS)
+ 
+ 
+class SuperAdminSystemSettingsView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+ 
+    def get(self, request):
+        """Return all current settings."""
+        return Response(_load_settings())
+ 
+    def patch(self, request):
+        """
+        Partial-update one or more sections.
+ 
+        Expected body (send only the section(s) you want to update):
+        {
+            "general": { "siteName": "New Name", ... },
+            "email":   { "mailPort": 465, ... },
+            "security": { "maxLoginAttempts": 3, ... }
+        }
+        """
+        data = _load_settings()
+        errors = {}
+ 
+        for section in ("general", "email", "security"):
+            incoming = request.data.get(section)
+            if not incoming:
+                continue
+            if not isinstance(incoming, dict):
+                errors[section] = "Must be an object."
+                continue
+ 
+            # Only update whitelisted keys
+            for key, value in incoming.items():
+                if key in ALLOWED_KEYS[section]:
+                    data[section][key] = value
+                # Silently ignore unknown keys
+ 
+        if errors:
+            return Response({"errors": errors}, status=400)
+ 
+        _save_settings(data)
+        return Response({"message": "Settings saved successfully.", "settings": data})
+    
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 10. PLUGIN MANAGEMENT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class SuperAdminPluginView(APIView):
+    """Manage plugins - list, install, update, uninstall"""
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    
+    def get(self, request):
+        """List all plugins with their status and settings"""
+        plugins = Plugin.objects.all()
+        
+        # Get counts by status
+        status_counts = {
+            "active": plugins.filter(status="active").count(),
+            "inactive": plugins.filter(status="inactive").count(),
+            "needs_update": plugins.filter(status="needs_update").count(),
+            "error": plugins.filter(status="error").count(),
+        }
+        
+        data = {
+            "plugins": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "slug": p.slug,
+                    "description": p.description,
+                    "version": p.version,
+                    "author": p.author,
+                    "website": p.website,
+                    "category": p.category,
+                    "status": p.status,
+                    "is_active": p.is_active,
+                    "is_system": p.is_system,
+                    "settings": p.settings,
+                    "dependencies": p.dependencies,
+                    "conflicts": p.conflicts,
+                    "installed_at": p.installed_at,
+                    "updated_at": p.updated_at,
+                    "accessible_by_roles": p.accessible_by_roles,
+                }
+                for p in plugins
+            ],
+            "status_counts": status_counts,
+            "categories": dict(Plugin.PLUGIN_CATEGORIES),
+        }
+        return Response(data)
+    
+    def post(self, request):
+        """Install a new plugin"""
+        name = request.data.get("name")
+        slug = request.data.get("slug")
+        description = request.data.get("description", "")
+        version = request.data.get("version", "1.0.0")
+        author = request.data.get("author", "")
+        website = request.data.get("website", "")
+        category = request.data.get("category", "other")
+        
+        if not name or not slug:
+            return Response({"error": "name and slug are required"}, status=400)
+        
+        if Plugin.objects.filter(slug=slug).exists():
+            return Response({"error": f"Plugin with slug '{slug}' already exists"}, status=400)
+        
+        # Get current staff user
+        staff = Staff.objects.get(user=request.user)
+        
+        plugin = Plugin.objects.create(
+            name=name,
+            slug=slug,
+            description=description,
+            version=version,
+            author=author,
+            website=website,
+            category=category,
+            status="installed",
+            installed_by=staff,
+        )
+        
+        # Log the installation
+        PluginLog.objects.create(
+            plugin=plugin,
+            action="install",
+            message=f"Plugin {name} v{version} installed",
+            performed_by=staff,
+        )
+        
+        return Response({
+            "message": f"Plugin '{name}' installed successfully",
+            "plugin": {
+                "id": plugin.id,
+                "name": plugin.name,
+                "slug": plugin.slug,
+                "status": plugin.status,
+            }
+        }, status=201)
+
+
+class SuperAdminPluginDetailView(APIView):
+    """Manage a specific plugin - activate, deactivate, update, uninstall, configure"""
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    
+    def get_plugin(self, pk):
+        try:
+            return Plugin.objects.get(pk=pk)
+        except Plugin.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        """Get detailed info for a specific plugin"""
+        plugin = self.get_plugin(pk)
+        if not plugin:
+            return Response({"error": "Plugin not found"}, status=404)
+        
+        # Get plugin logs
+        logs = plugin.logs.all()[:50]
+        
+        return Response({
+            "id": plugin.id,
+            "name": plugin.name,
+            "slug": plugin.slug,
+            "description": plugin.description,
+            "version": plugin.version,
+            "author": plugin.author,
+            "website": plugin.website,
+            "category": plugin.category,
+            "status": plugin.status,
+            "is_active": plugin.is_active,
+            "is_system": plugin.is_system,
+            "settings": plugin.settings,
+            "dependencies": plugin.dependencies,
+            "conflicts": plugin.conflicts,
+            "installed_at": plugin.installed_at,
+            "updated_at": plugin.updated_at,
+            "accessible_by_roles": plugin.accessible_by_roles,
+            "logs": [
+                {
+                    "action": log.action,
+                    "message": log.message,
+                    "performed_by": str(log.performed_by) if log.performed_by else "System",
+                    "created_at": log.created_at,
+                }
+                for log in logs
+            ],
+        })
+    
+    def patch(self, request, pk):
+        """Update plugin status (activate/deactivate) or settings"""
+        plugin = self.get_plugin(pk)
+        if not plugin:
+            return Response({"error": "Plugin not found"}, status=404)
+        
+        staff = Staff.objects.get(user=request.user)
+        action_taken = None
+        message = ""
+        
+        # Handle activation/deactivation
+        if "action" in request.data:
+            action = request.data["action"]
+            
+            try:
+                if action == "activate":
+                    plugin.activate()
+                    action_taken = "activate"
+                    message = f"Plugin '{plugin.name}' activated"
+                elif action == "deactivate":
+                    plugin.deactivate()
+                    action_taken = "deactivate"
+                    message = f"Plugin '{plugin.name}' deactivated"
+                else:
+                    return Response({"error": f"Invalid action: {action}"}, status=400)
+            except ValueError as e:
+                return Response({"error": str(e)}, status=400)
+        
+        # Handle settings update
+        if "settings" in request.data:
+            plugin.update_settings(request.data["settings"])
+            action_taken = "config_change"
+            message = f"Plugin '{plugin.name}' settings updated"
+        
+        # Handle version update
+        if "version" in request.data:
+            old_version = plugin.version
+            plugin.version = request.data["version"]
+            plugin.save()
+            action_taken = "update"
+            message = f"Plugin '{plugin.name}' updated from v{old_version} to v{plugin.version}"
+        
+        if action_taken:
+            PluginLog.objects.create(
+                plugin=plugin,
+                action=action_taken,
+                message=message,
+                performed_by=staff,
+                metadata=request.data,
+            )
+        
+        return Response({
+            "message": message or "Plugin updated",
+            "plugin": {
+                "id": plugin.id,
+                "name": plugin.name,
+                "status": plugin.status,
+                "is_active": plugin.is_active,
+                "settings": plugin.settings,
+                "version": plugin.version,
+            }
+        })
+    
+    def delete(self, request, pk):
+        """Uninstall a plugin"""
+        plugin = self.get_plugin(pk)
+        if not plugin:
+            return Response({"error": "Plugin not found"}, status=404)
+        
+        if plugin.is_system:
+            return Response({"error": "System plugins cannot be uninstalled"}, status=400)
+        
+        staff = Staff.objects.get(user=request.user)
+        plugin_name = plugin.name
+        
+        # Log before deletion
+        PluginLog.objects.create(
+            plugin=plugin,
+            action="uninstall",
+            message=f"Plugin '{plugin_name}' uninstalled",
+            performed_by=staff,
+        )
+        
+        plugin.delete()
+        
+        return Response({"message": f"Plugin '{plugin_name}' uninstalled successfully"}, status=204)
