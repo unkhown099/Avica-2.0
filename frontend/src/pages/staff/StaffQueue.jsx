@@ -253,6 +253,27 @@ const KANBAN_COLUMNS = [
   },
 ];
 
+function normalizePHPhone(value = "") {
+  const digits = String(value).replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("63")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+63${digits.slice(1)}`;
+  return `+63${digits}`;
+}
+
+function isValidPHPhone(value = "") {
+  return /^\+63\d{10}$/.test(String(value).trim());
+}
+
+function normalizeWalkInPhoneInput(value = "") {
+  const digitsOnly = String(value).replace(/\D/g, "");
+  let local = digitsOnly;
+  if (local.startsWith("63")) local = local.slice(2);
+  local = local.slice(0, 11);
+  if (local.startsWith("0")) local = local.slice(1);
+  return `+63${local}`;
+}
+
 function elapsed(startedAt) {
   if (!startedAt) return null;
   const diff = Math.floor((Date.now() - new Date(startedAt)) / 1000);
@@ -724,6 +745,7 @@ function WalkInModal({ onClose, onAdded }) {
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -806,26 +828,35 @@ function WalkInModal({ onClose, onAdded }) {
     setForm((prev) => ({
       ...prev,
       customerName: fullName || prev.customerName,
-      phone: customer.phone || prev.phone,
+      phone: normalizePHPhone(customer.phone || prev.phone),
     }));
     setSelectedCustomerId(customer.id);
     setShowCustomerResults(false);
   };
 
   const handleSubmit = async () => {
-    if (!form.customerName || !form.phone || !form.vehicle || !form.service) {
-      setError("Please fill in all required fields.");
+    const nextErrors = {
+      customerName: !form.customerName.trim() || form.customerName.trim().length < 2,
+      phone: !isValidPHPhone(normalizePHPhone(form.phone)),
+      vehicle: !form.vehicle.trim() || form.vehicle.trim().length < 2,
+      service: !form.service,
+      plateNumber: form.plateNumber.trim() && form.plateNumber.trim().length < 3,
+    };
+    setFieldErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
+      setError("Please correct the highlighted fields.");
       return;
     }
     setLoading(true);
     setError("");
     try {
+      const normalizedPhone = normalizePHPhone(form.phone);
       const res = await fetch(`${API}/api/queue/walk-in/`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
           customer_name: form.customerName,
-          phone: form.phone,
+          phone: normalizedPhone,
           vehicle: form.vehicle,
           plate_number: form.plateNumber,
           service: form.service,
@@ -896,11 +927,16 @@ function WalkInModal({ onClose, onAdded }) {
                   set("customerName", e.target.value);
                   setSelectedCustomerId(null);
                   setShowCustomerResults(true);
+                  if (fieldErrors.customerName) {
+                    setFieldErrors((prev) => ({ ...prev, customerName: false }));
+                  }
                 }}
                 onFocus={() => setShowCustomerResults(true)}
                 onBlur={() => setTimeout(() => setShowCustomerResults(false), 180)}
                 placeholder="Type customer name / phone / email"
-                className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500/60 transition-all text-sm"
+                className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${
+                  fieldErrors.customerName ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
+                }`}
               />
 
               {showCustomerResults && form.customerName.trim() && (
@@ -937,7 +973,7 @@ function WalkInModal({ onClose, onAdded }) {
                 label: "Phone *",
                 key: "phone",
                 type: "tel",
-                placeholder: "0917-XXX-XXXX",
+                placeholder: "+63XXXXXXXXXX",
               },
               {
                 label: "Vehicle *",
@@ -959,21 +995,45 @@ function WalkInModal({ onClose, onAdded }) {
                 <input
                   type={type}
                   value={form[key]}
-                  onChange={(e) => set(key, e.target.value)}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (key === "phone") {
+                      set(key, normalizeWalkInPhoneInput(raw));
+                    } else if (key === "plateNumber") {
+                      set(key, raw.toUpperCase().slice(0, 8));
+                    } else {
+                      set(key, raw);
+                    }
+                    if (fieldErrors[key]) {
+                      setFieldErrors((prev) => ({ ...prev, [key]: false }));
+                    }
+                  }}
                   placeholder={placeholder}
-                  className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500/60 transition-all text-sm"
+                  className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${
+                    fieldErrors[key] ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
+                  }`}
                 />
+                {key === "phone" && (
+                  <p className="text-[11px] text-gray-500 mt-1">Format: +63 + numbers only (max 11 digits)</p>
+                )}
               </div>
             ))}
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
                 Service *
               </label>
-              <select
-                value={form.service}
-                onChange={(e) => set("service", e.target.value)}
-                className="w-full bg-gray-800 border border-white/10 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500/60 transition-all text-sm cursor-pointer"
-              >
+                <select
+                  value={form.service}
+                  onChange={(e) => {
+                    set("service", e.target.value);
+                    if (fieldErrors.service) {
+                      setFieldErrors((prev) => ({ ...prev, service: false }));
+                    }
+                  }}
+                  className={`w-full bg-gray-800 border text-white rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm cursor-pointer ${
+                    fieldErrors.service ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
+                  }`}
+                >
                 <option value="">
                   {loadingServices ? "Loading services..." : "Select a service"}
                 </option>
@@ -1078,7 +1138,7 @@ function StaffQueue() {
     setLoading(true);
     setError("");
     try {
-      const qs = new URLSearchParams();
+    const qs = new URLSearchParams();
       qs.set("date", todayOnly);
       const [qRes, hRes] = await Promise.all([
         authFetch(`${API}/api/queue/`),
@@ -1203,12 +1263,16 @@ function StaffQueue() {
     queue.filter((q) => q.status === "waiting" && isEntryForDate(q, todayOnly)),
   );
   const inService = sortEntriesBySchedule(
-    queue.filter((q) => q.status === "in_service" && isEntryForDate(q, todayOnly)),
+    queue.filter((q) => q.status === "in_service"),
   );
   const doneRows = sortEntriesBySchedule(
-    history.filter((h) => h.status === "done"),
+    history.filter(
+      (h) => h.status === "done" && String(h.payment_status || "").toLowerCase() !== "paid",
+    ),
   );
-  const doneToday = history.filter((h) => h.status === "done").length;
+  const doneToday = history.filter(
+    (h) => h.status === "done" && String(h.payment_status || "").toLowerCase() !== "paid",
+  ).length;
   const unassigned = queue.filter(
     (q) =>
       !q.assigned_employee && q.status !== "done" && q.status !== "skipped",

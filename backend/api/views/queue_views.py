@@ -502,6 +502,8 @@ def queue_walk_in(request):
     serializer = QueueEntryCreateSerializer(data=request.data)
     if serializer.is_valid():
         service_name = (serializer.validated_data.get("service") or "").strip()
+        incoming_name = (serializer.validated_data.get("customer_name") or "").strip()
+        incoming_phone = (serializer.validated_data.get("phone") or "").strip()
         raw_price = request.data.get("price")
 
         try:
@@ -525,6 +527,7 @@ def queue_walk_in(request):
         }
 
         customer_id = serializer.validated_data.get("customer_id")
+        customer = None
         if customer_id not in (None, ""):
             customer = Customer.objects.filter(pk=customer_id).select_related("user").first()
             if not customer:
@@ -533,6 +536,11 @@ def queue_walk_in(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             save_kwargs["customer_user"] = customer.user
+            name_parts = incoming_name.split(None, 1)
+            customer.first_name = name_parts[0] if name_parts else customer.first_name
+            customer.last_name = name_parts[1] if len(name_parts) > 1 else customer.last_name
+            customer.phone = incoming_phone or customer.phone
+            customer.save(update_fields=["first_name", "last_name", "phone"])
 
         # For non-admin staff, force walk-ins into their branch so entries don't disappear on refresh.
         if requester_staff and requester_staff.role != "Admin":
@@ -542,6 +550,28 @@ def queue_walk_in(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             save_kwargs["branch"] = requester_staff.branch
+
+        active_entries = QueueEntry.objects.filter(status__in=["waiting", "in_service"])
+        if save_kwargs.get("branch"):
+            active_entries = active_entries.filter(branch=save_kwargs["branch"])
+
+        duplicate_filter = Q()
+        has_duplicate_key = False
+        if customer and customer.user_id:
+            duplicate_filter |= Q(customer_user_id=customer.user_id)
+            has_duplicate_key = True
+        if incoming_phone:
+            duplicate_filter |= Q(phone__iexact=incoming_phone)
+            has_duplicate_key = True
+        if incoming_name:
+            duplicate_filter |= Q(customer_name__iexact=incoming_name)
+            has_duplicate_key = True
+
+        if has_duplicate_key and active_entries.filter(duplicate_filter).exists():
+            return Response(
+                {"detail": "This customer is already queued and currently in process."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         entry = serializer.save(
             **save_kwargs,
@@ -797,7 +827,27 @@ def queue_history(request):
         ),
         reverse=True,
     )
-    return Response(QueueEntrySerializer(entries[:50], many=True).data)
+    rows = QueueEntrySerializer(entries[:50], many=True).data
+    for idx, entry in enumerate(entries[:50]):
+        duration_minutes = None
+        if entry.service_started_at and entry.completed_at:
+            delta = entry.completed_at - entry.service_started_at
+            duration_minutes = max(int(delta.total_seconds() // 60), 0)
+
+        rating_score = None
+        rating_comment = ""
+        if entry.booking_id and hasattr(entry.booking, "rating"):
+            rating_score = entry.booking.rating.score
+            rating_comment = entry.booking.rating.comment or ""
+        elif entry.rating_score:
+            rating_score = entry.rating_score
+            rating_comment = entry.rating_comment or ""
+
+        rows[idx]["duration_minutes"] = duration_minutes
+        rows[idx]["rating_score"] = rating_score
+        rows[idx]["rating_comment"] = rating_comment
+
+    return Response(rows)
 
 
 # ── PATCH  /api/queue/<id>/mark-paid/ ────────────────────────────────────────
@@ -1071,14 +1121,13 @@ def queue_edit_service_details(request, pk):
         entry.price = new_total
 
         existing_notes = entry.notes or ""
-        note_lines = []
-        if vehicle_type:
-            note_lines.append(f"[Service Details] Vehicle type set to {vehicle_type.upper()} (base: {base_price})")
-        if added_rows:
-            appended = ", ".join([f"{r['name']} x{r['quantity']}" for r in added_rows])
-            note_lines.append(f"[Required Products] {appended} (+{added_total})")
-        if note_lines:
-            entry.notes = f"{existing_notes}\n" + "\n".join(note_lines) if existing_notes else "\n".join(note_lines)
+        # Keep user notes clean: remove prior auto-generated service detail lines.
+        cleaned_notes = "\n".join(
+            line for line in existing_notes.splitlines()
+            if not line.strip().startswith("[Service Details]")
+            and not line.strip().startswith("[Required Products]")
+        ).strip()
+        entry.notes = cleaned_notes
 
         entry.save(update_fields=["service_base_price", "vehicle_type", "price", "notes"])
 

@@ -102,6 +102,9 @@ export default function StaffDashboard() {
     [stats],
   );
 
+  const recentJobs = Array.isArray(dashboard?.recent_jobs) ? dashboard.recent_jobs : [];
+  const recentNotifications = Array.isArray(dashboard?.recent_notifications) ? dashboard.recent_notifications : [];
+
   return (
     <StaffLayout>
       <div className="min-h-screen -m-8 p-8 bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30">
@@ -160,10 +163,10 @@ export default function StaffDashboard() {
                     </div>
                   </div>
 
-                  {Array.isArray(dashboard?.recent_jobs) && dashboard.recent_jobs.length > 0 ? (
+                  {recentJobs.length > 0 ? (
                     <>
                       <div className="space-y-3 block sm:hidden">
-                        {dashboard.recent_jobs.map((row) => (
+                        {recentJobs.map((row) => (
                           <div key={row.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
@@ -185,6 +188,7 @@ export default function StaffDashboard() {
                         <table className="min-w-full text-sm">
                           <thead>
                             <tr className="text-left text-gray-400 border-b border-white/10">
+                              <th className="py-2 pr-3 font-medium">#</th>
                               <th className="py-2 pr-3 font-medium">Customer</th>
                               <th className="py-2 pr-3 font-medium">Service</th>
                               <th className="py-2 pr-3 font-medium">Date</th>
@@ -192,8 +196,11 @@ export default function StaffDashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {dashboard.recent_jobs.map((row) => (
+                            {recentJobs.map((row, index) => (
                               <tr key={row.id} className="border-b border-white/5 last:border-b-0">
+                                <td className="py-3 pr-3 text-xs text-gray-500">
+                                  #{index + 1}
+                                </td>
                                 <td className="py-3 pr-3 text-gray-100">{row.customer_name || "-"}</td>
                                 <td className="py-3 pr-3 text-gray-300 truncate">{row.service || "-"}</td>
                                 <td className="py-3 pr-3 text-gray-300">
@@ -217,9 +224,9 @@ export default function StaffDashboard() {
 
                 <section className="lg:col-span-2 rounded-2xl border border-white/10 bg-black/25 backdrop-blur-sm p-5">
                   <h2 className="text-lg font-bold text-white mb-4">Recent Notifications</h2>
-                  {Array.isArray(dashboard?.recent_notifications) && dashboard.recent_notifications.length > 0 ? (
+                  {recentNotifications.length > 0 ? (
                     <div className="space-y-3">
-                      {dashboard.recent_notifications.map((notice) => (
+                      {recentNotifications.map((notice) => (
                         <div key={notice.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-semibold text-white line-clamp-1">{notice.title}</p>
@@ -236,6 +243,24 @@ export default function StaffDashboard() {
                     <p className="text-sm text-gray-400">No notifications yet.</p>
                   )}
                 </section>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Data Visibility</p>
+                  <p className="text-2xl font-black text-white mt-2">{recentJobs.length}</p>
+                  <p className="text-sm text-gray-300 mt-1">Recent assigned job records shown</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Unread Alerts</p>
+                  <p className="text-2xl font-black text-amber-300 mt-2">{stats.my_unread_notifications ?? 0}</p>
+                  <p className="text-sm text-gray-300 mt-1">Need acknowledgement</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Active Operations</p>
+                  <p className="text-2xl font-black text-emerald-300 mt-2">{stats.my_active_jobs ?? 0}</p>
+                  <p className="text-sm text-gray-300 mt-1">Waiting + in service jobs</p>
+                </div>
               </div>
             </>
           )}

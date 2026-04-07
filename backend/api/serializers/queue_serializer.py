@@ -1,3 +1,4 @@
+import re
 from rest_framework import serializers
 from api.models import QueueEntry, Staff
 
@@ -52,6 +53,9 @@ class QueueEntrySerializer(serializers.ModelSerializer):
             "price",
             "payment_status",
             "payment_method",
+            "rating_score",
+            "rating_comment",
+            "rated_at",
         ]
         read_only_fields = ["id", "queued_at", "service_started_at", "completed_at"]
 
@@ -108,6 +112,24 @@ class QueueEntryCreateSerializer(serializers.ModelSerializer):
         validated_data.setdefault("source", "walk_in")
         validated_data.setdefault("status", "waiting")
         return super().create(validated_data)
+
+    def validate_phone(self, value):
+        phone = str(value or "").strip().replace(" ", "")
+        if not re.fullmatch(r"^\+63\d{10}$", phone):
+            raise serializers.ValidationError("Phone number must be in +63XXXXXXXXXX format.")
+        return phone
+
+    def validate_customer_name(self, value):
+        name = str(value or "").strip()
+        if len(name) < 2:
+            raise serializers.ValidationError("Customer name must be at least 2 characters.")
+        return name
+
+    def validate_vehicle(self, value):
+        vehicle = str(value or "").strip()
+        if len(vehicle) < 2:
+            raise serializers.ValidationError("Vehicle must be at least 2 characters.")
+        return vehicle
 
 
 class BookingToQueueSerializer(serializers.Serializer):

@@ -44,6 +44,17 @@ function toDisplayTime(t) {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+function toDisplayDateISO(isoDate) {
+  if (!isoDate) return "—";
+  const d = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString("en-PH", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function statusLabel(statusKey) {
   const map = {
     confirmed: "Confirmed",
@@ -88,7 +99,6 @@ function getWeekStart(dateObj) {
 
 export default function EmployeeSchedule() {
   const now = new Date();
-  const [viewMode, setViewMode] = useState("week");
   const [bookings, setBookings] = useState([]);
   const [scheduleConfig, setScheduleConfig] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,6 +106,7 @@ export default function EmployeeSchedule() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState(now.getDate());
+  const [selectedDayModalISO, setSelectedDayModalISO] = useState("");
 
   const fetchSchedule = useCallback(async () => {
     try {
@@ -187,6 +198,14 @@ export default function EmployeeSchedule() {
       .sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
   }, [bookings, selectedISO]);
 
+  const modalDayBookings = useMemo(() => {
+    if (!selectedDayModalISO) return [];
+    return bookings
+      .filter((b) => b.date === selectedDayModalISO)
+      .slice()
+      .sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
+  }, [bookings, selectedDayModalISO]);
+
   const changeMonth = (delta) => {
     const next = new Date(year, month + delta, 1);
     setYear(next.getFullYear());
@@ -203,24 +222,6 @@ export default function EmployeeSchedule() {
             <h1 className="text-3xl font-black text-white tracking-tight">My Schedule</h1>
             <p className="text-gray-400 mt-1">Live bookings assigned to your branch</p>
           </div>
-          <div className="flex gap-2 bg-gray-800/60 rounded-xl p-1 self-start sm:mt-12">
-            <button
-              onClick={() => setViewMode("week")}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-                viewMode === "week" ? "bg-red-600 text-white shadow-lg shadow-red-600/30" : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              Week View
-            </button>
-            <button
-              onClick={() => setViewMode("day")}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-                viewMode === "day" ? "bg-red-600 text-white shadow-lg shadow-red-600/30" : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              Day View
-            </button>
-          </div>
         </div>
 
         {error && (
@@ -229,8 +230,8 @@ export default function EmployeeSchedule() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-5 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-6">
               <h2 className="text-lg font-black text-white">Calendar</h2>
             </div>
@@ -263,7 +264,11 @@ export default function EmployeeSchedule() {
               {calendarDays.map((item) => (
                 <button
                   key={item.day}
-                  onClick={() => setSelectedDate(item.day)}
+                  onClick={() => {
+                    setSelectedDate(item.day);
+                    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(item.day).padStart(2, "0")}`;
+                    setSelectedDayModalISO(iso);
+                  }}
                   className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all relative ${
                     selectedDate === item.day
                       ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
@@ -281,23 +286,25 @@ export default function EmployeeSchedule() {
             </div>
           </div>
 
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-7 space-y-6">
             {loading ? (
               <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm text-gray-400">
                 Loading schedule...
               </div>
-            ) : viewMode === "week" ? (
+            ) : (
+              <>
               <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
                 <h2 className="text-lg font-black text-white mb-6">This Week</h2>
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
                   {weekRows.map((day, index) => (
-                    <div
+                    <button
                       key={`${day.iso}-${index}`}
+                      onClick={() => setSelectedDayModalISO(day.iso)}
                       className={`border rounded-xl p-5 transition-all ${
                         day.jobs === 0
                           ? "border-white/5 bg-white/[0.02]"
                           : "border-white/5 hover:border-red-500/20 hover:bg-white/[0.02]"
-                      }`}
+                      } w-full text-left`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -312,56 +319,69 @@ export default function EmployeeSchedule() {
                           <p className="text-sm text-gray-500">jobs</p>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
-            ) : (
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                <h2 className="text-lg font-black text-white mb-6">
-                  Schedule for {new Date(year, month, selectedDate).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
-                </h2>
-                <div className="space-y-4">
-                  {dayBookings.length === 0 ? (
-                    <div className="text-sm text-gray-500">No bookings for this day.</div>
-                  ) : (
-                    dayBookings.map((job) => {
-                      const statusKey = normalizeStatus(job.status);
-                      const customer = job.customer_name || "Unknown Customer";
-                      return (
-                        <div
-                          key={job.id}
-                          className="border border-white/5 rounded-xl p-5 hover:border-red-500/20 hover:bg-white/[0.02] transition-all"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-3">
-                                <span className="text-lg font-bold text-white">{toDisplayTime(job.time)}</span>
-                                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusClass(statusKey)}`}>
-                                  {statusLabel(statusKey)}
-                                </span>
-                              </div>
-
-                              <h3 className="font-bold text-white mb-2">{customer}</h3>
-
-                              <div className="space-y-2 text-sm text-gray-400">
-                                <div>{job.vehicle || "—"}</div>
-                                <div>{job.service || "—"}</div>
-                                <div>Plate: {job.plate_number || "—"}</div>
-                                <div>Staff: {job.assigned_employee_name || job.staff || "TBA"}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+              </>
             )}
           </div>
         </div>
       </div>
+      {selectedDayModalISO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto bg-gray-900 border border-white/10 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-black text-white">{toDisplayDateISO(selectedDayModalISO)}</h3>
+                <p className="text-gray-500 text-sm">
+                  {modalDayBookings.length} job{modalDayBookings.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedDayModalISO("")}
+                className="text-gray-400 hover:text-white text-sm px-3 py-1.5 border border-white/10 rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-4">
+              {modalDayBookings.length === 0 ? (
+                <div className="text-sm text-gray-500">No bookings for this day.</div>
+              ) : (
+                modalDayBookings.map((job) => {
+                  const statusKey = normalizeStatus(job.status);
+                  const customer = job.customer_name || "Unknown Customer";
+                  return (
+                    <div
+                      key={job.id}
+                      className="border border-white/5 rounded-xl p-5 hover:border-red-500/20 hover:bg-white/[0.02] transition-all"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="text-lg font-bold text-white">{toDisplayTime(job.time)}</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusClass(statusKey)}`}>
+                              {statusLabel(statusKey)}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-white mb-2">{customer}</h3>
+                          <div className="space-y-2 text-sm text-gray-400">
+                            <div>{job.vehicle || "—"}</div>
+                            <div>{job.service || "—"}</div>
+                            <div>Plate: {job.plate_number || "—"}</div>
+                            <div>Staff: {job.assigned_employee_name || job.staff || "TBA"}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </EmployeeLayout>
   );
 }

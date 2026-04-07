@@ -23,6 +23,84 @@ const getServiceCatalogPrice = (serviceName, services) => {
   return parseFloat(matched?.price ?? 0) || 0;
 };
 
+const capitalizeVehicleType = (vehicleType = "") => {
+  const value = String(vehicleType || "").trim();
+  if (!value) return "";
+  if (value.toLowerCase() === "xl") return "XL";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+};
+
+const getLatestRequiredProductsFromNotes = (notes = "") => {
+  const lines = String(notes || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const requiredLines = lines.filter((line) => line.startsWith("[Required Products]"));
+  if (requiredLines.length === 0) return "";
+  return requiredLines[requiredLines.length - 1].replace("[Required Products]", "").trim();
+};
+
+const getQueueDisplayName = (entry = {}) => {
+  const serviceName = String(entry?.service || "").trim() || "Queue Service";
+  const vehicle = capitalizeVehicleType(entry?.vehicle_type);
+  const requiredProducts = getLatestRequiredProductsFromNotes(entry?.notes);
+  const withVehicle = vehicle ? `${serviceName} (${vehicle})` : serviceName;
+  if (!requiredProducts) return withVehicle;
+  return `${withVehicle} • ${requiredProducts}`;
+};
+
+const getQueuePriceBreakdown = (entry = {}, fallbackTotal = 0) => {
+  const total = parseFloat(entry.price ?? fallbackTotal ?? 0) || 0;
+  const serviceBase = parseFloat(entry.service_base_price ?? 0) || 0;
+  const lines = String(entry.notes || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("[Required Products]"));
+  const productsFromNotes = lines.reduce((sum, line) => {
+    const match = line.match(/\(\+([0-9.,]+)\)\s*$/);
+    if (!match) return sum;
+    const value = Number(String(match[1]).replace(/,/g, ""));
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
+  const productsPrice =
+    productsFromNotes > 0
+      ? productsFromNotes
+      : Math.max(total - serviceBase, 0);
+  const resolvedServicePrice =
+    serviceBase > 0 ? serviceBase : Math.max(total - productsPrice, 0);
+  return {
+    servicePrice: resolvedServicePrice,
+    productsPrice,
+  };
+};
+
+const buildReceiptLines = (items = []) => {
+  const lines = [];
+  items.forEach((item) => {
+    if (item.type === "queue") {
+      const serviceAmount = parseFloat(item._servicePrice ?? item._price ?? 0) || 0;
+      const productAmount = parseFloat(item._productsPrice ?? 0) || 0;
+      lines.push({ label: "Service Price", amount: serviceAmount });
+      if (productAmount > 0) lines.push({ label: "Product Used", amount: productAmount });
+      return;
+    }
+    const kind = item.type === "product" ? "Product" : "Service";
+    lines.push({
+      label: `${kind} - ${item.name} x${item.quantity}`,
+      amount: (parseFloat(item._price ?? 0) || 0) * (parseFloat(item.quantity ?? 0) || 0),
+    });
+  });
+  return lines;
+};
+
+const normalizePHPhone = (value = "") => {
+  const digits = String(value).replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("63")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+63${digits.slice(1)}`;
+  return `+63${digits}`;
+};
+
 // ── Snackbar System ───────────────────────────────────────────────────────────
 function SnackbarContainer({ snackbars, onDismiss }) {
   return (
@@ -106,8 +184,36 @@ function SkeletonQueueRow() {
   );
 }
 
+function ReceiptLine({ title, meta, qty = 1, unitPrice = 0, amount = 0, tone = "default", rightSlot = null }) {
+  const toneClass =
+    tone === "queue"
+      ? "text-amber-300"
+      : tone === "product"
+        ? "text-emerald-300"
+        : "text-gray-200";
+  return (
+    <div className="border-b border-dashed border-white/10 py-2.5">
+      <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-start">
+        <div className="min-w-0">
+          <p className={`text-sm font-semibold truncate ${toneClass}`}>{title}</p>
+          {meta && <p className="text-[11px] text-gray-500 truncate mt-0.5">{meta}</p>}
+        </div>
+        <div className="text-right min-w-[66px]">
+          <p className="text-[11px] text-gray-500">x{qty}</p>
+          <p className="text-xs text-gray-400">P{fmt(unitPrice)}</p>
+        </div>
+        <div className="text-right min-w-[86px]">
+          <p className="text-sm font-bold text-white">P{fmt(amount)}</p>
+          {rightSlot}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Printable Receipt ─────────────────────────────────────────────────────────
 function PrintableReceipt({ customerName, items, total, paymentMethod, amountGiven, change, receiptNo, date }) {
+  const numberedItems = buildReceiptLines(items);
   return (
     <div id="printable-receipt" style={{ display: "none" }}>
       <style>{`
@@ -141,15 +247,12 @@ function PrintableReceipt({ customerName, items, total, paymentMethod, amountGiv
         </div>
         <div style={{ borderBottom: "1px dashed #000", margin: "8px 0" }} />
         <div style={{ marginBottom: "8px" }}>
-          {items.map((item, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+          {numberedItems.map((item, i) => (
+            <div key={`line-${i}`} style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
               <div style={{ flex: 1 }}>
-                <div>{item.name}</div>
-                <div style={{ fontSize: "10px", color: "#555" }}>
-                  {item.type === "service" ? "Service" : item.type === "product" ? "Product" : "Queue Service"} · qty {item.quantity}
-                </div>
+                <div>{`${i + 1}. ${item.label}`}</div>
               </div>
-              <div style={{ textAlign: "right", minWidth: "70px" }}>P{fmt(item._price * item.quantity)}</div>
+              <div style={{ textAlign: "right", minWidth: "70px" }}>P{fmt(item.amount)}</div>
             </div>
           ))}
         </div>
@@ -194,6 +297,8 @@ function ReceiptModal({ customerName, items, subtotal, total, paymentMethod, amo
     else window.print();
   };
 
+  const numberedItems = buildReceiptLines(items);
+
   return (
     <>
       <PrintableReceipt
@@ -223,11 +328,11 @@ function ReceiptModal({ customerName, items, subtotal, total, paymentMethod, amo
               <span className="text-gray-500">Customer</span>
               <span className="text-white font-semibold text-base">{customerName || "—"}</span>
             </div>
-            <div className="border-t border-white/5 pt-3 space-y-2">
-              {items.map((item, i) => (
-                <div key={i} className="flex justify-between text-base">
-                  <span className="text-gray-400">{item.name} x{item.quantity}</span>
-                  <span className="text-gray-300">P{fmt(item._price * item.quantity)}</span>
+            <div className="border-t border-white/5 pt-3 space-y-3">
+              {numberedItems.map((item, i) => (
+                <div key={`line-${i}`} className="flex justify-between text-base">
+                  <span className="text-gray-300">{i + 1}. {item.label}</span>
+                  <span className="text-gray-200">P{fmt(item.amount)}</span>
                 </div>
               ))}
             </div>
@@ -318,7 +423,7 @@ export default function StaffPOS() {
   // ── Phone validation helper ───────────────────────────────────────────────
   const isValidPhone = (phone) => {
     if (!phone.trim()) return true; // phone is optional
-    return /^(\+?63|0)\d{9,10}$/.test(phone.replace(/\s/g, ""));
+    return /^\+63\d{10}$/.test(String(phone).trim());
   };
 
   useEffect(() => {
@@ -354,7 +459,8 @@ export default function StaffPOS() {
       if (res.status === 401 || !res.ok) { setUnpaidEntries([]); setLoadingUnpaid(false); return; }
       const data = await res.json();
       const rows = Array.isArray(data) ? data : (data.results ?? []);
-      setUnpaidEntries(rows.map((entry) => {
+      const unpaidOnly = rows.filter((entry) => String(entry.payment_status || "").toLowerCase() !== "paid");
+      setUnpaidEntries(unpaidOnly.map((entry) => {
         const basePrice = parseFloat(entry.price ?? 0) || 0;
         const fallback = getServiceCatalogPrice(entry.service, services);
         return { ...entry, _resolvedPrice: basePrice > 0 ? basePrice : fallback };
@@ -388,12 +494,23 @@ export default function StaffPOS() {
   };
 
   const pullFromQueue = (entry) => {
+    const queuedInCart = cart.filter((c) => c.type === "queue");
+    if (queuedInCart.length > 0 && !queuedInCart.some((c) => c._queueId === entry.id)) {
+      pushSnack("Only one pending processed service can be added at a time.", "error");
+      return;
+    }
     const rawPrice = parseFloat(entry.price ?? 0) || 0;
     const price = rawPrice > 0 ? rawPrice : getServiceCatalogPrice(entry.service, services);
-    if (cart.length === 0) setCustomerInfo({ name: entry.customer_name ?? "", phone: entry.phone ?? "" });
+    const breakdown = getQueuePriceBreakdown(entry, price);
+    if (cart.length === 0) {
+      setCustomerInfo({
+        name: entry.customer_name ?? "",
+        phone: normalizePHPhone(entry.phone ?? ""),
+      });
+    }
     setCart((prev) => {
       if (prev.find((c) => c._queueId === entry.id)) return prev;
-      return [...prev, { id: `queue_${entry.id}`, _queueId: entry.id, name: entry.service, quantity: 1, type: "queue", _price: price, _entryId: entry.id, _needsPrice: false }];
+      return [...prev, { id: `queue_${entry.id}`, _queueId: entry.id, name: getQueueDisplayName(entry), quantity: 1, type: "queue", _price: price, _servicePrice: breakdown.servicePrice, _productsPrice: breakdown.productsPrice, _entryId: entry.id, _needsPrice: false }];
     });
   };
 
@@ -408,14 +525,31 @@ export default function StaffPOS() {
   const updatePrice = (id, type, newPrice) => {
     const p = parseFloat(newPrice);
     if (isNaN(p) || p < 0) return;
-    setCart((prev) => prev.map((c) => c.id === id && c.type === type ? { ...c, _price: p, _needsPrice: false } : c));
+    setCart((prev) =>
+      prev.map((c) => {
+        if (!(c.id === id && c.type === type)) return c;
+        if (type !== "queue") return { ...c, _price: p, _needsPrice: false };
+        const servicePrice = parseFloat(c._servicePrice ?? 0) || 0;
+        return {
+          ...c,
+          _price: p,
+          _productsPrice: Math.max(p - servicePrice, 0),
+          _needsPrice: false,
+        };
+      }),
+    );
   };
 
   const subtotal = cart.reduce((s, i) => s + i._price * i.quantity, 0);
   const total = subtotal;
-  const change = parseFloat(amountGiven || 0) - total;
+  const queueItems = cart.filter((c) => c.type === "queue");
+  const hasQueueItems = queueItems.length > 0;
+  const queueOnlyCart = hasQueueItems && cart.every((c) => c.type === "queue");
+  const queueCheckoutItem = queueItems[0] ?? null;
+  const effectiveTotal = queueOnlyCart && queueCheckoutItem ? queueCheckoutItem._price * queueCheckoutItem.quantity : total;
+  const change = parseFloat(amountGiven || 0) - effectiveTotal;
   const bills = [100, 200, 500, 1000, 2000];
-  const presets = bills.filter((b) => b >= total).slice(0, 4);
+  const presets = bills.filter((b) => b >= effectiveTotal).slice(0, 4);
   const hasMissingPrice = cart.some((c) => c.type === "queue" && c._price === 0);
   const getInitial = (name = "") => name.charAt(0).toUpperCase();
 
@@ -425,7 +559,7 @@ export default function StaffPOS() {
     const phoneErr = customerInfo.phone.trim() !== "" && !isValidPhone(customerInfo.phone);
     setFieldErrors({ name: nameErr, phone: phoneErr });
     if (nameErr) { pushSnack("Customer name is required.", "error"); return false; }
-    if (phoneErr) { pushSnack("Enter a valid PH phone number (e.g. 09171234567).", "error"); return false; }
+    if (phoneErr) { pushSnack("Enter a valid phone number (e.g. +639171234567).", "error"); return false; }
     return true;
   };
 
@@ -474,9 +608,18 @@ export default function StaffPOS() {
     if (cart.length === 0) { pushSnack("Cart is empty.", "error"); return; }
     if (!validateInputs()) return;
 
+    if (hasQueueItems && !queueOnlyCart) {
+      pushSnack("Queue services must be paid separately. Remove non-queue items first.", "error");
+      return;
+    }
+    if (queueItems.length > 1) {
+      pushSnack("Only one processed service can be paid at a time.", "error");
+      return;
+    }
+
     const missingPrice = cart.find((c) => c.type === "queue" && c._price === 0);
     if (missingPrice) { pushSnack(`Enter a price for "${missingPrice.name}".`, "error"); return; }
-    if (paymentMethod === "cash" && parseFloat(amountGiven || 0) < total) {
+    if (paymentMethod === "cash" && parseFloat(amountGiven || 0) < effectiveTotal) {
       pushSnack("Amount given is less than the total.", "error"); return;
     }
 
@@ -530,8 +673,8 @@ export default function StaffPOS() {
         if (warnings.length > 0) {
           warnings.forEach((w) => pushSnack(w, "info", 5000));
         }
-        pushSnack(`Payment of P${fmt(total)} collected successfully!`, "success", 5000);
-        setReceipt({ customerName: customerInfo.name, items: cart, subtotal, total, paymentMethod, amountGiven: parseFloat(amountGiven || 0) });
+        pushSnack(`Payment of P${fmt(effectiveTotal)} collected successfully!`, "success", 5000);
+        setReceipt({ customerName: customerInfo.name, items: cart, subtotal: effectiveTotal, total: effectiveTotal, paymentMethod, amountGiven: parseFloat(amountGiven || 0) });
         setCart([]);
         setCustomerInfo({ name: "", phone: "" });
         setAmountGiven("");
@@ -646,13 +789,14 @@ export default function StaffPOS() {
                 <ValidatedInput
                   value={customerInfo.phone}
                   onChange={(e) => {
-                    setCustomerInfo({ ...customerInfo, phone: e.target.value });
-                    if (fieldErrors.phone && isValidPhone(e.target.value)) setFieldErrors((p) => ({ ...p, phone: false }));
+                    const normalized = normalizePHPhone(e.target.value);
+                    setCustomerInfo({ ...customerInfo, phone: normalized });
+                    if (fieldErrors.phone && isValidPhone(normalized)) setFieldErrors((p) => ({ ...p, phone: false }));
                   }}
-                  placeholder="Phone (e.g. 09171234567)"
+                  placeholder="Phone (e.g. +639171234567)"
                   type="tel"
                   hasError={fieldErrors.phone}
-                  errorMsg="Enter a valid PH phone number"
+                  errorMsg="Enter a valid +63 phone number"
                 />
               </div>
             </div>
@@ -679,23 +823,61 @@ export default function StaffPOS() {
                   <p className="text-gray-700 text-xs mt-1">Add items from the left or pull from queue</p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {cart.map((item) => (
-                    <div key={`${item.type}-${item.id}`}
-                      className={`rounded-xl p-3 border ${item.type === "queue" ? (item._price === 0 ? "bg-amber-500/8 border-amber-500/30" : "bg-amber-500/5 border-amber-500/15") : item.type === "product" ? "bg-emerald-500/5 border-emerald-500/10" : "bg-gray-800/60 border-white/5"}`}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <div className="text-white font-semibold text-sm truncate">{item.name}</div>
-                          <div className={`text-xs font-medium ${item.type === "service" ? "text-red-400/60" : item.type === "product" ? "text-emerald-400/60" : "text-amber-400/60"}`}>
-                            {item.type === "service" ? "Service" : item.type === "product" ? "Product" : "Queue"}
-                          </div>
-                        </div>
-                        <button onClick={() => removeFromCart(item.id, item.type)} className="text-gray-600 hover:text-red-400 transition-colors shrink-0">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
+                <div className="rounded-xl border border-white/8 bg-gray-950/60 px-3">
+                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-[10px] uppercase tracking-widest text-gray-500 px-1 py-2 border-b border-dashed border-white/10">
+                    <span>List to Pay</span>
+                    <span className="text-right">Qty/Unit</span>
+                    <span className="text-right">Amount</span>
+                  </div>
+                  {cart.map((item, idx) => (
+                    <div key={`${item.type}-${item.id}`} className="group">
+                      {item.type === "queue" ? (
+                        <>
+                          <ReceiptLine
+                            title={`${idx + 1}.1 Service Price`}
+                            meta={item.name}
+                            qty={1}
+                            unitPrice={item._servicePrice ?? item._price}
+                            amount={item._servicePrice ?? item._price}
+                            tone="queue"
+                          />
+                          {Number(item._productsPrice ?? 0) > 0 && (
+                            <ReceiptLine
+                              title={`${idx + 1}.2 Product Used`}
+                              meta="Required products from employee details"
+                              qty={1}
+                              unitPrice={item._productsPrice}
+                              amount={item._productsPrice}
+                              tone="product"
+                              rightSlot={
+                                <button
+                                  onClick={() => removeFromCart(item.id, item.type)}
+                                  className="text-[10px] text-gray-500 hover:text-red-400 transition-colors mt-0.5"
+                                >
+                                  Remove
+                                </button>
+                              }
+                            />
+                          )}
+                        </>
+                      ) : (
+                        <ReceiptLine
+                          title={`${idx + 1}. ${item.type === "product" ? "Product" : "Service"} - ${item.name}`}
+                          meta={item.type === "product" ? "Product line item" : "Service line item"}
+                          qty={item.quantity}
+                          unitPrice={item._price}
+                          amount={item._price * item.quantity}
+                          tone={item.type === "product" ? "product" : "default"}
+                          rightSlot={
+                            <button
+                              onClick={() => removeFromCart(item.id, item.type)}
+                              className="text-[10px] text-gray-500 hover:text-red-400 transition-colors mt-0.5"
+                            >
+                              Remove
+                            </button>
+                          }
+                        />
+                      )}
                       <div className="flex items-center gap-2">
                         {item.type !== "queue" ? (
                           <div className="flex items-center gap-2 shrink-0">
@@ -703,23 +885,22 @@ export default function StaffPOS() {
                             <span className="text-sm font-bold text-white w-5 text-center">{item.quantity}</span>
                             <button onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)} className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center text-white text-sm">+</button>
                           </div>
-                        ) : <span className="text-xs text-amber-400/50 shrink-0">x1</span>}
+                        ) : <span className="text-xs text-amber-400/60 shrink-0">Qty fixed: 1</span>}
                         <div className="flex items-center gap-1 flex-1 min-w-0">
-                          <span className="text-gray-500 text-sm shrink-0">P</span>
+                          <span className="text-gray-500 text-sm shrink-0">{item.type === "queue" ? "Adjusted Total P" : "Unit P"}</span>
                           <input type="number" min="0" step="0.01" value={item._price || ""}
                             onChange={(e) => updatePrice(item.id, item.type, e.target.value)}
                             readOnly={item.type !== "queue"}
-                            placeholder={item.type === "queue" ? "Price" : ""}
+                            placeholder={item.type === "queue" ? "Enter queue price" : ""}
                             className={`flex-1 min-w-0 bg-gray-800/80 border rounded px-2 py-1.5 text-sm text-white font-bold focus:outline-none transition-all ${item.type === "queue" && item._price === 0 ? "border-amber-500/60" : "border-white/10 focus:border-red-500/50"}`} />
                         </div>
-                        <span className="text-white font-bold text-sm shrink-0">P{fmt(item._price * item.quantity)}</span>
                       </div>
                       {item.type === "queue" && item._price === 0 && (
-                        <div className="mt-2 text-amber-400 text-xs flex items-center gap-1">
+                        <div className="mt-2 pb-2 text-amber-400 text-xs flex items-center gap-1">
                           <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                           </svg>
-                          Price required
+                          Queue service needs a manual unit price
                         </div>
                       )}
                     </div>
@@ -775,19 +956,23 @@ export default function StaffPOS() {
                       const alreadyIn = cart.some((c) => c._queueId === entry.id);
                       return (
                         <div key={entry.id}
-                          className={`flex items-center gap-3 px-4 py-3 transition-colors ${alreadyIn ? "bg-emerald-500/5" : "hover:bg-white/[0.02]"}`}>
-                          <div className={`w-8 h-8 rounded-md flex items-center justify-center text-sm font-black shrink-0 ${entry.source === "walk_in" ? "bg-purple-500/15 text-purple-400" : "bg-blue-500/15 text-blue-400"}`}>
-                            {getInitial(entry.customer_name)}
-                          </div>
+                          className={`flex items-center gap-3 px-4 py-2 transition-colors ${alreadyIn ? "bg-emerald-500/5" : "hover:bg-white/[0.02]"}`}>
                           <div className="flex-1 min-w-0">
-                            <div className="text-white text-sm font-semibold truncate leading-tight">{entry.customer_name}</div>
-                            <div className="text-gray-500 text-xs truncate leading-tight">{entry.service}</div>
-                          </div>
-                          <div className="shrink-0">
-                            {price === 0
-                              ? <span className="text-xs bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold">No price</span>
-                              : <span className="text-sm text-white font-bold">P{fmt(price)}</span>
-                            }
+                            <ReceiptLine
+                              title={getQueueDisplayName(entry)}
+                              meta={`Customer: ${entry.customer_name || "Walk-in"}${entry.source === "walk_in" ? " • Walk-in" : ""}`}
+                              qty={1}
+                              unitPrice={price}
+                              amount={price}
+                              tone="queue"
+                              rightSlot={
+                                price === 0 ? (
+                                  <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold">
+                                    No price
+                                  </span>
+                                ) : null
+                              }
+                            />
                           </div>
                           {alreadyIn ? (
                             <div className="w-7 h-7 bg-emerald-500/20 rounded-md flex items-center justify-center shrink-0">
@@ -857,7 +1042,7 @@ export default function StaffPOS() {
                 </div>
                 <div className="border-t border-white/5 pt-1.5 flex items-center justify-between">
                   <span className="text-sm text-white font-black uppercase">Total</span>
-                  <span className="text-xl font-black text-white">P{fmt(total)}</span>
+                  <span className="text-xl font-black text-white">P{fmt(effectiveTotal)}</span>
                 </div>
               </div>
 
@@ -877,8 +1062,20 @@ export default function StaffPOS() {
                 </div>
               )}
 
+              {hasQueueItems && queueItems.length > 1 && (
+                <div className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1.5">
+                  Queue services must be paid one-by-one. Keep only one service in cart.
+                </div>
+              )}
+
+              {hasQueueItems && !queueOnlyCart && (
+                <div className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1.5">
+                  Queue service payment cannot be combined with products or POS services.
+                </div>
+              )}
+
               <button onClick={handleCheckout}
-                disabled={checkingOut || cart.length === 0 || hasMissingPrice}
+                disabled={checkingOut || cart.length === 0 || hasMissingPrice || (hasQueueItems && (!queueOnlyCart || queueItems.length > 1))}
                 className="w-full bg-red-600 hover:bg-red-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black py-3 rounded-lg transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 text-sm">
                 {checkingOut ? (
                   <>
@@ -893,7 +1090,7 @@ export default function StaffPOS() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
                     </svg>
-                    Pay P{fmt(total)}
+                    Pay P{fmt(effectiveTotal)}
                   </>
                 )}
               </button>

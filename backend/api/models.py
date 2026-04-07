@@ -329,6 +329,9 @@ class QueueEntry(models.Model):
         default="unpaid",
     )
     payment_method = models.CharField(max_length=20, blank=True, default="")
+    rating_score = models.PositiveSmallIntegerField(null=True, blank=True)
+    rating_comment = models.TextField(blank=True, default="")
+    rated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "queue_entries"

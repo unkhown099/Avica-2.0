@@ -53,9 +53,21 @@ class CustomerHistoryAPIView(APIView):
             vehicle = (q.vehicle or "") or (q.booking.vehicle if q.booking else "") or ""
             plate   = (q.plate_number or "") or (q.booking.plate_number if q.booking else "") or ""
 
+            rating_score = (
+                q.booking.rating.score
+                if q.booking and hasattr(q.booking, "rating")
+                else q.rating_score
+            )
+            rating_comment = (
+                q.booking.rating.comment
+                if q.booking and hasattr(q.booking, "rating")
+                else (q.rating_comment or "")
+            )
+
             history_data.append({
                 "id":           q.id,
                 "booking_id":   q.booking.id if q.booking else None,
+                "queue_id":     q.id,
                 "service":      q.service or (q.booking.service if q.booking else ""),
                 "date":         q.completed_at.date().isoformat() if q.completed_at else None,
                 "price":        price,
@@ -65,16 +77,17 @@ class CustomerHistoryAPIView(APIView):
                 "plate_number": plate,
                 "payment_method": q.payment_method or "",
                 # Rating data — None if not yet rated
-                "rating":       q.booking.rating.score   if q.booking and hasattr(q.booking, "rating") else None,
-                "review":       q.booking.rating.comment if q.booking and hasattr(q.booking, "rating") else None,
+                "rating":       rating_score,
+                "review":       rating_comment,
             })
 
         # Summary stats
-        ratings = [
-            q.booking.rating.score
-            for q in history
-            if q.booking and hasattr(q.booking, "rating")
-        ]
+        ratings = []
+        for q in history:
+            if q.booking and hasattr(q.booking, "rating"):
+                ratings.append(q.booking.rating.score)
+            elif q.rating_score:
+                ratings.append(q.rating_score)
         avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
 
         return Response({

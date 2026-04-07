@@ -36,6 +36,24 @@ class StaffSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         requester_staff = getattr(getattr(request, "user", None), "staff_profile", None)
 
+        if requester_staff and requester_staff.role == "Branch Manager":
+            if not requester_staff.branch_id:
+                raise serializers.ValidationError(
+                    {"branch": "Your account is not assigned to a branch."}
+                )
+
+            if branch and branch.id != requester_staff.branch_id:
+                raise serializers.ValidationError(
+                    {"branch": "You can only manage staff for your own branch."}
+                )
+
+            if role in {"Admin", "Business Owner"}:
+                raise serializers.ValidationError(
+                    {"role": "Branch Manager cannot assign Admin or Business Owner roles."}
+                )
+
+            attrs["branch"] = requester_staff.branch
+
         if requester_staff and requester_staff.role == "Staff" and role == "Business Owner":
             raise serializers.ValidationError(
                 {"role": "Staff accounts are not allowed to create or assign Business Owner role."}

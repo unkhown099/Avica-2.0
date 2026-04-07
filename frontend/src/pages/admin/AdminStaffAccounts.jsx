@@ -380,8 +380,13 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
               <p className="text-gray-500">No staff accounts found</p>
             </div>
           ) : (
-            paginatedItems.map((staff) => (
-              <StaffCard key={staff.id} staff={staff} onEdit={openEditModal} />
+            paginatedItems.map((staff, index) => (
+              <div key={staff.id} className="relative">
+                <div className="absolute left-3 top-2 text-[11px] text-gray-500 z-10">
+                  #{startItem + index}
+                </div>
+                <StaffCard staff={staff} onEdit={openEditModal} />
+              </div>
             ))
           )}
         </div>
@@ -389,10 +394,11 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
         {/* Desktop Table */}
         <div className="hidden md:block bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
           <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="col-span-1">#</div>
             <div className="col-span-2">Name</div>
             <div className="col-span-2">Email</div>
             <div className="col-span-2">Phone</div>
-            <div className="col-span-2">Branch</div>
+            <div className="col-span-1">Branch</div>
             <div className="col-span-2">Role</div>
             <div className="col-span-1">Status</div>
             <div className="col-span-1 text-right">Actions</div>
@@ -419,11 +425,14 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
               </p>
             </div>
           ) : (
-            paginatedItems.map((staff) => (
+            paginatedItems.map((staff, index) => (
               <div
                 key={staff.id}
                 className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors items-center"
               >
+                <div className="col-span-1 text-xs text-gray-500">
+                  #{startItem + index}
+                </div>
                 <div className="col-span-2">
                   <div className="flex items-center gap-3">
                     <div
@@ -447,7 +456,7 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
                 <div className="col-span-2 text-gray-400 text-sm">
                   {staff.phone}
                 </div>
-                <div className="col-span-2 text-gray-400 text-sm truncate">
+                <div className="col-span-1 text-gray-400 text-sm truncate">
                   {staff.branch || "—"}
                 </div>
                 <div className="col-span-2">{getRoleBadge(staff.role)}</div>

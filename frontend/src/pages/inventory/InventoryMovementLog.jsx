@@ -113,7 +113,10 @@ function MovementLog({
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`${API_BASE}/inventory/transactions/?limit=200`, {
+      const params = new URLSearchParams({ limit: "200" });
+      if (dateFrom) params.set("date_from", dateFrom);
+      if (dateTo) params.set("date_to", dateTo);
+      const res = await fetch(`${API_BASE}/inventory/transactions/?${params.toString()}`, {
         headers,
         credentials: "include",
       });
@@ -152,7 +155,7 @@ function MovementLog({
     } finally {
       setLoading(false);
     }
-  }, [headers, isAuthenticated]);
+  }, [headers, isAuthenticated, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchMovements();
@@ -398,7 +401,7 @@ function MovementLog({
               </p>
             </div>
           ) : (
-            paginatedItems.map((m) => {
+            paginatedItems.map((m, index) => {
               const t = TYPE_STYLES[m.type] || DEFAULT_TYPE_STYLE;
               return (
                 <div
@@ -408,6 +411,7 @@ function MovementLog({
                   {/* Mobile */}
                   <div className="lg:hidden flex items-start justify-between">
                     <div>
+                      <p className="text-[11px] text-gray-500 mb-1">#{startItem + index}</p>
                       <p className="text-white font-semibold text-sm">
                         {m.item}
                       </p>
@@ -437,9 +441,12 @@ function MovementLog({
                   </div>
 
                   {/* Desktop */}
-                  <div className="hidden lg:block col-span-3">
+                  <div className="hidden lg:flex col-span-3 items-center gap-3">
+                    <span className="text-xs text-gray-500 w-8 shrink-0">#{startItem + index}</span>
+                    <div>
                     <p className="text-white font-semibold text-sm">{m.item}</p>
                     <span className="text-gray-600 text-xs">{m.sku}</span>
+                    </div>
                   </div>
                   <div className="hidden lg:flex col-span-2 items-center">
                     <span className="text-gray-400 text-sm">{m.branch}</span>

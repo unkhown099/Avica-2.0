@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated  # ← changed
 from rest_framework import status
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.db import transaction
 from collections import defaultdict
 from ..models import InventoryItem, RestockRequest, InventoryTransaction, Staff, Notification
@@ -582,6 +583,19 @@ class InventoryTransactionHistoryView(APIView):
             limit = 50
 
         qs = InventoryTransaction.objects.select_related("inventory_item", "performed_by").all()
+
+        date_from_raw = request.query_params.get("date_from")
+        date_to_raw = request.query_params.get("date_to")
+        if date_from_raw:
+            date_from = parse_date(str(date_from_raw))
+            if not date_from:
+                return Response({"detail": "Invalid date_from. Use YYYY-MM-DD."}, status=400)
+            qs = qs.filter(created_at__date__gte=date_from)
+        if date_to_raw:
+            date_to = parse_date(str(date_to_raw))
+            if not date_to:
+                return Response({"detail": "Invalid date_to. Use YYYY-MM-DD."}, status=400)
+            qs = qs.filter(created_at__date__lte=date_to)
 
         if role in ["Inventory", "Branch Manager"]:
             requester_staff = getattr(request.user, "staff_profile", None)

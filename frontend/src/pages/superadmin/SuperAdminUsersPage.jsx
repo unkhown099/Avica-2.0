@@ -110,6 +110,9 @@ function UsersTable({ users, loading, onEdit, onDelete, onStatusToggle }) {
           <thead className="bg-gray-800/50">
             <tr>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                #
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 User
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -127,11 +130,14 @@ function UsersTable({ users, loading, onEdit, onDelete, onStatusToggle }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {users.map((user) => (
+            {users.map((user, index) => (
               <tr
                 key={user.id}
                 className="hover:bg-white/[0.02] transition-colors"
               >
+                <td className="px-6 py-4 text-xs text-gray-500">
+                  #{index + 1}
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0">
@@ -272,11 +278,12 @@ function UsersTable({ users, loading, onEdit, onDelete, onStatusToggle }) {
 
       {/* Mobile Card View */}
       <div className="md:hidden divide-y divide-white/5">
-        {users.map((user) => (
+        {users.map((user, index) => (
           <div
             key={user.id}
             className="p-4 hover:bg-white/[0.02] transition-colors"
           >
+            <div className="text-[11px] text-gray-500 mb-2">#{index + 1}</div>
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3 flex-1">
                 <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0">

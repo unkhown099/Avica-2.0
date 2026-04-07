@@ -628,6 +628,7 @@ function ManagerContents() {
               <table className="w-full min-w-[600px]">
                 <thead className="bg-gray-950/80 text-gray-400 text-xs uppercase tracking-wide">
                   <tr>
+                    <th className="px-4 py-3 text-left">#</th>
                     <th className="px-4 py-3 text-left">Service</th>
                     <th className="px-4 py-3 text-left">Category</th>
                     <th className="px-4 py-3 text-left">Duration</th>
@@ -639,18 +640,21 @@ function ManagerContents() {
                   {filteredServices.length === 0 ? (
                     <tr>
                       <td
-                        colSpan="5"
+                        colSpan="6"
                         className="px-4 py-10 text-center text-gray-500"
                       >
                         No services found.
                       </td>
                     </tr>
                   ) : (
-                    servicesPagination.paginatedItems.map((service) => (
+                    servicesPagination.paginatedItems.map((service, index) => (
                       <tr
                         key={service.id}
                         className="border-t border-white/5 hover:bg-white/[0.02]"
                       >
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          #{servicesPagination.startItem + index}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="text-white font-semibold text-sm">
                             {service.name}

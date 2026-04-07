@@ -136,6 +136,48 @@ function Spinner({ className = "w-4 h-4" }) {
   );
 }
 
+function parseServiceDetailsNotes(notes = "") {
+  const lines = String(notes || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const requiredEntries = [];
+  let requiredTotal = 0;
+
+  for (const line of lines) {
+    if (!line.startsWith("[Required Products]")) continue;
+    const raw = line.replace("[Required Products]", "").trim();
+    const amountMatch = raw.match(/\(\+([0-9.,]+)\)\s*$/);
+    const lineAmount = amountMatch ? Number(String(amountMatch[1]).replace(/,/g, "")) : 0;
+    requiredTotal += Number.isFinite(lineAmount) ? lineAmount : 0;
+    const itemsText = raw.replace(/\(\+([0-9.,]+)\)\s*$/, "").trim();
+    const chunks = itemsText
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    for (const chunk of chunks) {
+      const m = chunk.match(/^(.*)\sx(\d+)$/i);
+      if (m) {
+        requiredEntries.push({ name: m[1].trim(), quantity: Number(m[2]) });
+      } else {
+        requiredEntries.push({ name: chunk, quantity: 1 });
+      }
+    }
+  }
+
+  const merged = Object.values(
+    requiredEntries.reduce((acc, item) => {
+      const key = item.name.toLowerCase();
+      if (!acc[key]) acc[key] = { name: item.name, quantity: 0 };
+      acc[key].quantity += Number(item.quantity || 0);
+      return acc;
+    }, {}),
+  );
+
+  return { items: merged, requiredTotal };
+}
+
 // ─── Job Card ──────────────────────────────────────────────────────────────
 
 function JobCard({ entry, col, isSelected, onClick, onEditDetails }) {
@@ -367,6 +409,12 @@ function KanbanColumn({
 function DetailPanel({ entry, onClose }) {
   if (!entry) return null;
   const col = COLUMNS.find((c) => c.id === entry.status) || COLUMNS[0];
+  const serviceBase = Number(entry.service_base_price ?? 0);
+  const totalPrice = Number(entry.price ?? 0);
+  const parsed = parseServiceDetailsNotes(entry.notes);
+  const requiredTotalFromPrice = Math.max(totalPrice - serviceBase, 0);
+  const requiredTotal =
+    parsed.requiredTotal > 0 ? parsed.requiredTotal : requiredTotalFromPrice;
 
   return (
     <div
@@ -505,6 +553,39 @@ function DetailPanel({ entry, onClose }) {
           </div>
 
           {/* Notes */}
+          <div className="rounded-xl border border-white/10 bg-white/3 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-gray-400 mb-3">
+              Service Details Receipt
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-300">Service Base ({entry.service})</span>
+                <span className="text-white font-semibold">PHP {serviceBase.toFixed(2)}</span>
+              </div>
+              <div className="border-t border-dashed border-white/10 pt-2 space-y-1">
+                {parsed.items.length === 0 ? (
+                  <p className="text-xs text-gray-500">No required products added yet.</p>
+                ) : (
+                  parsed.items.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">{item.name} x{item.quantity}</span>
+                      <span className="text-gray-300">Included</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex items-center justify-between text-xs border-t border-dashed border-white/10 pt-2">
+                <span className="text-gray-400">Required Products Total</span>
+                <span className="text-gray-300 font-semibold">PHP {requiredTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm border-t border-white/10 pt-2">
+                <span className="text-white font-bold">Adjusted Total</span>
+                <span className="text-emerald-300 font-black">PHP {totalPrice.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
           {entry.notes && (
             <div className="bg-white/3 border border-white/8 rounded-xl px-4 py-3 text-gray-400 text-sm leading-relaxed">
               📝 {entry.notes}
@@ -529,6 +610,10 @@ function EditServiceDetailsModal({ entry, onClose, onEntryUpdated }) {
   const [savingDetails, setSavingDetails] = useState(false);
   const [productError, setProductError] = useState("");
   const [productSuccess, setProductSuccess] = useState("");
+  const parsed = parseServiceDetailsNotes(entry.notes);
+  const serviceBase = Number(entry.service_base_price ?? 0);
+  const currentTotal = Number(entry.price ?? 0);
+  const parsedRequiredTotal = parsed.requiredTotal > 0 ? parsed.requiredTotal : Math.max(currentTotal - serviceBase, 0);
 
   const refreshProducts = useCallback(async () => {
     setLoadingProducts(true);
@@ -544,16 +629,18 @@ function EditServiceDetailsModal({ entry, onClose, onEntryUpdated }) {
       const data = await res.json();
       const rows = Array.isArray(data) ? data : [];
       setProducts(rows);
-      if (rows.length > 0) {
-        setRequiredItems((prev) => {
-          if (!prev.length) return [{ productId: String(rows[0].id), quantity: 1 }];
-          return prev.map((item, idx) =>
-            idx === 0 && !item.productId
-              ? { ...item, productId: String(rows[0].id) }
-              : item,
-          );
-        });
-      }
+      setRequiredItems((prev) => {
+        const hasSelected = prev.some((item) => item.productId);
+        if (hasSelected || rows.length === 0) return prev;
+        const prefilled = parsed.items
+          .map((saved) => {
+            const matched = rows.find((p) => String(p.name || "").toLowerCase() === String(saved.name || "").toLowerCase());
+            if (!matched) return null;
+            return { productId: String(matched.id), quantity: Number(saved.quantity || 1) || 1 };
+          })
+          .filter(Boolean);
+        return prefilled.length > 0 ? prefilled : prev;
+      });
     } catch (e) {
       setProductError(e.message || "Failed to load products.");
       setProducts([]);
@@ -617,6 +704,7 @@ function EditServiceDetailsModal({ entry, onClose, onEntryUpdated }) {
         onEntryUpdated(data.entry);
       }
       setProductSuccess(`Updated. New total: PHP ${Number(data?.entry?.price ?? 0).toFixed(2)}`);
+      setRequiredItems([{ productId: "", quantity: 1 }]);
       await refreshProducts();
     } catch (e) {
       setProductError(e.message || "Failed to update service details.");
@@ -651,6 +739,38 @@ function EditServiceDetailsModal({ entry, onClose, onEntryUpdated }) {
             <span className="text-xs text-emerald-300 font-semibold">
               Current Total: PHP {Number(entry.price ?? 0).toFixed(2)}
             </span>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/3 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-gray-400 mb-3">
+              Saved Service Details
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-300">Service Base ({entry.service})</span>
+                <span className="text-white font-semibold">PHP {serviceBase.toFixed(2)}</span>
+              </div>
+              <div className="border-t border-dashed border-white/10 pt-2 space-y-1">
+                {parsed.items.length === 0 ? (
+                  <p className="text-xs text-gray-500">No required products saved yet.</p>
+                ) : (
+                  parsed.items.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">{item.name} x{item.quantity}</span>
+                      <span className="text-gray-300">Included</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex items-center justify-between text-xs border-t border-dashed border-white/10 pt-2">
+                <span className="text-gray-400">Required Products Total</span>
+                <span className="text-gray-300 font-semibold">PHP {parsedRequiredTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm border-t border-white/10 pt-2">
+                <span className="text-white font-bold">Adjusted Total</span>
+                <span className="text-emerald-300 font-black">PHP {currentTotal.toFixed(2)}</span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">

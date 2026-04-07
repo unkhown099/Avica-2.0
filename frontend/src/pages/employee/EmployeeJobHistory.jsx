@@ -40,6 +40,29 @@ function toDisplayTime(t) {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+function toDurationLabel(minutes) {
+  const total = Number(minutes);
+  if (!Number.isFinite(total) || total <= 0) return "—";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+function getMe() {
+  try {
+    const raw =
+      localStorage.getItem("user") ||
+      localStorage.getItem("me") ||
+      sessionStorage.getItem("user") ||
+      sessionStorage.getItem("me");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 function EmployeeJobHistory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("All Time");
@@ -47,19 +70,71 @@ function EmployeeJobHistory() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [staffId, setStaffId] = useState(null);
+
+  useEffect(() => {
+    const me = getMe();
+    if (me?.staff_profile?.id) {
+      setStaffId(me.staff_profile.id);
+      return;
+    }
+    fetch(`${API_BASE}/me/`, { headers: authHeaders(), credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.staff_profile?.id) setStaffId(d.staff_profile.id);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchHistory = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`${API_BASE}/api/staff/bookings/`, {
-        headers: authHeaders(),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error(`Failed to load job history (${res.status})`);
-      const data = await res.json();
-      const rows = Array.isArray(data) ? data : data.results ?? [];
-      setBookings(rows);
+      const [bookingRes, queueRes] = await Promise.all([
+        fetch(`${API_BASE}/api/staff/bookings/`, {
+          headers: authHeaders(),
+          credentials: "include",
+        }),
+        fetch(`${API_BASE}/api/queue/history/`, {
+          headers: authHeaders(),
+          credentials: "include",
+        }),
+      ]);
+      if (!bookingRes.ok) throw new Error(`Failed to load booking history (${bookingRes.status})`);
+      if (!queueRes.ok) throw new Error(`Failed to load queue history (${queueRes.status})`);
+      const bookingData = await bookingRes.json();
+      const queueData = await queueRes.json();
+      const bookingRows = Array.isArray(bookingData) ? bookingData : bookingData.results ?? [];
+      const queueRows = Array.isArray(queueData) ? queueData : queueData.results ?? [];
+      const bookingMapped = bookingRows.map((b) => ({
+        id: `JOB-${String(b.id).padStart(4, "0")}`,
+        date: toDateLabel(b.date),
+        rawDate: b.date,
+        customer: b.customer_name || "Unknown Customer",
+        vehicle: b.vehicle || "—",
+        service: b.service || "—",
+        duration: "—",
+        rating: b.rating_score || 0,
+        completed: toDisplayTime(b.time),
+        source: "booking",
+        assignedEmployeeId: b.assigned_employee_id || b.assigned_employee?.id || null,
+      }));
+      const queueMapped = queueRows.map((q) => ({
+        id: `QH-${String(q.id).padStart(4, "0")}`,
+        date: toDateLabel((q.completed_at || q.queued_at || "").split("T")[0]),
+        rawDate: (q.completed_at || q.queued_at || "").split("T")[0],
+        customer: q.customer_name || "Unknown Customer",
+        vehicle: q.vehicle || "—",
+        service: q.service || "—",
+        duration: toDurationLabel(q.duration_minutes),
+        rating: q.rating_score || 0,
+        completed: q.completed_at ? new Date(q.completed_at).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }) : "—",
+        source: q.source || "walk_in",
+        assignedEmployeeId: q.assigned_employee?.id || null,
+      }));
+      const byId = new Map();
+      [...bookingMapped, ...queueMapped].forEach((row) => byId.set(row.id, row));
+      setBookings(Array.from(byId.values()));
     } catch (err) {
       setError(err.message || "Failed to load job history.");
       setBookings([]);
@@ -73,20 +148,11 @@ function EmployeeJobHistory() {
   }, [fetchHistory]);
 
   const jobHistory = useMemo(() => {
-    return bookings
-      .filter((b) => normalizeStatus(b.status) === "done")
-      .map((b) => ({
-        id: `JOB-${String(b.id).padStart(4, "0")}`,
-        date: toDateLabel(b.date),
-        rawDate: b.date,
-        customer: b.customer_name || "Unknown Customer",
-        vehicle: b.vehicle || "—",
-        service: b.service || "—",
-        duration: "—",
-        rating: 0,
-        completed: toDisplayTime(b.time),
-      }));
-  }, [bookings]);
+    return bookings.filter((b) => {
+      if (!staffId) return true;
+      return !b.assignedEmployeeId || Number(b.assignedEmployeeId) === Number(staffId);
+    });
+  }, [bookings, staffId]);
 
   const serviceOptions = useMemo(() => {
     const set = new Set(jobHistory.map((j) => j.service).filter(Boolean));
@@ -360,6 +426,9 @@ function EmployeeJobHistory() {
               <thead className="bg-white/5 border-b border-white/5">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">
+                    #
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">
                     Job ID
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">
@@ -391,16 +460,19 @@ function EmployeeJobHistory() {
               <tbody className="divide-y divide-white/5">
                 {loading ? (
                   <tr>
-                    <td className="px-6 py-6 text-sm text-gray-400" colSpan={9}>
+                    <td className="px-6 py-6 text-sm text-gray-400" colSpan={10}>
                       Loading job history...
                     </td>
                   </tr>
                 ) : (
-                paginatedItems.map((job) => (
+                paginatedItems.map((job, index) => (
                   <tr
                     key={job.id}
                     className="hover:bg-white/[0.02] transition-colors duration-150"
                   >
+                    <td className="px-6 py-4 text-xs text-gray-500">
+                      #{startItem + index}
+                    </td>
                     <td className="px-6 py-4 text-sm font-medium text-white">
                       {job.id}
                     </td>
