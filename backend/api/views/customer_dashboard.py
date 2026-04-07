@@ -49,8 +49,10 @@ class CustomerDashboardAPIView(APIView):
                 return ""
             return str(val)
 
-        upcoming_data = [
-            {
+        upcoming_data = []
+        for b in upcoming:
+            queue_entry = getattr(b, "queue_entry", None)
+            upcoming_data.append({
                 "id": b.id,
                 "service": resolve_service(b),
                 # Always send date as ISO string — frontend formatDate() handles display
@@ -59,9 +61,9 @@ class CustomerDashboardAPIView(APIView):
                 "time": str(b.time)[:5] if b.time else None,
                 "status": b.status,
                 "price": resolve_price(b),
-            }
-            for b in upcoming
-        ]
+                "queue_id": queue_entry.id if queue_entry else None,
+                "assigned_employee_id": queue_entry.assigned_employee_id if queue_entry else None,
+            })
 
         # Active queue entries (waiting or in_service)
         active_entries = QueueEntry.objects.filter(

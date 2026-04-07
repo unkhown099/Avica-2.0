@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import EmployeeLayout from "./EmployeeLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
+import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 function authHeaders() {
   const token =
@@ -107,6 +108,7 @@ export default function EmployeeSchedule() {
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState(now.getDate());
   const [selectedDayModalISO, setSelectedDayModalISO] = useState("");
+  const [chatQueueId, setChatQueueId] = useState(null);
 
   const fetchSchedule = useCallback(async () => {
     try {
@@ -269,13 +271,12 @@ export default function EmployeeSchedule() {
                     const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(item.day).padStart(2, "0")}`;
                     setSelectedDayModalISO(iso);
                   }}
-                  className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all relative ${
-                    selectedDate === item.day
+                  className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all relative ${selectedDate === item.day
                       ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
                       : item.hasJobs
                         ? "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20"
                         : "hover:bg-white/5 text-gray-400"
-                  }`}
+                    }`}
                 >
                   {item.day}
                   {item.hasJobs && selectedDate !== item.day && (
@@ -293,36 +294,35 @@ export default function EmployeeSchedule() {
               </div>
             ) : (
               <>
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                <h2 className="text-lg font-black text-white mb-6">This Week</h2>
-                <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
-                  {weekRows.map((day, index) => (
-                    <button
-                      key={`${day.iso}-${index}`}
-                      onClick={() => setSelectedDayModalISO(day.iso)}
-                      className={`border rounded-xl p-5 transition-all ${
-                        day.jobs === 0
-                          ? "border-white/5 bg-white/[0.02]"
-                          : "border-white/5 hover:border-red-500/20 hover:bg-white/[0.02]"
-                      } w-full text-left`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4 mb-2">
-                            <h3 className="text-lg font-bold text-white">{day.day}</h3>
-                            <span className="text-sm text-gray-500">{day.date}</span>
+                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+                  <h2 className="text-lg font-black text-white mb-6">This Week</h2>
+                  <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
+                    {weekRows.map((day, index) => (
+                      <button
+                        key={`${day.iso}-${index}`}
+                        onClick={() => setSelectedDayModalISO(day.iso)}
+                        className={`border rounded-xl p-5 transition-all ${day.jobs === 0
+                            ? "border-white/5 bg-white/[0.02]"
+                            : "border-white/5 hover:border-red-500/20 hover:bg-white/[0.02]"
+                          } w-full text-left`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-4 mb-2">
+                              <h3 className="text-lg font-bold text-white">{day.day}</h3>
+                              <span className="text-sm text-gray-500">{day.date}</span>
+                            </div>
+                            <p className="text-sm text-gray-400">{day.hours}</p>
                           </div>
-                          <p className="text-sm text-gray-400">{day.hours}</p>
+                          <div className="text-right">
+                            <p className="text-3xl font-black text-red-400">{day.jobs}</p>
+                            <p className="text-sm text-gray-500">jobs</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-3xl font-black text-red-400">{day.jobs}</p>
-                          <p className="text-sm text-gray-500">jobs</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
               </>
             )}
           </div>
@@ -373,6 +373,19 @@ export default function EmployeeSchedule() {
                             <div>Staff: {job.assigned_employee_name || job.staff || "TBA"}</div>
                           </div>
                         </div>
+                        <div className="flex flex-col gap-2 ml-4">
+                          {job.queue_id && (
+                            <button
+                              onClick={() => setChatQueueId(job.queue_id)}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm shadow-lg shadow-blue-600/30 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <svg className="w-4 h-4 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                              </svg>
+                              Chat
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -381,6 +394,14 @@ export default function EmployeeSchedule() {
             </div>
           </div>
         </div>
+      )}
+
+      {chatQueueId && (
+        <ServiceChatModal
+          queueId={chatQueueId}
+          isEmployee={true}
+          onClose={() => setChatQueueId(null)}
+        />
       )}
     </EmployeeLayout>
   );

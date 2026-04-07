@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import StaffLayout from "./StaffLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
+import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 function getAuthHeaders() {
   const token =
@@ -43,6 +44,7 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState(null);
+  const [chatQueueId, setChatQueueId] = useState(null);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -180,6 +182,17 @@ export default function StaffDashboard() {
                             <div className="mt-3 text-xs text-gray-300 flex flex-col gap-1">
                               <span>{row.date ? `${row.date}${row.time ? ` · ${row.time}` : ""}` : "-"}</span>
                             </div>
+                            {row.queue_id && (
+                              <button
+                                onClick={() => setChatQueueId(row.queue_id)}
+                                className="mt-3 w-full flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-xs font-semibold py-1.5 rounded-lg transition-all duration-200"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                </svg>
+                                Message
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -193,6 +206,7 @@ export default function StaffDashboard() {
                               <th className="py-2 pr-3 font-medium">Service</th>
                               <th className="py-2 pr-3 font-medium">Date</th>
                               <th className="py-2 pr-3 font-medium">Status</th>
+                              <th className="py-2 font-medium text-right">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -210,6 +224,16 @@ export default function StaffDashboard() {
                                   <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toStatusBadge(row.status)}`}>
                                     {row.status || "Unknown"}
                                   </span>
+                                </td>
+                                <td className="py-3 text-right">
+                                  {row.queue_id && (
+                                    <button
+                                      onClick={() => setChatQueueId(row.queue_id)}
+                                      className="inline-flex items-center gap-1 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-[11px] font-semibold px-2 py-1 rounded transition-all duration-200"
+                                    >
+                                      Chat
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -266,6 +290,14 @@ export default function StaffDashboard() {
           )}
         </div>
       </div>
+
+      {chatQueueId && (
+        <ServiceChatModal
+          queueId={chatQueueId}
+          isEmployee={true}
+          onClose={() => setChatQueueId(null)}
+        />
+      )}
     </StaffLayout>
   );
 }

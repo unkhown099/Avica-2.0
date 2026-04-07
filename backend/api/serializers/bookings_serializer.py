@@ -61,6 +61,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
     assigned_employee_id = serializers.SerializerMethodField()
     assigned_employee_name = serializers.SerializerMethodField()
+    queue_id = serializers.SerializerMethodField()
     preferred_employee_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     preferred_employee_name = serializers.SerializerMethodField()
     customer_name = serializers.SerializerMethodField()
@@ -87,7 +88,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "reschedule_note",
             "reschedule_request_reason",
             "customer_name",
-            "assigned_employee_id", "assigned_employee_name",
+            "assigned_employee_id", "assigned_employee_name", "queue_id",
             "preferred_employee_id", "preferred_employee_name",
             "created_at",
             "notes", "status", "staff", "created_at",
@@ -99,6 +100,12 @@ class BookingSerializer(serializers.ModelSerializer):
         queue_entry = getattr(instance, "queue_entry", None)
         if queue_entry and queue_entry.assigned_employee_id:
             return queue_entry.assigned_employee_id
+        return None
+
+    def get_queue_id(self, instance):
+        queue_entry = getattr(instance, "queue_entry", None)
+        if queue_entry:
+            return queue_entry.id
         return None
 
     def get_assigned_employee_name(self, instance):

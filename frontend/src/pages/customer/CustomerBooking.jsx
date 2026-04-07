@@ -8,6 +8,7 @@ import React, {
 import { useLocation, useNavigate } from "react-router-dom";
 import CustomerLayout from "./CustomerLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
+import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -889,8 +890,8 @@ function DamageDetectionModal({ onClose, onBack }) {
                         key={i}
                         onClick={() => setActiveImageIndex(i)}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${activeImageIndex === i
-                            ? "bg-red-600 border-red-500 text-white"
-                            : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                          ? "bg-red-600 border-red-500 text-white"
+                          : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
                           }`}
                       >
                         Photo {i + 1}
@@ -2138,10 +2139,10 @@ function NewBookingModal({
                                 : ""
                       }
                       className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${active && !isDisabled
-                          ? "border-red-500 bg-red-600/20 text-white shadow-md shadow-red-600/20 ring-1 ring-red-500/40"
-                          : isDisabled
-                            ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
-                            : "border-white/8 bg-white/3 text-gray-400 hover:border-red-500/40 hover:bg-red-600/8 hover:text-white cursor-pointer"
+                        ? "border-red-500 bg-red-600/20 text-white shadow-md shadow-red-600/20 ring-1 ring-red-500/40"
+                        : isDisabled
+                          ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
+                          : "border-white/8 bg-white/3 text-gray-400 hover:border-red-500/40 hover:bg-red-600/8 hover:text-white cursor-pointer"
                         }`}
                     >
                       {t}
@@ -2765,14 +2766,14 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
                     type="button"
                     onClick={() => setSelected(opt)}
                     className={`w-full p-3 sm:p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${isActive
-                        ? "border-indigo-500 bg-indigo-600/12"
-                        : "border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5"
+                      ? "border-indigo-500 bg-indigo-600/12"
+                      : "border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5"
                       }`}
                   >
                     <div
                       className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isActive
-                          ? "border-indigo-500 bg-indigo-500"
-                          : "border-white/30"
+                        ? "border-indigo-500 bg-indigo-500"
+                        : "border-white/30"
                         }`}
                     >
                       {isActive && (
@@ -3117,6 +3118,7 @@ function BookingsPage() {
   const [customerRescheduleBooking, setCustomerRescheduleBooking] =
     useState(null);
   const [toast, setToast] = useState(null);
+  const [chatQueueId, setChatQueueId] = useState(null);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -3304,8 +3306,8 @@ function BookingsPage() {
               }}
               disabled={newBookingDisabled}
               className={`flex items-center gap-1.5 font-bold px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm transition-all duration-200 shadow-xl ${newBookingDisabled
-                  ? "bg-red-600/30 text-red-300/50 cursor-not-allowed shadow-none"
-                  : "bg-red-600 hover:bg-red-500 text-white hover:scale-105 shadow-red-600/30"
+                ? "bg-red-600/30 text-red-300/50 cursor-not-allowed shadow-none"
+                : "bg-red-600 hover:bg-red-500 text-white hover:scale-105 shadow-red-600/30"
                 }`}
             >
               <svg
@@ -3418,8 +3420,8 @@ function BookingsPage() {
               key={f}
               onClick={() => setFilter(f)}
               className={`flex-shrink-0 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-semibold text-[10px] sm:text-xs capitalize transition-all duration-200 ${filter === f
-                  ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                  : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40 hover:bg-red-600/10"
+                ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40 hover:bg-red-600/10"
                 }`}
             >
               {f}
@@ -3639,6 +3641,28 @@ function BookingsPage() {
                                 </button>
                               )}
 
+                            {booking.queue_id && booking.assigned_employee_id && (
+                              <button
+                                onClick={() => setChatQueueId(booking.queue_id)}
+                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 hover:border-blue-500 text-blue-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
+                              >
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                                  />
+                                </svg>
+                                Message
+                              </button>
+                            )}
+
                             <button
                               onClick={() => setCancelBooking(booking)}
                               className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/15 hover:bg-red-600 border border-red-600/40 hover:border-red-500 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
@@ -3729,6 +3753,13 @@ function BookingsPage() {
           message={toast.message}
           type={toast.type}
           onDismiss={() => setToast(null)}
+        />
+      )}
+      {chatQueueId && (
+        <ServiceChatModal
+          queueId={chatQueueId}
+          isEmployee={false}
+          onClose={() => setChatQueueId(null)}
         />
       )}
     </CustomerLayout>

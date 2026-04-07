@@ -691,6 +691,7 @@ class StaffDashboardView(APIView):
                     "time": booking.time,
                     "status": booking.status,
                     "branch_name": booking.branch.name if booking.branch else "",
+                    "queue_id": getattr(booking, "queue_entry", None).id if getattr(booking, "queue_entry", None) else None,
                 }
             )
 

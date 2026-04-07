@@ -102,6 +102,7 @@ from api.views.landing_content_views import (
 )
 
 from api.views.direct_message_views import direct_message_contacts_view, direct_messages_view
+from api.views.payment_views import CreatePayMongoLinkView
 
 urlpatterns = [
     # ── Super Admin endpoints ─────────────────────────────────────────────────────
@@ -178,6 +179,9 @@ urlpatterns = [
     # ── Direct Messaging ──────────────────────────────────────────────────────
     path('api/direct-messages/contacts/', direct_message_contacts_view, name='direct-message-contacts'),
     path('api/direct-messages/<int:partner_id>/', direct_messages_view, name='direct-messages'),
+
+    # ── Payments ──────────────────────────────────────────────────────────────
+    path('api/paymongo/create-link/', CreatePayMongoLinkView.as_view(), name='paymongo-link'),
 
     # ── Customer dashboard & history ──────────────────────────────────────────
     path('api/customer/dashboard/', CustomerDashboardAPIView.as_view(), name='customer-dashboard'),

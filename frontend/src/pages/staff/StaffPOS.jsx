@@ -112,8 +112,8 @@ function SnackbarContainer({ snackbars, onDismiss }) {
             ${s.type === "success"
               ? "bg-emerald-900/90 border-emerald-500/40 text-emerald-100"
               : s.type === "error"
-              ? "bg-red-900/90 border-red-500/40 text-red-100"
-              : "bg-gray-800/90 border-white/10 text-gray-100"
+                ? "bg-red-900/90 border-red-500/40 text-red-100"
+                : "bg-gray-800/90 border-white/10 text-gray-100"
             }`}
         >
           {s.type === "success" ? (
@@ -418,6 +418,8 @@ export default function StaffPOS() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({ name: false, phone: false });
+  const [gcashCheckoutUrl, setGcashCheckoutUrl] = useState(null);
+  const [isGeneratingUrl, setIsGeneratingUrl] = useState(false);
   const { snackbars, push: pushSnack, dismiss: dismissSnack } = useSnackbar();
 
   // ── Phone validation helper ───────────────────────────────────────────────
@@ -604,25 +606,7 @@ export default function StaffPOS() {
     return { ok: true, warned: true, name: item.name };
   };
 
-  const handleCheckout = async () => {
-    if (cart.length === 0) { pushSnack("Cart is empty.", "error"); return; }
-    if (!validateInputs()) return;
-
-    if (hasQueueItems && !queueOnlyCart) {
-      pushSnack("Queue services must be paid separately. Remove non-queue items first.", "error");
-      return;
-    }
-    if (queueItems.length > 1) {
-      pushSnack("Only one processed service can be paid at a time.", "error");
-      return;
-    }
-
-    const missingPrice = cart.find((c) => c.type === "queue" && c._price === 0);
-    if (missingPrice) { pushSnack(`Enter a price for "${missingPrice.name}".`, "error"); return; }
-    if (paymentMethod === "cash" && parseFloat(amountGiven || 0) < effectiveTotal) {
-      pushSnack("Amount given is less than the total.", "error"); return;
-    }
-
+  const processInternalCheckout = async () => {
     setCheckingOut(true);
     const errors = [];
     const warnings = [];
@@ -685,7 +669,53 @@ export default function StaffPOS() {
       pushSnack(err.message || "Checkout failed. Please try again.", "error", 6000);
     } finally {
       setCheckingOut(false);
+      setGcashCheckoutUrl(null);
     }
+  };
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) { pushSnack("Cart is empty.", "error"); return; }
+    if (!validateInputs()) return;
+
+    if (hasQueueItems && !queueOnlyCart) {
+      pushSnack("Queue services must be paid separately. Remove non-queue items first.", "error");
+      return;
+    }
+    if (queueItems.length > 1) {
+      pushSnack("Only one processed service can be paid at a time.", "error");
+      return;
+    }
+
+    const missingPrice = cart.find((c) => c.type === "queue" && c._price === 0);
+    if (missingPrice) { pushSnack(`Enter a price for "${missingPrice.name}".`, "error"); return; }
+
+    if (paymentMethod === "cash" && parseFloat(amountGiven || 0) < effectiveTotal) {
+      pushSnack("Amount given is less than the total.", "error"); return;
+    }
+
+    if (paymentMethod === "gcash") {
+      setIsGeneratingUrl(true);
+      try {
+        const res = await fetch(`${API}/api/paymongo/create-link/`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ amount: effectiveTotal, description: "POS Checkout" })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setGcashCheckoutUrl(data.checkout_url);
+        } else {
+          pushSnack(data.error || "Failed to generate GCash link.", "error");
+        }
+      } catch (e) {
+        pushSnack("Network error generating GCash link.", "error");
+      } finally {
+        setIsGeneratingUrl(false);
+      }
+      return;
+    }
+
+    await processInternalCheckout();
   };
 
   const colH = "xl:h-[calc(100vh-8rem)] h-auto";
@@ -731,40 +761,40 @@ export default function StaffPOS() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {activeTab === "services" && (
                   loadingServices ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />) :
-                  filteredServices.length === 0 ? <div className="col-span-3 py-20 text-center text-gray-500 text-base">No services found</div> :
-                  filteredServices.map((service) => {
-                    const price = parseFloat(service.price ?? 0);
-                    const inCart = cart.find((c) => c.id === service.id && c.type === "service");
-                    return (
-                      <button key={service.id} onClick={() => addToCart(service, "service")}
-                        className="bg-gray-800/60 border border-white/5 rounded-xl p-4 hover:border-red-500/40 hover:bg-gray-800 transition-all text-left group relative">
-                        {inCart && <span className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full text-white text-sm font-black flex items-center justify-center">{inCart.quantity}</span>}
-                        <h3 className="font-black text-white text-base group-hover:text-red-400 transition-colors mb-2 pr-6 leading-tight">{service.name}</h3>
-                        <p className="text-xs text-gray-500 mb-2">{service.category}</p>
-                        <div className="text-lg font-black text-red-400">P{price.toLocaleString()}</div>
-                      </button>
-                    );
-                  })
+                    filteredServices.length === 0 ? <div className="col-span-3 py-20 text-center text-gray-500 text-base">No services found</div> :
+                      filteredServices.map((service) => {
+                        const price = parseFloat(service.price ?? 0);
+                        const inCart = cart.find((c) => c.id === service.id && c.type === "service");
+                        return (
+                          <button key={service.id} onClick={() => addToCart(service, "service")}
+                            className="bg-gray-800/60 border border-white/5 rounded-xl p-4 hover:border-red-500/40 hover:bg-gray-800 transition-all text-left group relative">
+                            {inCart && <span className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full text-white text-sm font-black flex items-center justify-center">{inCart.quantity}</span>}
+                            <h3 className="font-black text-white text-base group-hover:text-red-400 transition-colors mb-2 pr-6 leading-tight">{service.name}</h3>
+                            <p className="text-xs text-gray-500 mb-2">{service.category}</p>
+                            <div className="text-lg font-black text-red-400">P{price.toLocaleString()}</div>
+                          </button>
+                        );
+                      })
                 )}
                 {activeTab === "products" && (
                   loadingProducts ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />) :
-                  filteredProducts.length === 0 ? <div className="col-span-3 py-20 text-center text-gray-500 text-base">No products found</div> :
-                  filteredProducts.map((product) => {
-                    const inCart = cart.find((c) => c.id === product.id && c.type === "product");
-                    const isLow = product.quantity <= (product.minimum_qty ?? 5);
-                    return (
-                      <button key={product.id} onClick={() => addToCart(product, "product")}
-                        className="bg-gray-800/60 border border-white/5 rounded-xl p-4 hover:border-emerald-500/40 hover:bg-gray-800 transition-all text-left group relative">
-                        {inCart && <span className="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full text-white text-sm font-black flex items-center justify-center">{inCart.quantity}</span>}
-                        <h3 className="font-black text-white text-base group-hover:text-emerald-400 transition-colors mb-2 pr-6 leading-tight">{product.name}</h3>
-                        <p className="text-xs text-gray-500 mb-2">{product.category}</p>
-                        <div className="flex items-center justify-between">
-                          <div className="text-lg font-black text-emerald-400">P{parseFloat(product.price).toLocaleString()}</div>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isLow ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>{product.quantity}</span>
-                        </div>
-                      </button>
-                    );
-                  })
+                    filteredProducts.length === 0 ? <div className="col-span-3 py-20 text-center text-gray-500 text-base">No products found</div> :
+                      filteredProducts.map((product) => {
+                        const inCart = cart.find((c) => c.id === product.id && c.type === "product");
+                        const isLow = product.quantity <= (product.minimum_qty ?? 5);
+                        return (
+                          <button key={product.id} onClick={() => addToCart(product, "product")}
+                            className="bg-gray-800/60 border border-white/5 rounded-xl p-4 hover:border-emerald-500/40 hover:bg-gray-800 transition-all text-left group relative">
+                            {inCart && <span className="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full text-white text-sm font-black flex items-center justify-center">{inCart.quantity}</span>}
+                            <h3 className="font-black text-white text-base group-hover:text-emerald-400 transition-colors mb-2 pr-6 leading-tight">{product.name}</h3>
+                            <p className="text-xs text-gray-500 mb-2">{product.category}</p>
+                            <div className="flex items-center justify-between">
+                              <div className="text-lg font-black text-emerald-400">P{parseFloat(product.price).toLocaleString()}</div>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isLow ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>{product.quantity}</span>
+                            </div>
+                          </button>
+                        );
+                      })
                 )}
               </div>
             </div>
@@ -1077,7 +1107,7 @@ export default function StaffPOS() {
               <button onClick={handleCheckout}
                 disabled={checkingOut || cart.length === 0 || hasMissingPrice || (hasQueueItems && (!queueOnlyCart || queueItems.length > 1))}
                 className="w-full bg-red-600 hover:bg-red-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black py-3 rounded-lg transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 text-sm">
-                {checkingOut ? (
+                {checkingOut || isGeneratingUrl ? (
                   <>
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -1099,6 +1129,42 @@ export default function StaffPOS() {
 
         </div>
       </div>
+
+      {gcashCheckoutUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="bg-blue-600/20 border-b border-blue-500/20 px-6 py-5 rounded-t-2xl text-center">
+              <h2 className="text-xl font-black text-white">GCash / PayMongo Checkout</h2>
+              <p className="text-blue-400 text-sm mt-1">Total: <span className="font-bold text-lg">P{fmt(effectiveTotal)}</span></p>
+            </div>
+
+            <div className="p-6 flex flex-col items-center">
+              <div className="mb-4 text-center">
+                <p className="text-gray-400 text-sm mb-3">Please ask the customer to scan or visit the link to pay via GCash.</p>
+                {gcashCheckoutUrl === "mock_gcash" ? (
+                  <div className="w-48 h-48 bg-white rounded-xl p-2 mx-auto flex items-center justify-center flex-col shadow-inner">
+                    <svg className="w-24 h-24 text-blue-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 19h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                    <span className="text-xs font-bold text-gray-800">[ TEST MODE QR ]</span>
+                  </div>
+                ) : (
+                  <a href={gcashCheckoutUrl} target="_blank" rel="noopener noreferrer" className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30">
+                    Open Payment Link
+                  </a>
+                )}
+              </div>
+
+              <div className="w-full space-y-3 mt-4 border-t border-white/10 pt-5">
+                <button onClick={() => processInternalCheckout()} disabled={checkingOut} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
+                  {checkingOut ? "Confirming..." : "Confirm Payment Received"}
+                </button>
+                <button onClick={() => setGcashCheckoutUrl(null)} disabled={checkingOut} className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3.5 rounded-xl transition-all border border-white/5">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {receipt && <ReceiptModal {...receipt} onClose={() => setReceipt(null)} />}
       <SnackbarContainer snackbars={snackbars} onDismiss={dismissSnack} />

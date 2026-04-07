@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import StaffLayout from "./StaffLayout";
 import { API_BASE, getAuthHeaders } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
+import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -92,6 +93,7 @@ function StaffAppointments() {
   const [actionLoading, setActionLoading] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [assignedByBooking, setAssignedByBooking] = useState({});
+  const [chatQueueId, setChatQueueId] = useState(null);
 
   const monthName = new Date(year, month).toLocaleString("en-PH", {
     month: "long",
@@ -514,11 +516,10 @@ function StaffAppointments() {
                     <button
                       key={day}
                       onClick={() => setSelectedDate(day)}
-                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                        isSelected
+                      className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${isSelected
                           ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
                           : "hover:bg-white/5 text-gray-400 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <span>{day}</span>
                       {dots.length > 0 && (
@@ -944,6 +945,19 @@ function StaffAppointments() {
                             </svg>
                             Confirmed
                           </div>
+
+                          {b.queue_id && (
+                            <button
+                              onClick={() => setChatQueueId(b.queue_id)}
+                              className="w-full flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                              </svg>
+                              Message Customer
+                            </button>
+                          )}
+
                           <button
                             onClick={() => handleReschedule(b)}
                             disabled={actionLoading === b.id}
@@ -1016,6 +1030,14 @@ function StaffAppointments() {
           </div>
         </div>
       </div>
+
+      {chatQueueId && (
+        <ServiceChatModal
+          queueId={chatQueueId}
+          isEmployee={true}
+          onClose={() => setChatQueueId(null)}
+        />
+      )}
     </StaffLayout>
   );
 }

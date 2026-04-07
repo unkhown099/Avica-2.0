@@ -1193,21 +1193,7 @@ def queue_messages(request, pk):
         )
 
         # Notify the other party
-        if sender_type == "employee":
-            if customer_user:
-                Notification.objects.create(
-                    user=customer_user,
-                    title=f"New message regarding your vehicle service",
-                    message=f"Employee has sent a message: {message_text[:30]}",
-                    notification_type="booking_update"
-                )
-        else:
-            if entry.assigned_employee and hasattr(entry.assigned_employee, "user") and entry.assigned_employee.user:
-                Notification.objects.create(
-                    user=entry.assigned_employee.user,
-                    title=f"New message from {entry.customer_name}",
-                    message=f"{message_text[:30]}",
-                    notification_type="queue_update"
-                )
+        # Chat messages are handled in real-time or via their own unread markers,
+        # so we don't spam the system Notifications bell.
 
         return Response(ServiceMessageSerializer(msg).data, status=201)
