@@ -101,6 +101,8 @@ from api.views.landing_content_views import (
     MediaAssetDetailView,
 )
 
+from api.views.direct_message_views import direct_message_contacts_view, direct_messages_view
+
 urlpatterns = [
     # ── Super Admin endpoints ─────────────────────────────────────────────────────
     path("super-admin/dashboard/",           SuperAdminDashboardView.as_view()),
@@ -172,6 +174,10 @@ urlpatterns = [
     path('api/queue/<int:pk>/add-products/', queue_add_products, name='queue-add-products'),
     path('api/queue/<int:pk>/service-details/', queue_edit_service_details, name='queue-service-details'),
     path('api/queue/<int:pk>/messages/', queue_messages, name='queue-messages'),
+
+    # ── Direct Messaging ──────────────────────────────────────────────────────
+    path('api/direct-messages/contacts/', direct_message_contacts_view, name='direct-message-contacts'),
+    path('api/direct-messages/<int:partner_id>/', direct_messages_view, name='direct-messages'),
 
     # ── Customer dashboard & history ──────────────────────────────────────────
     path('api/customer/dashboard/', CustomerDashboardAPIView.as_view(), name='customer-dashboard'),

@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import Navbar from "../../components/customer/CustomerNavbar.jsx";
 import Footer from "../../components/customer/CustomerFooter.jsx";
 import ChatbotWidget from "../../components/chatbot/ChatbotWidget.jsx";
+import MessengerWidget from "../../components/common/MessengerWidget.jsx";
 import { getUserFromSession } from "../../utils/getUser";
 
 const PAGE_TITLES = {
@@ -39,6 +40,7 @@ function CustomerLayout({ children, title = "", subtitle = "" }) {
       <Footer />
 
       <ChatbotWidget />
+      <MessengerWidget />
     </div>
   );
 }

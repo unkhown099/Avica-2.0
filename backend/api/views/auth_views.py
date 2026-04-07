@@ -461,7 +461,13 @@ class GoogleLoginView(APIView):
 
         try:
             # Specify the CLIENT_ID of the app that accesses the backend:
-            idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), settings.GOOGLE_CLIENT_ID)
+            # We add a 60-second clock skew leeway to prevent "Token used too early" errors
+            idinfo = id_token.verify_oauth2_token(
+                token, 
+                google_requests.Request(), 
+                settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=60
+            )
             
             email = idinfo.get("email")
             first_name = idinfo.get("given_name", "")

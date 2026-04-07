@@ -850,3 +850,20 @@ class ServiceMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender_type} - {self.queue_entry.id}: {self.message[:20]}"
+
+
+# ── DirectMessage ────────────────────────────────────────────────────────────
+class DirectMessage(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="direct_messages")
+    employee = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name="direct_messages")
+    sender_type = models.CharField(max_length=20, choices=[("employee", "Employee"), ("customer", "Customer")])
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "direct_messages"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.customer.first_name} & {self.employee.first_name} ({self.sender_type}): {self.message[:20]}"
