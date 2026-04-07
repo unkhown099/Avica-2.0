@@ -1082,14 +1082,83 @@ def queue_edit_service_details(request, pk):
 
         entry.save(update_fields=["service_base_price", "vehicle_type", "price", "notes"])
 
-    return Response(
-        {
-            "detail": "Service details updated successfully.",
-            "vehicle_type": entry.vehicle_type,
-            "service_base_price": str(base_price),
-            "added_total": str(added_total),
-            "added_items": added_rows,
-            "entry": QueueEntrySerializer(entry).data,
-        },
-        status=status.HTTP_200_OK,
-    )
+        return Response({
+            "message": "Service details updated successfully",
+            "entry": QueueEntrySerializer(entry).data
+        }, status=200)
+
+from api.models import ServiceMessage
+from api.serializers.queue_serializer import ServiceMessageSerializer
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def queue_messages(request, pk):
+    try:
+        entry = QueueEntry.objects.get(pk=pk)
+    except QueueEntry.DoesNotExist:
+        return Response({"error": "Queue entry not found"}, status=404)
+
+    # Allow staff assigned, any admin, or the customer
+    customer_user = entry.customer_user
+    if entry.booking and entry.booking.user:
+        customer_user = entry.booking.user
+
+    is_staff_handling = False
+    is_customer = False
+    
+    if getattr(request.user, 'is_staff', False) or hasattr(request.user, "staff_profile"):
+        is_staff_handling = True
+    elif customer_user and request.user == customer_user:
+        is_customer = True
+
+    if not is_staff_handling and not is_customer:
+        return Response({"error": "You do not have access to this conversation"}, status=403)
+
+    if request.method == "GET":
+        messages = ServiceMessage.objects.filter(queue_entry=entry).order_by("created_at")
+        
+        # Mark unread messages as read
+        if is_staff_handling:
+            # Mark customer messages as read
+            messages.filter(sender_type="customer", is_read=False).update(is_read=True)
+        else:
+            # Mark employee messages as read
+            messages.filter(sender_type="employee", is_read=False).update(is_read=True)
+            
+        serializer = ServiceMessageSerializer(messages, many=True)
+        return Response(serializer.data, status=200)
+
+    elif request.method == "POST":
+        message_text = request.data.get("message", "").strip()
+        if not message_text:
+            return Response({"error": "Message content is required"}, status=400)
+
+        sender_type = "employee" if is_staff_handling else "customer"
+
+        msg = ServiceMessage.objects.create(
+            queue_entry=entry,
+            sender_user=request.user,
+            sender_type=sender_type,
+            message=message_text,
+            is_read=False
+        )
+
+        # Notify the other party
+        if sender_type == "employee":
+            if customer_user:
+                Notification.objects.create(
+                    user=customer_user,
+                    title=f"New message regarding your vehicle service",
+                    message=f"Employee has sent a message: {message_text[:30]}",
+                    notification_type="booking_update"
+                )
+        else:
+            if entry.assigned_employee and hasattr(entry.assigned_employee, "user") and entry.assigned_employee.user:
+                Notification.objects.create(
+                    user=entry.assigned_employee.user,
+                    title=f"New message from {entry.customer_name}",
+                    message=f"{message_text[:30]}",
+                    notification_type="queue_update"
+                )
+
+        return Response(ServiceMessageSerializer(msg).data, status=201)
