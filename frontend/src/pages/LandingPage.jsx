@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Navbar from "../components/Landing/LandingNav.jsx";
 import BorderGlow from "../components/Landing/BorderGlow.jsx";
 import logo from "../assets/otokwikklogo.png";
@@ -81,8 +81,8 @@ function normalizeLandingContent(content) {
   const heroImageUrl = normalizeImage(data.hero?.imageUrl ?? "");
   const heroImages = Array.isArray(data.hero?.images)
     ? data.hero.images
-        .filter((img) => img && img.trim() !== "")
-        .map(normalizeImage)
+      .filter((img) => img && img.trim() !== "")
+      .map(normalizeImage)
     : [];
 
   return {
@@ -94,8 +94,8 @@ function normalizeLandingContent(content) {
         heroImages.length > 0
           ? heroImages
           : heroImageUrl
-          ? [heroImageUrl]
-          : [],
+            ? [heroImageUrl]
+            : [],
     },
     services: {
       ...EMPTY_LANDING_CONTENT.services,
@@ -145,6 +145,7 @@ function LandingPage() {
   const [branches, setBranches] = useState([]);
   const [activeBranch, setActiveBranch] = useState(null);
   const [user, setUser] = useState(null);
+  const [mapSkin, setMapSkin] = useState("dark"); // Default skin
 
   // ─── Map refs ─────────────────────────────────────────────────────────────
   const mapRef = React.useRef(null);
@@ -158,6 +159,29 @@ function LandingPage() {
       setTimeout(() => mapInstanceRef.current.invalidateSize(), 300);
     }
   }, [isMapExpanded]);
+
+  // ─── Drag to scroll for reviews ──────────────────────────────────────────
+  const scrollRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => setIsDragging(false);
+  const handleMouseUp = () => setIsDragging(false);
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // scroll-fast
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
 
   // ─── Leaflet map init + markers ───────────────────────────────────────────
   useEffect(() => {
@@ -176,11 +200,20 @@ function LandingPage() {
 
     const map = mapInstanceRef.current;
 
+    const mapOptions = {
+      dark: { url: "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
+      voyager: { url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
+      light: { url: "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
+      osm: { url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "&copy; OpenStreetMap" }
+    };
+
+    const currentSkin = mapOptions[mapSkin] || mapOptions.dark;
+
     if (tileLayerRef.current) tileLayerRef.current.remove();
-    tileLayerRef.current = window.L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png",
-      { attribution: "&copy; CARTO", maxZoom: 20 }
-    ).addTo(map);
+    tileLayerRef.current = window.L.tileLayer(currentSkin.url, {
+      attribution: currentSkin.attr,
+      maxZoom: 20
+    }).addTo(map);
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
@@ -208,7 +241,7 @@ function LandingPage() {
         easeLinearity: 0.25,
       });
     }
-  }, [contentLoaded, branches, activeBranch]);
+  }, [contentLoaded, branches, activeBranch, mapSkin]);
 
   // ─── Component Init: fetch landing content ────────────────────────────────
   useEffect(() => {
@@ -378,11 +411,10 @@ function LandingPage() {
           {heroBgs.map((bg, index) => (
             <div
               key={index}
-              className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-[2000ms] ease-in-out ${
-                index === bgIndex
-                  ? "opacity-100 scale-110"
-                  : "opacity-0 scale-100"
-              }`}
+              className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-[2000ms] ease-in-out ${index === bgIndex
+                ? "opacity-100 scale-110"
+                : "opacity-0 scale-100"
+                }`}
               style={{
                 backgroundImage: `url(${bg})`,
                 filter: "brightness(0.35)",
@@ -571,7 +603,7 @@ function LandingPage() {
                 onChange={(e) =>
                   setActiveBranch(
                     branches.find((b) => String(b.id) === e.target.value) ??
-                      null
+                    null
                   )
                 }
                 className="w-full bg-black/60 text-white font-black text-sm uppercase tracking-[0.2em] px-6 py-4 rounded-2xl border border-white/10 appearance-none focus:outline-none focus:border-red-600 transition-all cursor-pointer shadow-2xl backdrop-blur-xl"
@@ -602,17 +634,15 @@ function LandingPage() {
 
           {/* Map + Info layout */}
           <div
-            className={`flex flex-col ${
-              isMapExpanded ? "lg:flex-col" : "lg:flex-row"
-            } gap-6 sm:gap-10 items-stretch transition-all duration-700`}
+            className={`flex flex-col ${isMapExpanded ? "lg:flex-col" : "lg:flex-row"
+              } gap-6 sm:gap-10 items-stretch transition-all duration-700`}
           >
             {/* Interactive Leaflet Map */}
             <div
-              className={`relative group rounded-[24px] sm:rounded-[40px] overflow-hidden border border-white/10 shadow-3xl transition-all duration-700 bg-gray-900 ${
-                isMapExpanded
-                  ? "h-[600px] sm:h-[800px] lg:w-full"
-                  : "h-[400px] sm:h-[500px] lg:w-2/3"
-              }`}
+              className={`relative group rounded-[24px] sm:rounded-[40px] overflow-hidden border border-white/10 shadow-3xl transition-all duration-700 bg-gray-900 ${isMapExpanded
+                ? "h-[600px] sm:h-[800px] lg:w-full"
+                : "h-[400px] sm:h-[500px] lg:w-2/3"
+                }`}
             >
               <div ref={mapRef} className="w-full h-full z-0" />
 
@@ -623,11 +653,11 @@ function LandingPage() {
                 </div>
               </div>
 
-              {/* Expand/collapse button */}
-              <div className="absolute top-4 right-4 z-20 flex gap-2">
+              {/* Expand/collapse + Skin selector */}
+              <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
                 <button
                   onClick={() => setIsMapExpanded((prev) => !prev)}
-                  className="bg-black/70 backdrop-blur-md p-2.5 rounded-xl border border-white/10 text-white hover:bg-white/10 transition-all shadow-2xl active:scale-95"
+                  className="bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10 text-white hover:bg-white/10 transition-all shadow-2xl active:scale-95 flex items-center justify-center w-12 h-12"
                   title={isMapExpanded ? "Collapse Map" : "Expand Map"}
                 >
                   <svg
@@ -653,14 +683,27 @@ function LandingPage() {
                     )}
                   </svg>
                 </button>
+
+                {/* Skin Selector */}
+                <div className="flex flex-col gap-1.5 p-1.5 bg-black/70 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl">
+                  {["dark", "voyager", "osm"].map((skin) => (
+                    <button
+                      key={skin}
+                      onClick={() => setMapSkin(skin)}
+                      className={`px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${mapSkin === skin ? "bg-red-600 text-white" : "text-gray-400 hover:text-white"
+                        }`}
+                    >
+                      {skin}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Station info + FB button */}
             <div
-              className={`${
-                isMapExpanded ? "hidden" : "flex"
-              } flex-col gap-4 sm:gap-6 lg:w-1/3`}
+              className={`${isMapExpanded ? "hidden" : "flex"
+                } flex-col gap-4 sm:gap-6 lg:w-1/3`}
             >
               <div className="bg-white/5 backdrop-blur-xl rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 border border-white/10 hover:border-red-600/30 transition-all flex-grow shadow-2xl">
                 <h3 className="text-xl sm:text-2xl font-black text-white mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4">
@@ -763,9 +806,16 @@ function LandingPage() {
           </div>
         </div>
 
-        <div className="relative">
-          <div className="flex animate-marquee hover:[animation-play-state:paused] whitespace-nowrap">
-            {[...reviews, ...reviews].map((f, i) => (
+        <div
+          ref={scrollRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className={`relative overflow-x-auto scrollbar-hide snap-x snap-mandatory flex pb-8 px-4 sm:px-10 cursor-grab active:cursor-grabbing select-none`}
+        >
+          <div className={`flex ${!isDragging ? 'animate-marquee hover:[animation-play-state:paused]' : ''} whitespace-nowrap`}>
+            {Array(20).fill(reviews).flat().map((f, i) => (
               <div key={i} className="inline-block px-3 sm:px-4">
                 <div className="w-[280px] sm:w-[350px] md:w-[420px] bg-black text-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-2xl border border-white/10 whitespace-normal">
                   <p className="text-base sm:text-xl italic font-bold leading-relaxed mb-5 sm:mb-6">
@@ -948,7 +998,7 @@ function LandingPage() {
           100% { transform: translateX(-50%); }
         }
         .animate-marquee {
-          animation: marquee 40s linear infinite;
+          animation: marquee 200s linear infinite;
           display: flex;
           width: fit-content;
         }
@@ -960,6 +1010,13 @@ function LandingPage() {
         .reveal-visible {
           opacity: 1;
           transform: translateY(0);
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>

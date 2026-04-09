@@ -20,7 +20,7 @@ const inputCls =
 const EMPTY_FORM = {
   name: "",
   address: "",
-  hours: "",
+  hours: "8:00 AM - 7:00 PM",
   phone: "",
   fb_url: "",
   latitude: "",
@@ -29,6 +29,16 @@ const EMPTY_FORM = {
   is_active: true,
 };
 
+const TIME_OPTIONS = [];
+for (let h = 6; h <= 23; h++) {
+  for (let m = 0; m < 60; m += 30) {
+    const hh = h % 12 || 12;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const mm = m === 0 ? '00' : '30';
+    TIME_OPTIONS.push(`${hh}:${mm} ${ampm}`);
+  }
+}
+
 function BranchModal({ onClose, onSaved, editBranch }) {
   const isEdit = !!editBranch;
   const [form, setForm] = useState(
@@ -36,7 +46,7 @@ function BranchModal({ onClose, onSaved, editBranch }) {
       ? {
         name: editBranch.name || "",
         address: editBranch.address || "",
-        hours: editBranch.hours || "",
+        hours: editBranch.hours || "8:00 AM - 7:00 PM",
         phone: editBranch.phone || "",
         fb_url: editBranch.fb_url || "",
         latitude: editBranch.latitude || "",
@@ -46,6 +56,20 @@ function BranchModal({ onClose, onSaved, editBranch }) {
       }
       : EMPTY_FORM,
   );
+
+  const [openTime, setOpenTime] = useState(() => {
+    const parts = (form.hours || "").split(" - ");
+    return TIME_OPTIONS.includes(parts[0]) ? parts[0] : "8:00 AM";
+  });
+
+  const [closeTime, setCloseTime] = useState(() => {
+    const parts = (form.hours || "").split(" - ");
+    return TIME_OPTIONS.includes(parts[1]) ? parts[1] : "7:00 PM";
+  });
+
+  useEffect(() => {
+    setForm(prev => ({ ...prev, hours: `${openTime} - ${closeTime}` }));
+  }, [openTime, closeTime]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -148,7 +172,23 @@ function BranchModal({ onClose, onSaved, editBranch }) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5">Operating Hours</label>
-              <input name="hours" value={form.hours} onChange={handle} required placeholder="e.g. 8:00 AM - 7:00 PM" className={inputCls} />
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={openTime}
+                  onChange={(e) => setOpenTime(e.target.value)}
+                  className={`${inputCls} !py-2 !px-2 flex-1 min-w-0`}
+                >
+                  {TIME_OPTIONS.map(t => <option key={t} value={t} className="bg-gray-900">{t}</option>)}
+                </select>
+                <span className="text-gray-600 text-[10px] font-black uppercase shrink-0">To</span>
+                <select
+                  value={closeTime}
+                  onChange={(e) => setCloseTime(e.target.value)}
+                  className={`${inputCls} !py-2 !px-2 flex-1 min-w-0`}
+                >
+                  {TIME_OPTIONS.map(t => <option key={t} value={t} className="bg-gray-900">{t}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 

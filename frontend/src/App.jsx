@@ -15,6 +15,9 @@ import SignIn from "./pages/SignIn.jsx";
 import LoadingScreen from "./components/LoadingScreen.jsx";
 import VerifyEmail from "./pages/VerifyEmail.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
+import { ChatProvider } from "./context/ChatContext.jsx";
+import ChatContainer from "./components/ChatContainer.jsx";
+import { useAuth } from "./hooks/useAuth.js";
 
 // Customer Imports
 import CustomerDashboard from "./pages/customer/CustomerDashboard.jsx";
@@ -103,12 +106,15 @@ function SwalRouteCleanup() {
 // ── Layout ────────────────────────────────────────────────────────────────────
 function Layout() {
   const location = useLocation();
+  const { user } = useAuth();
   const showNavbar = location.pathname === "/";
+  const isMessagingRole = ["customer", "employee", "staff", "admin", "branch_manager", "super_admin"].includes(user?.role);
 
   return (
     <>
       <SwalRouteCleanup />
       {showNavbar && <Navbar />}
+      {isMessagingRole && <ChatContainer />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/signup" element={<Signup />} />
@@ -596,7 +602,9 @@ function App() {
         className={`transition-opacity duration-700 ${contentVisible ? "opacity-100" : "opacity-0"}`}
       >
         <Router>
-          <Layout />
+          <ChatProvider>
+            <Layout />
+          </ChatProvider>
         </Router>
       </div>
     </>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Chatbot from "./Chatbot";
 import { getUserFromSession } from "../../utils/getUser.js";
+import { useChat } from "../../context/ChatContext.jsx";
 
 const INITIAL_MESSAGES = [
   {
@@ -36,20 +37,20 @@ function loadMessages(user) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch (_) {}
+  } catch (_) { }
   return INITIAL_MESSAGES;
 }
 
 function saveMessages(user, messages) {
   try {
     getStorage().setItem(getChatKey(user), JSON.stringify(messages));
-  } catch (_) {}
+  } catch (_) { }
 }
 
 function clearMessages(user) {
   try {
     getStorage().removeItem(getChatKey(user));
-  } catch (_) {}
+  } catch (_) { }
 }
 
 export default function ChatbotWidget() {
@@ -166,7 +167,10 @@ export default function ChatbotWidget() {
     };
   }, [onTouchEnd, isOpen]);
 
+  const { minimizeAll } = useChat();
+
   const handleOpen = () => {
+    minimizeAll?.();
     setIsOpen(true);
     setHasUnread(false);
     setPulseActive(false);
@@ -215,9 +219,8 @@ export default function ChatbotWidget() {
       {!isOpen && (
         <button
           onClick={handleOpen}
-          className={`fixed bottom-5 right-4 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center z-[9999] transition-all duration-300 hover:scale-110 border border-red-500/50 ${
-            pulseActive ? "shadow-[0_0_0_0_rgba(220,38,38,0.5)]" : "shadow-[0_4px_24px_rgba(220,38,38,0.35)]"
-          }`}
+          className={`fixed bottom-5 right-4 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center z-[9999] transition-all duration-300 hover:scale-110 border border-red-500/50 ${pulseActive ? "shadow-[0_0_0_0_rgba(220,38,38,0.5)]" : "shadow-[0_4px_24px_rgba(220,38,38,0.35)]"
+            }`}
           style={pulseActive ? { animation: "otoPulse 2s ease-in-out 3" } : {}}
           aria-label="Open chat support"
         >

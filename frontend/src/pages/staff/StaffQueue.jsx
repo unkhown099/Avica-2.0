@@ -625,15 +625,7 @@ function QueueDetailModal({
           </div>
 
           <div className="pt-2">
-            <button
-              onClick={() => onMessageCustomer(entry.id)}
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-400 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-              Message Customer
-            </button>
+            {/* Message Customer button removed - Restricted to Employee role only */}
           </div>
         </div>
       </div>
@@ -934,9 +926,8 @@ function WalkInModal({ onClose, onAdded }) {
                 onFocus={() => setShowCustomerResults(true)}
                 onBlur={() => setTimeout(() => setShowCustomerResults(false), 180)}
                 placeholder="Type customer name / phone / email"
-                className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${
-                  fieldErrors.customerName ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
-                }`}
+                className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${fieldErrors.customerName ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
+                  }`}
               />
 
               {showCustomerResults && form.customerName.trim() && (
@@ -1009,9 +1000,8 @@ function WalkInModal({ onClose, onAdded }) {
                     }
                   }}
                   placeholder={placeholder}
-                  className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${
-                    fieldErrors[key] ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
-                  }`}
+                  className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${fieldErrors[key] ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
+                    }`}
                 />
                 {key === "phone" && (
                   <p className="text-[11px] text-gray-500 mt-1">Format: +63 + numbers only (max 11 digits)</p>
@@ -1022,18 +1012,17 @@ function WalkInModal({ onClose, onAdded }) {
               <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
                 Service *
               </label>
-                <select
-                  value={form.service}
-                  onChange={(e) => {
-                    set("service", e.target.value);
-                    if (fieldErrors.service) {
-                      setFieldErrors((prev) => ({ ...prev, service: false }));
-                    }
-                  }}
-                  className={`w-full bg-gray-800 border text-white rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm cursor-pointer ${
-                    fieldErrors.service ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
+              <select
+                value={form.service}
+                onChange={(e) => {
+                  set("service", e.target.value);
+                  if (fieldErrors.service) {
+                    setFieldErrors((prev) => ({ ...prev, service: false }));
+                  }
+                }}
+                className={`w-full bg-gray-800 border text-white rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm cursor-pointer ${fieldErrors.service ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
                   }`}
-                >
+              >
                 <option value="">
                   {loadingServices ? "Loading services..." : "Select a service"}
                 </option>
@@ -1138,7 +1127,7 @@ function StaffQueue() {
     setLoading(true);
     setError("");
     try {
-    const qs = new URLSearchParams();
+      const qs = new URLSearchParams();
       qs.set("date", todayOnly);
       const [qRes, hRes] = await Promise.all([
         authFetch(`${API}/api/queue/`),
@@ -1667,21 +1656,8 @@ function StaffQueue() {
           employees={employees}
           onAction={handleAction}
           onAssign={handleAssign}
-          onMessageCustomer={(id) => {
-            setChatQueueId(id);
-            setSelectedEntry(null);
-          }}
           actionLoading={actionLoading}
           assignLoading={assignLoading}
-        />
-      )}
-
-      {chatQueueId && (
-        <ServiceChatModal
-          queueId={chatQueueId}
-          isEmployee={true}
-          onClose={() => setChatQueueId(null)}
-          currentUserStr="Employee"
         />
       )}
     </StaffLayout>

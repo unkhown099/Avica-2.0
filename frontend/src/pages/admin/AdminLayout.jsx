@@ -17,7 +17,7 @@ const PAGE_TITLES = {
 function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  
+
   // Check if current route is dashboard
   const isDashboard = location.pathname === "/admin/dashboard";
 
@@ -56,10 +56,10 @@ function AdminLayout({ children }) {
             alt="Otokwikk"
             className="h-8 object-contain"
           />
-          
+
           {/* Show notification dropdown in mobile header only if not on dashboard */}
           {!isDashboard && (
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
               <NotificationDropdown />
             </div>
           )}
@@ -68,7 +68,7 @@ function AdminLayout({ children }) {
         <main className="p-4 sm:p-6 lg:p-8 flex-1 relative">
           {/* Show notification dropdown in main content area only if not on dashboard */}
           {!isDashboard && (
-            <div className="absolute top-4 sm:top-6 lg:top-8 right-4 sm:right-6 lg:right-8 z-20">
+            <div className="absolute top-4 sm:top-6 lg:top-8 right-4 sm:right-6 lg:right-8 z-20 flex items-center gap-4">
               <NotificationDropdown />
             </div>
           )}

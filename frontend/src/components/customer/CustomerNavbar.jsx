@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import { useNavigate, Link } from "react-router-dom";
 import logo from "../../assets/otokwikklogo.png";
 import { API_BASE, useAuth } from "../../hooks/useAuth.js";
+import ServiceMessageDropdown from "../ServiceMessageDropdown.jsx";
 
 // ── icons ──────────────────────────────────────────────────────────────────
 const IconBell = () => (
@@ -214,7 +215,11 @@ const mapNotificationForUI = (notif) => {
 function useOutsideClick(ref, callback) {
   useEffect(() => {
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) callback();
+      // Check if click is inside the target ref OR a portal dropdown
+      if (ref.current?.contains(e.target) || e.target.closest('.portal-dropdown')) {
+        return;
+      }
+      callback();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -227,10 +232,17 @@ function Navbar({ user: userProp, setUser }) {
   const [localUser, setLocalUser] = useState(() => userProp || authUser);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [notificationTab, setNotificationTab] = useState("all");
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const profileRef = useRef(null);
   const notifRef = useRef(null);
@@ -332,7 +344,7 @@ function Navbar({ user: userProp, setUser }) {
         },
         body: JSON.stringify({ refresh }),
       });
-    } catch (_) {}
+    } catch (_) { }
 
     ["access_token", "refresh_token", "user"].forEach((key) => {
       localStorage.removeItem(key);
@@ -405,6 +417,9 @@ function Navbar({ user: userProp, setUser }) {
 
           {/* ── Right: bell + profile + hamburger ── */}
           <div className="flex items-center gap-1 sm:gap-2 md:ml-4">
+            {/* ── Message Icon ── */}
+            <ServiceMessageDropdown />
+
             {/* ── Notification Bell ── */}
             <div className="relative" ref={notifRef}>
               <button
@@ -425,95 +440,102 @@ function Navbar({ user: userProp, setUser }) {
 
               {/* Notification Dropdown — full width on mobile */}
               {isNotifOpen && (
-                <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 md:w-96 max-w-sm bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden">
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/60">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-bold text-sm">
-                        Notifications
-                      </span>
-                      {unreadCount > 0 && (
-                        <span className="px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full">
-                          {unreadCount} new
-                        </span>
+                isMobile ? createPortal(
+                  <div className="fixed top-[70px] left-4 right-4 bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden z-[10000] animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/60 font-sans">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-bold text-sm">Notifications</span>
+                        {unreadCount > 0 && (
+                          <span className="px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full">{unreadCount} new</span>
+                        )}
+                      </div>
+                      <button onClick={markAllRead} className="text-xs text-red-400 font-bold uppercase tracking-widest">Mark all read</button>
+                    </div>
+
+                    <div className="px-4 py-2 border-b border-gray-700/60">
+                      <div className="inline-flex bg-gray-800/70 rounded-lg p-1 gap-1">
+                        <button
+                          onClick={() => setNotificationTab("all")}
+                          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${notificationTab === "all" ? "bg-red-600 text-white" : "text-gray-300 hover:text-white hover:bg-white/5"}`}
+                        >All</button>
+                        <button
+                          onClick={() => setNotificationTab("unread")}
+                          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${notificationTab === "unread" ? "bg-red-600 text-white" : "text-gray-300 hover:text-white hover:bg-white/5"}`}
+                        >Unread</button>
+                      </div>
+                    </div>
+
+                    <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-800/60 scrollbar-thin font-sans">
+                      {notifications.length === 0 ? (
+                        <div className="py-10 text-center text-gray-500 text-sm italic">No notifications yet</div>
+                      ) : (
+                        visibleNotifications.map((notif) => (
+                          <button
+                            key={notif.id}
+                            onClick={() => handleNotificationClick(notif)}
+                            className={`w-full text-left px-4 py-3.5 hover:bg-white/5 transition-colors duration-200 flex items-start gap-3 ${!notif.read ? "bg-white/[0.03]" : ""}`}
+                          >
+                            <div className={`shrink-0 w-8 h-8 rounded-lg ${notif.bg} ${notif.accent} flex items-center justify-center mt-0.5`}>{notif.icon}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className={`text-sm font-semibold leading-tight ${!notif.read ? "text-white" : "text-gray-300"}`}>{notif.title}</p>
+                                <span className="text-[10px] text-gray-500 whitespace-nowrap shrink-0 mt-0.5">{notif.time}</span>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed line-clamp-2">{notif.message}</p>
+                            </div>
+                            {!notif.read && <div className="shrink-0 w-2 h-2 bg-red-500 rounded-full mt-2" />}
+                          </button>
+                        ))
                       )}
                     </div>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllRead}
-                        className="text-xs text-red-400 hover:text-red-300 font-semibold transition-colors"
-                      >
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
+                  </div>,
+                  document.body
+                ) : (
+                  <div className="absolute right-0 mt-2 w-80 md:w-96 max-w-sm bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/60">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-bold text-sm">Notifications</span>
+                        {unreadCount > 0 && <span className="px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full">{unreadCount} new</span>}
+                      </div>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllRead} className="text-xs text-red-400 hover:text-red-300 font-semibold transition-colors">Mark all read</button>
+                      )}
+                    </div>
 
-                  <div className="px-4 py-2 border-b border-gray-700/60">
-                    <div className="inline-flex bg-gray-800/70 rounded-lg p-1 gap-1">
-                      <button
-                        onClick={() => setNotificationTab("all")}
-                        className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                          notificationTab === "all"
-                            ? "bg-red-600 text-white"
-                            : "text-gray-300 hover:text-white hover:bg-white/5"
-                        }`}
-                      >
-                        All
-                      </button>
-                      <button
-                        onClick={() => setNotificationTab("unread")}
-                        className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                          notificationTab === "unread"
-                            ? "bg-red-600 text-white"
-                            : "text-gray-300 hover:text-white hover:bg-white/5"
-                        }`}
-                      >
-                        Unread
-                      </button>
+                    <div className="px-4 py-2 border-b border-gray-700/60">
+                      <div className="inline-flex bg-gray-800/70 rounded-lg p-1 gap-1">
+                        <button onClick={() => setNotificationTab("all")} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${notificationTab === "all" ? "bg-red-600 text-white" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>All</button>
+                        <button onClick={() => setNotificationTab("unread")} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${notificationTab === "unread" ? "bg-red-600 text-white" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>Unread</button>
+                      </div>
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto divide-y divide-gray-800/60 scrollbar-thin">
+                      {notifications.length === 0 ? (
+                        <div className="py-10 text-center text-gray-500 text-sm italic">No notifications yet</div>
+                      ) : (
+                        visibleNotifications.map((notif) => (
+                          <button
+                            key={notif.id}
+                            onClick={() => handleNotificationClick(notif)}
+                            className={`w-full text-left px-4 py-3.5 hover:bg-white/5 transition-colors duration-200 flex items-start gap-3 ${!notif.read ? "bg-white/[0.03]" : ""}`}
+                          >
+                            <div className={`shrink-0 w-8 h-8 rounded-lg ${notif.bg} ${notif.accent} flex items-center justify-center mt-0.5`}>{notif.icon}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className={`text-sm font-semibold leading-tight ${!notif.read ? "text-white" : "text-gray-300"}`}>{notif.title}</p>
+                                <span className="text-[10px] text-gray-500 whitespace-nowrap shrink-0 mt-0.5">{notif.time}</span>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed line-clamp-2">{notif.message}</p>
+                            </div>
+                            {!notif.read && <div className="shrink-0 w-2 h-2 bg-red-500 rounded-full mt-2" />}
+                          </button>
+                        ))
+                      )}
                     </div>
                   </div>
-
-                  {/* Notification list */}
-                  <div className="max-h-80 overflow-y-auto divide-y divide-gray-800/60 scrollbar-thin">
-                    {notifications.length === 0 ? (
-                      <div className="py-10 text-center text-gray-500 text-sm italic">
-                        No notifications yet
-                      </div>
-                    ) : (
-                      visibleNotifications.map((notif) => (
-                        <button
-                          key={notif.id}
-                          onClick={() => handleNotificationClick(notif)}
-                          className={`w-full text-left px-4 py-3.5 hover:bg-white/5 transition-colors duration-200 flex items-start gap-3 ${!notif.read ? "bg-white/[0.03]" : ""}`}
-                        >
-                          <div
-                            className={`shrink-0 w-8 h-8 rounded-lg ${notif.bg} ${notif.accent} flex items-center justify-center mt-0.5`}
-                          >
-                            {notif.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <p
-                                className={`text-sm font-semibold leading-tight ${!notif.read ? "text-white" : "text-gray-300"}`}
-                              >
-                                {notif.title}
-                              </p>
-                              <span className="text-[10px] text-gray-500 whitespace-nowrap shrink-0 mt-0.5">
-                                {notif.time}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-400 mt-0.5 leading-relaxed line-clamp-2">
-                              {notif.message}
-                            </p>
-                          </div>
-                          {!notif.read && (
-                            <div className="shrink-0 w-2 h-2 bg-red-500 rounded-full mt-2" />
-                          )}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
+                )
               )}
             </div>
 

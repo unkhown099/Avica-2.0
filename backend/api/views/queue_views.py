@@ -1147,31 +1147,46 @@ def queue_messages(request, pk):
     except QueueEntry.DoesNotExist:
         return Response({"error": "Queue entry not found"}, status=404)
 
-    # Allow staff assigned, any admin, or the customer
-    customer_user = entry.customer_user
-    if entry.booking and entry.booking.user:
-        customer_user = entry.booking.user
+    # Resolve partner parties to enable history continuation
+    partner_employee = entry.assigned_employee
+    partner_customer = entry.customer_user if entry.customer_user else (entry.booking.user if entry.booking else None)
 
-    is_staff_handling = False
+    # Identifiers for the pair
     is_customer = False
+    is_staff_handling = False
+    is_staff = hasattr(request.user, "staff_profile")
     
-    if getattr(request.user, 'is_staff', False) or hasattr(request.user, "staff_profile"):
-        is_staff_handling = True
-    elif customer_user and request.user == customer_user:
+    # Staff handling: entry.assigned_employee or any Admin/Branch Manager in same branch
+    if is_staff:
+        staff_profile = request.user.staff_profile
+        if staff_profile.role in ["Admin", "Business Owner", "super_admin", "Branch Manager"]:
+             # Admin roles can see any chat in their branch
+             if not staff_profile.branch_id or entry.branch_id == staff_profile.branch_id:
+                  is_staff_handling = True
+        elif partner_employee and staff_profile.id == partner_employee.id:
+            is_staff_handling = True
+    elif partner_customer and request.user.id == partner_customer.id:
         is_customer = True
 
     if not is_staff_handling and not is_customer:
         return Response({"error": "You do not have access to this conversation"}, status=403)
 
     if request.method == "GET":
-        messages = ServiceMessage.objects.filter(queue_entry=entry).order_by("created_at")
+        # History Continuation: Fetch messages for THIS PAIR across ALL their shared entries
+        if partner_employee and partner_customer:
+            all_shared_entries = QueueEntry.objects.filter(
+                Q(assigned_employee=partner_employee, customer_user=partner_customer) |
+                Q(assigned_employee=partner_employee, booking__user=partner_customer)
+            ).values_list('id', flat=True)
+            messages = ServiceMessage.objects.filter(queue_entry_id__in=all_shared_entries).order_by("created_at")
+        else:
+            # Fallback for unassigned or incomplete pairs
+            messages = ServiceMessage.objects.filter(queue_entry=entry).order_by("created_at")
         
-        # Mark unread messages as read
+        # Mark unread messages as read for this entire pair's history
         if is_staff_handling:
-            # Mark customer messages as read
             messages.filter(sender_type="customer", is_read=False).update(is_read=True)
         else:
-            # Mark employee messages as read
             messages.filter(sender_type="employee", is_read=False).update(is_read=True)
             
         serializer = ServiceMessageSerializer(messages, many=True)
@@ -1197,3 +1212,106 @@ def queue_messages(request, pk):
         # so we don't spam the system Notifications bell.
 
         return Response(ServiceMessageSerializer(msg).data, status=201)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def queue_conversations(request):
+    user = request.user
+    
+    # Identify the user's role and profile
+    is_customer = hasattr(user, 'customer_profile')
+    is_staff = hasattr(user, 'staff_profile')
+    
+    if is_customer:
+        # Customers see conversations for their bookings (linked to queue_entry) or direct walk-ins
+        queryset = QueueEntry.objects.filter(
+            Q(booking__user=user) | Q(customer_user=user)
+        ).select_related('assigned_employee', 'branch').order_by('-queued_at')
+    
+    elif is_staff:
+        staff = user.staff_profile
+        if staff.role == 'Employee':
+            # Employees see conversations they are assigned to
+            queryset = QueueEntry.objects.filter(
+                assigned_employee=staff
+            ).select_related('branch').order_by('-queued_at')
+        else:
+            # Admins/Branch Managers etc. are NOT allowed to use messaging features
+            return Response([])
+    else:
+        return Response([])
+
+    data = []
+    processed_pairs = set()
+    
+    # Fetch recent conversations, processed to show unique pairs (history continuation)
+    for entry in queryset:
+        # Resolve the customer user
+        cust_user = entry.customer_user if entry.customer_user else (entry.booking.user if entry.booking else None)
+        
+        if not cust_user or not entry.assigned_employee:
+            # Individual entry fallback if parties are not linked
+            pair_key = f"entry_{entry.id}"
+        else:
+            # Use a tuple of IDs as a unique key for the pair
+            # We add a prefix to staff IDs to avoid overlaps if same ID exists in User and Staff
+            pair_key = tuple(sorted([f"u_{cust_user.id}", f"s_{entry.assigned_employee.id}"]))
+
+        if pair_key in processed_pairs:
+            continue
+        processed_pairs.add(pair_key)
+
+        # Count unread messages across all shared entries for this pair
+        unread_count = 0
+        all_shared_entries = QueueEntry.objects.filter(
+            Q(assigned_employee=entry.assigned_employee, customer_user=cust_user) |
+            Q(assigned_employee=entry.assigned_employee, booking__user=cust_user)
+        ) if cust_user and entry.assigned_employee else QueueEntry.objects.filter(id=entry.id)
+
+        if is_staff:
+            unread_count = ServiceMessage.objects.filter(
+                queue_entry__in=all_shared_entries,
+                sender_type='customer',
+                is_read=False
+            ).count()
+        else:
+            unread_count = ServiceMessage.objects.filter(
+                queue_entry__in=all_shared_entries,
+                sender_type='employee',
+                is_read=False
+            ).count()
+
+        # Get the absolute latest message for this pair
+        last_msg = ServiceMessage.objects.filter(queue_entry__in=all_shared_entries).order_by('-created_at').first()
+            
+        # Determine overall conversation status
+        # An entry is truly active only if it's waiting/in_service AND the booking isn't finalized
+        active_entries = all_shared_entries.filter(status__in=['waiting', 'in_service']).exclude(
+            booking__status__in=['done', 'no_show', 'cancelled', 'cancelled_by_customer']
+        )
+        active_entry = active_entries.order_by('-queued_at').first()
+        
+        # Determine what to show in the UI
+        display_entry = active_entry if active_entry else entry
+        display_status = display_entry.status
+        
+        # If there's a booking, its status is often more descriptive (e.g., No Show/Cancelled)
+        if display_entry.booking and display_entry.booking.status in ['done', 'no_show', 'cancelled', 'cancelled_by_customer']:
+            display_status = display_entry.booking.status
+            
+        data.append({
+            "id": display_entry.id,
+            "customer_name": entry.customer_name,
+            "service": entry.service,
+            "status": display_status,
+            "employee_name": f"{entry.assigned_employee.first_name} {entry.assigned_employee.last_name}" if entry.assigned_employee else "TBA",
+            "last_message": last_msg.message if last_msg else None,
+            "last_message_at": last_msg.created_at if last_msg else None,
+            "unread_count": unread_count,
+            "branch": entry.branch.name if entry.branch else entry.branch_name or "TBA"
+        })
+        
+        if len(data) >= 20: break
+    
+    return Response(data)
+

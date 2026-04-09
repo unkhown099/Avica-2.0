@@ -226,14 +226,7 @@ export default function StaffDashboard() {
                                   </span>
                                 </td>
                                 <td className="py-3 text-right">
-                                  {row.queue_id && (
-                                    <button
-                                      onClick={() => setChatQueueId(row.queue_id)}
-                                      className="inline-flex items-center gap-1 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-[11px] font-semibold px-2 py-1 rounded transition-all duration-200"
-                                    >
-                                      Chat
-                                    </button>
-                                  )}
+                                  {/* Chat button removed - Restricted to Employee role only */}
                                 </td>
                               </tr>
                             ))}
@@ -291,13 +284,7 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {chatQueueId && (
-        <ServiceChatModal
-          queueId={chatQueueId}
-          isEmployee={true}
-          onClose={() => setChatQueueId(null)}
-        />
-      )}
+      {/* ServiceChatModal removed - Restricted to Employee role only */}
     </StaffLayout>
   );
 }

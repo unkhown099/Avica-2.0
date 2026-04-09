@@ -59,6 +59,7 @@ from api.views.queue_views import (
     queue_add_products,
     queue_edit_service_details,
     queue_messages,
+    queue_conversations,
 )
 from api.views.customer_history import CustomerHistoryAPIView
 from api.views.ratings_views import RatingCreateView
@@ -175,6 +176,7 @@ urlpatterns = [
     path('api/queue/<int:pk>/add-products/', queue_add_products, name='queue-add-products'),
     path('api/queue/<int:pk>/service-details/', queue_edit_service_details, name='queue-service-details'),
     path('api/queue/<int:pk>/messages/', queue_messages, name='queue-messages'),
+    path('api/queue/conversations/', queue_conversations, name='queue-conversations'),
 
     # ── Direct Messaging ──────────────────────────────────────────────────────
     path('api/direct-messages/contacts/', direct_message_contacts_view, name='direct-message-contacts'),
