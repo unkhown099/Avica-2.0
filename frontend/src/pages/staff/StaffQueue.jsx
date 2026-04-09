@@ -274,6 +274,17 @@ function normalizeWalkInPhoneInput(value = "") {
   return `+63${local}`;
 }
 
+function sanitizeWalkInName(value = "") {
+  return String(value)
+    .replace(/[^A-Za-z\s]/g, "")
+    .replace(/\s{2,}/g, " ");
+}
+
+function isValidWalkInName(value = "") {
+  const clean = String(value).trim();
+  return clean.length >= 2 && /^[A-Za-z\s]+$/.test(clean);
+}
+
 function elapsed(startedAt) {
   if (!startedAt) return null;
   const diff = Math.floor((Date.now() - new Date(startedAt)) / 1000);
@@ -819,7 +830,7 @@ function WalkInModal({ onClose, onAdded }) {
     const fullName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
     setForm((prev) => ({
       ...prev,
-      customerName: fullName || prev.customerName,
+      customerName: sanitizeWalkInName(fullName || prev.customerName),
       phone: normalizePHPhone(customer.phone || prev.phone),
     }));
     setSelectedCustomerId(customer.id);
@@ -828,7 +839,7 @@ function WalkInModal({ onClose, onAdded }) {
 
   const handleSubmit = async () => {
     const nextErrors = {
-      customerName: !form.customerName.trim() || form.customerName.trim().length < 2,
+      customerName: !isValidWalkInName(form.customerName),
       phone: !isValidPHPhone(normalizePHPhone(form.phone)),
       vehicle: !form.vehicle.trim() || form.vehicle.trim().length < 2,
       service: !form.service,
@@ -916,7 +927,7 @@ function WalkInModal({ onClose, onAdded }) {
                 type="text"
                 value={form.customerName}
                 onChange={(e) => {
-                  set("customerName", e.target.value);
+                  set("customerName", sanitizeWalkInName(e.target.value));
                   setSelectedCustomerId(null);
                   setShowCustomerResults(true);
                   if (fieldErrors.customerName) {
@@ -925,10 +936,13 @@ function WalkInModal({ onClose, onAdded }) {
                 }}
                 onFocus={() => setShowCustomerResults(true)}
                 onBlur={() => setTimeout(() => setShowCustomerResults(false), 180)}
-                placeholder="Type customer name / phone / email"
+                placeholder="Type customer name"
                 className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${fieldErrors.customerName ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
                   }`}
               />
+              {fieldErrors.customerName && (
+                <p className="text-[11px] text-red-400 mt-1">Name must use letters and spaces only.</p>
+              )}
 
               {showCustomerResults && form.customerName.trim() && (
                 <div className="absolute z-20 mt-1 w-full bg-gray-800 border border-white/10 rounded-xl shadow-2xl max-h-56 overflow-y-auto">

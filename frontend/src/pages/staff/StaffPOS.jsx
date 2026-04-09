@@ -93,12 +93,26 @@ const buildReceiptLines = (items = []) => {
   return lines;
 };
 
+const LETTERS_AND_SPACES_REGEX = /^[A-Za-z\s]+$/;
+
+const sanitizePersonNameInput = (value = "") =>
+  String(value)
+    .replace(/[^A-Za-z\s]/g, "")
+    .replace(/\s{2,}/g, " ");
+
+const isValidPersonName = (value = "") => {
+  const clean = String(value).trim();
+  return clean.length > 0 && LETTERS_AND_SPACES_REGEX.test(clean);
+};
+
 const normalizePHPhone = (value = "") => {
   const digits = String(value).replace(/\D/g, "");
   if (!digits) return "";
-  if (digits.startsWith("63")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+63${digits.slice(1)}`;
-  return `+63${digits}`;
+  let local = digits;
+  if (local.startsWith("63")) local = local.slice(2);
+  else if (local.startsWith("0")) local = local.slice(1);
+  local = local.slice(0, 10);
+  return local ? `+63${local}` : "";
 };
 
 // ── Snackbar System ───────────────────────────────────────────────────────────
@@ -375,7 +389,7 @@ function ReceiptModal({ customerName, items, subtotal, total, paymentMethod, amo
 }
 
 // ── Input Field with validation ───────────────────────────────────────────────
-function ValidatedInput({ value, onChange, placeholder, type = "text", hasError, errorMsg }) {
+function ValidatedInput({ value, onChange, placeholder, type = "text", hasError, errorMsg, inputMode, maxLength }) {
   return (
     <div className="space-y-1">
       <input
@@ -383,6 +397,8 @@ function ValidatedInput({ value, onChange, placeholder, type = "text", hasError,
         placeholder={placeholder}
         value={value}
         onChange={onChange}
+        inputMode={inputMode}
+        maxLength={maxLength}
         className={`w-full bg-gray-800/50 border text-white placeholder-gray-600 rounded-lg px-4 py-3 text-base focus:outline-none transition-all
           ${hasError
             ? "border-red-500/70 focus:border-red-500 bg-red-500/5"
@@ -506,7 +522,7 @@ export default function StaffPOS() {
     const breakdown = getQueuePriceBreakdown(entry, price);
     if (cart.length === 0) {
       setCustomerInfo({
-        name: entry.customer_name ?? "",
+        name: sanitizePersonNameInput(entry.customer_name ?? ""),
         phone: normalizePHPhone(entry.phone ?? ""),
       });
     }
@@ -557,10 +573,10 @@ export default function StaffPOS() {
 
   // ── Validate inputs ─────────────────────────────────────────────────────────
   const validateInputs = () => {
-    const nameErr = !customerInfo.name.trim();
+    const nameErr = !customerInfo.name.trim() || !isValidPersonName(customerInfo.name);
     const phoneErr = customerInfo.phone.trim() !== "" && !isValidPhone(customerInfo.phone);
     setFieldErrors({ name: nameErr, phone: phoneErr });
-    if (nameErr) { pushSnack("Customer name is required.", "error"); return false; }
+    if (nameErr) { pushSnack("Customer name must contain letters and spaces only.", "error"); return false; }
     if (phoneErr) { pushSnack("Enter a valid phone number (e.g. +639171234567).", "error"); return false; }
     return true;
   };
@@ -808,13 +824,14 @@ export default function StaffPOS() {
                 <ValidatedInput
                   value={customerInfo.name}
                   onChange={(e) => {
-                    setCustomerInfo({ ...customerInfo, name: e.target.value });
-                    if (fieldErrors.name && e.target.value.trim()) setFieldErrors((p) => ({ ...p, name: false }));
+                    const cleaned = sanitizePersonNameInput(e.target.value);
+                    setCustomerInfo({ ...customerInfo, name: cleaned });
+                    if (fieldErrors.name && isValidPersonName(cleaned)) setFieldErrors((p) => ({ ...p, name: false }));
                   }}
                   placeholder="Name *"
                   type="text"
                   hasError={fieldErrors.name}
-                  errorMsg="Customer name is required"
+                  errorMsg="Use letters and spaces only"
                 />
                 <ValidatedInput
                   value={customerInfo.phone}
@@ -825,6 +842,8 @@ export default function StaffPOS() {
                   }}
                   placeholder="Phone (e.g. +639171234567)"
                   type="tel"
+                  inputMode="tel"
+                  maxLength={13}
                   hasError={fieldErrors.phone}
                   errorMsg="Enter a valid +63 phone number"
                 />

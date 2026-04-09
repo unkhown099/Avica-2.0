@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import StaffLayout from "./StaffLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
-import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 function getAuthHeaders() {
   const token =
@@ -31,20 +30,17 @@ function formatDateTime(value) {
   });
 }
 
-function toStatusBadge(status) {
-  const key = String(status || "").toLowerCase();
-  if (key === "done") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
-  if (key === "confirmed") return "bg-blue-500/15 text-blue-300 border-blue-500/30";
-  if (key === "pending") return "bg-amber-500/15 text-amber-300 border-amber-500/30";
-  if (key === "cancelled") return "bg-rose-500/15 text-rose-300 border-rose-500/30";
-  return "bg-gray-500/15 text-gray-300 border-gray-500/30";
+function formatMoney(value) {
+  return Number(value || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 export default function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState(null);
-  const [chatQueueId, setChatQueueId] = useState(null);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -80,32 +76,112 @@ export default function StaffDashboard() {
         label: "My Assigned Jobs",
         value: stats.my_assigned_jobs ?? 0,
         hint: `${stats.my_active_jobs ?? 0} active right now`,
-        tone: "from-red-500/15 to-red-900/10 border-red-500/20",
+        accentBg: "bg-red-500/10",
+        accentText: "text-red-400",
+        border: "border-red-500/20",
+        icon: (
+          <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        ),
       },
       {
         label: "My Completed Jobs",
         value: stats.my_completed_jobs ?? 0,
         hint: `${stats.my_paid_jobs ?? 0} marked as paid`,
-        tone: "from-emerald-500/15 to-emerald-900/10 border-emerald-500/20",
+        accentBg: "bg-emerald-500/10",
+        accentText: "text-emerald-400",
+        border: "border-emerald-500/20",
+        icon: (
+          <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        ),
       },
       {
         label: "Upcoming Bookings",
         value: stats.my_upcoming_bookings ?? 0,
         hint: `${stats.my_bookings_today ?? 0} scheduled today`,
-        tone: "from-blue-500/15 to-blue-900/10 border-blue-500/20",
+        accentBg: "bg-blue-500/10",
+        accentText: "text-blue-400",
+        border: "border-blue-500/20",
+        icon: (
+          <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        ),
       },
       {
         label: "My Notifications",
         value: stats.my_unread_notifications ?? 0,
         hint: `${stats.my_notifications_today ?? 0} received today`,
-        tone: "from-amber-500/15 to-amber-900/10 border-amber-500/20",
+        accentBg: "bg-amber-500/10",
+        accentText: "text-amber-400",
+        border: "border-amber-500/20",
+        icon: (
+          <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+        ),
       },
     ],
     [stats],
   );
 
-  const recentJobs = Array.isArray(dashboard?.recent_jobs) ? dashboard.recent_jobs : [];
+  const analytics = dashboard?.analytics || {};
   const recentNotifications = Array.isArray(dashboard?.recent_notifications) ? dashboard.recent_notifications : [];
+  const earningsPerHour = useMemo(() => {
+    const rows = Array.isArray(analytics?.earnings_per_hour) ? analytics.earnings_per_hour : [];
+    const normalized = rows.map((row) => {
+      const hourLabel = String(row?.hour || "00:00");
+      const hour = Number(hourLabel.split(":")[0] || 0);
+      const value = Number(row?.value ?? 0);
+      return {
+        hour,
+        hourLabel,
+        shortLabel: `${String(hour).padStart(2, "0")}:00`,
+        value,
+      };
+    });
+
+    const nonZero = normalized.filter((row) => row.value > 0);
+    if (nonZero.length === 0) return normalized.slice(8, 18); // default visible window
+    return nonZero;
+  }, [analytics?.earnings_per_hour]);
+
+  const earningsHourMax = useMemo(
+    () => Math.max(1, ...earningsPerHour.map((row) => row.value)),
+    [earningsPerHour],
+  );
+
+  const dailyRevenueTrend = useMemo(() => {
+    const rows = Array.isArray(analytics?.daily_revenue_trend) ? analytics.daily_revenue_trend : [];
+    return rows.map((row) => ({
+      date: row?.date,
+      label: String(row?.label || "-"),
+      value: Number(row?.value ?? 0),
+    }));
+  }, [analytics?.daily_revenue_trend]);
+
+  const dailyRevenueMax = useMemo(
+    () => Math.max(1, ...dailyRevenueTrend.map((row) => row.value)),
+    [dailyRevenueTrend],
+  );
+
+  const dailyRevenuePoints = useMemo(() => {
+    if (!dailyRevenueTrend.length) return [];
+    const maxVal = Math.max(1, ...dailyRevenueTrend.map((row) => row.value));
+    return dailyRevenueTrend.map((row, index) => {
+      const x = dailyRevenueTrend.length === 1 ? 50 : (index / (dailyRevenueTrend.length - 1)) * 100;
+      const y = 100 - (row.value / maxVal) * 100;
+      return { ...row, x, y };
+    });
+  }, [dailyRevenueTrend]);
+
+  const dailyRevenuePolyline = useMemo(
+    () => dailyRevenuePoints.map((point) => `${point.x},${point.y}`).join(" "),
+    [dailyRevenuePoints],
+  );
 
   return (
     <StaffLayout>
@@ -130,7 +206,13 @@ export default function StaffDashboard() {
           {loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
               {[1, 2, 3, 4].map((k) => (
-                <div key={k} className="h-28 rounded-2xl bg-white/5 border border-white/10 animate-pulse" />
+                <div key={k} className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-5 animate-pulse">
+                  <div className="flex justify-between mb-2 sm:mb-4">
+                    <div className="w-7 h-7 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gray-800" />
+                  </div>
+                  <div className="h-5 sm:h-7 w-16 sm:w-24 bg-gray-800 rounded mb-1 sm:mb-2" />
+                  <div className="h-2 sm:h-4 w-20 sm:w-32 bg-gray-800 rounded" />
+                </div>
               ))}
             </div>
           )}
@@ -147,11 +229,14 @@ export default function StaffDashboard() {
                 {cards.map((card) => (
                   <div
                     key={card.label}
-                    className={`rounded-2xl border bg-gradient-to-br ${card.tone} p-5 shadow-lg shadow-black/20`}
+                    className={`bg-gray-900/60 border ${card.border} rounded-xl sm:rounded-2xl p-3 sm:p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}
                   >
-                    <p className="text-xs uppercase tracking-wide text-gray-300">{card.label}</p>
-                    <p className="mt-2 text-3xl font-black text-white">{card.value}</p>
-                    <p className="mt-2 text-sm text-gray-300">{card.hint}</p>
+                    <div className="flex items-start justify-between mb-2 sm:mb-4">
+                      <div className={`${card.accentBg} ${card.accentText} p-1.5 sm:p-3 rounded-lg sm:rounded-xl`}>{card.icon}</div>
+                    </div>
+                    <div className="text-lg sm:text-2xl font-black text-white mb-0.5 sm:mb-1 truncate">{card.value ?? "-"}</div>
+                    <div className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1 truncate">{card.label}</div>
+                    <div className={`text-[10px] sm:text-xs font-semibold ${card.accentText} truncate`}>{card.hint}</div>
                   </div>
                 ))}
               </div>
@@ -160,125 +245,104 @@ export default function StaffDashboard() {
                 <section className="lg:col-span-3 rounded-2xl border border-white/10 bg-black/25 backdrop-blur-sm p-5">
                   <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h2 className="text-lg font-bold text-white">Recent Assigned Jobs</h2>
-                      <span className="text-xs text-gray-400">Staff-scoped records</span>
+                      <h2 className="text-lg font-bold text-white">Performance Graphs</h2>
+                      <span className="text-xs text-gray-400">Revenue analytics for your assigned jobs</span>
                     </div>
                   </div>
 
-                  {recentJobs.length > 0 ? (
-                    <>
-                      <div className="space-y-3 block sm:hidden">
-                        {recentJobs.map((row) => (
-                          <div key={row.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-white truncate">{row.customer_name || "Unknown customer"}</p>
-                                <p className="mt-1 text-xs text-gray-400 truncate">{row.service || "No service"}</p>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <article className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <h3 className="text-sm font-semibold text-white">Earnings per Hour</h3>
+                        <span className="text-[11px] text-emerald-300">Peak P{formatMoney(earningsHourMax)}</span>
+                      </div>
+                      {earningsPerHour.some((row) => row.value > 0) ? (
+                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                          {earningsPerHour.map((row) => (
+                            <div key={row.hourLabel}>
+                              <div className="mb-1 flex items-center justify-between text-[11px]">
+                                <span className="text-gray-300">{row.shortLabel}</span>
+                                <span className="text-emerald-300">P{formatMoney(row.value)}</span>
                               </div>
-                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${toStatusBadge(row.status)}`}>
-                                {row.status || "Unknown"}
-                              </span>
+                              <div className="h-2 w-full rounded-full bg-gray-800 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                                  style={{ width: `${Math.max(4, Math.round((row.value / earningsHourMax) * 100))}%` }}
+                                />
+                              </div>
                             </div>
-                            <div className="mt-3 text-xs text-gray-300 flex flex-col gap-1">
-                              <span>{row.date ? `${row.date}${row.time ? ` · ${row.time}` : ""}` : "-"}</span>
-                            </div>
-                            {row.queue_id && (
-                              <button
-                                onClick={() => setChatQueueId(row.queue_id)}
-                                className="mt-3 w-full flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-xs font-semibold py-1.5 rounded-lg transition-all duration-200"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                </svg>
-                                Message
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="h-40 flex items-center justify-center text-xs text-gray-500">
+                          No paid transactions yet for hourly earnings.
+                        </div>
+                      )}
+                    </article>
 
-                      <div className="hidden sm:block overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                          <thead>
-                            <tr className="text-left text-gray-400 border-b border-white/10">
-                              <th className="py-2 pr-3 font-medium">#</th>
-                              <th className="py-2 pr-3 font-medium">Customer</th>
-                              <th className="py-2 pr-3 font-medium">Service</th>
-                              <th className="py-2 pr-3 font-medium">Date</th>
-                              <th className="py-2 pr-3 font-medium">Status</th>
-                              <th className="py-2 font-medium text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {recentJobs.map((row, index) => (
-                              <tr key={row.id} className="border-b border-white/5 last:border-b-0">
-                                <td className="py-3 pr-3 text-xs text-gray-500">
-                                  #{index + 1}
-                                </td>
-                                <td className="py-3 pr-3 text-gray-100">{row.customer_name || "-"}</td>
-                                <td className="py-3 pr-3 text-gray-300 truncate">{row.service || "-"}</td>
-                                <td className="py-3 pr-3 text-gray-300">
-                                  {row.date ? `${row.date}${row.time ? ` · ${row.time}` : ""}` : "-"}
-                                </td>
-                                <td className="py-3 pr-3">
-                                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${toStatusBadge(row.status)}`}>
-                                    {row.status || "Unknown"}
-                                  </span>
-                                </td>
-                                <td className="py-3 text-right">
-                                  {/* Chat button removed - Restricted to Employee role only */}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    <article className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <h3 className="text-sm font-semibold text-white">Daily Revenue Trend</h3>
+                        <span className="text-[11px] text-blue-300">Max P{formatMoney(dailyRevenueMax)}</span>
                       </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400">No assigned jobs yet for this staff account.</p>
-                  )}
+                      {dailyRevenueTrend.length > 0 ? (
+                        <>
+                          <div className="h-40 rounded-lg bg-gray-900/70 border border-white/5 p-2">
+                            <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none" role="img" aria-label="Daily revenue trend graph">
+                              <polyline
+                                points={dailyRevenuePolyline}
+                                fill="none"
+                                stroke="rgb(59 130 246)"
+                                strokeWidth="2.5"
+                                strokeLinejoin="round"
+                                strokeLinecap="round"
+                              />
+                              {dailyRevenuePoints.map((point) => (
+                                <circle key={point.date || point.label} cx={point.x} cy={point.y} r="2.2" fill="rgb(96 165 250)" />
+                              ))}
+                            </svg>
+                          </div>
+                          <div className="mt-3 grid grid-cols-7 gap-1 text-[10px]">
+                            {dailyRevenueTrend.map((row) => (
+                              <div key={row.date || row.label} className="text-center">
+                                <p className="text-gray-500 truncate">{row.label}</p>
+                                <p className="text-blue-300 font-semibold truncate">P{formatMoney(row.value)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="h-40 flex items-center justify-center text-xs text-gray-500">
+                          No revenue trend data available.
+                        </div>
+                      )}
+                    </article>
+                  </div>
                 </section>
 
                 <section className="lg:col-span-2 rounded-2xl border border-white/10 bg-black/25 backdrop-blur-sm p-5">
-                  <h2 className="text-lg font-bold text-white mb-4">Recent Notifications</h2>
-                  {recentNotifications.length > 0 ? (
-                    <div className="space-y-3">
-                      {recentNotifications.map((notice) => (
-                        <div key={notice.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-white line-clamp-1">{notice.title}</p>
-                            {!notice.is_read && (
-                              <span className="text-[10px] uppercase tracking-wide text-amber-300">Unread</span>
-                            )}
-                          </div>
-                          <p className="mt-1 text-xs text-gray-300 line-clamp-2">{notice.message}</p>
-                          <p className="mt-2 text-[11px] text-gray-400">{formatDateTime(notice.created_at)}</p>
+                <h2 className="text-lg font-bold text-white mb-4">Recent Notifications</h2>
+                {recentNotifications.length > 0 ? (
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                    {recentNotifications.map((notice) => (
+                      <div key={notice.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-white line-clamp-1">{notice.title}</p>
+                          {!notice.is_read && (
+                            <span className="text-[10px] uppercase tracking-wide text-amber-300">Unread</span>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-400">No notifications yet.</p>
-                  )}
-                </section>
+                        <p className="mt-1 text-xs text-gray-300 line-clamp-2">{notice.message}</p>
+                        <p className="mt-2 text-[11px] text-gray-400">{formatDateTime(notice.created_at)}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">No notifications yet.</p>
+                )}
+              </section>
               </div>
 
-              <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Data Visibility</p>
-                  <p className="text-2xl font-black text-white mt-2">{recentJobs.length}</p>
-                  <p className="text-sm text-gray-300 mt-1">Recent assigned job records shown</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Unread Alerts</p>
-                  <p className="text-2xl font-black text-amber-300 mt-2">{stats.my_unread_notifications ?? 0}</p>
-                  <p className="text-sm text-gray-300 mt-1">Need acknowledgement</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Active Operations</p>
-                  <p className="text-2xl font-black text-emerald-300 mt-2">{stats.my_active_jobs ?? 0}</p>
-                  <p className="text-sm text-gray-300 mt-1">Waiting + in service jobs</p>
-                </div>
-              </div>
             </>
           )}
         </div>

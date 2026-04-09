@@ -1,10 +1,13 @@
 import re
+from decimal import Decimal
 
 from rest_framework import serializers
 from ..models import Branch, Booking, Staff
 
 
 PREFERRED_EMPLOYEE_PATTERN = re.compile(r"\[preferred_employee_id=(\d+)\]", re.IGNORECASE)
+PRODUCTS_ADDED_PATTERN = re.compile(r"^\[Products Added\]\s*(.+?)(?:\s*\(\+.*\))?$", re.IGNORECASE)
+PRODUCT_ENTRY_PATTERN = re.compile(r"^(?P<name>.+?)\s*x(?P<qty>\d+)$", re.IGNORECASE)
 
 
 def _extract_preferred_employee_id(notes):
@@ -65,6 +68,11 @@ class BookingSerializer(serializers.ModelSerializer):
     preferred_employee_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     preferred_employee_name = serializers.SerializerMethodField()
     customer_name = serializers.SerializerMethodField()
+    used_products = serializers.SerializerMethodField()
+    receipt_total = serializers.SerializerMethodField()
+    receipt_number = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
+    completed_at = serializers.SerializerMethodField()
     # 👈 ADD THIS FIELD - make it writeable so frontend can send cancellation reason
     cancellation_reason = serializers.CharField(
         required=False, 
@@ -88,6 +96,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "reschedule_note",
             "reschedule_request_reason",
             "customer_name",
+            "used_products", "receipt_total", "receipt_number", "payment_method", "completed_at",
             "assigned_employee_id", "assigned_employee_name", "queue_id",
             "preferred_employee_id", "preferred_employee_name",
             "created_at",
@@ -131,6 +140,66 @@ class BookingSerializer(serializers.ModelSerializer):
                 return name_part
 
         return "Unknown Customer"
+
+    def get_used_products(self, instance):
+        queue_entry = getattr(instance, "queue_entry", None)
+        notes = (getattr(queue_entry, "notes", "") or "").splitlines()
+
+        merged = {}
+        order = []
+        for raw_line in notes:
+            line = (raw_line or "").strip()
+            if not line:
+                continue
+            match = PRODUCTS_ADDED_PATTERN.match(line)
+            if not match:
+                continue
+
+            product_blob = match.group(1) or ""
+            entries = [chunk.strip() for chunk in product_blob.split(",") if chunk.strip()]
+            for entry in entries:
+                parsed = PRODUCT_ENTRY_PATTERN.match(entry)
+                if not parsed:
+                    continue
+                name = parsed.group("name").strip()
+                qty = int(parsed.group("qty"))
+                if name not in merged:
+                    merged[name] = 0
+                    order.append(name)
+                merged[name] += qty
+
+        return [{"name": name, "quantity": merged[name]} for name in order]
+
+    def get_receipt_total(self, instance):
+        queue_entry = getattr(instance, "queue_entry", None)
+        if queue_entry and queue_entry.price is not None:
+            try:
+                return float(queue_entry.price)
+            except (TypeError, ValueError):
+                pass
+
+        try:
+            return float(Decimal(str(instance.price or 0)))
+        except (TypeError, ValueError):
+            return 0.0
+
+    def get_receipt_number(self, instance):
+        queue_entry = getattr(instance, "queue_entry", None)
+        if queue_entry and queue_entry.id:
+            return f"Q-{str(queue_entry.id).zfill(6)}"
+        return f"B-{str(instance.id).zfill(6)}"
+
+    def get_payment_method(self, instance):
+        queue_entry = getattr(instance, "queue_entry", None)
+        if queue_entry and queue_entry.payment_method:
+            return queue_entry.payment_method
+        return ""
+
+    def get_completed_at(self, instance):
+        queue_entry = getattr(instance, "queue_entry", None)
+        if queue_entry and queue_entry.completed_at:
+            return queue_entry.completed_at
+        return None
 
     def get_preferred_employee_name(self, instance):
         preferred_id = _extract_preferred_employee_id(instance.notes)

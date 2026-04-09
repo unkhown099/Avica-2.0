@@ -75,6 +75,249 @@ def clean_price(value):
         return 0.0
 
 
+def build_retention_analytics(queue_scope, customer_scope, now):
+    paid_entries = (
+        queue_scope.filter(payment_status="paid")
+        .select_related("booking")
+        .order_by("completed_at", "queued_at")
+    )
+
+    activity_by_user = {}
+    paid_events_by_user = defaultdict(list)
+
+    for entry in paid_entries:
+        user_id = entry.customer_user_id
+        if not user_id and getattr(entry, "booking", None):
+            user_id = entry.booking.user_id
+        if not user_id:
+            continue
+
+        event_dt = entry.completed_at or entry.queued_at
+        if not event_dt:
+            continue
+
+        amount = clean_price(entry.price)
+        if user_id not in activity_by_user:
+            activity_by_user[user_id] = {
+                "visits": 0,
+                "revenue": 0.0,
+                "last_seen": event_dt,
+                "visit_dates": [],
+            }
+
+        row = activity_by_user[user_id]
+        row["visits"] += 1
+        row["revenue"] += amount
+        row["visit_dates"].append(event_dt)
+        if event_dt > row["last_seen"]:
+            row["last_seen"] = event_dt
+
+        paid_events_by_user[user_id].append((event_dt, amount))
+
+    thresholds = {
+        "healthy_days": 30,
+        "watch_days": 45,
+        "at_risk_days": 90,
+        "reactivation_gap_days": 60,
+    }
+
+    churn_risk = {
+        "healthy": 0,
+        "watch": 0,
+        "at_risk": 0,
+        "churned": 0,
+    }
+    high_value_at_risk = []
+
+    for user_id, row in activity_by_user.items():
+        last_seen = row["last_seen"]
+        days_since_last = max(0, (now.date() - last_seen.date()).days)
+        if days_since_last <= thresholds["healthy_days"]:
+            risk_level = "healthy"
+        elif days_since_last <= thresholds["watch_days"]:
+            risk_level = "watch"
+        elif days_since_last <= thresholds["at_risk_days"]:
+            risk_level = "at_risk"
+        else:
+            risk_level = "churned"
+
+        churn_risk[risk_level] += 1
+
+        is_high_value = row["revenue"] >= 50000 or row["visits"] >= 15
+        if is_high_value and risk_level in {"at_risk", "churned"}:
+            high_value_at_risk.append(
+                {
+                    "user_id": user_id,
+                    "days_since_last_visit": days_since_last,
+                    "visits": row["visits"],
+                    "lifetime_revenue": round(row["revenue"], 2),
+                    "risk_level": risk_level,
+                }
+            )
+
+    reactivation_cutoff = now - timedelta(days=30)
+    reactivation_buckets = {
+        "60_89_days": 0,
+        "90_179_days": 0,
+        "180_plus_days": 0,
+    }
+    reactivated_customers_30d = 0
+
+    for row in activity_by_user.values():
+        dates = sorted(row["visit_dates"])
+        if len(dates) < 2:
+            continue
+        latest = dates[-1]
+        previous = dates[-2]
+        if latest < reactivation_cutoff:
+            continue
+        gap_days = (latest.date() - previous.date()).days
+        if gap_days < thresholds["reactivation_gap_days"]:
+            continue
+
+        reactivated_customers_30d += 1
+        if gap_days >= 180:
+            reactivation_buckets["180_plus_days"] += 1
+        elif gap_days >= 90:
+            reactivation_buckets["90_179_days"] += 1
+        else:
+            reactivation_buckets["60_89_days"] += 1
+
+    recommended_actions = []
+    if churn_risk["churned"] > 0:
+        recommended_actions.append(
+            {
+                "priority": "high",
+                "action": "Launch win-back campaign with limited-time offer",
+                "target_segment": "churned",
+                "target_customers": churn_risk["churned"],
+            }
+        )
+    if churn_risk["at_risk"] > 0:
+        recommended_actions.append(
+            {
+                "priority": "high",
+                "action": "Send service reminder plus loyalty points booster",
+                "target_segment": "at_risk",
+                "target_customers": churn_risk["at_risk"],
+            }
+        )
+    if high_value_at_risk:
+        recommended_actions.append(
+            {
+                "priority": "critical",
+                "action": "Assign concierge follow-up for high-value customers",
+                "target_segment": "high_value_at_risk",
+                "target_customers": len(high_value_at_risk),
+            }
+        )
+    if churn_risk["watch"] > 0:
+        recommended_actions.append(
+            {
+                "priority": "medium",
+                "action": "Run preventive check-in message sequence",
+                "target_segment": "watch",
+                "target_customers": churn_risk["watch"],
+            }
+        )
+
+    scope_user_ids = list(customer_scope.values_list("user_id", flat=True))
+    campaign_types = {"promotion", "promo", "marketing", "retention"}
+    ninety_days_ago = now - timedelta(days=90)
+
+    campaign_notifications = Notification.objects.filter(created_at__gte=ninety_days_ago)
+    if scope_user_ids:
+        campaign_notifications = campaign_notifications.filter(user_id__in=scope_user_ids)
+
+    campaign_tracker = {}
+    for note in campaign_notifications.only("user_id", "notification_type", "created_at"):
+        campaign_type = (note.notification_type or "promotion").strip().lower()
+        if campaign_type not in campaign_types:
+            continue
+
+        bucket = campaign_tracker.setdefault(
+            campaign_type,
+            {
+                "users_sent": set(),
+                "first_notified_at": {},
+            },
+        )
+        bucket["users_sent"].add(note.user_id)
+        first_seen = bucket["first_notified_at"].get(note.user_id)
+        if first_seen is None or note.created_at < first_seen:
+            bucket["first_notified_at"][note.user_id] = note.created_at
+
+    campaign_rows = []
+    overall_sent_users = set()
+    overall_converted_users = set()
+
+    for campaign_type, tracker in sorted(campaign_tracker.items()):
+        sent_users = tracker["users_sent"]
+        first_notified_at = tracker["first_notified_at"]
+        converted_users = set()
+        conversion_revenue = 0.0
+
+        for user_id in sent_users:
+            notify_at = first_notified_at.get(user_id)
+            paid_events = paid_events_by_user.get(user_id, [])
+            post_events = [(event_dt, amount) for event_dt, amount in paid_events if notify_at and event_dt > notify_at]
+            if post_events:
+                converted_users.add(user_id)
+                conversion_revenue += sum(amount for _, amount in post_events)
+
+        overall_sent_users.update(sent_users)
+        overall_converted_users.update(converted_users)
+
+        sent_count = len(sent_users)
+        converted_count = len(converted_users)
+        conversion_rate = round((converted_count / sent_count) * 100, 1) if sent_count else 0.0
+
+        campaign_rows.append(
+            {
+                "campaign_type": campaign_type,
+                "sent_users": sent_count,
+                "converted_users": converted_count,
+                "conversion_rate": conversion_rate,
+                "revenue_after_campaign": round(conversion_revenue, 2),
+            }
+        )
+
+    overall_sent_count = len(overall_sent_users)
+    overall_converted_count = len(overall_converted_users)
+    overall_conversion_rate = (
+        round((overall_converted_count / overall_sent_count) * 100, 1)
+        if overall_sent_count
+        else 0.0
+    )
+
+    return {
+        "churn_risk": {
+            "healthy": churn_risk["healthy"],
+            "watch": churn_risk["watch"],
+            "at_risk": churn_risk["at_risk"],
+            "churned": churn_risk["churned"],
+            "threshold_days": thresholds,
+        },
+        "reactivation_cohorts": {
+            "reactivated_customers_30d": reactivated_customers_30d,
+            "by_gap": reactivation_buckets,
+        },
+        "high_value_at_risk": sorted(
+            high_value_at_risk,
+            key=lambda row: (row["lifetime_revenue"], row["days_since_last_visit"]),
+            reverse=True,
+        )[:10],
+        "recommended_actions": recommended_actions,
+        "campaign_outcomes": {
+            "window_days": 90,
+            "sent_users": overall_sent_count,
+            "converted_users": overall_converted_count,
+            "overall_conversion_rate": overall_conversion_rate,
+            "campaigns": campaign_rows,
+        },
+    }
+
+
 class AdminDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -458,6 +701,12 @@ class AdminDashboardView(APIView):
             if first["revenue"] > 0 and year_span > 0:
                 cagr_percent = round((((last["revenue"] / first["revenue"]) ** (1 / year_span)) - 1) * 100, 2)
 
+        retention_analytics = build_retention_analytics(
+            queue_scope=queue_scope,
+            customer_scope=customer_scope,
+            now=now,
+        )
+
         demand_by_branch_rows = (
             queue_scope.values("branch__name", "branch_name")
             .annotate(demand=Count("id"))
@@ -531,6 +780,7 @@ class AdminDashboardView(APIView):
                 "branch_demand_time_series": branch_demand_time_series,
                 "branch_forecasts": branch_forecasts[:10],
                 "highest_demand_branch": highest_demand_branch,
+                "retention": retention_analytics,
             },
         })
 
@@ -635,6 +885,25 @@ class ManagerDashboardView(APIView):
 class StaffDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @staticmethod
+    def _format_queue_datetime(entry):
+        if not entry:
+            return None, None
+        if getattr(entry, "booking", None):
+            b = entry.booking
+            booking_time = str(getattr(b, "time", "") or "").strip()
+            return (
+                b.date.isoformat() if getattr(b, "date", None) else None,
+                booking_time or None,
+            )
+
+        queued_at = getattr(entry, "queued_at", None)
+        if not queued_at:
+            return None, None
+
+        queued_local = timezone.localtime(queued_at)
+        return queued_local.date().isoformat(), queued_local.strftime("%I:%M %p").lstrip("0")
+
     def get(self, request):
         staff = getattr(request.user, "staff_profile", None)
         if not staff or staff.role != "Staff":
@@ -657,13 +926,59 @@ class StaffDashboardView(APIView):
         else:
             queue_scope = queue_scope.none()
 
+        queue_scope = queue_scope.select_related("booking", "booking__user", "booking__user__customer_profile", "branch")
+
         notifications_qs = Notification.objects.filter(user=request.user)
+
+        appointment_jobs_count = queue_scope.filter(source="booking").count()
+        walkin_jobs_count = queue_scope.filter(source="walk_in").count()
+
+        # Staff revenue analytics (paid queue entries assigned to this staff profile)
+        paid_scope = queue_scope.filter(payment_status="paid")
+        earnings_by_hour = {hour: 0.0 for hour in range(24)}
+        daily_dates = [today - timedelta(days=offset) for offset in range(6, -1, -1)]
+        revenue_by_day = {day.isoformat(): 0.0 for day in daily_dates}
+
+        for entry in paid_scope:
+            amount = float(entry.price or 0)
+            if amount <= 0:
+                continue
+            event_dt = entry.completed_at or entry.queued_at
+            if not event_dt:
+                continue
+
+            event_local = timezone.localtime(event_dt)
+            hour_key = event_local.hour
+            day_key = event_local.date().isoformat()
+
+            earnings_by_hour[hour_key] += amount
+            if day_key in revenue_by_day:
+                revenue_by_day[day_key] += amount
+
+        earnings_per_hour = [
+            {
+                "hour": f"{hour:02d}:00",
+                "value": round(value, 2),
+            }
+            for hour, value in earnings_by_hour.items()
+        ]
+
+        daily_revenue_trend = [
+            {
+                "date": day.isoformat(),
+                "label": day.strftime("%b %d"),
+                "value": round(revenue_by_day[day.isoformat()], 2),
+            }
+            for day in daily_dates
+        ]
 
         stats = {
             "my_assigned_jobs": queue_scope.count(),
             "my_active_jobs": queue_scope.filter(status__in=["waiting", "in_service"]).count(),
             "my_completed_jobs": queue_scope.filter(status="done").count(),
             "my_paid_jobs": queue_scope.filter(payment_status="paid").count(),
+            "my_appointment_jobs": appointment_jobs_count,
+            "my_walkin_jobs": walkin_jobs_count,
             "my_upcoming_bookings": booking_scope.filter(
                 date__gte=today,
                 status__in=["pending", "confirmed", "rescheduled"],
@@ -674,24 +989,30 @@ class StaffDashboardView(APIView):
         }
 
         recent_jobs = []
-        for booking in booking_scope.order_by("-date", "-time", "-created_at")[:8]:
-            customer_name = "Customer"
-            customer_profile = getattr(booking.user, "customer_profile", None)
-            if customer_profile:
-                customer_name = f"{customer_profile.first_name} {customer_profile.last_name}".strip()
-            elif getattr(booking.user, "email", None):
-                customer_name = booking.user.email
+        for entry in queue_scope.order_by("-queued_at")[:8]:
+            booking = getattr(entry, "booking", None)
+            customer_name = (entry.customer_name or "").strip() or "Customer"
+            if booking and getattr(booking, "user", None):
+                customer_profile = getattr(booking.user, "customer_profile", None)
+                if customer_profile:
+                    customer_name = f"{customer_profile.first_name} {customer_profile.last_name}".strip()
+                elif getattr(booking.user, "email", None):
+                    customer_name = booking.user.email
+
+            date_value, time_value = self._format_queue_datetime(entry)
 
             recent_jobs.append(
                 {
-                    "id": booking.id,
+                    "id": entry.id,
+                    "booking_id": booking.id if booking else None,
                     "customer_name": customer_name,
-                    "service": booking.service,
-                    "date": booking.date.isoformat() if booking.date else None,
-                    "time": booking.time,
-                    "status": booking.status,
-                    "branch_name": booking.branch.name if booking.branch else "",
-                    "queue_id": getattr(booking, "queue_entry", None).id if getattr(booking, "queue_entry", None) else None,
+                    "service": entry.service,
+                    "date": date_value,
+                    "time": time_value,
+                    "status": entry.status,
+                    "source": entry.source,
+                    "branch_name": entry.branch.name if entry.branch else entry.branch_name,
+                    "queue_id": entry.id,
                 }
             )
 
@@ -708,6 +1029,10 @@ class StaffDashboardView(APIView):
                     "branch_name": staff.branch.name if staff.branch else staff.branch_name,
                 },
                 "stats": stats,
+                "analytics": {
+                    "earnings_per_hour": earnings_per_hour,
+                    "daily_revenue_trend": daily_revenue_trend,
+                },
                 "recent_jobs": recent_jobs,
                 "recent_notifications": recent_notifications,
             }

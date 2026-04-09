@@ -31,12 +31,9 @@ const EMPTY_FORM = {
 
 const TIME_OPTIONS = [];
 for (let h = 6; h <= 23; h++) {
-  for (let m = 0; m < 60; m += 30) {
-    const hh = h % 12 || 12;
-    const ampm = h < 12 ? 'AM' : 'PM';
-    const mm = m === 0 ? '00' : '30';
-    TIME_OPTIONS.push(`${hh}:${mm} ${ampm}`);
-  }
+  const hh = h % 12 || 12;
+  const ampm = h < 12 ? "AM" : "PM";
+  TIME_OPTIONS.push(`${hh}:00 ${ampm}`);
 }
 
 function BranchModal({ onClose, onSaved, editBranch }) {
@@ -73,9 +70,30 @@ function BranchModal({ onClose, onSaved, editBranch }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  const localPhone = String(form.phone || "")
+    .replace(/^\+?63/, "")
+    .replace(/^0/, "")
+    .replace(/\D/g, "")
+    .slice(0, 10);
+
   const handle = (e) => {
     const { name, value, type, checked } = e.target;
+    if (name === "name") {
+      const clean = value.replace(/[^A-Za-z\s]/g, "").replace(/\s{2,}/g, " ");
+      setForm((f) => ({ ...f, name: clean }));
+      return;
+    }
+
     setForm((f) => ({ ...f, [name]: type === "checkbox" ? checked : value }));
+  };
+
+  const handlePhoneChange = (e) => {
+    const digits = String(e.target.value || "")
+      .replace(/\D/g, "")
+      .replace(/^63/, "")
+      .replace(/^0/, "")
+      .slice(0, 10);
+    setForm((f) => ({ ...f, phone: digits ? `+63${digits}` : "" }));
   };
 
   const submit = async (e) => {
@@ -83,8 +101,20 @@ function BranchModal({ onClose, onSaved, editBranch }) {
     setSaving(true);
     setError(null);
     try {
+      const cleanName = String(form.name || "").trim();
+      if (!/^[A-Za-z\s]+$/.test(cleanName)) {
+        throw new Error("Branch name must contain letters and spaces only.");
+      }
+
+      const normalizedPhone = form.phone ? String(form.phone).replace(/\s/g, "") : "";
+      if (normalizedPhone && !/^\+639\d{9}$/.test(normalizedPhone)) {
+        throw new Error("Phone number must be in +63 format (example: +639123456789).");
+      }
+
       const payload = {
         ...form,
+        name: cleanName,
+        phone: normalizedPhone,
         slots: Number(form.slots),
         latitude: form.latitude ? parseFloat(form.latitude) : null,
         longitude: form.longitude ? parseFloat(form.longitude) : null,
@@ -168,7 +198,15 @@ function BranchModal({ onClose, onSaved, editBranch }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5">Branch Name</label>
-              <input name="name" value={form.name} onChange={handle} required placeholder="e.g. San Mateo Rizal" className={inputCls} />
+              <input
+                name="name"
+                value={form.name}
+                onChange={handle}
+                required
+                pattern="[A-Za-z ]+"
+                placeholder="e.g. San Mateo Rizal"
+                className={inputCls}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5">Operating Hours</label>
@@ -200,7 +238,18 @@ function BranchModal({ onClose, onSaved, editBranch }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5">Phone Number</label>
-              <input name="phone" value={form.phone} onChange={handle} placeholder="e.g. +63 9XX XXX XXXX" className={inputCls} />
+              <div className="flex items-center rounded-xl border border-white/10 bg-white/5 overflow-hidden focus-within:border-red-500/50">
+                <span className="px-3 text-sm font-semibold text-gray-300 border-r border-white/10">+63</span>
+                <input
+                  name="phone"
+                  value={localPhone}
+                  onChange={handlePhoneChange}
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="9XXXXXXXXX"
+                  className="w-full bg-transparent text-white placeholder-gray-600 px-3 py-2.5 text-sm focus:outline-none"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5">Facebook URL</label>

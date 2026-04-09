@@ -80,12 +80,33 @@ const NotificationDropdown = () => {
         }
     };
 
+    const resolveNotificationPath = (notification) => {
+        const targetPath = String(notification?.target_path || "").trim();
+        if (targetPath) {
+            return targetPath.startsWith("/") ? targetPath : `/${targetPath}`;
+        }
+
+        const type = String(notification?.notification_type || "").toLowerCase();
+        const message = String(notification?.message || "").toLowerCase();
+
+        if (type === "appointment" || message.includes("booking") || message.includes("appointment")) {
+            return role === "customer" ? "/bookings" : "/dashboard";
+        }
+        if (type === "inventory") {
+            return "/inventory/dashboard";
+        }
+        if (type === "task") {
+            return role === "employee" ? "/employee/active-jobs" : "/dashboard";
+        }
+        return role === "customer" ? "/dashboard" : "/dashboard";
+    };
+
     const handleNotificationClick = async (notification) => {
         if (!notification?.is_read) {
             await markAsRead(notification.id);
         }
         setIsOpen(false);
-        navigate("/dashboard");
+        navigate(resolveNotificationPath(notification));
     };
 
     const markAllRead = async () => {

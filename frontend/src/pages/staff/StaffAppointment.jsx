@@ -79,6 +79,22 @@ function sortBookingsByPriority(rows) {
   });
 }
 
+function normalizeReschedulePendingStatus(booking) {
+  if (!booking || typeof booking !== "object") return booking;
+  const status = String(booking.status || "").toLowerCase();
+  const terminal = status === "cancelled" || status === "done" || status === "no_show";
+  const hasCustomerRescheduleRequest = Boolean(
+    String(booking.reschedule_request_reason || "").trim(),
+  );
+  const awaitingStaffApproval =
+    booking.reschedule_status == null || String(booking.reschedule_status).toLowerCase() === "none";
+
+  if (!terminal && hasCustomerRescheduleRequest && awaitingStaffApproval && status !== "pending") {
+    return { ...booking, status: "pending" };
+  }
+  return booking;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 function StaffAppointments() {
@@ -113,7 +129,9 @@ function StaffAppointments() {
         return r.json();
       })
       .then((data) => {
-        const rows = Array.isArray(data) ? data : (data.results ?? []);
+        const rows = (Array.isArray(data) ? data : (data.results ?? [])).map(
+          normalizeReschedulePendingStatus,
+        );
         setBookings(rows);
         setAssignedByBooking(
           rows.reduce((acc, row) => {
@@ -234,13 +252,14 @@ function StaffAppointments() {
         throw new Error(err.detail || "Action failed. Please try again.");
       }
       const updated = await res.json();
+      const normalizedUpdated = normalizeReschedulePendingStatus(updated);
       setBookings((prev) =>
-        prev.map((b) => (b.id === updated.id ? updated : b)),
+        prev.map((b) => (b.id === updated.id ? normalizedUpdated : b)),
       );
       setAssignedByBooking((prev) => ({
         ...prev,
-        [id]: updated.assigned_employee_id
-          ? String(updated.assigned_employee_id)
+        [id]: normalizedUpdated.assigned_employee_id
+          ? String(normalizedUpdated.assigned_employee_id)
           : "",
       }));
     } catch (e) {
@@ -369,8 +388,9 @@ function StaffAppointments() {
         );
         if (!res.ok) throw new Error();
         const updated = await res.json();
+        const normalizedUpdated = normalizeReschedulePendingStatus(updated);
         setBookings((prev) =>
-          prev.map((b) => (b.id === updated.id ? updated : b)),
+          prev.map((b) => (b.id === updated.id ? normalizedUpdated : b)),
         );
         Swal.fire({
           icon: "success",
@@ -445,11 +465,11 @@ function StaffAppointments() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Calendar */}
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-black text-white">Calendar</h2>
+         <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+  <div className="flex items-center justify-between mb-6">
+    <h2 className="text-lg font-black text-white">Calendar</h2>
               <div className="flex items-center gap-1">
                 <button
                   onClick={prevMonth}
@@ -557,7 +577,7 @@ function StaffAppointments() {
           </div>
 
           {/* Appointments Panel */}
-          <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+          <div className="lg:col-span-3 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
             <div className="mb-6">
               <h2 className="text-lg font-black text-white">
                 {formatDate(selectedISO)}

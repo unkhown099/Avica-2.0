@@ -13,6 +13,7 @@ const roleBadge = {
   Employee: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   Inventory: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   "Inventory Manager": "bg-orange-600/20 text-orange-300 border-orange-600/30",
+  super_admin: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
 };
 
 const roleColors = {
@@ -23,6 +24,7 @@ const roleColors = {
   Employee: "#3b82f6",
   Inventory: "#f97316",
   "Inventory Manager": "#fb923c",
+  super_admin: "#22d3ee",
 };
 
 const roles = [
@@ -33,7 +35,16 @@ const roles = [
   "Employee",
   "Inventory",
   "Inventory Manager",
+  "super_admin",
 ];
+
+const normalizeRole = (role) => {
+  const value = String(role || "").trim();
+  if (value === "Super Admin") return "super_admin";
+  return value;
+};
+
+const roleLabel = (role) => (normalizeRole(role) === "super_admin" ? "Super Admin" : role);
 
 function BranchOwnerAccountManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -119,7 +130,7 @@ function BranchOwnerAccountManagement() {
   }, [isAuthenticated, headers]);
 
   const roleCounts = roles.reduce((acc, r) => {
-    acc[r] = staffAccounts.filter((s) => s.role === r).length;
+    acc[r] = staffAccounts.filter((s) => normalizeRole(s.role) === r).length;
     return acc;
   }, {});
   const formatStaffName = (staff) => {
@@ -198,18 +209,18 @@ function BranchOwnerAccountManagement() {
         )}
 
         {/* Role stats - horizontal scroll on mobile */}
-        <div className="flex gap-3 overflow-x-auto pb-2 mb-6 sm:mb-8 sm:grid sm:grid-cols-3 lg:grid-cols-6 sm:overflow-visible">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 sm:mb-8">
           {roles.map((role) => (
             <div
               key={role}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all cursor-pointer shrink-0 min-w-[110px] sm:min-w-0"
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all cursor-pointer"
               onClick={() => setRoleFilter(role)}
             >
               <div className="text-xl sm:text-2xl font-black text-white mb-1">
                 {roleCounts[role] || 0}
               </div>
               <div className="text-xs text-gray-400 font-medium truncate">
-                {role}
+                {roleLabel(role)}
               </div>
               <div className="mt-2 h-1 rounded-full bg-gray-800">
                 <div
@@ -258,7 +269,7 @@ function BranchOwnerAccountManagement() {
             >
               <option value="All Roles">All Roles</option>
               {roles.map((role) => (
-                <option key={role}>{role}</option>
+                <option key={role} value={role}>{roleLabel(role)}</option>
               ))}
             </select>
             <select
@@ -308,7 +319,7 @@ function BranchOwnerAccountManagement() {
           ) : (
             paginatedItems.map((staff) => {
               const staffName = formatStaffName(staff);
-              const staffRole = staff.role || "Staff";
+              const staffRole = normalizeRole(staff.role || "Staff");
               return (
                 <div
                   key={staff.id}
@@ -338,7 +349,7 @@ function BranchOwnerAccountManagement() {
                     <span
                       className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${roleBadge[staffRole] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
                     >
-                      {staffRole}
+                      {roleLabel(staffRole)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-500">
@@ -398,7 +409,7 @@ function BranchOwnerAccountManagement() {
               ) : (
                 paginatedItems.map((staff) => {
                   const staffName = formatStaffName(staff);
-                  const staffRole = staff.role || "Staff";
+                  const staffRole = normalizeRole(staff.role || "Staff");
                   const branchName =
                     staff.branch_name || staff.branch || "Unassigned";
                   const status = staff.status || "Active";
@@ -439,7 +450,7 @@ function BranchOwnerAccountManagement() {
                         <span
                           className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${roleBadge[staffRole] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
                         >
-                          {staffRole}
+                          {roleLabel(staffRole)}
                         </span>
                       </div>
                       <div className="col-span-2 text-gray-400 text-sm truncate">

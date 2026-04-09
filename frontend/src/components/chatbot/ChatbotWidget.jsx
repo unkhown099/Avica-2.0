@@ -176,6 +176,15 @@ export default function ChatbotWidget() {
     setPulseActive(false);
   };
 
+  useEffect(() => {
+    const handleOpenEvent = () => {
+      handleOpen();
+    };
+
+    window.addEventListener("open-chatbot-widget", handleOpenEvent);
+    return () => window.removeEventListener("open-chatbot-widget", handleOpenEvent);
+  }, [handleOpen]);
+
   const handleClose = () => {
     setIsOpen(false);
     setPos(null);

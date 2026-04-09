@@ -15,6 +15,24 @@ const authHeaders = () => ({
 
 const API = API_BASE;
 
+const DEFAULT_NOTIFICATIONS = {
+  bookingConfirmation: true,
+  bookingReminders: true,
+  promotions: false,
+  serviceUpdates: true,
+  newsletter: false,
+};
+
+const DEFAULT_PRIVACY = {
+  shareData: false,
+  analytics: true,
+};
+
+const getSettingsStorageKey = (user) => {
+  const identity = user?.id || user?.email || "guest";
+  return `customer_settings_${identity}`;
+};
+
 function Toggle({ enabled, onChange, disabled = false }) {
   return (
     <button
@@ -42,16 +60,11 @@ function SettingsPage() {
   const [error, setError] = useState(null);
 
   const [notifications, setNotifications] = useState({
-    bookingConfirmation: true,
-    bookingReminders: true,
-    promotions: false,
-    serviceUpdates: true,
-    newsletter: false,
+    ...DEFAULT_NOTIFICATIONS,
   });
 
   const [privacy, setPrivacy] = useState({
-    shareData: false,
-    analytics: true,
+    ...DEFAULT_PRIVACY,
   });
 
   const [passwords, setPasswords] = useState({
@@ -71,18 +84,35 @@ function SettingsPage() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API}/api/settings/`, {
+      const response = await fetch(`${API}/api/customer/settings/`, {
         headers: authHeaders(),
-        credentials: "include",
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (data.notifications) setNotifications(data.notifications);
-        if (data.privacy) setPrivacy(data.privacy);
+        if (data?.notifications) {
+          setNotifications({ ...DEFAULT_NOTIFICATIONS, ...data.notifications });
+        }
+        if (data?.privacy) {
+          setPrivacy({ ...DEFAULT_PRIVACY, ...data.privacy });
+        }
+        return;
+      }
+
+      const key = getSettingsStorageKey(sessionUser);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data?.notifications) {
+          setNotifications({ ...DEFAULT_NOTIFICATIONS, ...data.notifications });
+        }
+        if (data?.privacy) {
+          setPrivacy({ ...DEFAULT_PRIVACY, ...data.privacy });
+        }
       }
     } catch (err) {
       console.error("Error fetching settings:", err);
+      setError("Failed to load saved settings.");
     } finally {
       setLoading(false);
     }
@@ -93,14 +123,23 @@ function SettingsPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API}/api/settings/`, {
+      const response = await fetch(`${API}/api/customer/settings/`, {
         method: "PUT",
         headers: authHeaders(),
-        credentials: "include",
         body: JSON.stringify({ notifications, privacy }),
       });
 
-      if (!response.ok) throw new Error("Failed to save settings");
+      if (!response.ok) {
+        const key = getSettingsStorageKey(sessionUser);
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            notifications,
+            privacy,
+            updatedAt: new Date().toISOString(),
+          }),
+        );
+      }
 
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -133,7 +172,6 @@ function SettingsPage() {
       const response = await fetch(`${API}/change-password/`, {
         method: "POST",
         headers: authHeaders(),
-        credentials: "include",
         body: JSON.stringify({
           old_password: passwords.current,
           new_password: passwords.newPass,
@@ -169,7 +207,6 @@ function SettingsPage() {
       const response = await fetch(`${API}/delete-account/`, {
         method: "DELETE",
         headers: authHeaders(),
-        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Failed to delete account");
@@ -305,22 +342,10 @@ function SettingsPage() {
                   icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
                 },
                 {
-                  key: "promotions",
-                  label: "Promotions & Deals",
-                  desc: "Exclusive offers and special discounts",
-                  icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-                },
-                {
                   key: "serviceUpdates",
                   label: "Service Updates",
                   desc: "Real-time updates on your vehicle while being serviced",
                   icon: "M13 10V3L4 14h7v7l9-11h-7z",
-                },
-                {
-                  key: "newsletter",
-                  label: "Monthly Newsletter",
-                  desc: "Car care tips and industry news",
-                  icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
                 },
               ].map(({ key, label, desc, icon }) => (
                 <div
@@ -361,84 +386,7 @@ function SettingsPage() {
             </div>
           </div>
 
-          {/* Privacy Section */}
-          <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
-            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-4 sm:px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                <div className="p-1.5 bg-red-600/20 rounded-lg shrink-0">
-                  <svg
-                    className="w-4 h-4 text-red-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                </div>
-                Privacy Controls
-              </h3>
-              <p className="text-gray-500 text-xs mt-1 ml-8">
-                Control your data and privacy preferences
-              </p>
-            </div>
-            <div className="px-4 sm:px-6 py-4 space-y-2">
-              {[
-                {
-                  key: "shareData",
-                  label: "Share Usage Data",
-                  desc: "Help us improve by sharing anonymous usage data",
-                  icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
-                },
-                {
-                  key: "analytics",
-                  label: "Analytics Cookies",
-                  desc: "Allow analytics to improve your experience",
-                  icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
-                },
-              ].map(({ key, label, desc, icon }) => (
-                <div
-                  key={key}
-                  className="group flex items-center justify-between gap-3 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2"
-                >
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <svg
-                      className="w-4 h-4 text-gray-500 mt-0.5 shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d={icon}
-                      />
-                    </svg>
-                    <div className="min-w-0">
-                      <p className="text-white font-semibold text-sm group-hover:text-red-400 transition-colors">
-                        {label}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-0.5 leading-snug">
-                        {desc}
-                      </p>
-                    </div>
-                  </div>
-                  <Toggle
-                    enabled={privacy[key]}
-                    onChange={(val) =>
-                      setPrivacy((p) => ({ ...p, [key]: val }))
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
+        
           {/* Change Password Section */}
           <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
             <div className="bg-gradient-to-r from-red-600/20 to-transparent px-4 sm:px-6 py-4 border-b border-white/10">

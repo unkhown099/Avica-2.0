@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout";
-import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
 
 // Auth helpers
@@ -29,12 +29,6 @@ function ProfilePage() {
     last_name: "",
     email: "",
     phone: "",
-    address: "",
-    car_make: "",
-    car_model: "",
-    car_year: "",
-    car_color: "",
-    car_plate: "",
   });
 
   useEffect(() => {
@@ -56,16 +50,6 @@ function ProfilePage() {
 
       const userData = await userResponse.json();
 
-      const customerResponse = await fetch(`${API}/api/customers/me/`, {
-        headers: authHeaders(),
-        credentials: "include",
-      });
-
-      let customerData = {};
-      if (customerResponse.ok) {
-        customerData = await customerResponse.json();
-      }
-
       const statsResponse = await fetch(`${API}/api/customer/dashboard/`, {
         headers: authHeaders(),
         credentials: "include",
@@ -81,12 +65,6 @@ function ProfilePage() {
         last_name: userData.last_name || "",
         email: userData.email || "",
         phone: userData.phone || "",
-        address: customerData.address || "",
-        car_make: customerData.car_make || "",
-        car_model: customerData.car_model || "",
-        car_year: customerData.car_year || "",
-        car_color: customerData.car_color || "",
-        car_plate: customerData.car_plate || "",
       });
     } catch (err) {
       console.error("Error fetching profile:", err);
@@ -118,24 +96,6 @@ function ProfilePage() {
       if (!userResponse.ok) {
         const errorData = await userResponse.json().catch(() => ({}));
         throw new Error(errorData.detail || "Failed to update profile");
-      }
-
-      const customerResponse = await fetch(`${API}/api/customers/me/`, {
-        method: "PUT",
-        headers: authHeaders(),
-        credentials: "include",
-        body: JSON.stringify({
-          address: form.address,
-          car_make: form.car_make,
-          car_model: form.car_model,
-          car_year: form.car_year,
-          car_color: form.car_color,
-          car_plate: form.car_plate,
-        }),
-      });
-
-      if (!customerResponse.ok) {
-        throw new Error("Failed to update vehicle information");
       }
 
       const updatedUser = await userResponse.json();
@@ -192,7 +152,7 @@ function ProfilePage() {
             My <span className="text-red-600">Profile</span>
           </h1>
           <p className="text-gray-400">
-            Manage your personal information and vehicles.
+            Manage your personal information.
           </p>
         </div>
 
@@ -386,7 +346,7 @@ function ProfilePage() {
         </div>
 
         {/* Info Cards — stack on mobile, side-by-side on md+ */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Personal Info */}
           <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
             <div className="bg-gradient-to-r from-red-600/20 to-transparent px-6 py-4 border-b border-white/10">
@@ -434,14 +394,15 @@ function ProfilePage() {
                   icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
                 },
                 {
-                  label: "Address",
-                  name: "address",
-                  icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z",
+                  label: "Role",
+                  name: "role_display",
+                  disabled: true,
+                  icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
                 },
               ].map(
                 ({ label, name, type = "text", disabled = false, icon }) => (
                   <div key={name} className="group">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <svg
                         className="w-3 h-3"
                         fill="none"
@@ -468,7 +429,11 @@ function ProfilePage() {
                     ) : (
                       <div className="bg-black/30 rounded-xl px-4 py-2.5 border border-white/5 group-hover:border-white/10 transition-all">
                         <p className="text-white font-medium text-sm truncate">
-                          {form[name] || (
+                          {(name === "role_display"
+                            ? sessionUser?.role === "customer"
+                              ? "Customer"
+                              : sessionUser?.role || "Member"
+                            : form[name]) || (
                             <span className="text-gray-500">—</span>
                           )}
                         </p>
@@ -477,93 +442,6 @@ function ProfilePage() {
                   </div>
                 ),
               )}
-            </div>
-          </div>
-
-          {/* Vehicle Info */}
-          <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
-            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                <div className="p-1.5 bg-red-600/20 rounded-lg">
-                  <svg
-                    className="w-4 h-4 text-red-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                    />
-                  </svg>
-                </div>
-                Vehicle Information
-              </h3>
-            </div>
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
-              {[
-                {
-                  label: "Make",
-                  name: "car_make",
-                  icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z",
-                },
-                {
-                  label: "Model",
-                  name: "car_model",
-                  icon: "M13 10V3L4 14h7v7l9-11h-7z",
-                },
-                {
-                  label: "Year",
-                  name: "car_year",
-                  icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-                },
-                {
-                  label: "Color",
-                  name: "car_color",
-                  icon: "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
-                },
-                {
-                  label: "Plate Number",
-                  name: "car_plate",
-                  icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-                },
-              ].map(({ label, name, icon }) => (
-                <div key={name} className="group">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <svg
-                      className="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d={icon}
-                      />
-                    </svg>
-                    {label}
-                  </label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      name={name}
-                      value={form[name]}
-                      onChange={handleChange}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/50 transition-all text-sm hover:border-white/20"
-                    />
-                  ) : (
-                    <div className="bg-black/30 rounded-xl px-4 py-2.5 border border-white/5 group-hover:border-white/10 transition-all">
-                      <p className="text-white font-medium text-sm">
-                        {form[name] || <span className="text-gray-500">—</span>}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
             </div>
           </div>
         </div>

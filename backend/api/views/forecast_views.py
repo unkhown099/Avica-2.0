@@ -16,6 +16,58 @@ from api.services.forecasting_service import (
 )
 
 
+def _trend_from_demand(predicted_count, historical_avg):
+    base = float(historical_avg or 0)
+    predicted = float(predicted_count or 0)
+    if base <= 0:
+        return "increasing" if predicted > 0 else "stable"
+
+    ratio = (predicted - base) / base
+    if ratio >= 0.1:
+        return "increasing"
+    if ratio <= -0.1:
+        return "decreasing"
+    return "stable"
+
+
+def _build_category_forecast_rows(service_results):
+    by_category = {}
+
+    for row in service_results:
+        category = (row.get("service_category") or "Uncategorized").strip() or "Uncategorized"
+        bucket = by_category.setdefault(
+            category,
+            {
+                "category": category,
+                "predicted_demand": 0,
+                "predicted_revenue": 0.0,
+                "historical_average_count_total": 0.0,
+                "_service_count": 0,
+            },
+        )
+        bucket["predicted_demand"] += int(row.get("predicted_booking_count") or 0)
+        bucket["predicted_revenue"] += float(row.get("predicted_revenue") or 0.0)
+        bucket["historical_average_count_total"] += float(row.get("historical_average_count") or 0.0)
+        bucket["_service_count"] += 1
+
+    rows = []
+    for category, bucket in by_category.items():
+        historical_avg = bucket["historical_average_count_total"]
+        predicted = bucket["predicted_demand"]
+        rows.append(
+            {
+                "category": category,
+                "predicted_demand": predicted,
+                "predicted_revenue": round(bucket["predicted_revenue"], 2),
+                "historical_average_count": round(historical_avg, 2),
+                "trend": _trend_from_demand(predicted, historical_avg),
+            }
+        )
+
+    rows.sort(key=lambda item: (item["predicted_revenue"], item["predicted_demand"]), reverse=True)
+    return rows
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_latest_system_forecasts(request):
@@ -52,6 +104,7 @@ def get_latest_system_forecasts(request):
 
     inventory_results = []
     service_results = []
+    category_results = []
     duration_results = []
 
     if inventory_run:
@@ -94,6 +147,7 @@ def get_latest_system_forecasts(request):
             service_results.append({
                 "service_id": row.service.id if row.service else None,
                 "service_name": row.service.name if row.service else None,
+                "service_category": row.service.category if row.service and getattr(row.service, "category", None) else "Uncategorized",
                 "branch_id": row.branch.id if row.branch else None,
                 "branch_name": row.branch.name if row.branch else "System",
                 "forecast_period_label": row.forecast_period_label,
@@ -105,6 +159,8 @@ def get_latest_system_forecasts(request):
                 "staffing_suggestion": row.staffing_suggestion,
                 "created_at": row.created_at.isoformat(),
             })
+
+            category_results = _build_category_forecast_rows(service_results)
 
     if duration_run:
         rows = ServiceDurationPrediction.objects.filter(
@@ -146,6 +202,12 @@ def get_latest_system_forecasts(request):
             "notes": service_run.notes if service_run else "No system service forecast found",
             "generated_at": service_run.generated_at.isoformat() if service_run else None,
             "results": service_results,
+        },
+        "category_forecast": {
+            "run_id": service_run.id if service_run else None,
+            "status": service_run.status if service_run else None,
+            "generated_at": service_run.generated_at.isoformat() if service_run else None,
+            "results": category_results,
         },
         "duration_forecast": {
             "run_id": duration_run.id if duration_run else None,
@@ -233,6 +295,7 @@ def get_latest_all_forecasts(request, branch_id):
 
     inventory_results = []
     service_results = []
+    category_results = []
     duration_results = []
 
     if inventory_run:
@@ -271,6 +334,7 @@ def get_latest_all_forecasts(request, branch_id):
             service_results.append({
                 "service_id": row.service.id if row.service else None,
                 "service_name": row.service.name if row.service else None,
+                "service_category": row.service.category if row.service and getattr(row.service, "category", None) else "Uncategorized",
                 "branch_id": row.branch.id if row.branch else branch.id,
                 "branch_name": row.branch.name if row.branch else branch.name,
                 "forecast_period_label": row.forecast_period_label,
@@ -282,6 +346,8 @@ def get_latest_all_forecasts(request, branch_id):
                 "staffing_suggestion": row.staffing_suggestion,
                 "created_at": row.created_at.isoformat(),
             })
+
+            category_results = _build_category_forecast_rows(service_results)
 
     if duration_run:
         rows = ServiceDurationPrediction.objects.filter(
@@ -321,6 +387,12 @@ def get_latest_all_forecasts(request, branch_id):
             "notes": service_run.notes if service_run else f"No service forecast found for {branch.name}",
             "generated_at": service_run.generated_at.isoformat() if service_run else None,
             "results": service_results,
+        },
+        "category_forecast": {
+            "run_id": service_run.id if service_run else None,
+            "status": service_run.status if service_run else None,
+            "generated_at": service_run.generated_at.isoformat() if service_run else None,
+            "results": category_results,
         },
         "duration_forecast": {
             "run_id": duration_run.id if duration_run else None,

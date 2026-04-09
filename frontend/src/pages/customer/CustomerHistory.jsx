@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
+import { useNavigate } from "react-router-dom";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -215,9 +216,50 @@ function ReviewModal({ item, onClose, onSubmitted }) {
   );
 }
 
+function ReceiptModal({ item, onClose }) {
+  const receiptNo = `HST-${String(item?.id || "").padStart(6, "0")}`;
+  const amount = Number(item?.price || 0);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-900 rounded-2xl p-6 border border-white/10 max-w-md w-full">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-black text-white">Service Receipt</h2>
+            <p className="text-gray-500 text-sm mt-0.5">{receiptNo}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between"><span className="text-gray-500">Service</span><span className="text-white font-semibold">{item?.service || "—"}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Date</span><span className="text-white">{formatDate(item?.date)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Branch</span><span className="text-white">{item?.branch || "—"}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Staff</span><span className="text-white">{item?.staff || "—"}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Payment</span><span className="text-white uppercase">{item?.payment_method || "—"}</span></div>
+        </div>
+
+        <div className="border-t border-white/10 mt-4 pt-4 flex items-center justify-between">
+          <span className="text-gray-400 font-semibold">Total Paid</span>
+          <span className="text-2xl font-black text-emerald-400">₱{amount.toLocaleString("en-PH")}</span>
+        </div>
+
+        <button onClick={onClose} className="mt-5 w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all">
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 function HistoryPage() {
+  const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState({
     total_services: 0,
@@ -227,6 +269,7 @@ function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reviewItem, setReviewItem] = useState(null);
+  const [receiptItem, setReceiptItem] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -377,6 +420,7 @@ function HistoryPage() {
             {history.map((item) => (
               <div
                 key={item.id}
+                onClick={() => setReceiptItem(item)}
                 className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/20 transition-all duration-300"
               >
                 {/* On mobile: stack vertically. On lg+: side-by-side like original */}
@@ -465,12 +509,30 @@ function HistoryPage() {
                       ₱{Number(item.price).toLocaleString("en-PH")}
                     </div>
                     <div className="flex gap-2 w-full lg:w-auto">
-                      <button className="flex-1 lg:flex-none px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg shadow-red-600/20">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReceiptItem(item);
+                        }}
+                        className="flex-1 lg:flex-none px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-semibold transition-colors"
+                      >
+                        View Receipt
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/bookings", { state: { openBooking: true } });
+                        }}
+                        className="flex-1 lg:flex-none px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-lg shadow-red-600/20"
+                      >
                         Book Again
                       </button>
                       {!item.rating && (item.booking_id || item.queue_id) && (
                         <button
-                          onClick={() => setReviewItem(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReviewItem(item);
+                          }}
                           className="flex-1 lg:flex-none px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-sm font-semibold transition-colors"
                         >
                           Leave Review
@@ -490,6 +552,12 @@ function HistoryPage() {
           item={reviewItem}
           onClose={() => setReviewItem(null)}
           onSubmitted={handleReviewSubmitted}
+        />
+      )}
+      {receiptItem && (
+        <ReceiptModal
+          item={receiptItem}
+          onClose={() => setReceiptItem(null)}
         />
       )}
     </CustomerLayout>

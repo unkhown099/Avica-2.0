@@ -4,9 +4,24 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from django.db.models import Q
 import re
 from ..models import Customer
+from ..models import CustomerSetting
 from ..models import Booking
 from ..models import QueueEntry
 from ..serializers.customer_serializer import CustomerSerializer
+
+
+DEFAULT_NOTIFICATIONS = {
+    "bookingConfirmation": True,
+    "bookingReminders": True,
+    "promotions": False,
+    "serviceUpdates": True,
+    "newsletter": False,
+}
+
+DEFAULT_PRIVACY = {
+    "shareData": False,
+    "analytics": True,
+}
 
 
 class AdminCustomerListView(APIView):
@@ -69,6 +84,69 @@ class CurrentCustomerProfileView(APIView):
                 {"error": str(e)},
                 status=400
             )
+
+
+class CustomerSettingsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _customer(self, request):
+        try:
+            return Customer.objects.get(user=request.user)
+        except Customer.DoesNotExist:
+            return None
+
+    def get(self, request):
+        customer = self._customer(request)
+        if not customer:
+            return Response({"detail": "Customer profile not found."}, status=404)
+
+        setting, _ = CustomerSetting.objects.get_or_create(customer=customer)
+        notifications = {**DEFAULT_NOTIFICATIONS, **(setting.notifications or {})}
+        privacy = {**DEFAULT_PRIVACY, **(setting.privacy or {})}
+
+        return Response(
+            {
+                "notifications": notifications,
+                "privacy": privacy,
+                "updated_at": setting.updated_at,
+            }
+        )
+
+    def put(self, request):
+        customer = self._customer(request)
+        if not customer:
+            return Response({"detail": "Customer profile not found."}, status=404)
+
+        notifications = request.data.get("notifications", DEFAULT_NOTIFICATIONS)
+        privacy = request.data.get("privacy", DEFAULT_PRIVACY)
+
+        if not isinstance(notifications, dict):
+            return Response({"detail": "notifications must be an object."}, status=400)
+        if not isinstance(privacy, dict):
+            return Response({"detail": "privacy must be an object."}, status=400)
+
+        clean_notifications = {
+            key: bool(notifications.get(key, default_value))
+            for key, default_value in DEFAULT_NOTIFICATIONS.items()
+        }
+        clean_privacy = {
+            key: bool(privacy.get(key, default_value))
+            for key, default_value in DEFAULT_PRIVACY.items()
+        }
+
+        setting, _ = CustomerSetting.objects.get_or_create(customer=customer)
+        setting.notifications = clean_notifications
+        setting.privacy = clean_privacy
+        setting.save(update_fields=["notifications", "privacy", "updated_at"])
+
+        return Response(
+            {
+                "message": "Settings saved successfully.",
+                "notifications": clean_notifications,
+                "privacy": clean_privacy,
+                "updated_at": setting.updated_at,
+            }
+        )
 
 
 class ManagerCustomerHistoryView(APIView):

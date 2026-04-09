@@ -185,6 +185,92 @@ function SkeletonRow() {
   );
 }
 
+function AnalyticsFiltersBar({
+  title = "Dashboard Analytics Filters",
+  subtitle = "Analyze trends by period",
+  period,
+  onPeriodChange,
+  weekFilter,
+  onWeekChange,
+  monthFilter,
+  onMonthChange,
+  quarterFilter,
+  onQuarterChange,
+  yearFilter,
+  onYearChange,
+  years,
+}) {
+  return (
+    <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-4 backdrop-blur-sm mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end sm:justify-between">
+        <div>
+          <h3 className="text-sm sm:text-base font-black text-white">{title}</h3>
+          <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">{subtitle}</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+          <select
+            value={period}
+            onChange={(e) => onPeriodChange(e.target.value)}
+            className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+          >
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+
+          {period === "weekly" && (
+            <select
+              value={weekFilter}
+              onChange={(e) => onWeekChange(e.target.value)}
+              className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+            >
+              {Array.from({ length: 53 }, (_, i) => (
+                <option key={i + 1} value={String(i + 1)}>W{i + 1}</option>
+              ))}
+            </select>
+          )}
+
+          {period === "monthly" && (
+            <select
+              value={monthFilter}
+              onChange={(e) => onMonthChange(e.target.value)}
+              className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+            >
+              {MONTH_LABELS_FULL.map((label, index) => (
+                <option key={label} value={String(index + 1)}>{label}</option>
+              ))}
+            </select>
+          )}
+
+          {period === "quarterly" && (
+            <select
+              value={quarterFilter}
+              onChange={(e) => onQuarterChange(e.target.value)}
+              className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+            >
+              <option value="1">Q1</option>
+              <option value="2">Q2</option>
+              <option value="3">Q3</option>
+              <option value="4">Q4</option>
+            </select>
+          )}
+
+          <select
+            value={yearFilter}
+            onChange={(e) => onYearChange(e.target.value)}
+            className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
+          >
+            {years.map((year) => (
+              <option key={year} value={String(year)}>{year}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── CUSTOMER segment badge ────────────────────────────────────────────────────
 const SEGMENT_STYLE = {
   "High Value": "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
@@ -259,6 +345,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const [inventoryForecast, setInventoryForecast] = useState(DEFAULT_INVENTORY_FORECAST);
   const [inventoryForecastPeriod, setInventoryForecastPeriod] = useState("monthly");
   const [serviceForecastRows, setServiceForecastRows] = useState([]);
+  const [categoryForecastRows, setCategoryForecastRows] = useState([]);
   const [forecastPeriod, setForecastPeriod] = useState("monthly");
   const [forecastWeekFilter, setForecastWeekFilter] = useState(String(weekOfYear(new Date())));
   const [forecastMonthFilter, setForecastMonthFilter] = useState(String(new Date().getMonth() + 1));
@@ -321,10 +408,20 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         setServiceForecastRows(
           (forecastData?.service_forecast?.results ?? []).map((row) => ({
             service_name: row.service_name ?? `Service ${row.service_id ?? ""}`,
+            category: row.service_category ?? "Uncategorized",
             demand: Number(row.predicted_booking_count ?? row.predicted_queue_count ?? 0),
             predicted_revenue: Number(row.predicted_revenue ?? 0),
             period_label: row.forecast_period_label ?? "",
             created_at: row.created_at ?? null,
+          })),
+        );
+        setCategoryForecastRows(
+          (forecastData?.category_forecast?.results ?? []).map((row) => ({
+            category: row.category ?? "Uncategorized",
+            predicted_demand: Number(row.predicted_demand ?? 0),
+            predicted_revenue: Number(row.predicted_revenue ?? 0),
+            historical_average_count: Number(row.historical_average_count ?? 0),
+            trend: row.trend ?? "stable",
           })),
         );
         setAppointments(Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData.results ?? []));
@@ -653,6 +750,20 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     }
   }, [appointmentYears, appointmentYearFilter]);
 
+  useEffect(() => {
+    setForecastPeriod(appointmentPeriod);
+    setForecastWeekFilter(appointmentWeekFilter);
+    setForecastMonthFilter(appointmentMonthFilter);
+    setForecastQuarterFilter(appointmentQuarterFilter);
+    setForecastYearFilter(appointmentYearFilter);
+  }, [appointmentPeriod, appointmentWeekFilter, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter]);
+
+  useEffect(() => {
+    if (inventoryForecastPeriod !== appointmentPeriod) {
+      setInventoryForecastPeriod(appointmentPeriod);
+    }
+  }, [appointmentPeriod, inventoryForecastPeriod]);
+
   const filteredAppointmentEvents = useMemo(() => {
     const selectedYear = Number(appointmentYearFilter);
     return appointmentEvents.filter((row) => {
@@ -871,6 +982,44 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       forecastRevenue,
     };
   }, [demandByService, demandByDay, demandByMonth, filteredServiceEvents.length, serviceForecastRows]);
+
+  const selectedServicePeriodLabel = useMemo(() => {
+    if (forecastPeriod === "weekly") return `Week ${forecastWeekFilter}`;
+    if (forecastPeriod === "monthly") {
+      const monthIndex = Math.max(0, Math.min(11, Number(forecastMonthFilter) - 1));
+      return MONTH_LABELS_FULL[monthIndex] ?? "Month";
+    }
+    if (forecastPeriod === "quarterly") return `Q${forecastQuarterFilter}`;
+    return "Yearly";
+  }, [forecastPeriod, forecastWeekFilter, forecastMonthFilter, forecastQuarterFilter]);
+
+  const categoryForecastSummary = useMemo(() => {
+    const totalPredictedDemand = categoryForecastRows.reduce(
+      (sum, row) => sum + Number(row.predicted_demand ?? 0),
+      0,
+    );
+    const totalPredictedRevenue = categoryForecastRows.reduce(
+      (sum, row) => sum + Number(row.predicted_revenue ?? 0),
+      0,
+    );
+    const topCategory = [...categoryForecastRows].sort(
+      (a, b) => Number(b.predicted_revenue ?? 0) - Number(a.predicted_revenue ?? 0),
+    )[0];
+    return {
+      totalPredictedDemand,
+      totalPredictedRevenue,
+      topCategory: topCategory?.category ?? "No data",
+      topCategoryRevenue: Number(topCategory?.predicted_revenue ?? 0),
+    };
+  }, [categoryForecastRows]);
+
+  const retention = analytics?.retention ?? {};
+  const churnRisk = retention?.churn_risk ?? {};
+  const reactivationCohorts = retention?.reactivation_cohorts ?? {};
+  const highValueAtRiskRows = Array.isArray(retention?.high_value_at_risk) ? retention.high_value_at_risk : [];
+  const recommendedRetentionActions = Array.isArray(retention?.recommended_actions) ? retention.recommended_actions : [];
+  const campaignOutcomes = retention?.campaign_outcomes ?? {};
+  const campaignRows = Array.isArray(campaignOutcomes?.campaigns) ? campaignOutcomes.campaigns : [];
 
   // ── Stat cards config ────────────────────────────────────────────────────
   const statCards = [
@@ -1102,6 +1251,51 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     },
   };
 
+  const churnRiskDoughnutData = {
+    labels: ["Healthy", "Watch", "At Risk", "Churned"],
+    datasets: [
+      {
+        data: [
+          Number(churnRisk.healthy ?? 0),
+          Number(churnRisk.watch ?? 0),
+          Number(churnRisk.at_risk ?? 0),
+          Number(churnRisk.churned ?? 0),
+        ],
+        backgroundColor: ["#10b981", "#f59e0b", "#f97316", "#ef4444"],
+        borderColor: "#111827",
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const reactivationCohortBarData = {
+    labels: ["60-89d", "90-179d", "180+d"],
+    datasets: [
+      {
+        label: "Reactivated Customers",
+        data: [
+          Number(reactivationCohorts?.by_gap?.["60_89_days"] ?? 0),
+          Number(reactivationCohorts?.by_gap?.["90_179_days"] ?? 0),
+          Number(reactivationCohorts?.by_gap?.["180_plus_days"] ?? 0),
+        ],
+        backgroundColor: ["rgba(6,182,212,0.8)", "rgba(59,130,246,0.8)", "rgba(139,92,246,0.8)"],
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const categoryForecastMixData = {
+    labels: categoryForecastRows.map((row) => row.category),
+    datasets: [
+      {
+        data: categoryForecastRows.map((row) => Number(row.predicted_revenue ?? 0)),
+        backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16"],
+        borderColor: "#111827",
+        borderWidth: 2,
+      },
+    ],
+  };
+
   const demandTimeSeriesData = {
     labels: timeSeriesRows.map((row) => row.label),
     datasets: [
@@ -1330,6 +1524,19 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         ["Name", "Visits", "Total Spent", "Avg Rating", "Segment"],
         "customers.csv",
       );
+      if (highValueAtRiskRows.length > 0) {
+        exportToCSV(
+          highValueAtRiskRows.map((row) => [
+            row.user_id,
+            row.risk_level,
+            row.days_since_last_visit,
+            row.visits,
+            row.lifetime_revenue,
+          ]),
+          ["User ID", "Risk Level", "Days Since Last Visit", "Visits", "Lifetime Revenue"],
+          "customers_high_value_at_risk.csv",
+        );
+      }
     } else if (activeView === "inventory") {
       exportToCSV(
         filteredInventoryItems.map((i) => [
@@ -1349,6 +1556,19 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         ["Service", "Count", "Revenue", "Avg Time"],
         "services.csv",
       );
+      if (categoryForecastRows.length > 0) {
+        exportToCSV(
+          categoryForecastRows.map((row) => [
+            row.category,
+            row.trend,
+            row.predicted_demand,
+            row.historical_average_count,
+            row.predicted_revenue,
+          ]),
+          ["Category", "Trend", "Predicted Demand", "Historical Avg", "Predicted Revenue"],
+          "services_category_forecast.csv",
+        );
+      }
     } else if (activeView === "employees") {
       exportToCSV(
         employeeWorkloadRows.map((row) => [row.employee, row.branch, row.total, row.completed, row.skipped, row.share.toFixed(1)]),
@@ -1540,6 +1760,21 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         </button>
       </div>
     </div>
+    <AnalyticsFiltersBar
+      title="Overview Analytics Filters"
+      subtitle="Analyze overview metrics by period"
+      period={appointmentPeriod}
+      onPeriodChange={setAppointmentPeriod}
+      weekFilter={appointmentWeekFilter}
+      onWeekChange={setAppointmentWeekFilter}
+      monthFilter={appointmentMonthFilter}
+      onMonthChange={setAppointmentMonthFilter}
+      quarterFilter={appointmentQuarterFilter}
+      onQuarterChange={setAppointmentQuarterFilter}
+      yearFilter={appointmentYearFilter}
+      onYearChange={setAppointmentYearFilter}
+      years={appointmentYears}
+    />
             {(() => {
               const overviewKpiCards = [
                 ...statCards,
@@ -1728,7 +1963,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                     <div className="col-span-3">Service</div>
                     <div className="col-span-2">Amount</div>
                     <div className="col-span-2">Status</div>
-                    <div className="col-span-1 text-right">Actions</div>
+              
                   </div>
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
@@ -1768,13 +2003,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                               {STATUS_LABEL[statusKey] ?? row.status}
                             </span>
                           </div>
-                          <div className="col-span-1 flex justify-end">
-                            <button className="opacity-100 p-1 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                              </svg>
-                            </button>
-                          </div>
+               
                         </div>
                       );
                     })
@@ -1839,6 +2068,21 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
   </div>
 </div>
+          <AnalyticsFiltersBar
+            title="Revenue Analytics Filters"
+            subtitle="Analyze revenue trends by period"
+            period={appointmentPeriod}
+            onPeriodChange={setAppointmentPeriod}
+            weekFilter={appointmentWeekFilter}
+            onWeekChange={setAppointmentWeekFilter}
+            monthFilter={appointmentMonthFilter}
+            onMonthChange={setAppointmentMonthFilter}
+            quarterFilter={appointmentQuarterFilter}
+            onQuarterChange={setAppointmentQuarterFilter}
+            yearFilter={appointmentYearFilter}
+            onYearChange={setAppointmentYearFilter}
+            years={appointmentYears}
+          />
             {(() => {
               const revenueKpiCards = [
                 {
@@ -2016,69 +2260,21 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   </div>
 </div>
 
-          <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-4 backdrop-blur-sm mb-4 sm:mb-6">
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end sm:justify-between">
-              <div>
-                <h3 className="text-sm sm:text-base font-black text-white">Appointment Analytics Filters</h3>
-                <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">Analyze appointment trends by period</p>
-              </div>
-                <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
-                  <select
-                    value={appointmentPeriod}
-                    onChange={(e) => setAppointmentPeriod(e.target.value)}
-                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                  >
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-                {appointmentPeriod === "weekly" && (
-                  <select
-                    value={appointmentWeekFilter}
-                    onChange={(e) => setAppointmentWeekFilter(e.target.value)}
-                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                  >
-                    {Array.from({ length: 53 }, (_, i) => (
-                      <option key={i + 1} value={String(i + 1)}>W{i + 1}</option>
-                    ))}
-                  </select>
-                )}
-                {appointmentPeriod === "monthly" && (
-                  <select
-                    value={appointmentMonthFilter}
-                    onChange={(e) => setAppointmentMonthFilter(e.target.value)}
-                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                  >
-                    {MONTH_LABELS_FULL.map((label, index) => (
-                      <option key={label} value={String(index + 1)}>{label}</option>
-                    ))}
-                  </select>
-                )}
-                {appointmentPeriod === "quarterly" && (
-                  <select
-                    value={appointmentQuarterFilter}
-                    onChange={(e) => setAppointmentQuarterFilter(e.target.value)}
-                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                  >
-                    <option value="1">Q1</option>
-                    <option value="2">Q2</option>
-                    <option value="3">Q3</option>
-                    <option value="4">Q4</option>
-                  </select>
-                )}
-                <select
-                  value={appointmentYearFilter}
-                  onChange={(e) => setAppointmentYearFilter(e.target.value)}
-                  className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                >
-                  {appointmentYears.map((year) => (
-                    <option key={year} value={String(year)}>{year}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
+          <AnalyticsFiltersBar
+            title="Appointment Analytics Filters"
+            subtitle="Analyze appointment trends by period"
+            period={appointmentPeriod}
+            onPeriodChange={setAppointmentPeriod}
+            weekFilter={appointmentWeekFilter}
+            onWeekChange={setAppointmentWeekFilter}
+            monthFilter={appointmentMonthFilter}
+            onMonthChange={setAppointmentMonthFilter}
+            quarterFilter={appointmentQuarterFilter}
+            onQuarterChange={setAppointmentQuarterFilter}
+            yearFilter={appointmentYearFilter}
+            onYearChange={setAppointmentYearFilter}
+            years={appointmentYears}
+          />
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-8">
             {[
@@ -2318,6 +2514,21 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
   </div>
 </div>
+            <AnalyticsFiltersBar
+              title="Customer Analytics Filters"
+              subtitle="Analyze customer trends by period"
+              period={appointmentPeriod}
+              onPeriodChange={setAppointmentPeriod}
+              weekFilter={appointmentWeekFilter}
+              onWeekChange={setAppointmentWeekFilter}
+              monthFilter={appointmentMonthFilter}
+              onMonthChange={setAppointmentMonthFilter}
+              quarterFilter={appointmentQuarterFilter}
+              onQuarterChange={setAppointmentQuarterFilter}
+              yearFilter={appointmentYearFilter}
+              onYearChange={setAppointmentYearFilter}
+              years={appointmentYears}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
                 {
@@ -2360,6 +2571,168 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               ].map((c, i) => (
                 <StatCard key={i} {...c} />
               ))}
+            </div>
+
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <StatCard
+                title="At Risk"
+                value={Number(churnRisk.at_risk ?? 0).toLocaleString()}
+                sub="Needs retention follow-up"
+                accentBg="bg-amber-500/10"
+                accentText="text-amber-400"
+                border="border-amber-500/20"
+              />
+              <StatCard
+                title="Churned"
+                value={Number(churnRisk.churned ?? 0).toLocaleString()}
+                sub="No recent paid activity"
+                accentBg="bg-red-500/10"
+                accentText="text-red-400"
+                border="border-red-500/20"
+              />
+              <StatCard
+                title="Reactivated (30d)"
+                value={Number(reactivationCohorts.reactivated_customers_30d ?? 0).toLocaleString()}
+                sub="Returned after long inactivity"
+                accentBg="bg-emerald-500/10"
+                accentText="text-emerald-400"
+                border="border-emerald-500/20"
+              />
+              <StatCard
+                title="Campaign Conversion"
+                value={`${Number(campaignOutcomes.overall_conversion_rate ?? 0).toFixed(1)}%`}
+                sub={`${Number(campaignOutcomes.converted_users ?? 0)} converted / ${Number(campaignOutcomes.sent_users ?? 0)} targeted`}
+                accentBg="bg-cyan-500/10"
+                accentText="text-cyan-400"
+                border="border-cyan-500/20"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-4 sm:mb-6">
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Churn Risk Distribution</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Customer risk tiers based on recency of paid visits</p>
+                <div className="h-40 sm:h-72">
+                  <Doughnut data={churnRiskDoughnutData} options={doughnutChartOptions} />
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Reactivation Cohorts</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Returned customers grouped by inactivity gap</p>
+                <div className="h-40 sm:h-72">
+                  <Bar data={reactivationCohortBarData} options={demandBarBaseOptions} />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-4 sm:mb-6">
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Retention Actions</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">System-recommended interventions by priority</p>
+                <div className="space-y-2 sm:space-y-3">
+                  {recommendedRetentionActions.length === 0 ? (
+                    <div className="text-xs sm:text-sm text-gray-500">No recommended actions available.</div>
+                  ) : (
+                    recommendedRetentionActions.map((action, idx) => {
+                      const priority = String(action.priority ?? "medium").toLowerCase();
+                      const priorityClass =
+                        priority === "critical"
+                          ? "bg-red-500/20 text-red-300 border-red-500/30"
+                          : priority === "high"
+                            ? "bg-orange-500/20 text-orange-300 border-orange-500/30"
+                            : "bg-blue-500/20 text-blue-300 border-blue-500/30";
+                      return (
+                        <div key={`${action.action}-${idx}`} className="rounded-lg border border-white/10 bg-gray-900/50 px-3 py-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs sm:text-sm text-white font-semibold">{action.action}</p>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${priorityClass}`}>
+                              {priority}
+                            </span>
+                          </div>
+                          <p className="text-[10px] sm:text-xs text-gray-400 mt-1">
+                            Segment: {action.target_segment ?? "—"} • Target: {Number(action.target_customers ?? 0).toLocaleString()}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm">
+                <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Campaign Outcomes</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Conversion and revenue by campaign type</p>
+                <div className="space-y-2 sm:space-y-3">
+                  {campaignRows.length === 0 ? (
+                    <div className="text-xs sm:text-sm text-gray-500">No campaign outcome data in the selected scope.</div>
+                  ) : (
+                    campaignRows.map((row, idx) => (
+                      <div key={`${row.campaign_type}-${idx}`} className="rounded-lg border border-white/10 bg-gray-900/50 px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-xs sm:text-sm text-white font-semibold capitalize">{String(row.campaign_type ?? "campaign").replace(/_/g, " ")}</div>
+                          <div className="text-xs sm:text-sm text-cyan-300 font-bold">{Number(row.conversion_rate ?? 0).toFixed(1)}%</div>
+                        </div>
+                        <div className="mt-1 text-[10px] sm:text-xs text-gray-400">
+                          Sent: {Number(row.sent_users ?? 0).toLocaleString()} • Converted: {Number(row.converted_users ?? 0).toLocaleString()} • Revenue: ₱{Number(row.revenue_after_campaign ?? 0).toLocaleString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden backdrop-blur-sm mb-4 sm:mb-6">
+              <div className="px-3 sm:px-6 py-2 sm:py-4 border-b border-white/5">
+                <h3 className="text-sm sm:text-lg font-black text-white">High-Value Customers At Risk</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Priority retention list by lifetime revenue and inactivity</p>
+              </div>
+              <div className="hidden sm:block overflow-x-auto">
+                <div className="min-w-[768px]">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/5">
+                    <div className="col-span-2">User ID</div>
+                    <div className="col-span-2">Risk</div>
+                    <div className="col-span-3">Days Since Last Visit</div>
+                    <div className="col-span-2">Visits</div>
+                    <div className="col-span-3">Lifetime Revenue</div>
+                  </div>
+                  {highValueAtRiskRows.length === 0 ? (
+                    <div className="px-6 py-10 text-center text-gray-500 text-sm">No high-value at-risk customers in this scope.</div>
+                  ) : (
+                    highValueAtRiskRows.map((row, idx) => (
+                      <div key={`${row.user_id}-${idx}`} className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 items-center">
+                        <div className="col-span-2 text-gray-300 text-sm">{row.user_id}</div>
+                        <div className="col-span-2 text-xs font-semibold text-amber-300 uppercase">{row.risk_level ?? "—"}</div>
+                        <div className="col-span-3 text-gray-300 text-sm">{Number(row.days_since_last_visit ?? 0).toLocaleString()} days</div>
+                        <div className="col-span-2 text-gray-300 text-sm">{Number(row.visits ?? 0).toLocaleString()}</div>
+                        <div className="col-span-3 text-white font-semibold text-sm">₱{Number(row.lifetime_revenue ?? 0).toLocaleString()}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="block sm:hidden">
+                {highValueAtRiskRows.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-gray-500 text-xs">No high-value at-risk customers in this scope.</div>
+                ) : (
+                  highValueAtRiskRows.map((row, idx) => (
+                    <div key={`${row.user_id}-${idx}`} className="p-3 border-b border-white/5">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="text-white font-semibold text-xs">User {row.user_id}</div>
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-500/20 text-amber-300 border-amber-500/30 uppercase">
+                          {row.risk_level ?? "—"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                        <div className="text-gray-400">Days Inactive: <span className="text-gray-200">{Number(row.days_since_last_visit ?? 0)}</span></div>
+                        <div className="text-gray-400">Visits: <span className="text-gray-200">{Number(row.visits ?? 0)}</span></div>
+                        <div className="text-gray-400 col-span-2">Revenue: <span className="text-white font-semibold">₱{Number(row.lifetime_revenue ?? 0).toLocaleString()}</span></div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 mb-4 sm:mb-6">
@@ -2516,6 +2889,21 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
   </div>
 </div>
+            <AnalyticsFiltersBar
+              title="Inventory Analytics Filters"
+              subtitle="Analyze inventory trends by period"
+              period={appointmentPeriod}
+              onPeriodChange={setAppointmentPeriod}
+              weekFilter={appointmentWeekFilter}
+              onWeekChange={setAppointmentWeekFilter}
+              monthFilter={appointmentMonthFilter}
+              onMonthChange={setAppointmentMonthFilter}
+              quarterFilter={appointmentQuarterFilter}
+              onQuarterChange={setAppointmentQuarterFilter}
+              yearFilter={appointmentYearFilter}
+              onYearChange={setAppointmentYearFilter}
+              years={appointmentYears}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
                 {
@@ -2777,6 +3165,21 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
   </div>
 </div>
+            <AnalyticsFiltersBar
+              title="Service Analytics Filters"
+              subtitle="Analyze service trends by period"
+              period={appointmentPeriod}
+              onPeriodChange={setAppointmentPeriod}
+              weekFilter={appointmentWeekFilter}
+              onWeekChange={setAppointmentWeekFilter}
+              monthFilter={appointmentMonthFilter}
+              onMonthChange={setAppointmentMonthFilter}
+              quarterFilter={appointmentQuarterFilter}
+              onQuarterChange={setAppointmentQuarterFilter}
+              yearFilter={appointmentYearFilter}
+              onYearChange={setAppointmentYearFilter}
+              years={appointmentYears}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
                 {
@@ -2836,73 +3239,93 @@ export default function AdminDashboard({ dataScope = "admin" }) {
             </div>
 
             <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm mb-4 sm:mb-6">
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-end sm:justify-between">
-                <div>
-                  <h3 className="text-sm sm:text-lg font-black text-white">Service Demand Forecasting</h3>
-                  <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Time-series demand with weekly, monthly, quarterly, and yearly filters</p>
-                </div>
-                <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
-                  <select
-                    value={forecastPeriod}
-                    onChange={(e) => setForecastPeriod(e.target.value)}
-                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                  >
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="yearly">Yearly</option>
-                  </select>
-                  {forecastPeriod === "weekly" && (
-                    <select
-                      value={forecastWeekFilter}
-                      onChange={(e) => setForecastWeekFilter(e.target.value)}
-                      className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                    >
-                      {Array.from({ length: 53 }, (_, i) => (
-                        <option key={i + 1} value={String(i + 1)}>W{i + 1}</option>
-                      ))}
-                    </select>
-                  )}
-                  {forecastPeriod === "monthly" && (
-                    <select
-                      value={forecastMonthFilter}
-                      onChange={(e) => setForecastMonthFilter(e.target.value)}
-                      className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                    >
-                      {MONTH_LABELS_FULL.map((label, index) => (
-                        <option key={label} value={String(index + 1)}>{label}</option>
-                      ))}
-                    </select>
-                  )}
-                  {forecastPeriod === "quarterly" && (
-                    <select
-                      value={forecastQuarterFilter}
-                      onChange={(e) => setForecastQuarterFilter(e.target.value)}
-                      className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                    >
-                      <option value="1">Q1</option>
-                      <option value="2">Q2</option>
-                      <option value="3">Q3</option>
-                      <option value="4">Q4</option>
-                    </select>
-                  )}
-                  <select
-                    value={forecastYearFilter}
-                    onChange={(e) => setForecastYearFilter(e.target.value)}
-                    className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2 py-1.5 text-xs sm:text-sm"
-                  >
-                    {forecastYears.map((year) => (
-                      <option key={year} value={String(year)}>{year}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <h3 className="text-sm sm:text-lg font-black text-white">Service Demand Forecasting</h3>
+                <p className="text-gray-500 text-[10px] sm:text-sm mt-0.5">Filtered by the service analytics controls above</p>
               </div>
 
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-4 mt-4">
-                <StatCard title="Filtered Demand" value={forecastSummary.totalDemand} accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20" />
-                <StatCard title="Top Demand Service" value={forecastSummary.topService} accentBg="bg-blue-500/10" accentText="text-blue-400" border="border-blue-500/20" />
-                <StatCard title="Peak Day" value={forecastSummary.peakDay} accentBg="bg-orange-500/10" accentText="text-orange-400" border="border-orange-500/20" />
-                <StatCard title="Forecast Revenue" value={`₱${forecastSummary.forecastRevenue.toLocaleString()}`} accentBg="bg-emerald-500/10" accentText="text-emerald-400" border="border-emerald-500/20" />
+                <StatCard title="Selected Period" value={selectedServicePeriodLabel} sub={`Year ${forecastYearFilter}`} accentBg="bg-indigo-500/10" accentText="text-indigo-400" border="border-indigo-500/20" />
+                <StatCard title="Demand Records" value={forecastSummary.totalDemand} sub="Records in selected slice" accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20" />
+                <StatCard title="Forecast Revenue" value={`₱${forecastSummary.forecastRevenue.toLocaleString()}`} sub="Service-level prediction total" accentBg="bg-emerald-500/10" accentText="text-emerald-400" border="border-emerald-500/20" />
+                <StatCard title="Category Rows" value={categoryForecastRows.length.toLocaleString()} sub="Active forecast categories" accentBg="bg-sky-500/10" accentText="text-sky-400" border="border-sky-500/20" />
+              </div>
+            </div>
+
+            <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 backdrop-blur-sm mb-4 sm:mb-6">
+              <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Category Forecast</h3>
+              <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Predicted demand and revenue grouped by service category</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <StatCard
+                  title="Total Category Demand"
+                  value={categoryForecastSummary.totalPredictedDemand.toLocaleString()}
+                  accentBg="bg-sky-500/10"
+                  accentText="text-sky-400"
+                  border="border-sky-500/20"
+                />
+                <StatCard
+                  title="Predicted Category Revenue"
+                  value={`₱${categoryForecastSummary.totalPredictedRevenue.toLocaleString()}`}
+                  accentBg="bg-emerald-500/10"
+                  accentText="text-emerald-400"
+                  border="border-emerald-500/20"
+                />
+                <StatCard
+                  title="Top Category"
+                  value={categoryForecastSummary.topCategory}
+                  sub={`₱${categoryForecastSummary.topCategoryRevenue.toLocaleString()}`}
+                  accentBg="bg-indigo-500/10"
+                  accentText="text-indigo-400"
+                  border="border-indigo-500/20"
+                />
+              </div>
+
+              <div className="bg-gray-950/40 border border-white/10 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+                <h4 className="text-xs sm:text-sm font-black text-white mb-1">Category Revenue Mix</h4>
+                <p className="text-[10px] sm:text-xs text-gray-500 mb-3">Share of predicted revenue by service category</p>
+                <div className="h-40 sm:h-64">
+                  {categoryForecastRows.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-gray-500 text-xs sm:text-sm">No category forecast data available.</div>
+                  ) : (
+                    <Doughnut data={categoryForecastMixData} options={doughnutChartOptions} />
+                  )}
+                </div>
+              </div>
+
+              <div className="hidden sm:block overflow-x-auto rounded-xl border border-white/10">
+                <div className="min-w-[768px]">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-white/10">
+                    <div className="col-span-4">Category</div>
+                    <div className="col-span-2">Trend</div>
+                    <div className="col-span-2">Predicted Demand</div>
+                    <div className="col-span-2">Historical Avg</div>
+                    <div className="col-span-2">Predicted Revenue</div>
+                  </div>
+                  {categoryForecastRows.length === 0 ? (
+                    <div className="px-6 py-10 text-center text-gray-500 text-sm">No category forecast data available.</div>
+                  ) : (
+                    categoryForecastRows.map((row, idx) => {
+                      const trend = String(row.trend ?? "stable").toLowerCase();
+                      const trendClass =
+                        trend === "increasing"
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                          : trend === "decreasing"
+                            ? "bg-red-500/20 text-red-300 border-red-500/30"
+                            : "bg-gray-500/20 text-gray-300 border-gray-500/30";
+                      return (
+                        <div key={`${row.category}-${idx}`} className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 items-center">
+                          <div className="col-span-4 text-white font-semibold text-sm">{row.category}</div>
+                          <div className="col-span-2">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border capitalize ${trendClass}`}>{trend}</span>
+                          </div>
+                          <div className="col-span-2 text-gray-200 text-sm">{Number(row.predicted_demand ?? 0).toLocaleString()}</div>
+                          <div className="col-span-2 text-gray-400 text-sm">{Number(row.historical_average_count ?? 0).toLocaleString()}</div>
+                          <div className="col-span-2 text-white font-semibold text-sm">₱{Number(row.predicted_revenue ?? 0).toLocaleString()}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
 
@@ -3071,6 +3494,22 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
   </div>
 </div>
+
+          <AnalyticsFiltersBar
+            title="Employee Analytics Filters"
+            subtitle="Analyze workload trends by period"
+            period={appointmentPeriod}
+            onPeriodChange={setAppointmentPeriod}
+            weekFilter={appointmentWeekFilter}
+            onWeekChange={setAppointmentWeekFilter}
+            monthFilter={appointmentMonthFilter}
+            onMonthChange={setAppointmentMonthFilter}
+            quarterFilter={appointmentQuarterFilter}
+            onQuarterChange={setAppointmentQuarterFilter}
+            yearFilter={appointmentYearFilter}
+            onYearChange={setAppointmentYearFilter}
+            years={appointmentYears}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-8">
             {[

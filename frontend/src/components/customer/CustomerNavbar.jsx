@@ -235,7 +235,6 @@ function Navbar({ user: userProp, setUser }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [selectedNotification, setSelectedNotification] = useState(null);
   const [notificationTab, setNotificationTab] = useState("all");
 
   useEffect(() => {
@@ -306,11 +305,33 @@ function Navbar({ user: userProp, setUser }) {
     }
   };
 
+  const resolveNotificationPath = (notif) => {
+    const targetPath = String(notif?.target_path || "").trim();
+    if (targetPath) {
+      return targetPath.startsWith("/") ? targetPath : `/${targetPath}`;
+    }
+
+    const type = String(notif?.notification_type || "").toLowerCase();
+    const message = String(notif?.message || "").toLowerCase();
+
+    if (type === "appointment" || message.includes("booking") || message.includes("appointment")) {
+      return "/bookings";
+    }
+    if (message.includes("history") || message.includes("completed")) {
+      return "/history";
+    }
+    if (message.includes("profile") || message.includes("account")) {
+      return "/profile";
+    }
+    return "/dashboard";
+  };
+
   const handleNotificationClick = async (notif) => {
     if (!notif.read) {
       await markRead(notif.id);
     }
-    setSelectedNotification(notif);
+    setIsNotifOpen(false);
+    navigate(resolveNotificationPath(notif));
   };
 
   const handleLogout = async () => {
@@ -712,37 +733,6 @@ function Navbar({ user: userProp, setUser }) {
         </div>
       )}
 
-      {selectedNotification &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={() => setSelectedNotification(null)}
-          >
-            <div
-              className="w-full max-w-sm rounded-2xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-950 p-5 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <h4 className="text-white font-bold text-base leading-tight">
-                  {selectedNotification.title}
-                </h4>
-                <button
-                  onClick={() => setSelectedNotification(null)}
-                  className="text-gray-400 hover:text-white text-sm font-semibold"
-                >
-                  Close
-                </button>
-              </div>
-              <p className="text-sm text-gray-300 mt-3 leading-relaxed">
-                {selectedNotification.message}
-              </p>
-              <p className="text-[11px] text-gray-500 mt-3 uppercase tracking-wider">
-                {selectedNotification.time}
-              </p>
-            </div>
-          </div>,
-          document.body,
-        )}
     </nav>
   );
 }

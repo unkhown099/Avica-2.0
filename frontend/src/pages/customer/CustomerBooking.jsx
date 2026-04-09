@@ -107,6 +107,22 @@ function toDisplayTime(t) {
   return `${h}:${m} ${period}`;
 }
 
+function normalizeReschedulePendingStatus(booking) {
+  if (!booking || typeof booking !== "object") return booking;
+  const status = String(booking.status || "").toLowerCase();
+  const terminal = status === "cancelled" || status === "done" || status === "no_show";
+  const hasCustomerRescheduleRequest = Boolean(
+    String(booking.reschedule_request_reason || "").trim(),
+  );
+  const awaitingStaffApproval =
+    booking.reschedule_status == null || String(booking.reschedule_status).toLowerCase() === "none";
+
+  if (!terminal && hasCustomerRescheduleRequest && awaitingStaffApproval && status !== "pending") {
+    return { ...booking, status: "pending" };
+  }
+  return booking;
+}
+
 const PROFANITY_LIST = [
   "fuck",
   "shit",
@@ -2905,6 +2921,16 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredTime, setPreferredTime] = useState("");
+  const [availableSlots, setAvailableSlots] = useState(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  const branchId =
+    booking?.branch_detail?.id ||
+    booking?.branch_id ||
+    booking?.branch?.id ||
+    null;
 
   const rawSvc = booking.service;
   const serviceName =
@@ -2925,14 +2951,79 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
     return "";
   };
 
+  useEffect(() => {
+    if (!preferredDate || !branchId) {
+      setAvailableSlots(null);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      branch_id: String(branchId),
+      date: preferredDate,
+    });
+
+    setCheckingAvailability(true);
+    fetch(`${API_BASE}/api/bookings/available-slots/?${params.toString()}`, {
+      headers: authHeaders(),
+    })
+      .then((r) => r.json().catch(() => ({})).then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (ok && d && typeof d.available_slots === "object") {
+          setAvailableSlots(d.available_slots);
+          if (preferredTime && d.available_slots?.[preferredTime] !== true) {
+            setPreferredTime("");
+          }
+        } else {
+          setAvailableSlots({});
+        }
+      })
+      .catch(() => setAvailableSlots({}))
+      .finally(() => setCheckingAvailability(false));
+  }, [preferredDate, branchId, preferredTime]);
+
+  const visibleTimeSlots = useMemo(() => {
+    if (!availableSlots || typeof availableSlots !== "object") return TIME_SLOTS;
+    const dynamic = Object.keys(availableSlots);
+    if (!dynamic.length) return TIME_SLOTS;
+    return dynamic;
+  }, [availableSlots]);
+
+  const isSlotAvailable = useCallback(
+    (slot) => {
+      if (!availableSlots || typeof availableSlots !== "object") return false;
+      return availableSlots[slot] === true;
+    },
+    [availableSlots],
+  );
+
   const handleSubmit = async () => {
     const err = validate(reason);
     if (err) {
       setError(err);
       return;
     }
+
+    if ((preferredDate && !preferredTime) || (!preferredDate && preferredTime)) {
+      setError("Please select both preferred date and preferred time.");
+      return;
+    }
+
+    if (preferredDate && preferredDate < todayISO()) {
+      setError("Past dates are not allowed. Please choose today or a later date.");
+      return;
+    }
+
+    if (preferredDate && preferredTime && !isSlotAvailable(preferredTime)) {
+      setError("Your selected preferred time is not available.");
+      return;
+    }
+
     setLoading(true);
-    await onSubmit(reason.trim());
+    await onSubmit({
+      reason: reason.trim(),
+      preferredDate: preferredDate || null,
+      preferredTime: preferredTime || null,
+    });
     setLoading(false);
   };
 
@@ -3009,6 +3100,50 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
 
         {/* Reason textarea */}
         <div>
+          <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+            Preferred New Schedule (Optional)
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+            <input
+              type="date"
+              min={todayISO()}
+              value={preferredDate}
+              onChange={(e) => {
+                setPreferredDate(e.target.value);
+                setError("");
+              }}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs sm:text-sm focus:outline-none focus:border-indigo-500"
+            />
+            <select
+              value={preferredTime}
+              onChange={(e) => {
+                setPreferredTime(e.target.value);
+                setError("");
+              }}
+              disabled={!preferredDate || checkingAvailability}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs sm:text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+            >
+              <option value="">Select time slot</option>
+              {visibleTimeSlots.map((slot) => (
+                <option
+                  key={slot}
+                  value={slot}
+                  disabled={preferredDate ? !isSlotAvailable(slot) : true}
+                >
+                  {slot}{preferredDate && !isSlotAvailable(slot) ? " (Full)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {preferredDate && (
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-3">
+              {checkingAvailability
+                ? "Checking available slots..."
+                : "Preferred date/time will be shared with staff for faster rescheduling."}
+            </p>
+          )}
+
           <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
             Reason for Reschedule <span className="text-red-500">*</span>
           </label>
@@ -3097,6 +3232,90 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
   );
 }
 
+function ReceiptModal({ booking, onClose }) {
+  const products = Array.isArray(booking?.used_products)
+    ? booking.used_products
+    : [];
+  const total = Number(booking?.receipt_total ?? booking?.price ?? 0);
+  const receiptNo = booking?.receipt_number || `B-${String(booking?.id || "").padStart(6, "0")}`;
+  const branchName =
+    typeof booking?.branch === "object"
+      ? booking?.branch?.name
+      : booking?.branch || booking?.branch_detail?.name || "—";
+
+  return (
+    <CenterModal onClose={onClose}>
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
+        <div className="min-w-0 mr-3">
+          <h2 className="text-base sm:text-xl font-black text-white">
+            Service <span className="text-red-500">Receipt</span>
+          </h2>
+          <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5 truncate">
+            {receiptNo}
+          </p>
+        </div>
+        <CloseBtn onClick={onClose} />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+        <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
+          <div className="space-y-1.5 text-xs sm:text-sm">
+            {[
+              ["Service", booking?.service_name || booking?.service || "—"],
+              ["Date", booking?.date || "—"],
+              ["Time", toDisplayTime(booking?.time) || "—"],
+              ["Branch", branchName],
+              ["Staff", booking?.staff || "TBA"],
+              ["Payment", booking?.payment_method ? String(booking.payment_method).toUpperCase() : "—"],
+            ].map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-4">
+                <span className="text-gray-500">{label}</span>
+                <span className="text-white font-semibold text-right">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-emerald-600/10 border border-emerald-600/20 rounded-xl p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs font-bold text-emerald-300 uppercase tracking-widest mb-2">
+            Products Used
+          </p>
+          {products.length === 0 ? (
+            <p className="text-gray-400 text-xs sm:text-sm">
+              No additional products were recorded for this service.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {products.map((item, idx) => (
+                <div key={`${item.name}-${idx}`} className="flex items-center justify-between text-xs sm:text-sm">
+                  <span className="text-white">{item.name}</span>
+                  <span className="text-emerald-300 font-semibold">x{item.quantity}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-white/10 pt-4 flex items-center justify-between">
+          <span className="text-gray-400 font-semibold">Total Paid</span>
+          <span className="text-xl sm:text-2xl font-black text-emerald-400">
+            ₱{Number.isFinite(total) ? total.toLocaleString("en-PH") : "0"}
+          </span>
+        </div>
+      </div>
+
+      <div className="px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
+        <button
+          onClick={onClose}
+          className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </CenterModal>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 function BookingsPage() {
@@ -3117,8 +3336,13 @@ function BookingsPage() {
   const [rescheduleBooking, setRescheduleBooking] = useState(null);
   const [customerRescheduleBooking, setCustomerRescheduleBooking] =
     useState(null);
+  const [receiptBooking, setReceiptBooking] = useState(null);
   const [toast, setToast] = useState(null);
   const [chatQueueId, setChatQueueId] = useState(null);
+
+  const openChatbotFromBooking = () => {
+    window.dispatchEvent(new Event("open-chatbot-widget"));
+  };
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -3132,9 +3356,10 @@ function BookingsPage() {
         if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
       })
-      .then((data) =>
-        setBookings(Array.isArray(data) ? data : (data.results ?? [])),
-      )
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : (data.results ?? []);
+        setBookings(rows.map(normalizeReschedulePendingStatus));
+      })
       .catch((err) => setFetchError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -3229,22 +3454,34 @@ function BookingsPage() {
     }
   };
 
-  const handleCustomerRescheduleRequest = async (reason) => {
+  const handleCustomerRescheduleRequest = async (payload) => {
     const booking = customerRescheduleBooking;
     if (!booking) return;
+    const reason =
+      typeof payload === "string" ? payload : String(payload?.reason || "").trim();
+    const preferredDate =
+      typeof payload === "string" ? "" : payload?.preferredDate || "";
+    const preferredTime =
+      typeof payload === "string" ? "" : payload?.preferredTime || "";
+
     try {
       const res = await fetch(
         `${API_BASE}/api/bookings/${booking.id}/request-reschedule/`,
         {
           method: "PATCH",
           headers: authHeaders(),
-          body: JSON.stringify({ reason }),
+          body: JSON.stringify({
+            reason,
+            preferred_date: preferredDate,
+            preferred_time: preferredTime,
+          }),
         },
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Failed to send request.");
+      const normalized = normalizeReschedulePendingStatus(data);
       setBookings((prev) =>
-        prev.map((b) => (b.id === booking.id ? { ...b, ...data } : b)),
+        prev.map((b) => (b.id === booking.id ? { ...b, ...normalized } : b)),
       );
       setCustomerRescheduleBooking(null);
       showToast("Reschedule request sent! Staff will follow up.");
@@ -3373,18 +3610,13 @@ function BookingsPage() {
         )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
           {[
             { label: "Total", value: bookings.length, color: "text-white" },
             {
-              label: "Confirmed",
-              value: bookings.filter((b) => b.status === "confirmed").length,
-              color: "text-green-400",
-            },
-            {
-              label: "Pending",
-              value: bookings.filter((b) => b.status === "pending").length,
-              color: "text-yellow-400",
+              label: "No Show",
+              value: bookings.filter((b) => b.status === "no_show").length,
+              color: "text-rose-400",
             },
             {
               label: "Completed",
@@ -3525,7 +3757,10 @@ function BookingsPage() {
               return (
                 <div
                   key={booking.id}
-                  className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/25 hover:bg-gradient-to-br hover:from-gray-900 hover:to-red-950/20 transition-all duration-200"
+                  onClick={() => {
+                    if (booking.status === "done") setReceiptBooking(booking);
+                  }}
+                  className={`bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/25 hover:bg-gradient-to-br hover:from-gray-900 hover:to-red-950/20 transition-all duration-200 ${booking.status === "done" ? "cursor-pointer" : ""}`}
                 >
                   <div className="flex flex-col gap-4">
                     <div className="flex-1">
@@ -3592,8 +3827,20 @@ function BookingsPage() {
                       <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">
                         {priceDisplay}
                       </div>
+                      {booking.status === "done" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReceiptBooking(booking);
+                          }}
+                          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
+                        >
+                          View Receipt
+                        </button>
+                      )}
                       {booking.status !== "cancelled" &&
-                        booking.status !== "done" && (
+                        booking.status !== "done" &&
+                        booking.status !== "no_show" && (
                           <div className="flex gap-2">
                             {booking.status === "rescheduled" && (
                               <button
@@ -3641,28 +3888,6 @@ function BookingsPage() {
                                 </button>
                               )}
 
-                            {booking.queue_id && booking.assigned_employee_id && (
-                              <button
-                                onClick={() => setChatQueueId(booking.queue_id)}
-                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 hover:border-blue-500 text-blue-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
-                              >
-                                <svg
-                                  className="w-3 h-3"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                                  />
-                                </svg>
-                                Message
-                              </button>
-                            )}
-
                             <button
                               onClick={() => setCancelBooking(booking)}
                               className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/15 hover:bg-red-600 border border-red-600/40 hover:border-red-500 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
@@ -3672,6 +3897,33 @@ function BookingsPage() {
                           </div>
                         )}
                     </div>
+
+                    {booking.status !== "cancelled" &&
+                      booking.status !== "done" &&
+                      booking.status !== "no_show" && (
+                        <div className="pt-1 border-t border-white/5 flex items-center gap-2">
+                          {booking.queue_id && booking.assigned_employee_id && (
+                            <button
+                              onClick={() => setChatQueueId(booking.queue_id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/15 hover:bg-blue-600/30 border border-blue-600/40 text-blue-300 hover:text-white rounded-lg text-[10px] sm:text-xs font-semibold transition-all"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                              </svg>
+                              Message
+                            </button>
+                          )}
+                          <button
+                            onClick={openChatbotFromBooking}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600/15 hover:bg-red-600/30 border border-red-600/40 text-red-300 hover:text-white rounded-lg text-[10px] sm:text-xs font-semibold transition-all"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                            </svg>
+                            Chatbot
+                          </button>
+                        </div>
+                      )}
                   </div>
                 </div>
               );
@@ -3746,6 +3998,12 @@ function BookingsPage() {
           booking={customerRescheduleBooking}
           onClose={() => setCustomerRescheduleBooking(null)}
           onSubmit={handleCustomerRescheduleRequest}
+        />
+      )}
+      {receiptBooking && (
+        <ReceiptModal
+          booking={receiptBooking}
+          onClose={() => setReceiptBooking(null)}
         />
       )}
       {toast && (

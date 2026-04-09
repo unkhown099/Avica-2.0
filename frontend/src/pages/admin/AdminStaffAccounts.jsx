@@ -8,7 +8,13 @@ import usePagination from "../../hooks/usePagination";
 
 const roles = [
   "Admin",
-  "Business Owner",
+  "Branch Manager",
+  "Staff",
+  "Employee",
+  "Inventory",
+  "Inventory Manager",
+];
+const kpiRoles = [
   "Branch Manager",
   "Staff",
   "Employee",
@@ -140,7 +146,11 @@ function AdminStaffAccounts() {
             headers: { Authorization: `Bearer ${accessToken}` },
           }),
         ]);
-        setStaffAccounts(staffRes.data);
+        const visibleStaff = (Array.isArray(staffRes.data) ? staffRes.data : []).filter((item) => {
+          const role = String(item?.role || "").trim().toLowerCase();
+          return role !== "business owner" && role !== "super_admin" && role !== "super admin";
+        });
+        setStaffAccounts(visibleStaff);
         setBranches(branchRes.data);
       } catch (err) {
         if (err.response?.status === 401)
@@ -296,12 +306,12 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
           </button>
         </div>
 
-        {/* Stats Cards - horizontal scroll on mobile */}
-        <div className="flex gap-3 overflow-x-auto pb-2 mb-6 sm:mb-8 sm:grid sm:grid-cols-3 lg:grid-cols-6 sm:overflow-visible">
-          {roles.map((role) => (
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6 sm:mb-8">
+          {kpiRoles.map((role) => (
             <div
               key={role}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all shrink-0 min-w-[120px] sm:min-w-0"
+              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all"
             >
               <div className="text-xl sm:text-2xl font-black text-white mb-1">
                 {roleCounts[role] || 0}

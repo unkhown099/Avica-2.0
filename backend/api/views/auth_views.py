@@ -17,6 +17,8 @@ from django.utils.html import strip_tags
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from email.mime.image import MIMEImage
 import os
 
@@ -687,6 +689,44 @@ class ResetPasswordView(APIView):
             return Response({"success": True, "message": "Password updated successfully!"}, status=200)
         else:
             return Response({"success": False, "message": "Invalid or expired token"}, status=400)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+
+        if not old_password or not new_password:
+            return Response(
+                {"success": False, "detail": "Current and new password are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        if not user.check_password(old_password):
+            return Response(
+                {"success": False, "detail": "Current password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_password(new_password, user=user)
+        except DjangoValidationError as exc:
+            detail = " ".join(exc.messages) if exc.messages else "New password is invalid."
+            return Response(
+                {"success": False, "detail": detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+
+        return Response(
+            {"success": True, "message": "Password changed successfully."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class DeleteAccountView(APIView):

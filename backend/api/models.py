@@ -78,6 +78,29 @@ class Customer(models.Model):
         return f"{self.first_name} {self.last_name}"
 
 
+class CustomerSetting(models.Model):
+    customer = models.OneToOneField(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="settings",
+    )
+    notifications = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+    privacy = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "customer_settings"
+
+    def __str__(self):
+        return f"Settings for {self.customer_id}"
+
+
 # ── Branch ────────────────────────────────────────────────────────────────────
 class Branch(models.Model):
     name      = models.CharField(max_length=100)

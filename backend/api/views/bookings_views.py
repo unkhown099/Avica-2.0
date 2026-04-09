@@ -1,5 +1,6 @@
 import logging
 import re
+from django.db import transaction
 from django.db.models import Q
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -956,6 +957,46 @@ class StaffBookingActionView(APIView):
                 normalized_assigned_employee_id = preferred_employee_id
                 assigned_employee_id = preferred_employee_id
 
+        # If this confirmation is for a customer reschedule request,
+        # automatically move the booking to the customer's selected slot.
+        if new_status == "confirmed":
+            selected_option = booking.reschedule_selected_option
+            has_customer_reschedule_request = bool(
+                str(getattr(booking, "reschedule_request_reason", "") or "").strip()
+            )
+
+            if (
+                has_customer_reschedule_request
+                and isinstance(selected_option, dict)
+                and selected_option.get("date")
+                and selected_option.get("time")
+            ):
+                normalized_selected = _normalize_reschedule_options([selected_option])
+                if not normalized_selected:
+                    return Response(
+                        {"detail": "Selected reschedule date/time is invalid."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                selected = normalized_selected[0]
+                if not _is_reschedule_option_available(booking, selected):
+                    return Response(
+                        {
+                            "detail": (
+                                "The selected reschedule slot is no longer available. "
+                                "Please choose another date/time."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                booking.date = selected["date"]
+                booking.time = selected["time"]
+                booking.reschedule_status = "accepted"
+                booking.reschedule_options = []
+                booking.reschedule_note = ""
+                booking.reschedule_request_reason = ""
+
         allowed = ["pending", "confirmed"]
         new_status = request.data.get("status")
         allowed = ["pending", "confirmed", "cancelled", "no_show", "done", "rescheduled"]
@@ -1296,12 +1337,64 @@ class BookingRescheduleRequestView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Save the request reason on the booking
-        booking.reschedule_note = reason
-        booking.save(update_fields=["reschedule_note"])
+        preferred_date = str(request.data.get("preferred_date", "")).strip()
+        preferred_time = str(request.data.get("preferred_time", "")).strip()
 
-        booking.reschedule_request_reason = reason
-        booking.save(update_fields=["reschedule_request_reason"])
+        preferred_option = None
+        if preferred_date or preferred_time:
+            if not preferred_date or not preferred_time:
+                return Response(
+                    {"detail": "Please provide both preferred date and preferred time."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            normalized = _normalize_reschedule_options(
+                [{"date": preferred_date, "time": preferred_time}]
+            )
+            if not normalized:
+                return Response(
+                    {"detail": "Invalid preferred date/time format."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            preferred_option = normalized[0]
+            if not _is_reschedule_option_available(booking, preferred_option):
+                return Response(
+                    {
+                        "detail": (
+                            "Your preferred date/time is not available right now. "
+                            "Please choose another slot."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Reset booking to pending so branch staff must review/approve again.
+        with transaction.atomic():
+            queue_entry = getattr(booking, "queue_entry", None)
+            if queue_entry and queue_entry.status in ["waiting"]:
+                queue_entry.delete()
+
+            booking.status = "pending"
+            booking.staff = "TBA"
+            booking.reschedule_status = "none"
+            booking.reschedule_options = []
+            booking.reschedule_note = reason
+            booking.reschedule_request_reason = reason
+            booking.reschedule_previous_status = "confirmed"
+            booking.reschedule_selected_option = preferred_option if preferred_option else None
+            booking.save(
+                update_fields=[
+                    "status",
+                    "staff",
+                    "reschedule_status",
+                    "reschedule_options",
+                    "reschedule_note",
+                    "reschedule_request_reason",
+                    "reschedule_previous_status",
+                    "reschedule_selected_option",
+                ]
+            )
 
         # Notify staff and managers at the branch
         branch = booking.branch
@@ -1314,6 +1407,11 @@ class BookingRescheduleRequestView(APIView):
 
             notifications = []
             appointment_time = to_display_time(str(booking.time))
+            preferred_text = (
+                f" Preferred date/time: {preferred_option['date']} at {preferred_option['time']}."
+                if preferred_option
+                else ""
+            )
             for staff_member in recipients:
                 if not getattr(staff_member, "user_id", None):
                     continue
@@ -1324,7 +1422,7 @@ class BookingRescheduleRequestView(APIView):
                         message=(
                             f"{booking.user.get_username() or booking.user.email} requested a reschedule "
                             f"for their {booking.service} appointment on {booking.date} at {appointment_time}. "
-                            f"Reason: {reason}"
+                            f"Reason: {reason}.{preferred_text}"
                         ),
                         notification_type="appointment",
                         target_path="/staff/appointments" if staff_member.role == "Staff" else "/manager/appointments",
@@ -1344,7 +1442,12 @@ class BookingRescheduleRequestView(APIView):
             title="Reschedule Request Sent",
             message=(
                 f"Your reschedule request for {booking.service} on {booking.date} "
-                f"has been sent. Staff will propose a new time shortly."
+                f"has been sent and your appointment is pending staff approval again."
+                + (
+                    f" Preferred slot: {preferred_option['date']} at {preferred_option['time']}."
+                    if preferred_option
+                    else ""
+                )
             ),
             email_subject="Reschedule Request Received - Otokwikk",
             target_path="/bookings",

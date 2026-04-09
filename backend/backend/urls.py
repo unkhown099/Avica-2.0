@@ -9,7 +9,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from api.views.auth_views import (
     SignupView, LogoutView, MeView, LoginView,
-    GoogleLoginView, VerifyEmailView, ForgotPasswordView, ResetPasswordView, DeleteAccountView, CheckEmailView
+    GoogleLoginView, VerifyEmailView, ForgotPasswordView, ResetPasswordView, ChangePasswordView, DeleteAccountView, CheckEmailView
 )
 from api.views.forecast_views import (
     generate_all_forecasts,
@@ -25,7 +25,7 @@ from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
 from api.views.dashboard_views import AdminDashboardView, ManagerDashboardView, ManagerScheduleConfigView, StaffDashboardView
 from api.views.service_views import ServiceListCreateView, ServiceDetailView, ServiceCategoryListCreateView
-from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView, ManagerCustomerHistoryView
+from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView, CustomerSettingsView, ManagerCustomerHistoryView
 from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
 from api.views.inventory_views import (
     InventoryListCreateView,
@@ -129,6 +129,7 @@ urlpatterns = [
     path('google-login/',    GoogleLoginView.as_view(),   name='google_login'),
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('reset-password/',  ResetPasswordView.as_view(), name='reset_password'),
+    path('change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('delete-account/',  DeleteAccountView.as_view(), name='delete_account'),
     path('token/refresh/',   TokenRefreshView.as_view(),  name='token_refresh'),
     path('logout/',          LogoutView.as_view(),        name='logout'),
@@ -188,6 +189,7 @@ urlpatterns = [
     # ── Customer dashboard & history ──────────────────────────────────────────
     path('api/customer/dashboard/', CustomerDashboardAPIView.as_view(), name='customer-dashboard'),
     path('api/customer/history/',   CustomerHistoryAPIView.as_view(),   name='customer-history'),
+    path('api/customer/settings/',  CustomerSettingsView.as_view(),      name='customer-settings'),
     path('api/customers/me/', CurrentCustomerProfileView.as_view(), name='current-customer-profile'),
 
 
