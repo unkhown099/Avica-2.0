@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import CustomerLayout from "./CustomerLayout";
-import { API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -72,18 +72,9 @@ function todayISO() {
   return new Date().toISOString().split("T")[0];
 }
 
-function authHeaders() {
-  const token =
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("access") ||
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("access_token") ||
-    sessionStorage.getItem("access") ||
-    sessionStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+// Async wrapper — always await this before passing to fetch()
+async function authHeaders() {
+  return getAuthHeadersAsync();
 }
 
 function formatTimeForAPI(timeString) {
@@ -110,14 +101,21 @@ function toDisplayTime(t) {
 function normalizeReschedulePendingStatus(booking) {
   if (!booking || typeof booking !== "object") return booking;
   const status = String(booking.status || "").toLowerCase();
-  const terminal = status === "cancelled" || status === "done" || status === "no_show";
+  const terminal =
+    status === "cancelled" || status === "done" || status === "no_show";
   const hasCustomerRescheduleRequest = Boolean(
     String(booking.reschedule_request_reason || "").trim(),
   );
   const awaitingStaffApproval =
-    booking.reschedule_status == null || String(booking.reschedule_status).toLowerCase() === "none";
+    booking.reschedule_status == null ||
+    String(booking.reschedule_status).toLowerCase() === "none";
 
-  if (!terminal && hasCustomerRescheduleRequest && awaitingStaffApproval && status !== "pending") {
+  if (
+    !terminal &&
+    hasCustomerRescheduleRequest &&
+    awaitingStaffApproval &&
+    status !== "pending"
+  ) {
     return { ...booking, status: "pending" };
   }
   return booking;
@@ -145,7 +143,6 @@ function containsProfanity(text) {
   return PROFANITY_LIST.some((w) => lower.includes(w));
 }
 
-// Plate number: alphanumeric only, max 8 chars
 function sanitizePlate(val) {
   return val
     .replace(/[^a-zA-Z0-9]/g, "")
@@ -620,36 +617,25 @@ function DamageDetectionModal({ onClose, onBack }) {
     if (activeImageIndex >= images.length - 1) setActiveImageIndex(0);
   };
 
-  // Draw bounding boxes on canvas after image loads
   const drawAnnotations = useCallback((canvas, imgElement, damages) => {
     if (!canvas || !imgElement) return;
     const ctx = canvas.getContext("2d");
     canvas.width = imgElement.naturalWidth || imgElement.width;
     canvas.height = imgElement.naturalHeight || imgElement.height;
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     damages.forEach((dmg, i) => {
       const bb = dmg.boundingBox;
       if (!bb) return;
-
-      const x = bb.x * canvas.width;
-      const y = bb.y * canvas.height;
-      const w = bb.width * canvas.width;
-      const h = bb.height * canvas.height;
-
+      const x = bb.x * canvas.width,
+        y = bb.y * canvas.height;
+      const w = bb.width * canvas.width,
+        h = bb.height * canvas.height;
       const colors = SEVERITY_COLORS[dmg.severity] || SEVERITY_COLORS.Minor;
-
-      // Fill
       ctx.fillStyle = colors.fill;
       ctx.fillRect(x, y, w, h);
-
-      // Border
       ctx.strokeStyle = colors.stroke;
       ctx.lineWidth = Math.max(2, canvas.width * 0.003);
       ctx.strokeRect(x, y, w, h);
-
-      // Corner accents
       const cs = Math.min(w, h) * 0.2;
       ctx.lineWidth = Math.max(3, canvas.width * 0.004);
       [
@@ -664,44 +650,33 @@ function DamageDetectionModal({ onClose, onBack }) {
         ctx.lineTo(sx + dx2, sy + dy2);
         ctx.stroke();
       });
-
-      // Label badge
       const label = `#${i + 1} ${dmg.type}`;
       const fontSize = Math.max(11, canvas.width * 0.018);
       ctx.font = `bold ${fontSize}px sans-serif`;
       const textW = ctx.measureText(label).width;
-      const padX = fontSize * 0.6;
-      const padY = fontSize * 0.4;
-      const badgeH = fontSize + padY * 2;
-      const badgeW = textW + padX * 2;
-      const badgeX = x;
-      const badgeY = y - badgeH - 4 < 0 ? y + 4 : y - badgeH - 4;
-
-      // Badge background
+      const padX = fontSize * 0.6,
+        padY = fontSize * 0.4;
+      const badgeH = fontSize + padY * 2,
+        badgeW = textW + padX * 2;
+      const badgeX = x,
+        badgeY = y - badgeH - 4 < 0 ? y + 4 : y - badgeH - 4;
       ctx.fillStyle = colors.stroke;
       ctx.beginPath();
       ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
       ctx.fill();
-
-      // Badge text
       ctx.fillStyle = "#000";
       ctx.fillText(label, badgeX + padX, badgeY + padY + fontSize * 0.85);
     });
   }, []);
 
-  // Re-draw whenever active image or results change
   useEffect(() => {
     if (!analysisResult) return;
     const damages = analysisResult.damages || [];
     const canvas = canvasRefs.current[activeImageIndex];
     const img = document.getElementById(`damage-preview-${activeImageIndex}`);
     if (!canvas || !img) return;
-
-    if (img.complete) {
-      drawAnnotations(canvas, img, damages);
-    } else {
-      img.onload = () => drawAnnotations(canvas, img, damages);
-    }
+    if (img.complete) drawAnnotations(canvas, img, damages);
+    else img.onload = () => drawAnnotations(canvas, img, damages);
   }, [analysisResult, activeImageIndex, drawAnnotations]);
 
   const analyzeDamage = async () => {
@@ -712,9 +687,8 @@ function DamageDetectionModal({ onClose, onBack }) {
     setUploading(true);
     setError("");
     try {
-      const token =
-        localStorage.getItem("access_token") ??
-        sessionStorage.getItem("access_token");
+      // Use getAuthHeadersAsync directly here for the damage endpoint
+      const headers = await getAuthHeadersAsync();
       const base64Images = await Promise.all(
         images.map(
           (img) =>
@@ -726,17 +700,11 @@ function DamageDetectionModal({ onClose, onBack }) {
             }),
         ),
       );
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/analyze-damage/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ images: base64Images }),
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/analyze-damage/`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ images: base64Images }),
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Analysis failed");
       setAnalysisResult(data);
@@ -760,7 +728,6 @@ function DamageDetectionModal({ onClose, onBack }) {
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
         {!analysisResult ? (
-          /* ── Upload state ── */
           <>
             <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
               Upload Vehicle Photos
@@ -857,9 +824,7 @@ function DamageDetectionModal({ onClose, onBack }) {
             </div>
           </>
         ) : (
-          /* ── Results state ── */
           <div className="space-y-4">
-            {/* Success header */}
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-green-600/20 flex items-center justify-center">
                 <svg
@@ -891,32 +856,24 @@ function DamageDetectionModal({ onClose, onBack }) {
               </div>
             </div>
 
-            {/* ── Annotated image viewer ── */}
             {images.length > 0 && (
               <div className="space-y-2">
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
                   Annotated Photo{images.length > 1 ? "s" : ""}
                 </p>
-
-                {/* Image tabs if multiple */}
                 {images.length > 1 && (
                   <div className="flex gap-1.5 flex-wrap">
                     {images.map((_, i) => (
                       <button
                         key={i}
                         onClick={() => setActiveImageIndex(i)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${activeImageIndex === i
-                          ? "bg-red-600 border-red-500 text-white"
-                          : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                          }`}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${activeImageIndex === i ? "bg-red-600 border-red-500 text-white" : "bg-white/5 border-white/10 text-gray-400 hover:text-white"}`}
                       >
                         Photo {i + 1}
                       </button>
                     ))}
                   </div>
                 )}
-
-                {/* Canvas overlay on image */}
                 <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black">
                   <img
                     id={`damage-preview-${activeImageIndex}`}
@@ -939,7 +896,6 @@ function DamageDetectionModal({ onClose, onBack }) {
                     className="absolute inset-0 w-full h-full pointer-events-none"
                     style={{ mixBlendMode: "normal" }}
                   />
-                  {/* Legend overlay */}
                   {analysisResult.damages?.some((d) => d.boundingBox) && (
                     <div className="absolute bottom-2 left-2 flex flex-col gap-1">
                       {["Minor", "Moderate", "Severe"].map((sev) => {
@@ -969,8 +925,6 @@ function DamageDetectionModal({ onClose, onBack }) {
                     </div>
                   )}
                 </div>
-
-                {/* No boxes notice */}
                 {!analysisResult.damages?.some((d) => d.boundingBox) &&
                   analysisResult.damages?.length > 0 && (
                     <p className="text-gray-600 text-[10px] text-center">
@@ -981,7 +935,6 @@ function DamageDetectionModal({ onClose, onBack }) {
               </div>
             )}
 
-            {/* Damage list */}
             <div className="space-y-2">
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
                 Detected Damages
@@ -994,7 +947,6 @@ function DamageDetectionModal({ onClose, onBack }) {
                     key={i}
                     className="bg-white/4 rounded-xl p-3 border border-white/8 flex items-start gap-3"
                   >
-                    {/* Number badge matching canvas color */}
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-black shrink-0 mt-0.5"
                       style={{
@@ -1028,7 +980,6 @@ function DamageDetectionModal({ onClose, onBack }) {
               )}
             </div>
 
-            {/* Matched services */}
             {analysisResult.matchedServices?.length > 0 && (
               <div className="space-y-2">
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -1059,7 +1010,6 @@ function DamageDetectionModal({ onClose, onBack }) {
               </div>
             )}
 
-            {/* Recommendations */}
             <div>
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                 Recommendations
@@ -1077,17 +1027,37 @@ function DamageDetectionModal({ onClose, onBack }) {
               </ul>
             </div>
 
-            {/* Cost estimate */}
-            <div className="bg-red-600/10 rounded-xl p-3 sm:p-4 border border-red-600/20">
-              <p className="text-gray-400 text-[10px] sm:text-xs mb-1">
-                Estimated Repair Cost
-              </p>
-              <p className="text-xl sm:text-2xl font-black text-white">
-                {analysisResult.estimatedCost}
-              </p>
-              <p className="text-gray-500 text-[9px] sm:text-[10px] mt-1">
-                *Final cost may vary after inspection
-              </p>
+            <div className="bg-red-600/10 rounded-xl p-3 sm:p-4 border border-red-600/20 space-y-2">
+              <div>
+                <p className="text-gray-400 text-[10px] sm:text-xs mb-1">
+                  AI Damage Repair Estimate
+                </p>
+                <p className="text-xl sm:text-2xl font-black text-white">
+                  {analysisResult.estimatedCost}
+                </p>
+                <p className="text-gray-500 text-[9px] sm:text-[10px] mt-1">
+                  *AI estimate based on detected damage
+                </p>
+              </div>
+              {analysisResult.matchedServices?.length > 0 && (
+                <div className="border-t border-red-600/20 pt-2">
+                  <p className="text-gray-400 text-[10px] sm:text-xs mb-1">
+                    Matched Service Pricing
+                  </p>
+                  <p className="text-xl sm:text-2xl font-black text-green-400">
+                    ₱
+                    {analysisResult.matchedServices
+                      .reduce((sum, s) => sum + parseFloat(s.price ?? 0), 0)
+                      .toLocaleString()}
+                  </p>
+                  <p className="text-gray-500 text-[9px] sm:text-[10px] mt-1">
+                    Based on {analysisResult.matchedServices.length} matched
+                    service
+                    {analysisResult.matchedServices.length !== 1 ? "s" : ""} ·
+                    Final cost confirmed at service
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1112,7 +1082,6 @@ function DamageDetectionModal({ onClose, onBack }) {
         )}
       </div>
 
-      {/* Footer */}
       <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
         <button
           onClick={onClose}
@@ -1228,16 +1197,21 @@ function NewBookingModal({
   const [userBookingsLoaded, setUserBookingsLoaded] = useState(false);
   const [hasActiveBooking, setHasActiveBooking] = useState(false);
 
+  // ── Load user bookings ──
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/`, {
-      headers: authHeaders(),
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch(`${API_BASE}/api/bookings/`, { headers });
+        if (!r.ok) throw new Error();
+        const data = await r.json();
         setUserBookings(Array.isArray(data) ? data : (data.results ?? []));
+      } catch {
+        /* silent */
+      } finally {
         setUserBookingsLoaded(true);
-      })
-      .catch(() => setUserBookingsLoaded(true));
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -1259,6 +1233,7 @@ function NewBookingModal({
       );
   }, [userBookings, userBookingsLoaded]);
 
+  // ── Availability slots ──
   useEffect(() => {
     if (!form.date || !form.branch) {
       setAvailableSlots(null);
@@ -1275,43 +1250,50 @@ function NewBookingModal({
     });
     if (bookingMode === "specific" && form.preferredEmployee?.id)
       params.set("preferred_employee_id", String(form.preferredEmployee.id));
-    fetch(`${API_BASE}/api/bookings/available-slots/?${params.toString()}`, {
-      headers: authHeaders(),
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch(
+          `${API_BASE}/api/bookings/available-slots/?${params.toString()}`,
+          { headers },
+        );
+        if (!r.ok) throw new Error();
+        const data = await r.json();
         setAvailableSlots(data.available_slots ?? {});
         setAvailabilityMeta(data.meta ?? null);
-      })
-      .catch(() => {
+      } catch {
         const f = {};
         TIME_SLOTS.forEach((s) => {
           f[s] = true;
         });
         setAvailableSlots(f);
-      })
-      .finally(() => setCheckingAvailability(false));
+      } finally {
+        setCheckingAvailability(false);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.date, form.branch, bookingMode, form.preferredEmployee?.id]);
 
+  // ── Load services ──
   useEffect(() => {
     setServicesLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/services/`, {
-      headers: authHeaders(),
-    })
-      .then((r) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch(`${API_BASE}/services/`, { headers });
         if (!r.ok) throw new Error("Failed to load services.");
-        return r.json();
-      })
-      .then((data) =>
+        const data = await r.json();
         setServices(
           (Array.isArray(data) ? data : (data.results ?? [])).filter(
             (s) => s.is_active !== false && (s.branches?.length ?? 0) > 0,
           ),
-        ),
-      )
-      .catch((err) => setServicesError(err.message))
-      .finally(() => setServicesLoading(false));
+        );
+      } catch (err) {
+        setServicesError(err.message);
+      } finally {
+        setServicesLoading(false);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -1324,55 +1306,58 @@ function NewBookingModal({
     setStep((prev) => (prev < 1 ? 1 : prev));
   }, [initialServiceId, services]);
 
-  // ── Sync matchedServices from damage analysis once full service list loads ──
   useEffect(() => {
-    if (damageServicesSynced.current) return; // ← only run once
-    if (!initialDamageData?.matchedServices?.length || services.length === 0)
-      return;
-
+    if (!initialDamageData?.matchedServices?.length) return;
+    if (services.length === 0) return;
     const fullyHydrated = initialDamageData.matchedServices
       .map((dmgSvc) => services.find((s) => s.id === dmgSvc.id) ?? dmgSvc)
       .filter(Boolean);
-
     if (fullyHydrated.length === 0) return;
-
-    damageServicesSynced.current = true;
-    setForm((prev) => ({
-      ...prev,
-      services: fullyHydrated,
-    }));
+    setForm((prev) => {
+      const prevIds = (prev.services || []).map((s) => s.id).join(",");
+      const newIds = fullyHydrated.map((s) => s.id).join(",");
+      if (prevIds === newIds) return prev; // no-op if already synced
+      return { ...prev, services: fullyHydrated };
+    });
   }, [initialDamageData, services]);
 
+  // ── Load categories ──
   useEffect(() => {
     setCategoriesLoading(true);
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/services/categories/`, {
-      headers: authHeaders(),
-    })
-      .then((r) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch(`${API_BASE}/services/categories/`, { headers });
         if (!r.ok) throw new Error("Failed to load categories.");
-        return r.json();
-      })
-      .then((data) =>
-        setCategories(Array.isArray(data) ? data : (data.results ?? [])),
-      )
-      .catch((err) => setCategoriesError(err.message))
-      .finally(() => setCategoriesLoading(false));
+        const data = await r.json();
+        setCategories(Array.isArray(data) ? data : (data.results ?? []));
+      } catch (err) {
+        setCategoriesError(err.message);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    })();
   }, []);
 
+  // ── Load branches ──
   useEffect(() => {
     setBranchLoading(true);
-    fetch(`${API_BASE}/branches/`, { headers: authHeaders() })
-      .then((r) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch(`${API_BASE}/branches/`, { headers });
         if (!r.ok) throw new Error("Failed to load branches.");
-        return r.json();
-      })
-      .then((data) =>
-        setBranches(Array.isArray(data) ? data : (data.results ?? [])),
-      )
-      .catch((err) => setBranchError(err.message))
-      .finally(() => setBranchLoading(false));
+        const data = await r.json();
+        setBranches(Array.isArray(data) ? data : (data.results ?? []));
+      } catch (err) {
+        setBranchError(err.message);
+      } finally {
+        setBranchLoading(false);
+      }
+    })();
   }, []);
 
+  // ── Load employees ──
   useEffect(() => {
     if (!form.branch?.id) {
       setEmployees([]);
@@ -1382,15 +1367,15 @@ function NewBookingModal({
     }
     setEmployeesLoading(true);
     setEmployeesError("");
-    fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/api/queue/employees/?branch_id=${form.branch.id}`,
-      { headers: authHeaders() },
-    )
-      .then((r) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch(
+          `${API_BASE}/api/queue/employees/?branch_id=${form.branch.id}`,
+          { headers },
+        );
         if (!r.ok) throw new Error("Failed to load employees.");
-        return r.json();
-      })
-      .then((data) => {
+        const data = await r.json();
         const rows = Array.isArray(data) ? data : [];
         setEmployees(rows);
         setForm((prev) => {
@@ -1398,12 +1383,13 @@ function NewBookingModal({
           const ok = rows.some((e) => e.id === prev.preferredEmployee.id);
           return ok ? prev : { ...prev, preferredEmployee: null };
         });
-      })
-      .catch((err) => {
+      } catch (err) {
         setEmployees([]);
         setEmployeesError(err.message || "Failed to load employees.");
-      })
-      .finally(() => setEmployeesLoading(false));
+      } finally {
+        setEmployeesLoading(false);
+      }
+    })();
   }, [form.branch?.id]);
 
   const set = (key, value) => {
@@ -1412,10 +1398,8 @@ function NewBookingModal({
     setFieldErrors((p) => ({ ...p, [key]: null }));
   };
 
-  const isSlotAvailable = (slot) => {
-    if (availableSlots === null) return false;
-    return availableSlots[slot] === true;
-  };
+  const isSlotAvailable = (slot) =>
+    availableSlots !== null && availableSlots[slot] === true;
 
   const visibleTimeSlots = useMemo(() => {
     if (!availableSlots || typeof availableSlots !== "object")
@@ -1577,7 +1561,6 @@ function NewBookingModal({
       const plateNumber = (form.plateNumber ?? "").trim();
       if (!vehicle || !plateNumber)
         throw new Error("Please enter vehicle details");
-      // Plate number validation
       if (!/^[a-zA-Z0-9]{1,8}$/.test(plateNumber))
         throw new Error(
           "Plate number must be alphanumeric and max 8 characters.",
@@ -1585,29 +1568,28 @@ function NewBookingModal({
       if (bookingMode === "specific" && !form.preferredEmployee?.id)
         throw new Error("Please select a specific employee.");
 
-      const selectedServiceNames = form.services.map((s) => s.name).join(", ");
-      const selectedServicePrice = form.services.reduce(
-        (sum, s) => sum + parseFloat(s.price ?? 0),
-        0,
-      );
       const payload = {
-        service: selectedServiceNames,
+        service: form.services.map((s) => s.name).join(", "),
         branch_id: parseInt(form.branch.id, 10),
         date: form.date,
         time: formatTimeForAPI(form.time),
         vehicle,
         plate_number: plateNumber,
         notes: form.notes || "",
-        price: selectedServicePrice,
+        price: form.services.reduce(
+          (sum, s) => sum + parseFloat(s.price ?? 0),
+          0,
+        ),
         preferred_employee_id:
           bookingMode === "specific"
             ? (form.preferredEmployee?.id ?? null)
             : null,
       };
 
+      const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/api/bookings/`, {
         method: "POST",
-        headers: authHeaders(),
+        headers,
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -1642,7 +1624,6 @@ function NewBookingModal({
 
   return (
     <SlidePanel onClose={onClose}>
-      {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
         <div>
           <h2 className="text-base sm:text-xl font-black text-white">
@@ -1685,9 +1666,7 @@ function NewBookingModal({
                       <button
                         key={cat}
                         type="button"
-                        onClick={() => {
-                          setSelectedCategory(cat);
-                        }}
+                        onClick={() => setSelectedCategory(cat)}
                         className={`px-2.5 py-1 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all duration-200 ${String(selectedCategory).toLowerCase() === String(cat).toLowerCase() ? "border-red-500 bg-red-600/20 text-red-300 shadow-sm shadow-red-600/20" : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/25"}`}
                       >
                         {cat}
@@ -1735,26 +1714,23 @@ function NewBookingModal({
               </p>
             ) : (
               <>
-                {/* Mobile compact list */}
                 <div className="flex flex-col gap-2 sm:hidden">
                   {filteredServices.map((s) => {
                     const active = form.services?.some(
-                      (selected) => selected.id === s.id,
+                      (sel) => sel.id === s.id,
                     );
                     return (
                       <button
                         key={s.id}
                         type="button"
                         onClick={() => {
-                          const alreadySelected = form.services?.some(
-                            (selected) => selected.id === s.id,
+                          const already = form.services?.some(
+                            (sel) => sel.id === s.id,
                           );
                           set(
                             "services",
-                            alreadySelected
-                              ? form.services.filter(
-                                (selected) => selected.id !== s.id,
-                              )
+                            already
+                              ? form.services.filter((sel) => sel.id !== s.id)
                               : [...(form.services || []), s],
                           );
                         }}
@@ -1790,26 +1766,23 @@ function NewBookingModal({
                     );
                   })}
                 </div>
-                {/* Desktop 2-col card grid */}
                 <div className="hidden sm:grid sm:grid-cols-2 gap-3">
                   {filteredServices.map((s) => {
                     const active = form.services?.some(
-                      (selected) => selected.id === s.id,
+                      (sel) => sel.id === s.id,
                     );
                     return (
                       <button
                         key={s.id}
                         type="button"
                         onClick={() => {
-                          const alreadySelected = form.services?.some(
-                            (selected) => selected.id === s.id,
+                          const already = form.services?.some(
+                            (sel) => sel.id === s.id,
                           );
                           set(
                             "services",
-                            alreadySelected
-                              ? form.services.filter(
-                                (selected) => selected.id !== s.id,
-                              )
+                            already
+                              ? form.services.filter((sel) => sel.id !== s.id)
                               : [...(form.services || []), s],
                           );
                         }}
@@ -1950,8 +1923,18 @@ function NewBookingModal({
                                   className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-blue-400 hover:text-blue-300 font-semibold px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all hover:scale-105 duration-200"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                                    />
                                   </svg>
                                   View in Map
                                 </a>
@@ -1981,13 +1964,11 @@ function NewBookingModal({
                   key: "general",
                   label: "General Booking",
                   desc: "Any available employee will be assigned.",
-                  accent: "emerald",
                 },
                 {
                   key: "specific",
                   label: "Book Specific Employee",
                   desc: "Choose the employee you want.",
-                  accent: "red",
                 },
               ].map(({ key, label, desc }) => {
                 const active = bookingMode === key;
@@ -2154,12 +2135,7 @@ function NewBookingModal({
                                 ? "This slot is fully booked"
                                 : ""
                       }
-                      className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${active && !isDisabled
-                        ? "border-red-500 bg-red-600/20 text-white shadow-md shadow-red-600/20 ring-1 ring-red-500/40"
-                        : isDisabled
-                          ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40"
-                          : "border-white/8 bg-white/3 text-gray-400 hover:border-red-500/40 hover:bg-red-600/8 hover:text-white cursor-pointer"
-                        }`}
+                      className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${active && !isDisabled ? "border-red-500 bg-red-600/20 text-white shadow-md shadow-red-600/20 ring-1 ring-red-500/40" : isDisabled ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40" : "border-white/8 bg-white/3 text-gray-400 hover:border-red-500/40 hover:bg-red-600/8 hover:text-white cursor-pointer"}`}
                     >
                       {t}
                       {isDisabled &&
@@ -2277,12 +2253,9 @@ function NewBookingModal({
                   value={form[key]}
                   maxLength={key === "plateNumber" ? 8 : undefined}
                   onChange={(e) => {
-                    if (key === "plateNumber") {
-                      const sanitized = sanitizePlate(e.target.value);
-                      set("plateNumber", sanitized);
-                    } else {
-                      set(key, e.target.value);
-                    }
+                    if (key === "plateNumber")
+                      set("plateNumber", sanitizePlate(e.target.value));
+                    else set(key, e.target.value);
                   }}
                   className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 ${fieldErrors[apiKey] ? "border-red-500" : "border-white/10"}`}
                 />
@@ -2315,7 +2288,7 @@ function NewBookingModal({
               <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">
                 {bookingMode === "specific"
                   ? form.preferredEmployee?.full_name ||
-                  "Specific employee selected"
+                    "Specific employee selected"
                   : "General (any available employee)"}
               </div>
             </div>
@@ -2336,7 +2309,6 @@ function NewBookingModal({
               />
             </div>
 
-            {/* Summary */}
             <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
               <div className="px-3 sm:px-4 py-2.5 border-b border-white/8">
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -2353,7 +2325,7 @@ function NewBookingModal({
                   ],
                   [
                     "Service",
-                    form.services && form.services.length > 0
+                    form.services?.length > 0
                       ? form.services.map((s) => s.name).join(", ")
                       : "—",
                   ],
@@ -2365,14 +2337,21 @@ function NewBookingModal({
                     form.preferredEmployee?.full_name || "No preference",
                   ],
                   [
-                    "Price",
-                    form.services && form.services.length > 0
-                      ? `₱${form.services
-                        .reduce((sum, s) => sum + parseFloat(s.price || 0), 0)
-                        .toLocaleString()}`
+                    "Service Price",
+                    form.services?.length > 0
+                      ? `₱${form.services.reduce((sum, s) => sum + parseFloat(s.price || 0), 0).toLocaleString()}`
                       : "—",
                     true,
                   ],
+                  ...(form.damageData?.estimatedCost
+                    ? [
+                        [
+                          "AI Repair Estimate",
+                          form.damageData.estimatedCost,
+                          "estimate",
+                        ],
+                      ]
+                    : []),
                 ].map(([label, value, highlight]) => (
                   <div
                     key={label}
@@ -2413,17 +2392,16 @@ function NewBookingModal({
         )}
       </div>
 
-      {/* Footer */}
       <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
         <button
           type="button"
           onClick={
             step > 0
               ? () => {
-                setStep((s) => s - 1);
-                setError("");
-                setFieldErrors({});
-              }
+                  setStep((s) => s - 1);
+                  setError("");
+                  setFieldErrors({});
+                }
               : onClose
           }
           className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 font-semibold text-xs sm:text-sm transition-all duration-200"
@@ -2670,10 +2648,8 @@ function Toast({ message, type = "success", onDismiss }) {
 
 function RescheduleResponseModal({ booking, onClose, onDecide }) {
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState(null); // Add this state declaration
-
+  const [selected, setSelected] = useState(null);
   const options = booking.reschedule_options ?? [];
-
   const rawSvc = booking.service;
   const serviceName =
     booking.service_name ||
@@ -2691,7 +2667,6 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
 
   return (
     <CenterModal onClose={onClose}>
-      {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
         <div className="min-w-0 mr-3">
           <h2 className="text-base sm:text-xl font-black text-white">
@@ -2705,7 +2680,6 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
-        {/* Info banner */}
         <div className="bg-indigo-600/10 rounded-xl border border-indigo-600/20 px-3 py-2.5 sm:p-4 flex items-start gap-2 sm:gap-3">
           <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-indigo-600/20 flex items-center justify-center shrink-0 mt-0.5">
             <svg
@@ -2718,7 +2692,7 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
               />
             </svg>
           </div>
@@ -2733,7 +2707,6 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
           </div>
         </div>
 
-        {/* Original booking details */}
         <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
           <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
             Original Booking
@@ -2761,7 +2734,6 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
           </div>
         </div>
 
-        {/* Proposed options */}
         <div>
           <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
             Proposed{" "}
@@ -2781,16 +2753,10 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
                     key={i}
                     type="button"
                     onClick={() => setSelected(opt)}
-                    className={`w-full p-3 sm:p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${isActive
-                      ? "border-indigo-500 bg-indigo-600/12"
-                      : "border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5"
-                      }`}
+                    className={`w-full p-3 sm:p-4 rounded-xl border text-left transition-all flex items-center gap-3 ${isActive ? "border-indigo-500 bg-indigo-600/12" : "border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5"}`}
                   >
                     <div
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isActive
-                        ? "border-indigo-500 bg-indigo-500"
-                        : "border-white/30"
-                        }`}
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isActive ? "border-indigo-500 bg-indigo-500" : "border-white/30"}`}
                     >
                       {isActive && (
                         <svg
@@ -2831,21 +2797,6 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
                         </div>
                       )}
                     </div>
-                    <div className="shrink-0">
-                      <svg
-                        className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
-                        />
-                      </svg>
-                    </div>
                   </button>
                 );
               })}
@@ -2854,7 +2805,6 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
         </div>
       </div>
 
-      {/* Footer */}
       <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
         <button
           onClick={() => handleDecision("decline")}
@@ -2931,7 +2881,6 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
     booking?.branch_id ||
     booking?.branch?.id ||
     null;
-
   const rawSvc = booking.service;
   const serviceName =
     booking.service_name ||
@@ -2956,33 +2905,37 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
       setAvailableSlots(null);
       return;
     }
-
     const params = new URLSearchParams({
       branch_id: String(branchId),
       date: preferredDate,
     });
-
     setCheckingAvailability(true);
-    fetch(`${API_BASE}/api/bookings/available-slots/?${params.toString()}`, {
-      headers: authHeaders(),
-    })
-      .then((r) => r.json().catch(() => ({})).then((d) => ({ ok: r.ok, d })))
-      .then(({ ok, d }) => {
-        if (ok && d && typeof d.available_slots === "object") {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch(
+          `${API_BASE}/api/bookings/available-slots/?${params.toString()}`,
+          { headers },
+        );
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d && typeof d.available_slots === "object") {
           setAvailableSlots(d.available_slots);
-          if (preferredTime && d.available_slots?.[preferredTime] !== true) {
+          if (preferredTime && d.available_slots?.[preferredTime] !== true)
             setPreferredTime("");
-          }
         } else {
           setAvailableSlots({});
         }
-      })
-      .catch(() => setAvailableSlots({}))
-      .finally(() => setCheckingAvailability(false));
+      } catch {
+        setAvailableSlots({});
+      } finally {
+        setCheckingAvailability(false);
+      }
+    })();
   }, [preferredDate, branchId, preferredTime]);
 
   const visibleTimeSlots = useMemo(() => {
-    if (!availableSlots || typeof availableSlots !== "object") return TIME_SLOTS;
+    if (!availableSlots || typeof availableSlots !== "object")
+      return TIME_SLOTS;
     const dynamic = Object.keys(availableSlots);
     if (!dynamic.length) return TIME_SLOTS;
     return dynamic;
@@ -3002,22 +2955,23 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
       setError(err);
       return;
     }
-
-    if ((preferredDate && !preferredTime) || (!preferredDate && preferredTime)) {
+    if (
+      (preferredDate && !preferredTime) ||
+      (!preferredDate && preferredTime)
+    ) {
       setError("Please select both preferred date and preferred time.");
       return;
     }
-
     if (preferredDate && preferredDate < todayISO()) {
-      setError("Past dates are not allowed. Please choose today or a later date.");
+      setError(
+        "Past dates are not allowed. Please choose today or a later date.",
+      );
       return;
     }
-
     if (preferredDate && preferredTime && !isSlotAvailable(preferredTime)) {
       setError("Your selected preferred time is not available.");
       return;
     }
-
     setLoading(true);
     await onSubmit({
       reason: reason.trim(),
@@ -3042,7 +2996,6 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
-        {/* Info banner */}
         <div className="bg-indigo-600/10 rounded-xl border border-indigo-600/20 px-3 py-2.5 sm:p-4 flex items-start gap-2 sm:gap-3">
           <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-indigo-600/20 flex items-center justify-center shrink-0 mt-0.5">
             <svg
@@ -3070,7 +3023,6 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
           </div>
         </div>
 
-        {/* Current booking info */}
         <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
           <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
             Current Booking
@@ -3098,7 +3050,6 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
           </div>
         </div>
 
-        {/* Reason textarea */}
         <div>
           <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
             Preferred New Schedule (Optional)
@@ -3130,12 +3081,12 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
                   value={slot}
                   disabled={preferredDate ? !isSlotAvailable(slot) : true}
                 >
-                  {slot}{preferredDate && !isSlotAvailable(slot) ? " (Full)" : ""}
+                  {slot}
+                  {preferredDate && !isSlotAvailable(slot) ? " (Full)" : ""}
                 </option>
               ))}
             </select>
           </div>
-
           {preferredDate && (
             <p className="text-[10px] sm:text-xs text-gray-500 mb-3">
               {checkingAvailability
@@ -3232,12 +3183,16 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
   );
 }
 
+// ─── Receipt Modal ────────────────────────────────────────────────────────────
+
 function ReceiptModal({ booking, onClose }) {
   const products = Array.isArray(booking?.used_products)
     ? booking.used_products
     : [];
   const total = Number(booking?.receipt_total ?? booking?.price ?? 0);
-  const receiptNo = booking?.receipt_number || `B-${String(booking?.id || "").padStart(6, "0")}`;
+  const receiptNo =
+    booking?.receipt_number ||
+    `B-${String(booking?.id || "").padStart(6, "0")}`;
   const branchName =
     typeof booking?.branch === "object"
       ? booking?.branch?.name
@@ -3256,7 +3211,6 @@ function ReceiptModal({ booking, onClose }) {
         </div>
         <CloseBtn onClick={onClose} />
       </div>
-
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
         <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
           <div className="space-y-1.5 text-xs sm:text-sm">
@@ -3266,16 +3220,22 @@ function ReceiptModal({ booking, onClose }) {
               ["Time", toDisplayTime(booking?.time) || "—"],
               ["Branch", branchName],
               ["Staff", booking?.staff || "TBA"],
-              ["Payment", booking?.payment_method ? String(booking.payment_method).toUpperCase() : "—"],
+              [
+                "Payment",
+                booking?.payment_method
+                  ? String(booking.payment_method).toUpperCase()
+                  : "—",
+              ],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-4">
                 <span className="text-gray-500">{label}</span>
-                <span className="text-white font-semibold text-right">{value}</span>
+                <span className="text-white font-semibold text-right">
+                  {value}
+                </span>
               </div>
             ))}
           </div>
         </div>
-
         <div className="bg-emerald-600/10 border border-emerald-600/20 rounded-xl p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs font-bold text-emerald-300 uppercase tracking-widest mb-2">
             Products Used
@@ -3287,15 +3247,19 @@ function ReceiptModal({ booking, onClose }) {
           ) : (
             <div className="space-y-1.5">
               {products.map((item, idx) => (
-                <div key={`${item.name}-${idx}`} className="flex items-center justify-between text-xs sm:text-sm">
+                <div
+                  key={`${item.name}-${idx}`}
+                  className="flex items-center justify-between text-xs sm:text-sm"
+                >
                   <span className="text-white">{item.name}</span>
-                  <span className="text-emerald-300 font-semibold">x{item.quantity}</span>
+                  <span className="text-emerald-300 font-semibold">
+                    x{item.quantity}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
-
         <div className="border-t border-white/10 pt-4 flex items-center justify-between">
           <span className="text-gray-400 font-semibold">Total Paid</span>
           <span className="text-xl sm:text-2xl font-black text-emerald-400">
@@ -3303,7 +3267,6 @@ function ReceiptModal({ booking, onClose }) {
           </span>
         </div>
       </div>
-
       <div className="px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
         <button
           onClick={onClose}
@@ -3316,7 +3279,7 @@ function ReceiptModal({ booking, onClose }) {
   );
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 function BookingsPage() {
   const location = useLocation();
@@ -3340,31 +3303,33 @@ function BookingsPage() {
   const [toast, setToast] = useState(null);
   const [chatQueueId, setChatQueueId] = useState(null);
 
-  const openChatbotFromBooking = () => {
+  const openChatbotFromBooking = () =>
     window.dispatchEvent(new Event("open-chatbot-widget"));
-  };
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4500);
   };
 
+  // ── Fetch bookings with proper async auth ──
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_BASE}/api/bookings/`, { headers: authHeaders() })
-      .then((r) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await fetch(`${API_BASE}/api/bookings/`, { headers });
         if (!r.ok) throw new Error(`Error ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
+        const data = await r.json();
         const rows = Array.isArray(data) ? data : (data.results ?? []);
         setBookings(rows.map(normalizeReschedulePendingStatus));
-      })
-      .catch((err) => setFetchError(err.message))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        setFetchError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  // ── Derived: does user have an active booking? ──
   const hasActiveBooking = useMemo(
     () =>
       bookings.some((b) => b.status === "pending" || b.status === "confirmed"),
@@ -3399,9 +3364,10 @@ function BookingsPage() {
     const booking = cancelBooking;
     if (!booking) return;
     try {
+      const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/`, {
         method: "PATCH",
-        headers: authHeaders(),
+        headers,
         body: JSON.stringify({
           status: "cancelled",
           cancellation_reason: reason,
@@ -3427,21 +3393,17 @@ function BookingsPage() {
     selectedOption = null,
   ) => {
     try {
+      const headers = await authHeaders();
       const res = await fetch(
         `${API_BASE}/api/bookings/${booking.id}/reschedule-response/`,
         {
           method: "PATCH",
-          headers: authHeaders(),
-          body: JSON.stringify({
-            decision,
-            selected_option: selectedOption,
-          }),
+          headers,
+          body: JSON.stringify({ decision, selected_option: selectedOption }),
         },
       );
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.detail || "Failed to submit response.");
-      }
+      if (!res.ok) throw new Error(data.detail || "Failed to submit response.");
       setBookings((prev) => prev.map((b) => (b.id === data.id ? data : b)));
       setRescheduleBooking(null);
       showToast(
@@ -3458,18 +3420,20 @@ function BookingsPage() {
     const booking = customerRescheduleBooking;
     if (!booking) return;
     const reason =
-      typeof payload === "string" ? payload : String(payload?.reason || "").trim();
+      typeof payload === "string"
+        ? payload
+        : String(payload?.reason || "").trim();
     const preferredDate =
       typeof payload === "string" ? "" : payload?.preferredDate || "";
     const preferredTime =
       typeof payload === "string" ? "" : payload?.preferredTime || "";
-
     try {
+      const headers = await authHeaders();
       const res = await fetch(
         `${API_BASE}/api/bookings/${booking.id}/request-reschedule/`,
         {
           method: "PATCH",
-          headers: authHeaders(),
+          headers,
           body: JSON.stringify({
             reason,
             preferred_date: preferredDate,
@@ -3518,13 +3482,11 @@ function BookingsPage() {
     }
   };
 
-  // ── New Booking button: disabled + tooltip if user has an active booking ──
   const newBookingDisabled = !loading && hasActiveBooking;
 
   return (
     <CustomerLayout>
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/30 p-3 sm:p-5 lg:p-8">
-        {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 sm:mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-1">
@@ -3534,18 +3496,13 @@ function BookingsPage() {
               Manage and track all your appointments.
             </p>
           </div>
-
-          {/* New Booking button — disabled with tooltip if active booking exists */}
           <div className="relative group self-start sm:self-auto">
             <button
               onClick={() => {
                 if (!newBookingDisabled) setShowOptionModal(true);
               }}
               disabled={newBookingDisabled}
-              className={`flex items-center gap-1.5 font-bold px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm transition-all duration-200 shadow-xl ${newBookingDisabled
-                ? "bg-red-600/30 text-red-300/50 cursor-not-allowed shadow-none"
-                : "bg-red-600 hover:bg-red-500 text-white hover:scale-105 shadow-red-600/30"
-                }`}
+              className={`flex items-center gap-1.5 font-bold px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm transition-all duration-200 shadow-xl ${newBookingDisabled ? "bg-red-600/30 text-red-300/50 cursor-not-allowed shadow-none" : "bg-red-600 hover:bg-red-500 text-white hover:scale-105 shadow-red-600/30"}`}
             >
               <svg
                 className="w-4 h-4 sm:w-5 sm:h-5"
@@ -3562,7 +3519,6 @@ function BookingsPage() {
               </svg>
               New Booking
             </button>
-            {/* Tooltip shown on hover when disabled */}
             {newBookingDisabled && (
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <div className="bg-gray-900 border border-red-600/30 rounded-xl px-3 py-2 text-center shadow-xl">
@@ -3579,7 +3535,6 @@ function BookingsPage() {
           </div>
         </div>
 
-        {/* ── Active booking banner ── */}
         {!loading && hasActiveBooking && (
           <div className="mb-5 sm:mb-6 flex items-center gap-3 bg-yellow-600/10 border border-yellow-600/25 rounded-2xl px-4 py-3">
             <div className="w-8 h-8 rounded-lg bg-yellow-600/20 flex items-center justify-center shrink-0">
@@ -3609,7 +3564,6 @@ function BookingsPage() {
           </div>
         )}
 
-        {/* Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
           {[
             { label: "Total", value: bookings.length, color: "text-white" },
@@ -3645,23 +3599,18 @@ function BookingsPage() {
           ))}
         </div>
 
-        {/* Filter Tabs */}
         <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-6 flex-wrap">
           {["all", "confirmed", "pending", "done", "cancelled"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`flex-shrink-0 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-semibold text-[10px] sm:text-xs capitalize transition-all duration-200 ${filter === f
-                ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40 hover:bg-red-600/10"
-                }`}
+              className={`flex-shrink-0 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-semibold text-[10px] sm:text-xs capitalize transition-all duration-200 ${filter === f ? "bg-red-600 text-white shadow-lg shadow-red-600/30" : "bg-gray-900 text-gray-400 border border-white/10 hover:text-white hover:border-red-600/40 hover:bg-red-600/10"}`}
             >
               {f}
             </button>
           ))}
         </div>
 
-        {/* Results meta */}
         {!loading && !fetchError && filtered.length > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3 sm:mb-4">
             <p className="text-[10px] sm:text-xs text-gray-500">
@@ -3681,7 +3630,6 @@ function BookingsPage() {
           </div>
         )}
 
-        {/* ── Bookings List ── */}
         <div className="space-y-2.5 sm:space-y-4">
           {loading && (
             <div className="flex items-center justify-center py-16 text-gray-500 text-xs">
@@ -3736,19 +3684,19 @@ function BookingsPage() {
                 booking.service_name ||
                 booking.service_detail?.name ||
                 (typeof rawSvc === "string" &&
-                  rawSvc.trim() !== "" &&
-                  isNaN(rawSvc)
+                rawSvc.trim() !== "" &&
+                isNaN(rawSvc)
                   ? rawSvc
                   : typeof rawSvc === "number" ||
-                    (typeof rawSvc === "string" && !isNaN(rawSvc))
+                      (typeof rawSvc === "string" && !isNaN(rawSvc))
                     ? `Service #${rawSvc}`
                     : String(rawSvc || "Unknown Service"));
               const displayTime = toDisplayTime(booking.time);
               const rawPrice = parseFloat(booking.price);
               const priceDisplay =
                 !isNaN(rawPrice) &&
-                  booking.price != null &&
-                  booking.price !== ""
+                booking.price != null &&
+                booking.price !== ""
                   ? rawPrice > 0
                     ? `₱${rawPrice.toLocaleString("en-PH")}`
                     : "To be assessed"
@@ -3760,7 +3708,7 @@ function BookingsPage() {
                   onClick={() => {
                     if (booking.status === "done") setReceiptBooking(booking);
                   }}
-                  className={`bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/25 hover:bg-gradient-to-br hover:from-gray-900 hover:to-red-950/20 transition-all duration-200 ${booking.status === "done" ? "cursor-pointer" : ""}`}
+                  className={`bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5 hover:border-red-600/25 transition-all duration-200 ${booking.status === "done" ? "cursor-pointer" : ""}`}
                 >
                   <div className="flex flex-col gap-4">
                     <div className="flex-1">
@@ -3823,6 +3771,7 @@ function BookingsPage() {
                           )}
                       </div>
                     </div>
+
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-wrap">
                       <div className="text-lg sm:text-xl lg:text-2xl font-black text-white">
                         {priceDisplay}
@@ -3865,29 +3814,28 @@ function BookingsPage() {
                             )}
                             {(booking.status === "pending" ||
                               booking.status === "confirmed") && (
-                                <button
-                                  onClick={() =>
-                                    setCustomerRescheduleBooking(booking)
-                                  }
-                                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
+                              <button
+                                onClick={() =>
+                                  setCustomerRescheduleBooking(booking)
+                                }
+                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
+                              >
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
                                 >
-                                  <svg
-                                    className="w-3 h-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
-                                    />
-                                  </svg>
-                                  Request Reschedule
-                                </button>
-                              )}
-
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
+                                  />
+                                </svg>
+                                Request Reschedule
+                              </button>
+                            )}
                             <button
                               onClick={() => setCancelBooking(booking)}
                               className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/15 hover:bg-red-600 border border-red-600/40 hover:border-red-500 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
@@ -3907,8 +3855,18 @@ function BookingsPage() {
                               onClick={() => setChatQueueId(booking.queue_id)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/15 hover:bg-blue-600/30 border border-blue-600/40 text-blue-300 hover:text-white rounded-lg text-[10px] sm:text-xs font-semibold transition-all"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                                />
                               </svg>
                               Message
                             </button>
@@ -3917,8 +3875,18 @@ function BookingsPage() {
                             onClick={openChatbotFromBooking}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600/15 hover:bg-red-600/30 border border-red-600/40 text-red-300 hover:text-white rounded-lg text-[10px] sm:text-xs font-semibold transition-all"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
+                              />
                             </svg>
                             Chatbot
                           </button>
@@ -3954,7 +3922,6 @@ function BookingsPage() {
         <Pagination current={page} total={totalPages} onChange={setPage} />
       </div>
 
-      {/* Modals */}
       {showOptionModal && (
         <OptionSelectorModal
           onClose={() => setShowOptionModal(false)}

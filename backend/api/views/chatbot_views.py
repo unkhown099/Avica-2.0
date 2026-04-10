@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.conf import settings
+from better_profanity import profanity
 import requests
 
 # Import your models
@@ -62,6 +63,7 @@ INSTRUCTIONS:
 - If you cannot answer something specific, invite them to call or visit the shop.
 - Always answer based on the live data above — do not invent services or locations."""
 
+profanity.load_censor_words()
 
 @api_view(['POST'])
 def chat_with_groq(request):
@@ -69,6 +71,16 @@ def chat_with_groq(request):
         messages = request.data.get("messages", [])
         if not messages:
             return Response({"reply": "No messages received."}, status=400)
+
+        # Check the latest user message for profanity
+        last_user_msg = next(
+            (m["content"] for m in reversed(messages) if m.get("role") == "user"),
+            ""
+        )
+        if profanity.contains_profanity(last_user_msg):
+            return Response({
+                "reply": "Please keep your messages respectful. I'm happy to help with any questions about our services! 😊"
+            })
 
         filtered = [m for m in messages if m.get("role") != "system"]
 

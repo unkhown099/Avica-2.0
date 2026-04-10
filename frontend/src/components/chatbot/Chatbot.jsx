@@ -7,6 +7,28 @@ const suggestedQuestions = [
   "Where is your shop located?",
 ];
 
+const PROFANITY_LIST = [
+  "fuck",
+  "shit",
+  "ass",
+  "bitch",
+  "bastard",
+  "damn",
+  "crap",
+  "dick",
+  "piss",
+  "cunt",
+  "faggot",
+  "nigger",
+  "whore",
+  "slut",
+];
+
+function containsProfanity(text) {
+  const lower = text.toLowerCase();
+  return PROFANITY_LIST.some((w) => lower.includes(w));
+}
+
 export default function Chatbot({
   onClose,
   onClearChat,
@@ -29,6 +51,23 @@ export default function Chatbot({
   const sendMessage = async (text) => {
     const userText = text || input.trim();
     if (!userText || isLoading) return;
+
+    // ── Profanity guard ──────────────────────────────────────────────────────
+    if (containsProfanity(userText)) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: userText, id: Date.now() },
+        {
+          role: "assistant",
+          content:
+            "Please keep your messages respectful. I'm happy to help with any questions about our services! 😊",
+          id: Date.now() + 1,
+        },
+      ]);
+      setInput("");
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     setInput("");
     const userMsg = { role: "user", content: userText, id: Date.now() };
@@ -112,7 +151,6 @@ export default function Chatbot({
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Clear chat button */}
           {onClearChat && messages.length > 1 && (
             <button
               onClick={onClearChat}

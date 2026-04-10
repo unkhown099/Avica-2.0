@@ -1,22 +1,12 @@
 import React, { useState, useEffect } from "react";
 import CustomerLayout from "./CustomerLayout";
-import { API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 import { useNavigate } from "react-router-dom";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-function authHeaders() {
-  const token =
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("access") ||
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("access_token") ||
-    sessionStorage.getItem("access") ||
-    sessionStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+async function authHeaders() {
+  return getAuthHeadersAsync();
 }
 
 function formatDate(dateStr) {
@@ -97,11 +87,12 @@ function ReviewModal({ item, onClose, onSubmitted }) {
     setLoading(true);
     setError("");
     try {
+      const headers = await authHeaders();
       const res = await fetch(
         `${API_BASE}/api/ratings/`,
         {
           method: "POST",
-          headers: authHeaders(),
+          headers: headers,
           body: JSON.stringify({
             ...(item.booking_id ? { booking_id: item.booking_id } : {}),
             ...(item.queue_id ? { queue_id: item.queue_id } : {}),
@@ -273,24 +264,26 @@ function HistoryPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_BASE}/api/customer/history/`, {
-      headers: authHeaders(),
-    })
-      .then((r) => {
-        if (!r.ok)
-          throw new Error(`Error ${r.status}: Failed to load history.`);
-        return r.json();
-      })
-      .then((data) => {
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const response = await fetch(`${API_BASE}/api/customer/history/`, {
+          headers: headers,
+        });
+        if (!response.ok) throw new Error(`Error ${response.status}: Failed to load history.`);
+        const data = await response.json();
         setHistory(data.history || []);
         setStats({
           total_services: data.total_services || 0,
           total_spent: data.total_spent || 0,
           avg_rating: data.avg_rating,
         });
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const handleReviewSubmitted = (queueId, rating, review) => {
