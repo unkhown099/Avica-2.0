@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/otokwikklogo.png";
 import Swal from "sweetalert2";
@@ -308,7 +308,7 @@ const MENU_ITEMS = {
       name: "Dashboard",
       path: "/inventory/dashboard",
       icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
-   
+
     },
     { type: "divider", label: "Stock" },
     {
@@ -336,7 +336,7 @@ const MENU_ITEMS = {
       name: "Dashboard",
       path: "/inventory-manager/dashboard",
       icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
-   
+
     },
     { type: "divider", label: "Stock" },
     {
@@ -386,7 +386,6 @@ function UnifiedSidebar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, role, user, headers } = useAuth();
-
   const [alertCount, setAlertCount] = useState(null);
   const [expandedItems, setExpandedItems] = useState({});
   const [collapsed, setCollapsed] = useState(() => {
@@ -461,6 +460,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
     }
     document.documentElement.style.setProperty("--sidebar-width", collapsed ? "5rem" : "15rem");
   }, [collapsed]);
+
 
   const isActive = (path) => location.pathname === path;
 
@@ -598,8 +598,8 @@ function UnifiedSidebar({ isOpen, onClose }) {
                       }))
                     }
                     className={`w-full flex items-center gap-3 px-5 py-3 transition-all duration-200 group ${active
-                        ? "bg-gradient-to-r from-red-600/20 to-transparent text-white border-l-4 border-red-600"
-                        : "text-gray-400 hover:text-white hover:bg-gray-800/50 border-l-4 border-transparent"
+                      ? "bg-gradient-to-r from-red-600/20 to-transparent text-white border-l-4 border-red-600"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800/50 border-l-4 border-transparent"
                       }`}
                     title={item.name}
                   >
@@ -653,8 +653,8 @@ function UnifiedSidebar({ isOpen, onClose }) {
                             to={childTo}
                             onClick={handleNavClick}
                             className={`block pl-4 pr-5 py-2 text-xs rounded-lg transition-all ${activeChild
-                                ? "text-red-400 bg-red-500/10 border-l-2 border-red-500"
-                                : "text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"
+                              ? "text-red-400 bg-red-500/10 border-l-2 border-red-500"
+                              : "text-gray-500 hover:text-gray-300 hover:bg-white/5 border-l-2 border-transparent"
                               }`}
                           >
                             {child.label}
@@ -678,8 +678,8 @@ function UnifiedSidebar({ isOpen, onClose }) {
                 to={item.path}
                 onClick={handleNavClick}
                 className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 group ${active
-                    ? "bg-gradient-to-r from-red-600/20 to-transparent text-white border-l-4 border-red-600"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800/50 border-l-4 border-transparent"
+                  ? "bg-gradient-to-r from-red-600/20 to-transparent text-white border-l-4 border-red-600"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800/50 border-l-4 border-transparent"
                   }`}
                 title={item.name}
               >
@@ -702,8 +702,8 @@ function UnifiedSidebar({ isOpen, onClose }) {
                 {showBadge && !collapsed && (
                   <span
                     className={`text-xs font-bold px-2 py-0.5 rounded-full animate-pulse ${active
-                        ? "bg-red-500 text-white"
-                        : "bg-red-500/20 text-red-400"
+                      ? "bg-red-500 text-white"
+                      : "bg-red-500/20 text-red-400"
                       }`}
                   >
                     {alertCount > 99 ? "99+" : alertCount}
@@ -714,54 +714,18 @@ function UnifiedSidebar({ isOpen, onClose }) {
           })}
         </nav>
 
-        {/* User Section */}
-        <div className="p-4 border-t border-gray-800/50 bg-gray-900/50 backdrop-blur-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-            </div>
-            <div className={`flex-1 min-w-0 ${collapsed ? "lg:hidden" : ""}`}>
-              <p className="text-white font-semibold text-sm truncate">
-                {user?.first_name && user?.last_name
-                  ? `${user.first_name} ${user.last_name}`
-                  : (user?.full_name ?? user?.name ?? roleLabel.title)}
-              </p>
-              <p className="text-gray-400 text-xs truncate">
-                {user?.email || roleLabel.subtitle}
-              </p>
-            </div>
-          </div>
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-gray-800/50">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-800/50 hover:bg-red-600/20 text-gray-400 hover:text-red-400 rounded-xl transition-all duration-200 group"
-            title="Logout"
+            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 text-gray-400 hover:text-red-500 hover:bg-red-500/5 group"
           >
-            <svg
-              className="w-5 h-5 transition-transform group-hover:translate-x-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            <span className={`font-medium text-sm ${collapsed ? "lg:hidden" : ""}`}>Logout</span>
+            <div className="shrink-0 group-hover:scale-110 transition-transform">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            {!collapsed && <span className="font-semibold text-sm">Logout</span>}
           </button>
         </div>
       </aside>

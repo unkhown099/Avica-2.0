@@ -208,8 +208,8 @@ const STATUS_META = {
   },
   done: {
     label: "Done",
-    dot: "bg-blue-400",
-    badge: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    dot: "bg-gray-400",
+    badge: "bg-gray-500/15 text-gray-400 border-gray-500/30",
     glow: "",
   },
   skipped: {
@@ -463,7 +463,7 @@ function QueueCard({
 
   const sourceColor =
     entry.source === "walk_in"
-      ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
       : "bg-purple-500/15 text-purple-400 border-purple-500/30";
 
   return (

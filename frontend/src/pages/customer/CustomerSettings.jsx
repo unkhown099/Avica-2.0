@@ -1,574 +1,651 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import Swal from "sweetalert2";
+import Cropper from "react-easy-crop";
 import CustomerLayout from "./CustomerLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
-import { getUserFromSession } from "../../utils/getUser";
+import getCroppedImg from "../../utils/cropImage.js";
 
-// Auth helpers
-const getToken = () =>
-  localStorage.getItem("access_token") ??
-  sessionStorage.getItem("access_token");
-
-const authHeaders = () => ({
-  "Content-Type": "application/json",
-  ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
-});
-
-const API = API_BASE;
-
-const DEFAULT_NOTIFICATIONS = {
-  bookingConfirmation: true,
-  bookingReminders: true,
-  promotions: false,
-  serviceUpdates: true,
-  newsletter: false,
+const getHeaders = () => {
+  const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
+  return {
+    Authorization: `Bearer ${token}`
+  };
 };
 
-const DEFAULT_PRIVACY = {
-  shareData: false,
-  analytics: true,
+const formatDate = (dateStr) => {
+  if (!dateStr) return "N/A";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 };
 
-const getSettingsStorageKey = (user) => {
-  const identity = user?.id || user?.email || "guest";
-  return `customer_settings_${identity}`;
-};
-
-function Toggle({ enabled, onChange, disabled = false }) {
-  return (
-    <button
-      onClick={() => !disabled && onChange(!enabled)}
-      disabled={disabled}
-      className={`relative w-11 h-6 rounded-full transition-all duration-300 focus:outline-none shrink-0 ${
-        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-      } ${enabled ? "bg-red-600" : "bg-gray-700"}`}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${
-          enabled ? "translate-x-5" : "translate-x-0"
-        }`}
-      />
-    </button>
-  );
-}
-
-function SettingsPage() {
-  const sessionUser = getUserFromSession();
-
+function CustomerSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState(null);
-
-  const [notifications, setNotifications] = useState({
-    ...DEFAULT_NOTIFICATIONS,
+  const [isEditing, setIsEditing] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
   });
 
-  const [privacy, setPrivacy] = useState({
-    ...DEFAULT_PRIVACY,
-  });
+  const [errors, setErrors] = useState({});
+  const [isDirty, setIsDirty] = useState(false);
 
-  const [passwords, setPasswords] = useState({
+  // Password Modal State
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [passForm, setPassForm] = useState({
     current: "",
-    newPass: "",
-    confirm: "",
+    new: "",
+    confirm: ""
   });
+  const [passErrors, setPassErrors] = useState({});
 
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [deleting, setDeleting] = useState(false);
+  // Crop Modal State
+  const [imageToCrop, setImageToCrop] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [showCropModal, setShowCropModal] = useState(false);
 
   useEffect(() => {
-    fetchSettings();
+    fetchUserData();
   }, []);
 
-  const fetchSettings = async () => {
+  const fetchUserData = async () => {
     try {
-      setLoading(true);
-      const response = await fetch(`${API}/api/customer/settings/`, {
-        headers: authHeaders(),
+      const res = await axios.get(`${API_BASE}/me/`, { headers: getHeaders() });
+      setUserData(res.data);
+      setFormData({
+        first_name: res.data.first_name || "",
+        last_name: res.data.last_name || "",
+        email: res.data.email || "",
+        phone: res.data.phone || "",
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data?.notifications) {
-          setNotifications({ ...DEFAULT_NOTIFICATIONS, ...data.notifications });
-        }
-        if (data?.privacy) {
-          setPrivacy({ ...DEFAULT_PRIVACY, ...data.privacy });
-        }
-        return;
-      }
-
-      const key = getSettingsStorageKey(sessionUser);
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (data?.notifications) {
-          setNotifications({ ...DEFAULT_NOTIFICATIONS, ...data.notifications });
-        }
-        if (data?.privacy) {
-          setPrivacy({ ...DEFAULT_PRIVACY, ...data.privacy });
-        }
-      }
     } catch (err) {
-      console.error("Error fetching settings:", err);
-      setError("Failed to load saved settings.");
+      console.error("Failed to fetch user data:", err);
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to load profile data." });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveSettings = async () => {
-    setSaving(true);
-    setError(null);
+  const validateField = (name, value) => {
+    let error = "";
+    if (name === "first_name" || name === "last_name") {
+      if (!value.trim()) error = `${name === "first_name" ? "First" : "Last"} name is required`;
+      else if (value.length < 2) error = "Too short";
+    }
+    if (name === "phone") {
+      const phoneRegex = /^(09|\+639)\d{9}$/;
+      if (value && !phoneRegex.test(value)) error = "Invalid PH phone number (e.g. 09123456789)";
+    }
+    setErrors(prev => ({ ...prev, [name]: error }));
+    return !error;
+  };
 
+  const handleInputChange = (name, value) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+    validateField(name, value);
+    setIsDirty(true);
+  };
+
+  const onCropComplete = useCallback((_croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      setImageToCrop(reader.result);
+      setShowCropModal(true);
+    };
+  };
+
+  const updateStoredUser = (newData) => {
+    const key = localStorage.getItem("user") ? "user" : sessionStorage.getItem("user") ? "user" : null;
+    if (!key) return;
+
+    const storage = localStorage.getItem(key) ? localStorage : sessionStorage;
     try {
-      const response = await fetch(`${API}/api/customer/settings/`, {
-        method: "PUT",
-        headers: authHeaders(),
-        body: JSON.stringify({ notifications, privacy }),
+      const current = JSON.parse(storage.getItem(key));
+      const updated = { ...current, ...newData };
+      storage.setItem(key, JSON.stringify(updated));
+      window.dispatchEvent(new Event("userUpdate"));
+    } catch (e) {
+      console.error("Failed to update stored user", e);
+    }
+  };
+
+  const handleCropSave = async () => {
+    try {
+      setSaving(true);
+      const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixels);
+
+      const uploadData = new FormData();
+      uploadData.append("profile_picture", croppedImageBlob, "profile.jpg");
+
+      const res = await axios.put(`${API_BASE}/me/`, uploadData, {
+        headers: {
+          ...getHeaders(),
+          "Content-Type": "multipart/form-data",
+        },
       });
 
-      if (!response.ok) {
-        const key = getSettingsStorageKey(sessionUser);
-        localStorage.setItem(
-          key,
-          JSON.stringify({
-            notifications,
-            privacy,
-            updatedAt: new Date().toISOString(),
-          }),
-        );
-      }
+      setUserData(res.data);
+      updateStoredUser(res.data);
+      setShowCropModal(false);
+      setImageToCrop(null);
 
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      Swal.fire({
+        icon: "success",
+        title: "Photo Updated",
+        text: "Your profile picture has been changed.",
+        timer: 1500,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#fff",
+      });
     } catch (err) {
-      console.error("Error saving settings:", err);
-      setError(err.message || "Failed to save settings");
+      console.error("Crop/Upload error", err);
+      Swal.fire({
+        icon: "error",
+        title: "Upload Failed",
+        text: "Failed to process or upload image.",
+        background: "#111827",
+        color: "#fff",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!passwords.current || !passwords.newPass || !passwords.confirm) {
-      setError("Please fill in all password fields");
+  const handleCancel = () => {
+    if (userData) {
+      setFormData({
+        first_name: userData.first_name || "",
+        last_name: userData.last_name || "",
+        email: userData.email || "",
+        phone: userData.phone || "",
+      });
+    }
+    setErrors({});
+    setIsDirty(false);
+    setIsEditing(false);
+  };
+
+  const handleUpdateProfile = async (e) => {
+    if (e) e.preventDefault();
+
+    if (!isEditing) {
+      setIsEditing(true);
       return;
     }
-    if (passwords.newPass !== passwords.confirm) {
-      setError("New passwords do not match");
-      return;
-    }
-    if (passwords.newPass.length < 8) {
-      setError("Password must be at least 8 characters");
+
+    const fValid = validateField("first_name", formData.first_name);
+    const lValid = validateField("last_name", formData.last_name);
+    const pValid = validateField("phone", formData.phone);
+
+    if (!fValid || !lValid || !pValid) {
+      Swal.fire({
+        icon: "error",
+        title: "Validation Error",
+        text: "Please fix the errors before saving.",
+        background: "#111827",
+        color: "#fff",
+      });
       return;
     }
 
     setSaving(true);
-    setError(null);
-
     try {
-      const response = await fetch(`${API}/change-password/`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          old_password: passwords.current,
-          new_password: passwords.newPass,
-        }),
+      const res = await axios.put(`${API_BASE}/me/`, {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+      }, { headers: getHeaders() });
+
+      setUserData(res.data);
+      updateStoredUser(res.data);
+      setIsDirty(false);
+      setIsEditing(false);
+      Swal.fire({
+        icon: "success",
+        title: "Profile Updated",
+        text: "Your information has been successfully updated.",
+        timer: 1500,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#fff",
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to change password");
-      }
-
-      setPasswords({ current: "", newPass: "", confirm: "" });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      console.error("Error changing password:", err);
-      setError(err.message || "Failed to change password");
+      console.error("Failed to update profile:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Update Failed",
+        text: err.response?.data?.detail || "Failed to update profile information.",
+        background: "#111827",
+        color: "#fff",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== "DELETE MY ACCOUNT") {
-      setError("Please type 'DELETE MY ACCOUNT' to confirm");
-      return;
-    }
+  const handleChangePassword = async (e) => {
+    if (e) e.preventDefault();
+    if (passForm.new !== passForm.confirm) return;
+    if (passForm.new.length < 8) return;
 
-    setDeleting(true);
-    setError(null);
-
+    setSaving(true);
     try {
-      const response = await fetch(`${API}/delete-account/`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
+      await axios.post(`${API_BASE}/change-password/`, {
+        old_password: passForm.current,
+        new_password: passForm.new,
+      }, { headers: getHeaders() });
 
-      if (!response.ok) throw new Error("Failed to delete account");
-
-      localStorage.clear();
-      sessionStorage.clear();
-      import("sweetalert2").then((swal) => {
-        swal.default
-          .fire({
-            title: "Account Deleted!",
-            text: "Your account has been successfully deleted.",
-            icon: "success",
-            confirmButtonText: "Okay",
-            background: "linear-gradient(to bottom right, #1f2937, #111827)",
-            color: "#fff",
-            confirmButtonColor: "#dc2626",
-          })
-          .then(() => {
-            window.location.href = "/";
-          });
+      setShowPassModal(false);
+      setPassForm({ current: "", new: "", confirm: "" });
+      Swal.fire({
+        icon: "success",
+        title: "Password Changed",
+        text: "Your password has been successfully updated.",
+        timer: 1500,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#fff",
       });
     } catch (err) {
-      console.error("Error deleting account:", err);
-      setError(err.message || "Failed to delete account");
-      setDeleting(false);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.response?.data?.detail || "Failed to change password.",
+        background: "#111827",
+        color: "#fff",
+      });
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handlePassChange = (name, value) => {
+    const newForm = { ...passForm, [name]: value };
+    setPassForm(newForm);
+
+    let errs = { ...passErrors };
+    if (name === "new") {
+      if (value.length < 8) errs.new = "Minimum 8 characters";
+      else delete errs.new;
+    }
+    if (name === "confirm" || name === "new") {
+      if (newForm.confirm && newForm.new !== newForm.confirm) errs.confirm = "Passwords do not match";
+      else delete errs.confirm;
+    }
+    setPassErrors(errs);
   };
 
   if (loading) {
     return (
       <CustomerLayout>
-        <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/30 p-4 sm:p-6 lg:p-8">
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-400">Loading settings...</p>
-            </div>
-          </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
         </div>
       </CustomerLayout>
     );
   }
 
+  const isPassValid = passForm.current && passForm.new && passForm.confirm && !passErrors.new && !passErrors.confirm;
+
   return (
     <CustomerLayout>
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/30 p-4 sm:p-6 lg:p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-1">
-            Account <span className="text-red-600">Settings</span>
-          </h1>
-          <p className="text-gray-400">Manage your preferences and security.</p>
-        </div>
-
-        <div className="max-w-3xl mx-auto space-y-6">
-          {/* Success Message */}
-          {saved && (
-            <div className="bg-green-600/20 border border-green-600/40 text-green-400 px-5 py-3 rounded-xl flex items-center gap-3 font-semibold animate-in slide-in-from-top-2 duration-300">
-              <svg
-                className="w-5 h-5 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              Settings saved successfully!
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-600/20 border border-red-600/40 text-red-400 px-5 py-3 rounded-xl flex items-center gap-3 font-semibold">
-              <svg
-                className="w-5 h-5 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-              {error}
-            </div>
-          )}
-
-          {/* Notifications Section */}
-          <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
-            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-4 sm:px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                <div className="p-1.5 bg-red-600/20 rounded-lg shrink-0">
-                  <svg
-                    className="w-4 h-4 text-red-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                    />
-                  </svg>
+        {/* Image Crop Modal */}
+        {showCropModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setShowCropModal(false)}></div>
+            <div className="relative bg-gray-900 border border-white/10 rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl scale-in duration-300">
+              <div className="p-8 border-b border-white/5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-black text-white">Adjust Photo</h3>
+                  <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1">Crop and center your profile picture</p>
                 </div>
-                Notification Preferences
-              </h3>
-              <p className="text-gray-500 text-xs mt-1 ml-8">
-                Choose how you want to be notified
-              </p>
-            </div>
-            <div className="px-4 sm:px-6 py-4 space-y-2">
-              {[
-                {
-                  key: "bookingConfirmation",
-                  label: "Booking Confirmations",
-                  desc: "Get notified when your booking is confirmed",
-                  icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-                },
-                {
-                  key: "bookingReminders",
-                  label: "Booking Reminders",
-                  desc: "Receive reminders 24 hours before your appointment",
-                  icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-                },
-                {
-                  key: "serviceUpdates",
-                  label: "Service Updates",
-                  desc: "Real-time updates on your vehicle while being serviced",
-                  icon: "M13 10V3L4 14h7v7l9-11h-7z",
-                },
-              ].map(({ key, label, desc, icon }) => (
-                <div
-                  key={key}
-                  className="group flex items-center justify-between gap-3 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors rounded-lg px-2 -mx-2"
-                >
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <svg
-                      className="w-4 h-4 text-gray-500 mt-0.5 shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d={icon}
-                      />
-                    </svg>
-                    <div className="min-w-0">
-                      <p className="text-white font-semibold text-sm group-hover:text-red-400 transition-colors">
-                        {label}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-0.5 leading-snug">
-                        {desc}
-                      </p>
-                    </div>
+                <button onClick={() => setShowCropModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              <div className="relative h-[400px] bg-black/50">
+                <Cropper
+                  image={imageToCrop}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropShape="round"
+                  showGrid={false}
+                  onCropChange={setCrop}
+                  onCropComplete={onCropComplete}
+                  onZoomChange={setZoom}
+                />
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="space-y-3">
+                  <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                    <span>Zoom</span>
+                    <span>{Math.round(zoom * 100)}%</span>
                   </div>
-                  <Toggle
-                    enabled={notifications[key]}
-                    onChange={(val) =>
-                      setNotifications((p) => ({ ...p, [key]: val }))
-                    }
+                  <input
+                    type="range"
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    value={zoom}
+                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-red-600"
                   />
                 </div>
-              ))}
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowCropModal(false)}
+                    className="flex-1 px-6 py-4 bg-gray-800 text-white rounded-2xl font-black hover:bg-gray-700 transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCropSave}
+                    disabled={saving}
+                    className="flex-1 px-6 py-4 bg-red-600 text-white rounded-2xl font-black shadow-xl shadow-red-600/20 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    {saving ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      "Set Profile Picture"
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+        )}
 
-        
-          {/* Change Password Section */}
-          <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden backdrop-blur-sm hover:border-red-500/30 transition-all duration-300">
-            <div className="bg-gradient-to-r from-red-600/20 to-transparent px-4 sm:px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                <div className="p-1.5 bg-red-600/20 rounded-lg shrink-0">
-                  <svg
-                    className="w-4 h-4 text-red-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                    />
+        {/* Password Change Modal */}
+        {showPassModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowPassModal(false)}></div>
+            <div className="relative bg-gray-900 border border-white/10 rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl scale-in duration-300">
+              <div className="flex flex-col items-center mb-8">
+                <div className="w-16 h-16 bg-red-600/20 rounded-2xl flex items-center justify-center text-red-500 mb-4">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
-                Security
-              </h3>
-              <p className="text-gray-500 text-xs mt-1 ml-8">
-                Update your password to keep your account secure
-              </p>
-            </div>
-            <div className="p-4 sm:p-6 space-y-4">
-              {[
-                {
-                  label: "Current Password",
-                  key: "current",
-                  placeholder: "Enter your current password",
-                },
-                {
-                  label: "New Password",
-                  key: "newPass",
-                  placeholder: "At least 8 characters",
-                },
-                {
-                  label: "Confirm New Password",
-                  key: "confirm",
-                  placeholder: "Re-enter your new password",
-                },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key}>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                    {label}
-                  </label>
+                <h3 className="text-2xl font-black text-white">Security Update</h3>
+                <p className="text-gray-500 text-sm font-bold uppercase tracking-widest mt-1">Change Account Password</p>
+              </div>
+
+              <form onSubmit={handleChangePassword} className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Current Password</label>
                   <input
                     type="password"
-                    value={passwords[key]}
-                    onChange={(e) =>
-                      setPasswords((p) => ({ ...p, [key]: e.target.value }))
-                    }
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/50 transition-all text-sm placeholder-gray-600"
-                    placeholder={placeholder}
+                    required
+                    value={passForm.current}
+                    onChange={(e) => handlePassChange("current", e.target.value)}
+                    className="w-full bg-black/40 border-2 border-white/5 rounded-2xl px-5 py-3.5 text-white font-bold focus:border-red-600 focus:ring-4 focus:ring-red-600/10 outline-none transition-all"
                   />
                 </div>
-              ))}
-              <button
-                onClick={handleChangePassword}
-                disabled={saving}
-                className="w-full mt-2 px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 rounded-xl font-semibold text-sm transition-all disabled:opacity-50"
-              >
-                Update Password
-              </button>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={passForm.new}
+                    onChange={(e) => handlePassChange("new", e.target.value)}
+                    className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold outline-none transition-all ${passErrors.new ? "border-red-600/50" : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                      }`}
+                  />
+                  {passErrors.new && <p className="text-red-500 text-[10px] font-bold ml-1">{passErrors.new}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={passForm.confirm}
+                    onChange={(e) => handlePassChange("confirm", e.target.value)}
+                    className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold outline-none transition-all ${passErrors.confirm ? "border-red-600/50" : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                      }`}
+                  />
+                  {passErrors.confirm && <p className="text-red-500 text-[10px] font-bold ml-1">{passErrors.confirm}</p>}
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowPassModal(false)}
+                    className="flex-1 px-6 py-4 bg-gray-800 text-white rounded-2xl font-black hover:bg-gray-700 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!isPassValid || saving}
+                    className={`flex-1 px-6 py-4 rounded-2xl font-black transition-all ${isPassValid && !saving ? "bg-red-600 text-white shadow-xl shadow-red-600/20 active:scale-95" : "bg-gray-800 text-gray-500 cursor-not-allowed"
+                      }`}
+                  >
+                    {saving ? "UPDATING..." : "CONFIRM"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
+        )}
 
-          {/* Danger Zone */}
-          <div className="bg-gradient-to-br from-red-950/20 to-red-950/10 rounded-2xl border border-red-600/20 overflow-hidden">
-            <div className="bg-red-600/10 px-4 sm:px-6 py-4 border-b border-red-600/20">
-              <h3 className="text-base font-black text-red-500 flex items-center gap-2">
-                <svg
-                  className="w-5 h-5 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-                Danger Zone
-              </h3>
-              <p className="text-gray-500 text-xs mt-1">
-                Permanently delete your account and all associated data
-              </p>
-            </div>
-            <div className="p-4 sm:p-6">
-              {!showDeleteConfirm ? (
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="px-5 py-2.5 border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white rounded-xl font-semibold text-sm transition-all duration-200"
-                >
-                  Delete Account
-                </button>
-              ) : (
-                <div className="space-y-4">
-                  <div className="bg-red-600/10 border border-red-600/30 rounded-xl p-4">
-                    <p className="text-red-400 text-sm font-semibold mb-2">
-                      ⚠️ Warning: This action cannot be undone
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      This will permanently delete your account, all your
-                      bookings, and personal data.
-                    </p>
+        <div className="max-w-6xl mx-auto py-6 animate-in fade-in duration-500">
+          <div className="flex flex-col lg:flex-row gap-8">
+
+            {/* Left Profile Card */}
+            <div className="lg:w-1/3">
+              <div className="bg-gray-900/40 border border-white/5 rounded-[2.5rem] p-8 flex flex-col items-center text-center backdrop-blur-xl sticky top-8 shadow-2xl overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-red-600/10 to-transparent"></div>
+
+                <div className="relative group mb-6 z-10">
+                  <div className="w-32 h-32 rounded-[2rem] bg-gradient-to-tr from-gray-800 to-black border-4 border-gray-900 flex items-center justify-center text-5xl font-black text-white shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden transition-all group-hover:scale-105 duration-500">
+                    {userData?.profile_picture ? (
+                      <img
+                        src={
+                          userData.profile_picture.startsWith('http')
+                            ? userData.profile_picture
+                            : `${API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE}${userData.profile_picture.startsWith('/') ? userData.profile_picture : '/' + userData.profile_picture}`
+                        }
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      (userData?.first_name || "?").charAt(0).toUpperCase()
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      Type{" "}
-                      <span className="text-red-500">"DELETE MY ACCOUNT"</span>{" "}
-                      to confirm
-                    </label>
-                    <input
-                      type="text"
-                      value={deleteConfirmText}
-                      onChange={(e) => setDeleteConfirmText(e.target.value)}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-red-500 transition-all text-sm"
-                      placeholder="DELETE MY ACCOUNT"
-                    />
+                  <label className="absolute -bottom-2 -right-2 bg-red-600 hover:bg-red-700 text-white p-3 rounded-2xl shadow-lg transition-all transform cursor-pointer border-4 border-gray-900 hover:scale-110 active:scale-95 z-20">
+                    <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </label>
+                </div>
+
+                <div className="z-10">
+                  <h2 className="text-2xl font-black text-white tracking-tight">{userData?.first_name} {userData?.last_name}</h2>
+                  <div className="mt-3 inline-flex items-center px-4 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl shadow-lg shadow-red-600/20">
+                    Customer
                   </div>
-                  <div className="flex gap-3">
+                </div>
+
+                <div className="mt-8 w-full space-y-3 z-10">
+                  <button
+                    onClick={handleUpdateProfile}
+                    disabled={saving || (isEditing && !isDirty)}
+                    className={`w-full px-6 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 shadow-lg ${isEditing
+                      ? "bg-red-600 hover:bg-red-700 text-white shadow-red-600/30"
+                      : "bg-white text-black hover:bg-red-600 hover:text-white"
+                      }`}
+                  >
+                    {saving ? (
+                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <>
+                        {isEditing ? (
+                          <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>Save Changes</>
+                        ) : (
+                          <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>Edit Profile</>
+                        )}
+                      </>
+                    )}
+                  </button>
+
+                  {isEditing && (
                     <button
-                      onClick={() => {
-                        setShowDeleteConfirm(false);
-                        setDeleteConfirmText("");
-                        setError(null);
-                      }}
-                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold text-sm transition-all"
+                      onClick={handleCancel}
+                      className="w-full px-6 py-4 rounded-2xl font-black bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 transition-all border border-white/5"
                     >
                       Cancel
                     </button>
-                    <button
-                      onClick={handleDeleteAccount}
-                      disabled={deleting}
-                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50"
-                    >
-                      {deleting ? "Deleting..." : "Confirm Delete"}
-                    </button>
+                  )}
+                </div>
+
+                <div className="mt-12 pt-8 border-t border-white/5 w-full">
+                  <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] mb-3">Customer Since</p>
+                  <p className="text-gray-400 font-bold">{formatDate(userData?.created_at)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Content Sections */}
+            <div className="lg:w-2/3 space-y-6">
+
+              {/* Account Profile Section */}
+              <div className="bg-gray-900/40 border border-white/5 rounded-[2.5rem] p-10 backdrop-blur-xl shadow-2xl">
+                <div className="flex items-center justify-between mb-10">
+                  <div className="flex items-center gap-5">
+                    <div className="p-4 bg-red-600 text-white rounded-[1.25rem] shadow-xl shadow-red-600/20">
+                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-white tracking-tight">Personal Information</h3>
+                      <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
+                        {isEditing ? "Modify your profile settings" : "View your current account details"}
+                      </p>
+                    </div>
+                  </div>
+                  {!isEditing && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/40 rounded-xl border border-white/5">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Active</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">First Name</label>
+                    <input
+                      type="text"
+                      value={formData.first_name}
+                      disabled={!isEditing}
+                      onChange={(e) => handleInputChange("first_name", e.target.value)}
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-4 text-white font-bold transition-all outline-none ${!isEditing
+                        ? "border-transparent text-gray-400 cursor-not-allowed"
+                        : errors.first_name
+                          ? "border-red-600/50 focus:ring-4 focus:ring-red-600/10"
+                          : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                        }`}
+                    />
+                    {isEditing && errors.first_name && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.first_name}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Last Name</label>
+                    <input
+                      type="text"
+                      value={formData.last_name}
+                      disabled={!isEditing}
+                      onChange={(e) => handleInputChange("last_name", e.target.value)}
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-4 text-white font-bold transition-all outline-none ${!isEditing
+                        ? "border-transparent text-gray-400 cursor-not-allowed"
+                        : errors.last_name
+                          ? "border-red-600/50 focus:ring-4 focus:ring-red-600/10"
+                          : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                        }`}
+                    />
+                    {isEditing && errors.last_name && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.last_name}</p>}
+                  </div>
+
+                  <div className="space-y-2 opacity-60">
+                    <label className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
+                      Email Address
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </label>
+                    <div className="bg-transparent border-2 border-transparent px-5 py-4 text-gray-500 font-bold cursor-not-allowed">
+                      {formData.email}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      disabled={!isEditing}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      placeholder="09XXXXXXXXX"
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-4 text-white font-bold transition-all outline-none ${!isEditing
+                        ? "border-transparent text-gray-400 cursor-not-allowed"
+                        : errors.phone
+                          ? "border-red-600/50 focus:ring-4 focus:ring-red-600/10"
+                          : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                        }`}
+                    />
+                    {isEditing && errors.phone && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.phone}</p>}
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Save Button */}
-          <div className="flex justify-end pt-4 pb-2">
-            <button
-              onClick={handleSaveSettings}
-              disabled={saving}
-              className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-black transition-all duration-300 hover:scale-105 shadow-xl shadow-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <>
-                  <svg
-                    className="w-5 h-5 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
+              {/* Security Section */}
+              <div className="bg-gray-900/40 border border-white/5 rounded-[2.5rem] p-10 backdrop-blur-xl shadow-2xl overflow-hidden group">
+                <div className="flex items-center gap-5 mb-10">
+                  <div className="p-4 bg-gray-800 text-white rounded-[1.25rem] border border-white/5 shadow-xl group-hover:bg-red-600 transition-colors duration-500">
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-black text-white tracking-tight">Security & Access</h3>
+                </div>
+
+                <div className="bg-white/5 rounded-[2rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 border border-white/5 relative">
+                  <div className="text-center md:text-left">
+                    <h5 className="text-white font-black text-xl">Change Password</h5>
+                    <p className="text-gray-500 text-sm font-medium mt-2 max-w-sm">Keep your account secure with a strong password.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowPassModal(true)}
+                    className="px-10 py-4.5 bg-white text-black hover:bg-red-600 hover:text-white rounded-2xl font-black transition-all shadow-xl active:scale-95 text-sm uppercase tracking-widest whitespace-nowrap"
                   >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                "Save All Settings"
-              )}
-            </button>
+                    Update Password
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -576,4 +653,4 @@ function SettingsPage() {
   );
 }
 
-export default SettingsPage;
+export default CustomerSettings;

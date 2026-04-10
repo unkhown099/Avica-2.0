@@ -395,7 +395,18 @@ class MeView(APIView):
         user = request.user
         user_role, first_name, last_name, suffix, phone, profile_picture = _get_profile_data(user)
         profile_payload = self._profile_payload(user)
- 
+
+        staff_info = {}
+        if profile_payload.get("staff_profile"):
+            try:
+                staff = Staff.objects.get(user=user)
+                staff_info = {
+                    "branch_name": staff.branch.name if staff.branch else "N/A",
+                    "role_display": staff.get_role_display(),
+                }
+            except Exception:
+                pass
+
         return Response({
             "id":         user.id,
             "email":      user.email,
@@ -405,7 +416,9 @@ class MeView(APIView):
             "suffix":     suffix,
             "phone":      phone,
             "profile_picture": profile_picture,
+            "created_at": user.created_at,
             **profile_payload,
+            **staff_info
         })
     
     # Add this PUT method for updating profile
@@ -417,29 +430,37 @@ class MeView(APIView):
         try:
             if user_role == "customer":
                 customer = Customer.objects.get(user=user)
-                if 'first_name' in request.data:
-                    customer.first_name = request.data['first_name']
-                if 'last_name' in request.data:
-                    customer.last_name = request.data['last_name']
-                if 'phone' in request.data:
-                    customer.phone = request.data['phone']
+                if 'first_name' in request.data: customer.first_name = request.data['first_name']
+                if 'last_name' in request.data: customer.last_name = request.data['last_name']
+                if 'phone' in request.data: customer.phone = request.data['phone']
+                if 'profile_picture' in request.FILES:
+                    customer.profile_picture = request.FILES['profile_picture']
                 customer.save()
             else:
                 staff = Staff.objects.get(user=user)
-                if 'first_name' in request.data:
-                    staff.first_name = request.data['first_name']
-                if 'last_name' in request.data:
-                    staff.last_name = request.data['last_name']
-                if 'phone' in request.data:
-                    staff.phone = request.data['phone']
+                if 'first_name' in request.data: staff.first_name = request.data['first_name']
+                if 'last_name' in request.data: staff.last_name = request.data['last_name']
+                if 'phone' in request.data: staff.phone = request.data['phone']
+                if 'profile_picture' in request.FILES:
+                    staff.profile_picture = request.FILES['profile_picture']
                 staff.save()
         except (Customer.DoesNotExist, Staff.DoesNotExist):
-            pass
+            return Response({"success": False, "message": "Profile not found"}, status=404)
         
-        # Return updated data
+        # Return updated data (full payload consistent with GET)
         user_role, first_name, last_name, suffix, phone, profile_picture = _get_profile_data(user)
         profile_payload = self._profile_payload(user)
-        
+        staff_info = {}
+        if profile_payload.get("staff_profile"):
+            try:
+                staff = Staff.objects.get(user=user)
+                staff_info = {
+                    "branch_name": staff.branch.name if staff.branch else "N/A",
+                    "role_display": staff.get_role_display(),
+                }
+            except Exception:
+                pass
+
         return Response({
             "id":         user.id,
             "email":      user.email,
@@ -449,7 +470,9 @@ class MeView(APIView):
             "suffix":     suffix,
             "phone":      phone,
             "profile_picture": profile_picture,
+            "created_at": user.created_at,
             **profile_payload,
+            **staff_info
         })
 
 class GoogleLoginView(APIView):

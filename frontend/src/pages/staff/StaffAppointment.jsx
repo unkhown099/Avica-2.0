@@ -45,7 +45,7 @@ const statusStyle = {
   pending: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   cancelled: "bg-red-500/20 text-red-100 border-red-500/30",
   no_show: "bg-red-500/20 text-red-300 border-red-500/30",
-  done: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  done: "bg-gray-500/20 text-gray-400 border-gray-500/30",
   rescheduled: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
 };
 const statusLabel = {
@@ -231,8 +231,8 @@ function StaffAppointments() {
     {
       label: "Completed",
       value: bookings.filter((b) => b.status === "done").length,
-      color: "text-blue-400",
-      border: "border-blue-500/20",
+      color: "text-gray-400",
+      border: "border-gray-500/20",
     },
   ];
 
@@ -300,7 +300,7 @@ function StaffAppointments() {
       focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: "Send Proposal",
-      confirmButtonColor: "#3b82f6",
+      confirmButtonColor: "#dc2626",
       background: "#111827",
       color: "#fff",
       preConfirm: () => {
@@ -435,7 +435,7 @@ function StaffAppointments() {
     if (isSelected) return "bg-white/70";
     if (s === "confirmed") return "bg-emerald-400";
     if (s === "pending") return "bg-amber-400";
-    if (s === "done") return "bg-blue-400";
+    if (s === "done") return "bg-gray-400";
     return "bg-red-400"; // cancelled
   };
 
@@ -467,9 +467,9 @@ function StaffAppointments() {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Calendar */}
-         <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-  <div className="flex items-center justify-between mb-6">
-    <h2 className="text-lg font-black text-white">Calendar</h2>
+          <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-black text-white">Calendar</h2>
               <div className="flex items-center gap-1">
                 <button
                   onClick={prevMonth}
@@ -537,8 +537,8 @@ function StaffAppointments() {
                       key={day}
                       onClick={() => setSelectedDate(day)}
                       className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all ${isSelected
-                          ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                          : "hover:bg-white/5 text-gray-400 hover:text-white"
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                        : "hover:bg-white/5 text-gray-400 hover:text-white"
                         }`}
                     >
                       <span>{day}</span>
@@ -563,7 +563,7 @@ function StaffAppointments() {
               {[
                 { color: "bg-emerald-400", label: "Confirmed" },
                 { color: "bg-amber-400", label: "Pending" },
-                { color: "bg-blue-400", label: "Done" },
+                { color: "bg-gray-400", label: "Done" },
                 { color: "bg-red-400", label: "Cancelled" },
               ].map(({ color, label }) => (
                 <div
@@ -666,7 +666,7 @@ function StaffAppointments() {
                       : b.status === "pending"
                         ? "bg-amber-500/20 text-amber-400"
                         : b.status === "done"
-                          ? "bg-blue-500/20 text-blue-400"
+                          ? "bg-gray-500/20 text-gray-400"
                           : "bg-red-500/20 text-red-400";
                   return (
                     <div
@@ -691,7 +691,7 @@ function StaffAppointments() {
                         </div>
                         <div className="flex items-center gap-2 flex-wrap justify-end">
                           {isWalkIn && (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-blue-500/20 text-blue-400 border-blue-500/30">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-amber-500/20 text-amber-400 border-amber-500/30">
                               Walk-in
                             </span>
                           )}
@@ -827,7 +827,7 @@ function StaffAppointments() {
                                           )
                                         }
                                         disabled={actionLoading === b.id}
-                                        className="w-full bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
+                                        className="w-full bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
                                       >
                                         Save Assignment
                                       </button>
@@ -969,7 +969,7 @@ function StaffAppointments() {
                           {b.queue_id && (
                             <button
                               onClick={() => setChatQueueId(b.queue_id)}
-                              className="w-full flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200"
+                              className="w-full flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -989,7 +989,7 @@ function StaffAppointments() {
                       )}
                       {/* FIX 1: "done" status footer */}
                       {b.status === "done" && (
-                        <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-blue-400 text-sm">
+                        <div className="pt-3 border-t border-white/5 flex items-center gap-2 text-gray-400 text-sm">
                           <svg
                             className="w-4 h-4"
                             fill="none"

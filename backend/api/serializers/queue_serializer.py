@@ -145,18 +145,18 @@ from api.models import ServiceMessage
 
 class ServiceMessageSerializer(serializers.ModelSerializer):
     sender_name = serializers.SerializerMethodField()
+    sender_pic  = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceMessage
         fields = [
             "id", "queue_entry", "sender_user", "sender_type", 
-            "sender_name", "message", "is_read", "created_at"
+            "sender_name", "sender_pic", "message", "is_read", "created_at"
         ]
-        read_only_fields = ["id", "created_at", "sender_name", "sender_user"]
+        read_only_fields = ["id", "created_at", "sender_name", "sender_pic", "sender_user"]
 
     def get_sender_name(self, obj):
         if obj.sender_type == "employee" and obj.sender_user:
-            # check if staff
             if hasattr(obj.sender_user, "staff_profile"):
                 return f"{obj.sender_user.staff_profile.first_name} {obj.sender_user.staff_profile.last_name}"
             return "Employee"
@@ -165,3 +165,21 @@ class ServiceMessageSerializer(serializers.ModelSerializer):
                 return f"{obj.sender_user.customer_profile.first_name} {obj.sender_user.customer_profile.last_name}"
             return "Customer"
         return "System"
+
+    def get_sender_pic(self, obj):
+        profile = None
+        if obj.sender_type == "employee" and obj.sender_user:
+            profile = getattr(obj.sender_user, "staff_profile", None)
+        elif obj.sender_type == "customer" and obj.sender_user:
+            profile = getattr(obj.sender_user, "customer_profile", None)
+        
+        if profile and profile.profile_picture:
+            try:
+                # Resolve external URLs (like Google pics) accurately
+                name = getattr(profile.profile_picture, 'name', '') or str(profile.profile_picture)
+                if name.startswith('http'):
+                    return name
+                return profile.profile_picture.url
+            except:
+                return None
+        return None

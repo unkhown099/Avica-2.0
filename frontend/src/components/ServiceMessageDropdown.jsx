@@ -74,8 +74,21 @@ export default function ServiceMessageDropdown() {
                     <div className="p-12 text-center text-gray-500 italic text-xs">No conversations found.</div>
                 ) : (
                     conversations.map((conv) => {
-                        const displayName = isEmployee ? conv.customer_name : conv.employee_name;
+                        const isCustSide = ["employee", "staff", "admin", "branch_manager", "super_admin"].includes(role);
+                        const displayName = isCustSide ? conv.customer_name : conv.employee_name;
+                        const profilePic = isCustSide ? conv.customer_pic : conv.employee_pic;
                         const initial = (displayName || "S")[0].toUpperCase();
+
+                        let displayPic = null;
+                        if (profilePic) {
+                            if (profilePic.startsWith('http')) {
+                                displayPic = profilePic;
+                            } else {
+                                const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+                                const picPath = profilePic.startsWith('/') ? profilePic : `/${profilePic}`;
+                                displayPic = `${baseUrl}${picPath}`;
+                            }
+                        }
 
                         return (
                             <button
@@ -88,8 +101,20 @@ export default function ServiceMessageDropdown() {
                                 }}
                                 className="w-full text-left p-4 hover:bg-white/5 flex gap-3 transition-colors group relative"
                             >
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-black shrink-0 shadow-lg ${conv.status === 'done' ? 'bg-gray-700' : 'bg-gradient-to-br from-red-600 to-red-700'}`}>
-                                    {initial}
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-black shrink-0 shadow-lg overflow-hidden ${conv.status === 'done' ? 'bg-gray-700' : 'bg-gradient-to-br from-red-600 to-red-700'}`}>
+                                    {displayPic ? (
+                                        <img
+                                            src={displayPic}
+                                            alt={displayName}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                e.target.parentElement.innerText = initial;
+                                            }}
+                                        />
+                                    ) : (
+                                        initial
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start mb-0.5">

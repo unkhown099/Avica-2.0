@@ -83,6 +83,14 @@ import EmployeeDashboard from "./pages/employee/EmployeeDashboard.jsx";
 import EmployeeSchedule from "./pages/employee/EmployeeSchedule.jsx";
 import EmployeeActiveJobs from "./pages/employee/EmployeeActiveJobs.jsx";
 import EmployeeJobHistory from "./pages/employee/EmployeeJobHistory.jsx";
+import EmployeeSettings from "./pages/employee/EmployeeSettings.jsx";
+import StaffSettings from "./pages/staff/StaffSettings.jsx";
+import ManagerSettings from "./pages/manager/ManagerSettings.jsx";
+import BranchOwnerSettings from "./pages/branch_owner/BranchOwnerSettings.jsx";
+import AdminSettings from "./pages/admin/AdminSettings.jsx";
+import InventorySettings from "./pages/inventory/InventorySettings.jsx";
+import InventoryManagerSettings from "./pages/inventory_manager/InventoryManagerSettings.jsx";
+import SuperAdminSettings from "./pages/superadmin/SuperAdminSettings.jsx";
 
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
@@ -179,6 +187,14 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/super-admin/account-settings"
+          element={
+            <ProtectedRoute allowedRoles={["super_admin"]}>
+              <SuperAdminSettings />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Customer Routes */}
         <Route
@@ -222,13 +238,14 @@ function Layout() {
           }
         />
         <Route
-          path="/settings"
+          path="/customer/settings"
           element={
             <ProtectedRoute allowedRoles={["customer"]}>
               <CustomerSettings />
             </ProtectedRoute>
           }
         />
+        <Route path="/settings" element={<Navigate to="/customer/settings" replace />} />
         <Route
           path="/help"
           element={
@@ -296,6 +313,14 @@ function Layout() {
           }
         />
         <Route
+          path="/inventory-manager/settings"
+          element={
+            <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <InventoryManagerSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/appointments"
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
@@ -316,6 +341,14 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminStaff />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminSettings />
             </ProtectedRoute>
           }
         />
@@ -366,6 +399,14 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["business_owner"]}>
               <BranchOwnerBranches />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/branch-owner/settings"
+          element={
+            <ProtectedRoute allowedRoles={["business_owner"]}>
+              <BranchOwnerSettings />
             </ProtectedRoute>
           }
         />
@@ -427,6 +468,14 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/manager/settings"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ManagerSettings />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Inventory Routes */}
         <Route
@@ -461,6 +510,14 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/inventory/settings"
+          element={
+            <ProtectedRoute allowedRoles={["inventory"]}>
+              <InventorySettings />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Staff Routes */}
         <Route
@@ -492,6 +549,14 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["staff"]}>
               <StaffQueue />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff/settings"
+          element={
+            <ProtectedRoute allowedRoles={["staff"]}>
+              <StaffSettings />
             </ProtectedRoute>
           }
         />
@@ -533,6 +598,14 @@ function Layout() {
           element={
             <ProtectedRoute allowedRoles={["employee"]}>
               <StaffVehicleRecognition />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/employee/settings"
+          element={
+            <ProtectedRoute allowedRoles={["employee"]}>
+              <EmployeeSettings />
             </ProtectedRoute>
           }
         />

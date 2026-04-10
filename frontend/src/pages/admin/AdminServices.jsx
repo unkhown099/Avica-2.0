@@ -14,13 +14,30 @@ const authHeaders = () => ({
   Authorization: `Bearer ${getToken()}`,
 });
 
-const FALLBACK_CATEGORIES = ["Maintenance", "Repair", "Diagnostic", "Cosmetic"];
+const FALLBACK_CATEGORIES = [
+  "Maintenance",
+  "Repair",
+  "Diagnostic",
+  "Cosmetic",
+  "Premium Carwash",
+  "Engine Steamed Wash",
+  "Under Wash",
+  "Premium Hand Wax",
+  "Buffing",
+  "Headlight Restoration",
+  "Interior Detailing",
+  "Exterior Detailing",
+  "Acid Rain Removal (Glass)",
+  "All Shine",
+  "Ceramic Coating"
+];
+
 const PRICE_TIERS = [
-  { key: "motor", label: "Motor" },
-  { key: "small", label: "Small" },
-  { key: "medium", label: "Medium" },
-  { key: "large", label: "Large" },
-  { key: "xl", label: "XL" },
+  { key: "motor", label: "Motorcycle", desc: "Two-wheeled vehicles" },
+  { key: "small", label: "Small", desc: "Sedan / Hatchback / Small Cars" },
+  { key: "medium", label: "Medium", desc: "Crossover / CUV / MPV" },
+  { key: "large", label: "Large", desc: "SUV / Van / Pickup" },
+  { key: "xl", label: "Extra Large", desc: "Commercial / Bus / Large Trucks" },
 ];
 
 const CATEGORY_COLORS = {
@@ -39,6 +56,50 @@ const CATEGORY_COLORS = {
   Cosmetic: {
     badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     accent: "#3b82f6",
+  },
+  "Premium Carwash": {
+    badge: "bg-sky-500/20 text-sky-400 border-sky-500/30",
+    accent: "#0ea5e9",
+  },
+  "Engine Steamed Wash": {
+    badge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    accent: "#06b6d4",
+  },
+  "Under Wash": {
+    badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    accent: "#3b82f6",
+  },
+  "Premium Hand Wax": {
+    badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    accent: "#10b981",
+  },
+  Buffing: {
+    badge: "bg-teal-500/20 text-teal-400 border-teal-500/30",
+    accent: "#14b8a6",
+  },
+  "Headlight Restoration": {
+    badge: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+    accent: "#f43f5e",
+  },
+  "Interior Detailing": {
+    badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
+    accent: "#6366f1",
+  },
+  "Exterior Detailing": {
+    badge: "bg-violet-500/20 text-violet-400 border-violet-500/30",
+    accent: "#8b5cf6",
+  },
+  "Acid Rain Removal (Glass)": {
+    badge: "bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30",
+    accent: "#d946ef",
+  },
+  "All Shine": {
+    badge: "bg-lime-500/20 text-lime-400 border-lime-500/30",
+    accent: "#84cc16",
+  },
+  "Ceramic Coating": {
+    badge: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    accent: "#f97316",
   },
 };
 
@@ -84,7 +145,18 @@ const Field = ({ label, children }) => (
 );
 
 const inputCls =
-  "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm";
+  "w-full bg-gray-800/50 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm block";
+
+const priceInputStyle = `
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
+`;
 
 function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
   const isEdit = !!editService;
@@ -106,9 +178,23 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
       large: editPriceList?.large ?? "",
       xl: editPriceList?.xl ?? "",
     },
-    branch_ids: editService?.branches?.map((b) => b.id) ?? [],
+    branch_ids: editService?.branches?.map((b) => b.id) ?? (branches?.map(b => b.id) || []),
   });
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(editService?.image ? (editService.image.startsWith('http') ? editService.image : `${API_BASE}${editService.image}`) : null);
   const [saving, setSaving] = useState(false);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     if (!form.category && categories?.length > 0)
@@ -149,6 +235,16 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
       });
       return;
     }
+    if (form.branch_ids.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "No Branch Selected",
+        text: "Please select at least one branch so customers can see and book this service.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+      return;
+    }
     try {
       setSaving(true);
       const payload = { ...form };
@@ -174,13 +270,33 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
         payload.price = Number.isNaN(singlePrice) ? 0 : singlePrice;
       }
       delete payload.use_price_list;
+
+      const formData = new FormData();
+      Object.keys(payload).forEach(key => {
+        if (key === 'price_list') {
+          formData.append(key, JSON.stringify(payload[key]));
+        } else if (key === 'branch_ids') {
+          payload[key].forEach(id => formData.append('branch_ids', id));
+        } else {
+          formData.append(key, payload[key]);
+        }
+      });
+      if (image) {
+        formData.append('image', image);
+      }
+
+      const headers = {
+        ...authHeaders(),
+        'Content-Type': 'multipart/form-data',
+      };
+
       if (isEdit) {
-        await axios.patch(`${API_BASE}/services/${editService.id}/`, payload, {
-          headers: authHeaders(),
+        await axios.patch(`${API_BASE}/services/${editService.id}/`, formData, {
+          headers
         });
       } else {
-        await axios.post(`${API}/services/`, payload, {
-          headers: authHeaders(),
+        await axios.post(`${API}/services/`, formData, {
+          headers
         });
       }
       onSaved();
@@ -245,41 +361,69 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
           </button>
         </div>
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Service Name">
-              <input
-                className={inputCls}
-                placeholder="e.g. Oil Change"
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-              />
-            </Field>
-            <Field label="Category">
-              <select
-                className={inputCls}
-                value={form.category}
-                onChange={(e) => set("category", e.target.value)}
-              >
-                {(categories?.length > 0
-                  ? categories
-                  : FALLBACK_CATEGORIES.map((name) => ({ name }))
-                ).map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          <div className="flex flex-col sm:flex-row gap-6 mb-2">
+            <div className="w-full sm:w-48 shrink-0">
+              <label className="block text-sm font-semibold text-gray-400 mb-2">Service Image</label>
+              <div className="relative group aspect-square rounded-2xl bg-gray-800 border-2 border-dashed border-white/10 hover:border-red-500/30 transition-all overflow-hidden">
+                {imagePreview ? (
+                  <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
+                    <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-[10px] font-bold">Recommended: 1:1</span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-white text-xs font-bold bg-black/60 px-3 py-1.5 rounded-full border border-white/20">Change Photo</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Service Name">
+                  <input
+                    className={inputCls}
+                    placeholder="e.g. Oil Change"
+                    value={form.name}
+                    onChange={(e) => set("name", e.target.value)}
+                  />
+                </Field>
+                <Field label="Category">
+                  <select
+                    className={inputCls}
+                    value={form.category}
+                    onChange={(e) => set("category", e.target.value)}
+                  >
+                    {(categories?.length > 0
+                      ? categories
+                      : FALLBACK_CATEGORIES.map((name) => ({ name }))
+                    ).map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <Field label="Description">
+                <textarea
+                  className={`${inputCls} resize-none`}
+                  rows={2}
+                  placeholder="Brief description of the service"
+                  value={form.description}
+                  onChange={(e) => set("description", e.target.value)}
+                />
+              </Field>
+            </div>
           </div>
-          <Field label="Description">
-            <textarea
-              className={`${inputCls} resize-none`}
-              rows={3}
-              placeholder="Brief description of the service"
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-            />
-          </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Duration">
               <select
@@ -294,47 +438,114 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
               </select>
             </Field>
             <Field label="Price (₱)">
-              <input
-                type="number"
-                className={inputCls}
-                placeholder="1500"
-                disabled={form.use_price_list}
-                value={form.price}
-                onChange={(e) => set("price", e.target.value)}
-              />
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-red-500 transition-colors font-bold pointer-events-none">
+                  ₱
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className={`${inputCls} pl-8 font-mono`}
+                  placeholder="0.00"
+                  disabled={form.use_price_list}
+                  value={form.price}
+                  onKeyDown={(e) => {
+                    if (
+                      !/[0-9]/.test(e.key) &&
+                      ![
+                        "Backspace",
+                        "Delete",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "Tab",
+                        "Enter",
+                      ].includes(e.key)
+                    ) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    set("price", val);
+                  }}
+                />
+              </div>
             </Field>
           </div>
+          <style dangerouslySetInnerHTML={{ __html: priceInputStyle }} />
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white">
-                  Use Tiered Price List
+                <p className="text-sm font-black text-white tracking-tight uppercase">
+                  Tiered Price List
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Set different prices by vehicle size.
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
+                  Dynamic pricing based on vehicle size
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => set("use_price_list", !form.use_price_list)}
-                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${form.use_price_list ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" : "bg-gray-800 border-white/10 text-gray-400"}`}
+                className={`relative w-14 h-7 rounded-full transition-all duration-300 focus:outline-none ${form.use_price_list ? "bg-red-600 shadow-[0_0_15px_-3px_rgba(220,38,38,0.5)]" : "bg-gray-800 border border-white/5"}`}
               >
-                {form.use_price_list ? "Enabled" : "Disabled"}
+                <div
+                  className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${form.use_price_list ? "left-8" : "left-1"}`}
+                />
               </button>
             </div>
             {form.use_price_list && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
                 {PRICE_TIERS.map((tier) => (
-                  <Field key={tier.key} label={`${tier.label} (₱)`}>
-                    <input
-                      type="number"
-                      min="0"
-                      className={inputCls}
-                      placeholder="0"
-                      value={form.price_list[tier.key]}
-                      onChange={(e) => setTierPrice(tier.key, e.target.value)}
-                    />
-                  </Field>
+                  <div key={tier.key}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                        {tier.label}
+                      </label>
+                      <div className="group/info relative">
+                        <button type="button" className="text-gray-600 hover:text-red-500 transition-colors">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </button>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 p-2 bg-gray-800 border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-20 pointer-events-none">
+                          <p className="text-[9px] font-bold text-white uppercase tracking-wider mb-1">Examples:</p>
+                          <p className="text-[10px] text-gray-400 leading-tight">{tier.desc}</p>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-800" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="relative group">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-red-500 text-[10px] font-bold pointer-events-none transition-colors">
+                        ₱
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className={`${inputCls} pl-7 py-2.5 text-xs font-mono`}
+                        placeholder="0"
+                        value={form.price_list[tier.key]}
+                        onKeyDown={(e) => {
+                          if (
+                            !/[0-9]/.test(e.key) &&
+                            ![
+                              "Backspace",
+                              "Delete",
+                              "ArrowLeft",
+                              "ArrowRight",
+                              "Tab",
+                              "Enter",
+                            ].includes(e.key)
+                          ) {
+                            e.preventDefault();
+                          }
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, "");
+                          setTierPrice(tier.key, val);
+                        }}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -599,12 +810,15 @@ function AdminServices() {
     return matchSearch && matchCat && matchBranch;
   });
 
-  const categoryNames =
-    categories.length > 0
-      ? categories.map((c) => c.name)
-      : Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
-  const visibleCategoryNames =
-    categoryNames.length > 0 ? categoryNames : FALLBACK_CATEGORIES;
+  const categoryNamesFromDb = categories.map((c) => c.name);
+  const categoryNamesFromServices = Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
+
+  // Merge fallback categories with both DB categories and categories found in existing services
+  const visibleCategoryNames = Array.from(new Set([
+    ...FALLBACK_CATEGORIES,
+    ...categoryNamesFromDb,
+    ...categoryNamesFromServices
+  ])).sort((a, b) => a.localeCompare(b));
 
   const handleCategoryCreated = (category) => {
     if (!category?.name) return;
@@ -646,7 +860,7 @@ function AdminServices() {
           {/* RIGHT SIDE */}
           <button
             onClick={openCreate}
-            className="mt-20  flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
           >
             <svg
               className="w-4 h-4"
@@ -812,37 +1026,81 @@ function AdminServices() {
               return (
                 <div
                   key={service.id}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 backdrop-blur-sm hover:border-white/10 transition-all flex flex-col"
+                  className="group bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm hover:border-white/10 transition-all flex flex-col"
                 >
-                  <div className="flex items-start mb-4">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative aspect-video w-full bg-gray-800 overflow-hidden">
+                    {service.image ? (
+                      <img
+                        src={service.image.startsWith('http') ? service.image : `${API_BASE}${service.image}`}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        alt={service.name}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute top-3 left-3 flex items-center gap-2 flex-wrap">
                       <CategoryBadge category={service.category} />
                       <StatusBadge active={service.is_active} />
+                      {(!service.branches || service.branches.length === 0) && (
+                        <span className="bg-yellow-500/90 text-black text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-lg flex items-center gap-1">
+                          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                          No Branch
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: accent + "22" }}
-                    >
+                  <div className="p-4 sm:p-5 flex flex-col flex-1">
+                    <div className="flex items-center gap-3 mb-3">
                       <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: accent }}
-                      />
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: accent + "22" }}
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: accent }}
+                        />
+                      </div>
+                      <h3 className="text-base sm:text-lg font-black text-white leading-tight">
+                        {service.name}
+                      </h3>
                     </div>
-                    <h3 className="text-base sm:text-lg font-black text-white leading-tight">
-                      {service.name}
-                    </h3>
-                  </div>
-                  <p className="text-gray-400 text-sm mb-4 leading-relaxed flex-1">
-                    {service.description || (
-                      <span className="italic text-gray-600">
-                        No description
-                      </span>
-                    )}
-                  </p>
-                  <div className="space-y-2 mb-4">
-                    {service.duration && (
+                    <p className="text-gray-400 text-sm mb-4 leading-relaxed flex-1">
+                      {service.description || (
+                        <span className="italic text-gray-600">
+                          No description
+                        </span>
+                      )}
+                    </p>
+                    <div className="space-y-2 mb-4">
+                      {service.duration && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <svg
+                            className="w-4 h-4 text-gray-600 shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <span className="text-gray-500">
+                            Duration:{" "}
+                            <span className="text-gray-300 font-semibold">
+                              {service.duration}
+                            </span>
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 text-sm">
                         <svg
                           className="w-4 h-4 text-gray-600 shrink-0"
@@ -854,99 +1112,78 @@ function AdminServices() {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                           />
                         </svg>
                         <span className="text-gray-500">
-                          Duration:{" "}
-                          <span className="text-gray-300 font-semibold">
-                            {service.duration}
+                          Price:{" "}
+                          <span className="text-white font-bold">
+                            {service.price_display}
                           </span>
                         </span>
+                      </div>
+                      {service.price_list &&
+                        Object.keys(service.price_list).length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {PRICE_TIERS.map((tier) => {
+                              const value = service.price_list?.[tier.key];
+                              if (value == null || value === "") return null;
+                              return (
+                                <span
+                                  key={tier.key}
+                                  className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] rounded-md"
+                                >
+                                  {tier.label}: ₱{Number(value).toLocaleString()}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                    </div>
+                    {service.branches?.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs text-gray-600 mb-2">
+                          Available at:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {service.branches.map((b) => (
+                            <span
+                              key={b.id}
+                              className="px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 text-xs rounded-lg"
+                            >
+                              {b.name}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-sm">
-                      <svg
-                        className="w-4 h-4 text-gray-600 shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    <div className="flex gap-2 mt-auto pt-4 border-t border-white/5">
+                      <button
+                        onClick={() => openEdit(service)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span className="text-gray-500">
-                        Price:{" "}
-                        <span className="text-white font-bold">
-                          {service.price_display}
-                        </span>
-                      </span>
-                    </div>
-                    {service.price_list &&
-                      Object.keys(service.price_list).length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {PRICE_TIERS.map((tier) => {
-                            const value = service.price_list?.[tier.key];
-                            if (value == null || value === "") return null;
-                            return (
-                              <span
-                                key={tier.key}
-                                className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] rounded-md"
-                              >
-                                {tier.label}: ₱{Number(value).toLocaleString()}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                  </div>
-                  {service.branches?.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs text-gray-600 mb-2">
-                        Available at:
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {service.branches.map((b) => (
-                          <span
-                            key={b.id}
-                            className="px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 text-xs rounded-lg"
-                          >
-                            {b.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex gap-2 mt-auto pt-4 border-t border-white/5">
-                    <button
-                      onClick={() => openEdit(service)}
-                      className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => toggleActive(service)}
+                        className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all border ${service.is_active ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400" : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"}`}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => toggleActive(service)}
-                      className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all border ${service.is_active ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400" : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"}`}
-                    >
-                      {service.is_active ? "Deactivate" : "Activate"}
-                    </button>
+                        {service.is_active ? "Deactivate" : "Activate"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

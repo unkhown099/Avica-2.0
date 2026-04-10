@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import StaffLayout from "./StaffLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
+import Swal from "sweetalert2";
 
 const getToken = () =>
   localStorage.getItem("access_token") ?? sessionStorage.getItem("access_token");
@@ -143,8 +144,8 @@ function SnackbarContainer({ snackbars, onDismiss }) {
               </svg>
             </div>
           ) : (
-            <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-7 h-7 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
@@ -434,7 +435,7 @@ export default function StaffPOS() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({ name: false, phone: false });
-  const [gcashCheckoutUrl, setGcashCheckoutUrl] = useState(null);
+  const [qrphCheckoutUrl, setQrphCheckoutUrl] = useState(null);
   const [isGeneratingUrl, setIsGeneratingUrl] = useState(false);
   const { snackbars, push: pushSnack, dismiss: dismissSnack } = useSnackbar();
 
@@ -685,18 +686,16 @@ export default function StaffPOS() {
       pushSnack(err.message || "Checkout failed. Please try again.", "error", 6000);
     } finally {
       setCheckingOut(false);
-      setGcashCheckoutUrl(null);
+      setQrphCheckoutUrl(null);
     }
   };
 
   const handleCheckout = async () => {
+    console.log("handleCheckout click detected");
     if (cart.length === 0) { pushSnack("Cart is empty.", "error"); return; }
     if (!validateInputs()) return;
 
-    if (hasQueueItems && !queueOnlyCart) {
-      pushSnack("Queue services must be paid separately. Remove non-queue items first.", "error");
-      return;
-    }
+    console.log("Current Payment Method:", paymentMethod);
     if (queueItems.length > 1) {
       pushSnack("Only one processed service can be paid at a time.", "error");
       return;
@@ -710,21 +709,51 @@ export default function StaffPOS() {
     }
 
     if (paymentMethod === "gcash") {
+      console.log("Generating QR PH link for amount:", effectiveTotal);
+      console.log("Target API URL:", `${API}/api/paymongo/create-link/`);
       setIsGeneratingUrl(true);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
       try {
         const res = await fetch(`${API}/api/paymongo/create-link/`, {
           method: "POST",
           headers: authHeaders(),
-          body: JSON.stringify({ amount: effectiveTotal, description: "POS Checkout" })
+          body: JSON.stringify({ amount: effectiveTotal, description: "POS Checkout" }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
+
         const data = await res.json();
+        console.log("PayMongo response:", data);
+
         if (res.ok) {
-          setGcashCheckoutUrl(data.checkout_url);
+          setQrphCheckoutUrl(data.checkout_url);
         } else {
-          pushSnack(data.error || "Failed to generate GCash link.", "error");
+          console.error("PayMongo Error:", data);
+          Swal.fire({
+            icon: "error",
+            title: "Payment Error",
+            text: data.error || "Failed to generate QR PH code. Please check your PayMongo account status.",
+            background: "#111827",
+            color: "#fff"
+          });
+          pushSnack(data.error || "Failed to generate QR PH code.", "error");
         }
       } catch (e) {
-        pushSnack("Network error generating GCash link.", "error");
+        clearTimeout(timeoutId);
+        console.error("Network/Timeout Error:", e);
+        Swal.fire({
+          icon: "error",
+          title: e.name === 'AbortError' ? "Request Timed Out" : "Network Error",
+          text: e.name === 'AbortError'
+            ? "The payment request took too long. Please try again."
+            : "Could not connect to the server for payment generation.",
+          background: "#111827",
+          color: "#fff"
+        });
+        pushSnack("Network error generating QR PH code.", "error");
       } finally {
         setIsGeneratingUrl(false);
       }
@@ -1048,7 +1077,7 @@ export default function StaffPOS() {
               <div>
                 <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-2">Payment Method</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {[{ key: "cash", label: "Cash", icon: "P" }, { key: "gcash", label: "GCash", icon: "G" }].map((m) => (
+                  {[{ key: "cash", label: "Cash", icon: "P" }, { key: "gcash", label: "QR PH", icon: "QR" }].map((m) => (
                     <button key={m.key} onClick={() => { setPaymentMethod(m.key); setAmountGiven(""); }}
                       className={`py-2.5 rounded-lg text-sm font-black transition-all border flex flex-col items-center gap-1 ${paymentMethod === m.key ? "bg-red-600/20 border-red-500/60 text-red-400 shadow-lg shadow-red-600/10" : "bg-gray-800/60 border-white/8 text-gray-400 hover:text-gray-200 hover:border-white/20"}`}>
                       <span className={`text-xl font-black ${paymentMethod === m.key ? "text-red-400" : "text-gray-500"}`}>{m.icon}</span>
@@ -1111,20 +1140,9 @@ export default function StaffPOS() {
                 </div>
               )}
 
-              {hasQueueItems && queueItems.length > 1 && (
-                <div className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1.5">
-                  Queue services must be paid one-by-one. Keep only one service in cart.
-                </div>
-              )}
-
-              {hasQueueItems && !queueOnlyCart && (
-                <div className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1.5">
-                  Queue service payment cannot be combined with products or POS services.
-                </div>
-              )}
 
               <button onClick={handleCheckout}
-                disabled={checkingOut || cart.length === 0 || hasMissingPrice || (hasQueueItems && (!queueOnlyCart || queueItems.length > 1))}
+                disabled={checkingOut || cart.length === 0 || hasMissingPrice}
                 className="w-full bg-red-600 hover:bg-red-700 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black py-3 rounded-lg transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 text-sm">
                 {checkingOut || isGeneratingUrl ? (
                   <>
@@ -1143,40 +1161,74 @@ export default function StaffPOS() {
                   </>
                 )}
               </button>
+
+              <button
+                onClick={() => setQrphCheckoutUrl("mock_qrph")}
+                className="w-full mt-2 text-[10px] text-gray-700 hover:text-gray-500 font-bold uppercase tracking-widest opacity-20 hover:opacity-100 transition-all">
+                Debug: Force QR Modal
+              </button>
             </div>
           </div>
 
         </div>
       </div>
 
-      {gcashCheckoutUrl && (
+      {qrphCheckoutUrl && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-            <div className="bg-blue-600/20 border-b border-blue-500/20 px-6 py-5 rounded-t-2xl text-center">
-              <h2 className="text-xl font-black text-white">GCash / PayMongo Checkout</h2>
-              <p className="text-blue-400 text-sm mt-1">Total: <span className="font-bold text-lg">P{fmt(effectiveTotal)}</span></p>
+            <div className="bg-red-600/20 border-b border-red-500/20 px-6 py-5 rounded-t-2xl text-center">
+              <h2 className="text-xl font-black text-white">QR PH / PayMongo Checkout</h2>
+              <p className="text-red-400 text-sm mt-1">Total: <span className="font-bold text-lg">P{fmt(effectiveTotal)}</span></p>
             </div>
 
             <div className="p-6 flex flex-col items-center">
-              <div className="mb-4 text-center">
-                <p className="text-gray-400 text-sm mb-3">Please ask the customer to scan or visit the link to pay via GCash.</p>
-                {gcashCheckoutUrl === "mock_gcash" ? (
-                  <div className="w-48 h-48 bg-white rounded-xl p-2 mx-auto flex items-center justify-center flex-col shadow-inner">
-                    <svg className="w-24 h-24 text-blue-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 19h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
-                    <span className="text-xs font-bold text-gray-800">[ TEST MODE QR ]</span>
-                  </div>
-                ) : (
-                  <a href={gcashCheckoutUrl} target="_blank" rel="noopener noreferrer" className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30">
-                    Open Payment Link
-                  </a>
-                )}
+              <div className="mb-6 text-center w-full">
+                <p className="text-gray-400 text-sm mb-4 font-semibold italic">Please ask the customer to scan the QR PH code below:</p>
+
+                <div className="bg-white p-4 rounded-3xl shadow-2xl inline-block border-4 border-red-500/20 backdrop-blur-sm relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-red-500/5 to-transparent pointer-events-none"></div>
+                  {qrphCheckoutUrl === "mock_qrph" ? (
+                    <div className="w-56 h-56 bg-white rounded-xl p-2 mx-auto flex items-center justify-center flex-col shadow-inner border border-gray-100">
+                      <svg className="w-24 h-24 text-red-500 mb-2 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 19h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                      <span className="text-xs font-black text-red-600 tracking-tighter text-center">[ DEMO QR MODE ]</span>
+                      <span className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-bold text-center">Otokwikk POS</span>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrphCheckoutUrl)}`}
+                        alt="QR PH Code"
+                        className="w-56 h-56 block rounded-lg shadow-sm object-contain bg-white"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://placehold.co/250x250/white/red?text=QR+Error";
+                        }}
+                      />
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-1 rounded-xl shadow-md border border-gray-100/50 flex items-center justify-center">
+                        <div className="w-10 h-10 relative flex items-center justify-center p-1 bg-white rounded-lg">
+                          <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm">
+                            <path d="M50,50 L50,15 A35,35 0 0,1 85,50 Z" fill="#FBBF24" />
+                            <path d="M50,50 L85,50 A35,35 0 0,1 50,85 Z" fill="#EF4444" />
+                            <path d="M50,50 L50,85 A35,35 0 0,1 15,50 A35,35 0 0,1 50,15 Z" fill="#1E40AF" />
+                            <circle cx="50" cy="50" r="8" fill="white" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 flex flex-col gap-2">
+                  <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em]">PayMongo Secure Payment</p>
+                  <div className="h-1 w-12 bg-red-600/30 mx-auto rounded-full"></div>
+                </div>
               </div>
 
               <div className="w-full space-y-3 mt-4 border-t border-white/10 pt-5">
                 <button onClick={() => processInternalCheckout()} disabled={checkingOut} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
                   {checkingOut ? "Confirming..." : "Confirm Payment Received"}
                 </button>
-                <button onClick={() => setGcashCheckoutUrl(null)} disabled={checkingOut} className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3.5 rounded-xl transition-all border border-white/5">
+                <button onClick={() => setQrphCheckoutUrl(null)} disabled={checkingOut} className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3.5 rounded-xl transition-all border border-white/5">
                   Cancel
                 </button>
               </div>

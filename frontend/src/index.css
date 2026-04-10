@@ -5,3 +5,35 @@
 :root {
   --sidebar-width: 15rem;
 }
+
+/* --- Premium Slick Scrollbar (Facebook Style) --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.2); /* Subtle gray */
+  border-radius: 20px;
+  border: 1px solid transparent; /* Padding effect */
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.5); /* Darker on hover */
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 114, 128, 0.3) transparent;
+}
+
+/* Enable smooth scrolling app-wide */
+html {
+  scroll-behavior: smooth;
+}

@@ -102,9 +102,9 @@ export default function StaffDashboard() {
         label: "Upcoming Bookings",
         value: stats.my_upcoming_bookings ?? 0,
         hint: `${stats.my_bookings_today ?? 0} scheduled today`,
-        accentBg: "bg-blue-500/10",
-        accentText: "text-blue-400",
-        border: "border-blue-500/20",
+        accentBg: "bg-red-500/10",
+        accentText: "text-red-400",
+        border: "border-red-500/20",
         icon: (
           <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -283,7 +283,7 @@ export default function StaffDashboard() {
                     <article className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <h3 className="text-sm font-semibold text-white">Daily Revenue Trend</h3>
-                        <span className="text-[11px] text-blue-300">Max P{formatMoney(dailyRevenueMax)}</span>
+                        <span className="text-[11px] text-red-300">Max P{formatMoney(dailyRevenueMax)}</span>
                       </div>
                       {dailyRevenueTrend.length > 0 ? (
                         <>
@@ -292,13 +292,13 @@ export default function StaffDashboard() {
                               <polyline
                                 points={dailyRevenuePolyline}
                                 fill="none"
-                                stroke="rgb(59 130 246)"
+                                stroke="rgb(220 38 38)"
                                 strokeWidth="2.5"
                                 strokeLinejoin="round"
                                 strokeLinecap="round"
                               />
                               {dailyRevenuePoints.map((point) => (
-                                <circle key={point.date || point.label} cx={point.x} cy={point.y} r="2.2" fill="rgb(96 165 250)" />
+                                <circle key={point.date || point.label} cx={point.x} cy={point.y} r="2.2" fill="rgb(248 113 113)" />
                               ))}
                             </svg>
                           </div>
@@ -306,7 +306,7 @@ export default function StaffDashboard() {
                             {dailyRevenueTrend.map((row) => (
                               <div key={row.date || row.label} className="text-center">
                                 <p className="text-gray-500 truncate">{row.label}</p>
-                                <p className="text-blue-300 font-semibold truncate">P{formatMoney(row.value)}</p>
+                                <p className="text-red-300 font-semibold truncate">P{formatMoney(row.value)}</p>
                               </div>
                             ))}
                           </div>
@@ -321,26 +321,26 @@ export default function StaffDashboard() {
                 </section>
 
                 <section className="lg:col-span-2 rounded-2xl border border-white/10 bg-black/25 backdrop-blur-sm p-5">
-                <h2 className="text-lg font-bold text-white mb-4">Recent Notifications</h2>
-                {recentNotifications.length > 0 ? (
-                  <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                    {recentNotifications.map((notice) => (
-                      <div key={notice.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-white line-clamp-1">{notice.title}</p>
-                          {!notice.is_read && (
-                            <span className="text-[10px] uppercase tracking-wide text-amber-300">Unread</span>
-                          )}
+                  <h2 className="text-lg font-bold text-white mb-4">Recent Notifications</h2>
+                  {recentNotifications.length > 0 ? (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                      {recentNotifications.map((notice) => (
+                        <div key={notice.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-white line-clamp-1">{notice.title}</p>
+                            {!notice.is_read && (
+                              <span className="text-[10px] uppercase tracking-wide text-amber-300">Unread</span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs text-gray-300 line-clamp-2">{notice.message}</p>
+                          <p className="mt-2 text-[11px] text-gray-400">{formatDateTime(notice.created_at)}</p>
                         </div>
-                        <p className="mt-1 text-xs text-gray-300 line-clamp-2">{notice.message}</p>
-                        <p className="mt-2 text-[11px] text-gray-400">{formatDateTime(notice.created_at)}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400">No notifications yet.</p>
-                )}
-              </section>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">No notifications yet.</p>
+                  )}
+                </section>
               </div>
 
             </>

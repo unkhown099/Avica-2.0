@@ -101,7 +101,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "preferred_employee_id", "preferred_employee_name",
             "created_at",
             "notes", "status", "staff", "created_at",
-            "cancellation_reason",  # 👈 ADD THIS
+            "cancellation_reason",
+            "vehicle_size",
         ]
         read_only_fields = ["id", "service_name", "staff", "created_at"]
 

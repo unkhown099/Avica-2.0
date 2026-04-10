@@ -24,6 +24,14 @@ const TIME_SLOTS = [
   "4:00 PM",
 ];
 
+const PRICE_TIERS = [
+  { key: "motor", label: "Motorcycle" },
+  { key: "small", label: "Small (Sedan/Hatch)" },
+  { key: "medium", label: "Medium (CUV/SUV)" },
+  { key: "large", label: "Large (Van/Pickup)" },
+  { key: "xl", label: "XL (Commercial/Bus)" },
+];
+
 const STEPS = ["Service", "Branch", "Booking Mode", "Schedule", "Details"];
 
 const statusConfig = {
@@ -54,10 +62,27 @@ const statusConfig = {
 };
 
 const CATEGORY_ICON = {
-  Maintenance: "🔧",
-  Repair: "🔩",
-  Diagnostic: "🔍",
-  Cosmetic: "✨",
+  Maintenance: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  Repair: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 11-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+    </svg>
+  ),
+  Diagnostic: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  ),
+  Cosmetic: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  ),
 };
 const PAGE_SIZE = 10;
 
@@ -1157,6 +1182,7 @@ function NewBookingModal({
   onSuccess,
   initialDamageData,
   initialServiceId = null,
+  initialVehicleSize = "small",
 }) {
   const [step, setStep] = useState(0);
   const damageServicesSynced = useRef(false);
@@ -1166,6 +1192,7 @@ function NewBookingModal({
     date: "",
     time: "",
     vehicle: "",
+    vehicleSize: initialVehicleSize || "small",
     plateNumber: "",
     notes: initialDamageData
       ? `Damage detected: ${initialDamageData.damages.map((d) => d.type).join(", ")}. Recommendations: ${initialDamageData.recommendations.join(", ")}`
@@ -1285,7 +1312,7 @@ function NewBookingModal({
         const data = await r.json();
         setServices(
           (Array.isArray(data) ? data : (data.results ?? [])).filter(
-            (s) => s.is_active !== false && (s.branches?.length ?? 0) > 0,
+            (s) => s.is_active !== false,
           ),
         );
       } catch (err) {
@@ -1568,18 +1595,20 @@ function NewBookingModal({
       if (bookingMode === "specific" && !form.preferredEmployee?.id)
         throw new Error("Please select a specific employee.");
 
+      const totalPrice = form.services.reduce((sum, s) => {
+        return sum + parseFloat(s.price || 0);
+      }, 0);
+
       const payload = {
         service: form.services.map((s) => s.name).join(", "),
         branch_id: parseInt(form.branch.id, 10),
         date: form.date,
         time: formatTimeForAPI(form.time),
         vehicle,
+        vehicle_size: "pending",
         plate_number: plateNumber,
         notes: form.notes || "",
-        price: form.services.reduce(
-          (sum, s) => sum + parseFloat(s.price ?? 0),
-          0,
-        ),
+        price: totalPrice,
         preferred_employee_id:
           bookingMode === "specific"
             ? (form.preferredEmployee?.id ?? null)
@@ -1641,6 +1670,7 @@ function NewBookingModal({
         {/* ── Step 0: Service ── */}
         {step === 0 && (
           <div>
+
             <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
               Choose services
             </p>
@@ -1737,7 +1767,12 @@ function NewBookingModal({
                         className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
                       >
                         <div className="text-lg shrink-0">
-                          {CATEGORY_ICON[s.category] ?? "🔧"}
+                          {CATEGORY_ICON[s.category] || (
+                            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div
@@ -1753,11 +1788,24 @@ function NewBookingModal({
                         </div>
                         <div className="text-right shrink-0">
                           <div className="text-red-400 font-black text-xs">
-                            ₱{parseFloat(s.price || 0).toLocaleString()}
+                            {s.price_display || `₱${parseFloat(s.price || 0).toLocaleString()}`}
                           </div>
                           {s.duration && (
-                            <div className="text-gray-600 text-[9px]">
-                              ⏱ {s.duration}
+                            <div className="text-gray-600 text-[9px] flex items-center justify-end gap-1">
+                              <svg
+                                className="w-2.5 h-2.5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              {s.duration}
                             </div>
                           )}
                         </div>
@@ -1789,7 +1837,12 @@ function NewBookingModal({
                         className={`p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
                       >
                         <div className="text-2xl mb-2">
-                          {CATEGORY_ICON[s.category] ?? "🔧"}
+                          {CATEGORY_ICON[s.category] || (
+                            <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          )}
                         </div>
                         <div
                           className={`font-bold text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}
@@ -1797,11 +1850,12 @@ function NewBookingModal({
                           {s.name}
                         </div>
                         <div className="text-red-400 font-black text-base">
-                          ₱{parseFloat(s.price || 0).toLocaleString()}
+                          {s.price_display || `₱${parseFloat(s.price || 0).toLocaleString()}`}
                         </div>
                         {s.duration && (
-                          <div className="text-gray-600 text-[10px] mt-1">
-                            ⏱ {s.duration}
+                          <div className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            {s.duration}
                           </div>
                         )}
                         {s.category && (
@@ -1818,6 +1872,7 @@ function NewBookingModal({
                     );
                   })}
                 </div>
+
               </>
             )}
           </div>
@@ -2224,9 +2279,11 @@ function NewBookingModal({
               </div>
             )}
 
+            {/* Vehicle Size selection removed from here as per user request */}
+
             {[
               {
-                label: "Vehicle Type",
+                label: "Vehicle Type / Model",
                 key: "vehicle",
                 placeholder: "e.g. Toyota Vios, Honda Civic...",
                 apiKey: "vehicle",
@@ -2288,7 +2345,7 @@ function NewBookingModal({
               <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">
                 {bookingMode === "specific"
                   ? form.preferredEmployee?.full_name ||
-                    "Specific employee selected"
+                  "Specific employee selected"
                   : "General (any available employee)"}
               </div>
             </div>
@@ -2339,18 +2396,22 @@ function NewBookingModal({
                   [
                     "Service Price",
                     form.services?.length > 0
-                      ? `₱${form.services.reduce((sum, s) => sum + parseFloat(s.price || 0), 0).toLocaleString()}`
+                      ? `₱${form.services.reduce((sum, s) => {
+                        const tieredPrice = s.price_list?.[form.vehicleSize];
+                        const basePrice = parseFloat(tieredPrice ?? s.price ?? 0);
+                        return sum + basePrice;
+                      }, 0).toLocaleString()}`
                       : "—",
                     true,
                   ],
                   ...(form.damageData?.estimatedCost
                     ? [
-                        [
-                          "AI Repair Estimate",
-                          form.damageData.estimatedCost,
-                          "estimate",
-                        ],
-                      ]
+                      [
+                        "AI Repair Estimate",
+                        form.damageData.estimatedCost,
+                        "estimate",
+                      ],
+                    ]
                     : []),
                 ].map(([label, value, highlight]) => (
                   <div
@@ -2398,10 +2459,10 @@ function NewBookingModal({
           onClick={
             step > 0
               ? () => {
-                  setStep((s) => s - 1);
-                  setError("");
-                  setFieldErrors({});
-                }
+                setStep((s) => s - 1);
+                setError("");
+                setFieldErrors({});
+              }
               : onClose
           }
           className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 font-semibold text-xs sm:text-sm transition-all duration-200"
@@ -3294,6 +3355,7 @@ function BookingsPage() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [prefillServiceId, setPrefillServiceId] = useState(null);
+  const [prefillVehicleSize, setPrefillVehicleSize] = useState(null);
   const [damageData, setDamageData] = useState(null);
   const [cancelBooking, setCancelBooking] = useState(null);
   const [rescheduleBooking, setRescheduleBooking] = useState(null);
@@ -3339,11 +3401,13 @@ function BookingsPage() {
   useEffect(() => {
     const openBooking = location.state?.openBooking;
     const serviceId = location.state?.prefillServiceId;
+    const vehicleSize = location.state?.prefillVehicleSize;
     if (!openBooking) return;
     setShowOptionModal(false);
     setShowDamageModal(false);
     setDamageData(null);
     setPrefillServiceId(serviceId ?? null);
+    setPrefillVehicleSize(vehicleSize ?? null);
     setShowBookingModal(true);
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);
@@ -3684,19 +3748,19 @@ function BookingsPage() {
                 booking.service_name ||
                 booking.service_detail?.name ||
                 (typeof rawSvc === "string" &&
-                rawSvc.trim() !== "" &&
-                isNaN(rawSvc)
+                  rawSvc.trim() !== "" &&
+                  isNaN(rawSvc)
                   ? rawSvc
                   : typeof rawSvc === "number" ||
-                      (typeof rawSvc === "string" && !isNaN(rawSvc))
+                    (typeof rawSvc === "string" && !isNaN(rawSvc))
                     ? `Service #${rawSvc}`
                     : String(rawSvc || "Unknown Service"));
               const displayTime = toDisplayTime(booking.time);
               const rawPrice = parseFloat(booking.price);
               const priceDisplay =
                 !isNaN(rawPrice) &&
-                booking.price != null &&
-                booking.price !== ""
+                  booking.price != null &&
+                  booking.price !== ""
                   ? rawPrice > 0
                     ? `₱${rawPrice.toLocaleString("en-PH")}`
                     : "To be assessed"
@@ -3814,28 +3878,28 @@ function BookingsPage() {
                             )}
                             {(booking.status === "pending" ||
                               booking.status === "confirmed") && (
-                              <button
-                                onClick={() =>
-                                  setCustomerRescheduleBooking(booking)
-                                }
-                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
-                              >
-                                <svg
-                                  className="w-3 h-3"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                                <button
+                                  onClick={() =>
+                                    setCustomerRescheduleBooking(booking)
+                                  }
+                                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
-                                  />
-                                </svg>
-                                Request Reschedule
-                              </button>
-                            )}
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z"
+                                    />
+                                  </svg>
+                                  Request Reschedule
+                                </button>
+                              )}
                             <button
                               onClick={() => setCancelBooking(booking)}
                               className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/15 hover:bg-red-600 border border-red-600/40 hover:border-red-500 text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200"
@@ -3934,10 +3998,12 @@ function BookingsPage() {
             setShowBookingModal(false);
             setDamageData(null);
             setPrefillServiceId(null);
+            setPrefillVehicleSize(null);
           }}
           onSuccess={handleBookingSuccess}
           initialDamageData={damageData}
           initialServiceId={prefillServiceId}
+          initialVehicleSize={prefillVehicleSize}
         />
       )}
       {showDamageModal && (

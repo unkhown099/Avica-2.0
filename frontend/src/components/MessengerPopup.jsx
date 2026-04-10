@@ -3,7 +3,7 @@ import { API_BASE, useAuth } from "../hooks/useAuth.js";
 import { useChat } from "../context/ChatContext.jsx";
 
 export default function MessengerPopup({ queueId, index = 0, onClose }) {
-    const { headers, role } = useAuth();
+    const { headers, role, user } = useAuth();
     const { minimizedChats, toggleMinimize } = useChat();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
@@ -97,6 +97,17 @@ export default function MessengerPopup({ queueId, index = 0, onClose }) {
         : (100 + (index * 336));
 
     const displayName = isEmployee ? details?.customer_name : details?.employee_name;
+    const partnerPic = isEmployee ? details?.customer_pic : details?.employee_pic;
+    let partnerDisplayPic = null;
+    if (partnerPic) {
+        if (partnerPic.startsWith('http')) {
+            partnerDisplayPic = partnerPic;
+        } else {
+            const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+            const picPath = partnerPic.startsWith('/') ? partnerPic : `/${partnerPic}`;
+            partnerDisplayPic = `${baseUrl}${picPath}`;
+        }
+    }
 
     return (
         <div
@@ -112,7 +123,19 @@ export default function MessengerPopup({ queueId, index = 0, onClose }) {
                     onClick={() => toggleMinimize(queueId)}
                     className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-br from-red-600 to-red-700 text-white font-black shadow-lg overflow-hidden relative group"
                 >
-                    {(displayName || details?.customer_name || "S")[0].toUpperCase()}
+                    {partnerDisplayPic ? (
+                        <img
+                            src={partnerDisplayPic}
+                            alt={displayName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerText = (displayName || details?.customer_name || "S")[0].toUpperCase();
+                            }}
+                        />
+                    ) : (
+                        (displayName || details?.customer_name || "S")[0].toUpperCase()
+                    )}
                     {details?.unread_count > 0 && (
                         <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-red-600 text-[10px] font-black rounded-full flex items-center justify-center border-2 border-red-600 shadow-lg group-hover:scale-110 transition-transform">
                             {details.unread_count}
@@ -124,7 +147,25 @@ export default function MessengerPopup({ queueId, index = 0, onClose }) {
                     {/* Header */}
                     <div className="p-3 bg-red-600 text-white flex justify-between items-center rounded-t-2xl sm:rounded-t-xl cursor-pointer shadow-md" onClick={() => toggleMinimize(queueId)}>
                         <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black overflow-hidden shrink-0 border border-white/20">
+                                {(() => {
+                                    const initial = (displayName || "S")[0].toUpperCase();
+                                    if (partnerDisplayPic) {
+                                        return (
+                                            <img
+                                                src={partnerDisplayPic}
+                                                alt={initial}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.parentElement.innerText = initial;
+                                                }}
+                                            />
+                                        );
+                                    }
+                                    return initial;
+                                })()}
+                            </div>
                             <div className="min-w-0">
                                 <p className="font-bold text-xs truncate leading-tight">{displayName || 'Loading...'}</p>
                                 <p className="text-[10px] opacity-80 truncate">{details?.service || 'Service Chat'}</p>
@@ -148,18 +189,50 @@ export default function MessengerPopup({ queueId, index = 0, onClose }) {
                             </div>
                         ) : (
                             messages.map((msg, i) => {
-                                const isMe = msg.sender_role === role;
+                                const currentUserId = user?.id || user?.pk;
+                                const isMe = Number(msg.sender_user) === Number(currentUserId);
+
+                                let senderPic = null;
+                                if (msg.sender_pic) {
+                                    if (msg.sender_pic.startsWith('http')) {
+                                        senderPic = msg.sender_pic;
+                                    } else {
+                                        const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+                                        const picPath = msg.sender_pic.startsWith('/') ? msg.sender_pic : `/${msg.sender_pic}`;
+                                        senderPic = `${baseUrl}${picPath}`;
+                                    }
+                                }
+
                                 return (
-                                    <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                        <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs shadow-sm ${isMe
-                                            ? 'bg-red-600 text-white rounded-tr-none'
-                                            : 'bg-gray-800 text-gray-200 rounded-tl-none'
-                                            }`}>
-                                            {msg.message}
+                                    <div key={i} className={`flex gap-2 ${isMe ? 'flex-row-reverse items-end' : 'flex-row items-start'}`}>
+                                        {!isMe && (
+                                            <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-[8px] font-black overflow-hidden shrink-0 mt-0.5">
+                                                {senderPic ? (
+                                                    <img
+                                                        src={senderPic}
+                                                        className="w-full h-full object-cover"
+                                                        alt=""
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                            e.target.parentElement.innerText = (msg.sender_name || "S")[0].toUpperCase();
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    (msg.sender_name || "S")[0].toUpperCase()
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
+                                            <div className={`px-3 py-2 rounded-2xl text-xs shadow-sm ${isMe
+                                                ? 'bg-red-600 text-white rounded-tr-none'
+                                                : 'bg-gray-800 text-gray-200 rounded-tl-none'
+                                                }`}>
+                                                {msg.message}
+                                            </div>
+                                            <span className="text-[9px] text-gray-600 mt-1 px-1">
+                                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
                                         </div>
-                                        <span className="text-[9px] text-gray-600 mt-1 px-1">
-                                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
                                     </div>
                                 );
                             })

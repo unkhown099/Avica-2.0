@@ -174,6 +174,7 @@ class Staff(models.Model):
         blank=True,
         related_name="staff_members",
     )
+    profile_picture = models.ImageField(upload_to="profile_pictures/", blank=True, null=True)
 
     class Meta:
         db_table = "staffs"
@@ -191,6 +192,14 @@ class Booking(models.Model):
         ("no_show", "No Show"),
         ("done", "Done"),
         ("rescheduled", "Rescheduled"),
+    ]
+
+    VEHICLE_SIZE_CHOICES = [
+        ("motor", "Motorcycle"),
+        ("small", "Small (Sedan/Hatchback)"),
+        ("medium", "Medium (Crossover/SUV)"),
+        ("large", "Large (Van/Pickup)"),
+        ("xl", "Extra Large (Commercial/Bus)"),
     ]
 
     RESCHEDULE_STATUS_CHOICES = [
@@ -211,6 +220,7 @@ class Booking(models.Model):
     date         = models.DateField()
     time         = models.CharField(max_length=20)
     vehicle      = models.CharField(max_length=100, blank=True, default="")
+    vehicle_size = models.CharField(max_length=20, choices=VEHICLE_SIZE_CHOICES, blank=True, default="small")
     plate_number = models.CharField(max_length=20,  blank=True, default="")
     notes        = models.TextField(blank=True, default="")
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
@@ -279,11 +289,11 @@ class QueueEntry(models.Model):
     ]
 
     VEHICLE_TYPE_CHOICES = [
-        ("motor", "Motor"),
-        ("small", "Small"),
-        ("medium", "Medium"),
-        ("large", "Large"),
-        ("xl", "XL"),
+        ("motor", "Motorcycle"),
+        ("small", "Small (Sedan/Hatchback)"),
+        ("medium", "Medium (Crossover/SUV)"),
+        ("large", "Large (Van/Pickup)"),
+        ("xl", "Extra Large (Commercial/Bus)"),
     ]
 
     booking = models.OneToOneField(
@@ -377,6 +387,7 @@ class Service(models.Model):
     name        = models.CharField(max_length=100)
     category    = models.CharField(max_length=100)
     description = models.TextField(blank=True, default="")
+    image       = models.ImageField(upload_to="service_images/", blank=True, null=True)
     duration    = models.CharField(max_length=50, blank=True, default="")
     price       = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     price_list  = models.JSONField(blank=True, default=dict)

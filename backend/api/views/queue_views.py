@@ -1296,15 +1296,47 @@ def queue_conversations(request):
         display_status = display_entry.status
         
         # If there's a booking, its status is often more descriptive (e.g., No Show/Cancelled)
-        if display_entry.booking and display_entry.booking.status in ['done', 'no_show', 'cancelled', 'cancelled_by_customer']:
+        if display_entry.booking and display_entry.booking.status in ['done', 'no_show', 'cancelled', 'cancelled_by_customer']:\
             display_status = display_entry.booking.status
             
+        def get_pic_url(user):
+            if not user: return None
+            
+            def resolve_url(pic_field):
+                if not pic_field: return None
+                # If it's a string or the raw name in DB starts with http, it's an external URL
+                try:
+                    name = getattr(pic_field, 'name', '') or str(pic_field)
+                    if name.startswith('http'):
+                        return name
+                    if hasattr(pic_field, 'url'):
+                        return pic_field.url
+                except:
+                    pass
+                return None
+
+            try:
+                if hasattr(user, 'customer_profile') and user.customer_profile.profile_picture:
+                    pic = resolve_url(user.customer_profile.profile_picture)
+                    if pic: return pic
+            except:
+                pass
+            try:
+                if hasattr(user, 'staff_profile') and user.staff_profile.profile_picture:
+                    pic = resolve_url(user.staff_profile.profile_picture)
+                    if pic: return pic
+            except:
+                pass
+            return None
+
         data.append({
             "id": display_entry.id,
             "customer_name": entry.customer_name,
+            "customer_pic": get_pic_url(cust_user),
             "service": entry.service,
             "status": display_status,
             "employee_name": f"{entry.assigned_employee.first_name} {entry.assigned_employee.last_name}" if entry.assigned_employee else "TBA",
+            "employee_pic": get_pic_url(entry.assigned_employee.user) if entry.assigned_employee else None,
             "last_message": last_msg.message if last_msg else None,
             "last_message_at": last_msg.created_at if last_msg else None,
             "unread_count": unread_count,
