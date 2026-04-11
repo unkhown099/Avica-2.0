@@ -91,7 +91,6 @@ from api.views.super_admin_views import (
     SuperAdminBranchOverviewView,
     SuperAdminBroadcastView,
     SuperAdminCreateView,
-    SuperAdminSystemSettingsView,
     SuperAdminPluginView,
     SuperAdminPluginDetailView,
 )
@@ -101,6 +100,7 @@ from api.views.landing_content_views import (
     MediaAssetListView,
     MediaAssetDetailView,
 )
+from api.views.maintenance_views import SystemSettingsView, MaintenanceStatusView
 
 from api.views.direct_message_views import direct_message_contacts_view, direct_messages_view
 from api.views.payment_views import CreatePayMongoLinkView
@@ -116,9 +116,10 @@ urlpatterns = [
     path("super-admin/branches/",            SuperAdminBranchOverviewView.as_view()),
     path("super-admin/broadcast/",           SuperAdminBroadcastView.as_view()),
     path("super-admin/create/",              SuperAdminCreateView.as_view()),
-    path("super-admin/settings/", SuperAdminSystemSettingsView.as_view()),
     path('super-admin/plugins/', SuperAdminPluginView.as_view(), name='super-admin-plugins'),
     path('super-admin/plugins/<int:pk>/', SuperAdminPluginDetailView.as_view(), name='super-admin-plugin-detail'),
+    path("super-admin/settings/",      SystemSettingsView.as_view()),
+    path("system/maintenance-status/", MaintenanceStatusView.as_view()),
 
     path('admin/', admin.site.urls),
 
@@ -243,6 +244,8 @@ urlpatterns = [
     path("super-admin/landing-content/",      LandingContentAdminView.as_view()), # admin-only
     path("super-admin/media-assets/",         MediaAssetListView.as_view()),
     path("super-admin/media-assets/<int:pk>/", MediaAssetDetailView.as_view()),
+
+
 
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),

@@ -839,212 +839,6 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
   );
 }
 
-function RolesPermissionsModal({ roles, onClose }) {
-  const roleLabels = {
-    super_admin: "Super Admin",
-    admin: "Admin",
-    branch_manager: "Branch Manager",
-    employee: "Employee",
-    inventory_manager: "Inventory Manager",
-    customer: "Customer",
-  };
-
-  const defaultPermissions = {
-    create: true,
-    read: true,
-    update: true,
-    delete: false,
-  };
-
-  const [roleSettings, setRoleSettings] = useState(() => {
-    try {
-      const saved = JSON.parse(
-        localStorage.getItem("superadmin_role_settings") || "null",
-      );
-      return roles.map((role) => ({
-        key: role,
-        label:
-          saved?.find((item) => item.key === role)?.label ||
-          roleLabels[role] ||
-          role,
-        permissions:
-          saved?.find((item) => item.key === role)?.permissions ||
-          defaultPermissions,
-      }));
-    } catch {
-      return roles.map((role) => ({
-        key: role,
-        label: roleLabels[role] || role,
-        permissions: defaultPermissions,
-      }));
-    }
-  });
-
-  useEffect(() => {
-    setRoleSettings((prev) => {
-      const saved = JSON.parse(
-        localStorage.getItem("superadmin_role_settings") || "null",
-      );
-      return roles.map((role) => {
-        const existing = prev.find((item) => item.key === role) || {};
-        const savedItem = saved?.find((item) => item.key === role);
-        return {
-          key: role,
-          label: savedItem?.label || existing.label || roleLabels[role] || role,
-          permissions:
-            savedItem?.permissions ||
-            existing.permissions ||
-            defaultPermissions,
-        };
-      });
-    });
-  }, [roles]);
-
-  const handleLabelChange = (key, value) => {
-    setRoleSettings((prev) =>
-      prev.map((item) => (item.key === key ? { ...item, label: value } : item)),
-    );
-  };
-
-  const togglePermission = (key, perm) => {
-    setRoleSettings((prev) =>
-      prev.map((item) =>
-        item.key === key
-          ? {
-              ...item,
-              permissions: {
-                ...item.permissions,
-                [perm]: !item.permissions[perm],
-              },
-            }
-          : item,
-      ),
-    );
-  };
-
-  const saveSettings = () => {
-    localStorage.setItem(
-      "superadmin_role_settings",
-      JSON.stringify(roleSettings),
-    );
-    alert("Role settings saved.");
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-gray-900 border-b border-white/10 px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-white">
-              Roles & Permissions
-            </h3>
-            <p className="text-gray-400 text-sm">
-              Super admins can update role labels and permission defaults here.
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white p-1"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <div className="p-4 sm:p-6 space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-gray-800/80 p-4 text-sm text-gray-300">
-            Only users with Super Admin access can edit these role settings. The
-            interface is intentionally lightweight so it can be expanded later
-            with real role permission definitions.
-          </div>
-
-          {roleSettings.length > 0 ? (
-            <div className="space-y-4">
-              {roleSettings.map((role) => (
-                <div
-                  key={role.key}
-                  className="rounded-2xl border border-white/10 bg-gray-900/80 p-4"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-white">
-                        {roleLabels[role.key] || role.key}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Role key: {role.key}
-                      </div>
-                    </div>
-                    <div className="w-full sm:w-72">
-                      <label className="block text-xs font-semibold text-gray-400 mb-1">
-                        Display name
-                      </label>
-                      <input
-                        type="text"
-                        value={role.label}
-                        onChange={(e) =>
-                          handleLabelChange(role.key, e.target.value)
-                        }
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-2 sm:grid-cols-4">
-                    {Object.keys(role.permissions).map((perm) => (
-                      <button
-                        key={perm}
-                        type="button"
-                        onClick={() => togglePermission(role.key, perm)}
-                        className={`rounded-2xl px-3 py-2 text-xs font-semibold transition-all ${
-                          role.permissions[perm]
-                            ? "bg-green-500/15 text-green-300 border border-green-500/20"
-                            : "bg-gray-800 text-gray-400 border border-white/10 hover:border-gray-600"
-                        }`}
-                      >
-                        {perm.charAt(0).toUpperCase() + perm.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-gray-900/80 p-6 text-center text-gray-400">
-              No roles loaded yet.
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row justify-end gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold"
-            >
-              Close
-            </button>
-            <button
-              onClick={saveSettings}
-              className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all text-sm font-semibold"
-            >
-              Save Settings
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function SuperAdminUsers() {
   const [users, setUsers] = useState([]);
@@ -1059,7 +853,6 @@ export default function SuperAdminUsers() {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [editingUser, setEditingUser] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showRolesModal, setShowRolesModal] = useState(false);
   const [activeSection, setActiveSection] = useState("all-users");
   const [submitting, setSubmitting] = useState(false);
 
@@ -1092,28 +885,18 @@ export default function SuperAdminUsers() {
     if (location.pathname !== "/super-admin/users") return;
 
     const hash = location.hash;
-    if (hash === "#roles") {
-      setShowRolesModal(true);
-      setShowAddForm(false);
-      setActiveSection("roles");
-      return;
-    }
-
     if (hash === "#add-user") {
       setShowAddForm(true);
-      setShowRolesModal(false);
       setActiveSection("add-user");
       return;
     }
 
     setShowAddForm(false);
-    setShowRolesModal(false);
     setActiveSection("all-users");
   }, [location.pathname, location.hash]);
 
   const closeSection = () => {
     setShowAddForm(false);
-    setShowRolesModal(false);
     setActiveSection("all-users");
     navigate("/super-admin/users", { replace: true });
   };
@@ -1133,10 +916,6 @@ export default function SuperAdminUsers() {
   const handleSaveUser = async (userId, formData) => {
     setSubmitting(true);
     try {
-      const token =
-        localStorage.getItem("access_token") ??
-        sessionStorage.getItem("access_token");
-
       const payload = {
         is_active: formData.is_active,
       };
@@ -1153,11 +932,6 @@ export default function SuperAdminUsers() {
         method: "PATCH",
         body: payload,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to update user");
-      }
 
       setEditingUser(null);
       fetchData();
@@ -1178,9 +952,7 @@ export default function SuperAdminUsers() {
 
     try {
       await apiFetch(`/super-admin/users/${user.id}/`, { method: "DELETE" });
-
       setUsers((prevUsers) => prevUsers.filter((u) => u.id !== user.id));
-
       alert(`User ${user.email} has been deleted.`);
     } catch (err) {
       alert(err.message || "Failed to delete user.");
@@ -1189,15 +961,10 @@ export default function SuperAdminUsers() {
 
   const handleStatusToggle = async (user) => {
     try {
-      const response = await apiFetch(`/super-admin/users/${user.id}/`, {
+      await apiFetch(`/super-admin/users/${user.id}/`, {
         method: "PATCH",
         body: { is_active: !user.is_active },
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to update user status");
-      }
       fetchData();
     } catch (err) {
       alert(err.message);
@@ -1219,15 +986,10 @@ export default function SuperAdminUsers() {
         send_welcome_email: formData.send_welcome_email,
       };
 
-      const response = await apiFetch("/super-admin/create/", {
+      await apiFetch("/super-admin/create/", {
         method: "POST",
         body: payload,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to create user");
-      }
 
       fetchData();
       setShowAddForm(false);
@@ -1278,7 +1040,7 @@ export default function SuperAdminUsers() {
               User Management
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-              Manage system users, roles, and permissions
+              Manage system users
             </p>
           </div>
           <div className="flex gap-2">
@@ -1402,11 +1164,6 @@ export default function SuperAdminUsers() {
               loading={submitting}
             />
           </div>
-        )}
-
-        {/* Roles & Permissions Modal */}
-        {showRolesModal && (
-          <RolesPermissionsModal roles={roles} onClose={closeSection} />
         )}
 
         {/* Filters */}

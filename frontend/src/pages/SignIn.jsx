@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
@@ -23,6 +23,8 @@ const ROLE_ROUTES = {
   customer: "/dashboard",
 };
 
+const MAINTENANCE_ALLOWED_ROLES = ["super_admin", "admin", "business_owner"];
+
 function normalizeRole(rawRole) {
   const map = {
     "Admin": "admin",
@@ -35,6 +37,29 @@ function normalizeRole(rawRole) {
     "Super Admin": "super_admin",
   };
   return map[rawRole] ?? rawRole ?? null;
+}
+
+async function getMaintenanceStatus(token) {
+  try {
+    const res = await fetch(`${API_BASE}/system/maintenance-status/`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+
+    if (res.ok) {
+      return res.json();
+    }
+  } catch (error) {
+    console.error("Failed to verify maintenance status after login:", error);
+  }
+
+  return {
+    is_maintenance_mode: false,
+    maintenance_message: "",
+    can_bypass: false,
+  };
 }
 
 function SignIn() {
@@ -51,6 +76,8 @@ function SignIn() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [isSubmittingForgot, setIsSubmittingForgot] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState("");
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -104,7 +131,24 @@ function SignIn() {
       data.user.role = normalizedRole;
       storeSession(data.tokens, data.user, formData.rememberMe);
 
+      const maintenanceStatus = await getMaintenanceStatus(data.tokens.access);
+      const mustRedirectToMaintenance =
+        maintenanceStatus.is_maintenance_mode &&
+        !MAINTENANCE_ALLOWED_ROLES.includes(normalizedRole);
+
+      if (mustRedirectToMaintenance) {
+        localStorage.setItem(
+          "maintenance_mode",
+          JSON.stringify({
+            isActive: true,
+            message: maintenanceStatus.maintenance_message,
+            canBypass: false,
+          }),
+        );
+      }
+
       const destination = ROLE_ROUTES[normalizedRole] ?? "/";
+      const nextRoute = mustRedirectToMaintenance ? "/maintenance" : destination;
 
       // Fire the alert FIRST, navigate only after it's dismissed.
       // This prevents SweetAlert2's backdrop from mounting on the destination
@@ -119,7 +163,7 @@ function SignIn() {
         ...DARK_SWAL,
       });
 
-      navigate(destination);
+      navigate(nextRoute, { replace: true });
     } catch (err) {
       swal.fire({
         icon: "error",
@@ -198,7 +242,24 @@ function SignIn() {
       data.user.role = normalizedRole;
       storeSession(data.tokens, data.user, false);
 
+      const maintenanceStatus = await getMaintenanceStatus(data.tokens.access);
+      const mustRedirectToMaintenance =
+        maintenanceStatus.is_maintenance_mode &&
+        !MAINTENANCE_ALLOWED_ROLES.includes(normalizedRole);
+
+      if (mustRedirectToMaintenance) {
+        localStorage.setItem(
+          "maintenance_mode",
+          JSON.stringify({
+            isActive: true,
+            message: maintenanceStatus.maintenance_message,
+            canBypass: false,
+          }),
+        );
+      }
+
       const destination = ROLE_ROUTES[normalizedRole] ?? "/";
+      const nextRoute = mustRedirectToMaintenance ? "/maintenance" : destination;
 
       // If new Google user, notify about temporary password
       if (data.is_temporary) {
@@ -213,9 +274,12 @@ function SignIn() {
           ...DARK_SWAL,
         }).then((result) => {
           if (result.isConfirmed) {
-            navigate("/settings");
+            navigate(
+              mustRedirectToMaintenance ? "/maintenance" : "/settings",
+              { replace: true },
+            );
           } else {
-            navigate(destination);
+            navigate(nextRoute, { replace: true });
           }
         });
       } else {
@@ -228,7 +292,7 @@ function SignIn() {
           showConfirmButton: false,
           ...DARK_SWAL,
         });
-        navigate(destination);
+        navigate(nextRoute, { replace: true });
       }
     } catch (err) {
       swal.fire({
@@ -240,9 +304,60 @@ function SignIn() {
     }
   };
 
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/system/maintenance-status/`);
+        if (res.ok) {
+          const data = await res.json();
+          setIsMaintenanceMode(data.is_maintenance_mode);
+          setMaintenanceMessage(data.maintenance_message);
+        }
+      } catch (err) {
+        console.error("Failed to check maintenance:", err);
+      }
+    };
+    checkMaintenance();
+    
+    // Listen for maintenance changes
+    const handleChange = () => checkMaintenance();
+    window.addEventListener("maintenance-mode-changed", handleChange);
+    return () => window.removeEventListener("maintenance-mode-changed", handleChange);
+  }, []);
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="h-screen bg-black flex items-center justify-center px-6 relative overflow-hidden">
+      {/* Maintenance Warning Banner */}
+        {isMaintenanceMode && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-red-600/95 via-yellow-500/95 to-red-600/95 border-t border-yellow-500/50 backdrop-blur-md shadow-2xl">
+            <div className="flex items-center">
+              {/* Static label */}
+              <div className="flex items-center gap-2 bg-black/50 px-4 py-3 shrink-0">
+                <svg className="h-4 w-4 text-yellow-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-wider text-yellow-400 whitespace-nowrap">
+                  MAINTENANCE MODE
+                </span>
+              </div>
+              
+              {/* Scrolling message */}
+              <div className="flex-1 overflow-hidden">
+                <div className="whitespace-nowrap animate-[ticker_20s_linear_infinite] py-3 hover:animation-pause">
+                  {[...Array(6)].map((_, i) => (
+                    <span key={i} className="inline-flex items-center mx-8">
+                      <span className="text-sm text-yellow-100 font-semibold">
+                        ⚠️ {maintenanceMessage || "System is under maintenance. Only administrators can access after login."} ⚠️
+                      </span>
+                      <span className="text-yellow-400 mx-4 text-lg">✦</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       {/* Back arrow */}
       <Link
         to="/"
