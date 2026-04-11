@@ -901,3 +901,122 @@ class DirectMessage(models.Model):
 
     def __str__(self):
         return f"{self.customer.first_name} & {self.employee.first_name} ({self.sender_type}): {self.message[:20]}"
+
+
+class SystemSettings(models.Model):
+    """
+    Singleton table — only one row ever exists (fetched with .first() or
+    get_or_create). Stores all super-admin configurable settings split into
+    three JSON sections: general, email, security.
+    """
+ 
+    general = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Keys: siteName, siteTagline, siteMode ('live'|'maintenance'), "
+            "maintenanceMessage, defaultLanguage, defaultTimezone, supportUrl"
+        ),
+    )
+    email = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Keys: mailHost, mailPort, mailFrom, supportEmail, "
+            "emailVerificationRequired, welcomeEmailEnabled"
+        ),
+    )
+    security = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Keys: requireStrongPasswords, sessionTimeoutMinutes, "
+            "maxLoginAttempts, lockoutDurationMinutes, "
+            "allowTwoFactor, allowGoogleOAuth, allowFacebookOAuth"
+        ),
+    )
+ 
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="system_settings_updates",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+ 
+    class Meta:
+        db_table = "system_settings"
+ 
+    def __str__(self):
+        mode = self.general.get("siteMode", "live")
+        return f"SystemSettings — mode={mode} — updated {self.updated_at:%Y-%m-%d %H:%M}"
+ 
+    # ── Defaults ───────────────────────────────────────────────────────────────
+    # Ensures a fresh row always has sensible values.
+    GENERAL_DEFAULTS = {
+        "siteName": "Otokwikk",
+        "siteTagline": "Your Trusted Auto Service Partner",
+        "siteMode": "live",
+        "maintenanceMessage": "We're currently performing scheduled maintenance. We'll be back shortly!",
+        "defaultLanguage": "en",
+        "defaultTimezone": "Asia/Manila",
+        "supportUrl": "https://support.otokwikk.com",
+    }
+ 
+    EMAIL_DEFAULTS = {
+        "mailHost": "",
+        "mailPort": 587,
+        "mailFrom": "no-reply@otokwikk.com",
+        "supportEmail": "support@otokwikk.com",
+        "emailVerificationRequired": True,
+        "welcomeEmailEnabled": True,
+    }
+ 
+    SECURITY_DEFAULTS = {
+        "requireStrongPasswords": True,
+        "sessionTimeoutMinutes": 60,
+        "maxLoginAttempts": 5,
+        "lockoutDurationMinutes": 15,
+        "allowTwoFactor": False,
+        "allowGoogleOAuth": False,
+        "allowFacebookOAuth": False,
+    }
+ 
+    @classmethod
+    def get_singleton(cls):
+        """
+        Always returns the one-and-only SystemSettings row, creating it
+        with defaults if it doesn't exist yet.
+        """
+        obj, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "general": cls.GENERAL_DEFAULTS.copy(),
+                "email": cls.EMAIL_DEFAULTS.copy(),
+                "security": cls.SECURITY_DEFAULTS.copy(),
+            },
+        )
+        if not created:
+            # Back-fill any keys that were added after the row was first created
+            changed = False
+            for key, val in cls.GENERAL_DEFAULTS.items():
+                if key not in obj.general:
+                    obj.general[key] = val
+                    changed = True
+            for key, val in cls.EMAIL_DEFAULTS.items():
+                if key not in obj.email:
+                    obj.email[key] = val
+                    changed = True
+            for key, val in cls.SECURITY_DEFAULTS.items():
+                if key not in obj.security:
+                    obj.security[key] = val
+                    changed = True
+            if changed:
+                obj.save(update_fields=["general", "email", "security"])
+        return obj
+ 
+    @property
+    def is_maintenance(self):
+        return self.general.get("siteMode") == "maintenance"

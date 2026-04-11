@@ -242,7 +242,7 @@ function SlidePanel({ onClose, children }) {
   );
 }
 
-// ─── Centered modal wrapper ───────────────────────────────────────────────────
+// Update the CenterModal component to be wider and have max height that respects navbar
 
 function CenterModal({ onClose, children }) {
   return (
@@ -251,7 +251,7 @@ function CenterModal({ onClose, children }) {
         className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
         onClick={onClose}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-2rem)] sm:w-full max-w-md flex flex-col bg-[#0a0a0a] border border-white/8 shadow-2xl rounded-2xl overflow-hidden max-h-[90vh]">
+      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] sm:w-full max-w-4xl bg-[#0a0a0a] border border-white/8 shadow-2xl rounded-2xl overflow-hidden max-h-[calc(100vh-7rem)] flex flex-col">
         {children}
       </div>
     </>
@@ -591,7 +591,7 @@ function CancelBookingModal({ booking, onClose, onConfirm }) {
   );
 }
 
-// ─── Damage Detection Modal ───────────────────────────────────────────────────
+// Replace the SlidePanel wrapper with CenterModal for DamageDetectionModal
 
 function DamageDetectionModal({ onClose, onBack }) {
   const [images, setImages] = useState([]);
@@ -600,6 +600,13 @@ function DamageDetectionModal({ onClose, onBack }) {
   const [error, setError] = useState("");
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const canvasRefs = useRef({});
+  const [toast, setToast] = useState(null); // Add toast state
+
+  // Toast helper functions
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4500);
+  };
 
   const SEVERITY_COLORS = {
     Minor: {
@@ -707,12 +714,12 @@ function DamageDetectionModal({ onClose, onBack }) {
   const analyzeDamage = async () => {
     if (images.length === 0) {
       setError("Please upload at least one image");
+      showToast("Please upload at least one image", "error");
       return;
     }
     setUploading(true);
     setError("");
     try {
-      // Use getAuthHeadersAsync directly here for the damage endpoint
       const headers = await getAuthHeadersAsync();
       const base64Images = await Promise.all(
         images.map(
@@ -734,448 +741,452 @@ function DamageDetectionModal({ onClose, onBack }) {
       if (!response.ok) throw new Error(data.error || "Analysis failed");
       setAnalysisResult(data);
       setActiveImageIndex(0);
+      showToast("Damage analysis completed successfully!");
     } catch (err) {
       console.error(err);
       setError("Failed to analyze images. Please try again.");
+      showToast("Failed to analyze images. Please try again.", "error");
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <SlidePanel onClose={onClose}>
-      <PanelHeader
-        title="AI Damage Detection"
-        accent="AI Damage"
-        subtitle="Upload photos for AI analysis"
-        onClose={onClose}
-      />
-
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
-        {!analysisResult ? (
-          <>
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-              Upload Vehicle Photos
+    <>
+      <CenterModal onClose={onClose}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
+          <div className="min-w-0 mr-3">
+            <h2 className="text-base sm:text-xl font-black text-white">
+              AI <span className="text-red-500">Damage Detection</span>
+            </h2>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5 truncate">
+              Upload photos for AI analysis
             </p>
-            <div
-              className="border-2 border-dashed border-white/10 rounded-2xl p-5 sm:p-6 text-center hover:border-red-500/50 hover:bg-red-600/5 transition-all duration-200 cursor-pointer mb-4 sm:mb-6"
-              onClick={() => document.getElementById("damage-images").click()}
-            >
-              <input
-                type="file"
-                id="damage-images"
-                multiple
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-              />
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-600/10 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
-                <svg
-                  className="w-6 h-6 sm:w-8 sm:h-8 text-red-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              <p className="text-white font-semibold text-xs sm:text-sm mb-1">
-                Click to upload photos
-              </p>
-              <p className="text-gray-600 text-[10px] sm:text-xs">
-                JPG, PNG, HEIC — max 10MB each
-              </p>
-            </div>
+          </div>
+          <CloseBtn onClick={onClose} />
+        </div>
 
-            {images.length > 0 && (
-              <div className="mb-4 sm:mb-6">
-                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Uploaded ({images.length})
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {images.map((img, i) => (
-                    <div key={i} className="relative group">
-                      <img
-                        src={img.preview}
-                        alt={`Damage ${i + 1}`}
-                        className="w-full h-20 sm:h-32 object-cover rounded-xl border border-white/10"
-                      />
-                      <button
-                        onClick={() => removeImage(i)}
-                        className="absolute top-1 right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-600/90 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
-                      >
-                        <svg
-                          className="w-2.5 h-2.5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 max-h-[calc(100vh-16rem)]">
+          {!analysisResult ? (
+            <>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                Upload Vehicle Photos
+              </p>
+              <div
+                className="border-2 border-dashed border-white/10 rounded-2xl p-5 sm:p-6 text-center hover:border-red-500/50 hover:bg-red-600/5 transition-all duration-200 cursor-pointer mb-4 sm:mb-6"
+                onClick={() => document.getElementById("damage-images").click()}
+              >
+                <input
+                  type="file"
+                  id="damage-images"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-600/10 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                  <svg
+                    className="w-6 h-6 sm:w-8 sm:h-8 text-red-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
                 </div>
+                <p className="text-white font-semibold text-xs sm:text-sm mb-1">
+                  Click to upload photos
+                </p>
+                <p className="text-gray-600 text-[10px] sm:text-xs">
+                  JPG, PNG, HEIC — max 10MB each
+                </p>
               </div>
-            )}
 
-            <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
-              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                Tips for best results
-              </p>
-              <ul className="space-y-1.5 text-gray-400">
-                {[
-                  "Take photos in good lighting",
-                  "Capture damages from multiple angles",
-                  "Include reference object for scale",
-                  "Avoid blurry or dark images",
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-1.5">
-                    <span className="text-red-500 text-xs">•</span>
-                    <span className="text-[10px] sm:text-xs">{t}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-green-600/20 flex items-center justify-center">
-                <svg
-                  className="w-4 h-4 sm:w-6 sm:h-6 text-green-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="text-white font-bold text-sm sm:text-lg">
-                  Analysis Complete
-                </p>
-                <p className="text-gray-500 text-[10px] sm:text-xs">
-                  Confidence: {(analysisResult.confidence * 100).toFixed(0)}%
-                  {analysisResult.damages?.some((d) => d.boundingBox) && (
-                    <span className="ml-2 text-red-400">
-                      · Damage locations marked on photo
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {images.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
-                  Annotated Photo{images.length > 1 ? "s" : ""}
-                </p>
-                {images.length > 1 && (
-                  <div className="flex gap-1.5 flex-wrap">
-                    {images.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setActiveImageIndex(i)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${activeImageIndex === i ? "bg-red-600 border-red-500 text-white" : "bg-white/5 border-white/10 text-gray-400 hover:text-white"}`}
-                      >
-                        Photo {i + 1}
-                      </button>
+              {images.length > 0 && (
+                <div className="mb-4 sm:mb-6">
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                    Uploaded ({images.length})
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {images.map((img, i) => (
+                      <div key={i} className="relative group">
+                        <img
+                          src={img.preview}
+                          alt={`Damage ${i + 1}`}
+                          className="w-full h-20 sm:h-32 object-cover rounded-xl border border-white/10"
+                        />
+                        <button
+                          onClick={() => removeImage(i)}
+                          className="absolute top-1 right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-600/90 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200"
+                        >
+                          <svg
+                            className="w-2.5 h-2.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     ))}
                   </div>
-                )}
-                <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black">
-                  <img
-                    id={`damage-preview-${activeImageIndex}`}
-                    src={images[activeImageIndex]?.preview}
-                    alt="Annotated vehicle"
-                    className="w-full block"
-                    onLoad={(e) => {
-                      const canvas = canvasRefs.current[activeImageIndex];
-                      drawAnnotations(
-                        canvas,
-                        e.target,
-                        analysisResult.damages || [],
-                      );
-                    }}
-                  />
-                  <canvas
-                    ref={(el) => {
-                      canvasRefs.current[activeImageIndex] = el;
-                    }}
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    style={{ mixBlendMode: "normal" }}
-                  />
-                  {analysisResult.damages?.some((d) => d.boundingBox) && (
-                    <div className="absolute bottom-2 left-2 flex flex-col gap-1">
-                      {["Minor", "Moderate", "Severe"].map((sev) => {
-                        const has = analysisResult.damages.some(
-                          (d) => d.severity === sev && d.boundingBox,
-                        );
-                        if (!has) return null;
-                        const c = SEVERITY_COLORS[sev];
-                        return (
-                          <div
-                            key={sev}
-                            className="flex items-center gap-1 bg-black/70 rounded px-1.5 py-0.5"
-                          >
-                            <div
-                              className="w-2.5 h-2.5 rounded-sm border"
-                              style={{
-                                borderColor: c.stroke,
-                                backgroundColor: c.fill,
-                              }}
-                            />
-                            <span className="text-[9px] text-white font-medium">
-                              {sev}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
-                {!analysisResult.damages?.some((d) => d.boundingBox) &&
-                  analysisResult.damages?.length > 0 && (
-                    <p className="text-gray-600 text-[10px] text-center">
-                      AI could not precisely localize damages in this photo. See
-                      descriptions below.
-                    </p>
-                  )}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
-                Detected Damages
-              </p>
-              {analysisResult.damages?.length === 0 ? (
-                <p className="text-gray-500 text-xs">No damage detected.</p>
-              ) : (
-                analysisResult.damages.map((d, i) => (
-                  <div
-                    key={i}
-                    className="bg-white/4 rounded-xl p-3 border border-white/8 flex items-start gap-3"
-                  >
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-black shrink-0 mt-0.5"
-                      style={{
-                        backgroundColor:
-                          SEVERITY_COLORS[d.severity]?.stroke ?? "#facc15",
-                      }}
-                    >
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-white font-semibold text-xs sm:text-sm">
-                          {d.type}
-                        </span>
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full ${SEVERITY_COLORS[d.severity]?.label ?? "bg-gray-600/20 text-gray-400"}`}
-                        >
-                          {d.severity}
-                        </span>
-                      </div>
-                      <p className="text-gray-400 text-[10px] sm:text-xs">
-                        📍 {d.location}
-                      </p>
-                      <p className="text-gray-500 text-[9px] sm:text-[10px]">
-                        Confidence: {(d.confidence * 100).toFixed(0)}%
-                        {d.boundingBox ? " · Marked on photo" : ""}
-                      </p>
-                    </div>
-                  </div>
-                ))
               )}
-            </div>
 
-            {analysisResult.matchedServices?.length > 0 && (
+              <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  Tips for best results
+                </p>
+                <ul className="space-y-1.5 text-gray-400">
+                  {[
+                    "Take photos in good lighting",
+                    "Capture damages from multiple angles",
+                    "Include reference object for scale",
+                    "Avoid blurry or dark images",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-1.5">
+                      <span className="text-red-500 text-xs">•</span>
+                      <span className="text-[10px] sm:text-xs">{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-green-600/20 flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4 sm:w-6 sm:h-6 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm sm:text-lg">
+                    Analysis Complete
+                  </p>
+                  <p className="text-gray-500 text-[10px] sm:text-xs">
+                    Confidence: {(analysisResult.confidence * 100).toFixed(0)}%
+                    {analysisResult.damages?.some((d) => d.boundingBox) && (
+                      <span className="ml-2 text-red-400">
+                        · Damage locations marked on photo
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {images.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
+                    Annotated Photo{images.length > 1 ? "s" : ""}
+                  </p>
+                  {images.length > 1 && (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {images.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setActiveImageIndex(i)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${activeImageIndex === i ? "bg-red-600 border-red-500 text-white" : "bg-white/5 border-white/10 text-gray-400 hover:text-white"}`}
+                        >
+                          Photo {i + 1}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black">
+                    <img
+                      id={`damage-preview-${activeImageIndex}`}
+                      src={images[activeImageIndex]?.preview}
+                      alt="Annotated vehicle"
+                      className="w-full block"
+                      onLoad={(e) => {
+                        const canvas = canvasRefs.current[activeImageIndex];
+                        drawAnnotations(
+                          canvas,
+                          e.target,
+                          analysisResult.damages || [],
+                        );
+                      }}
+                    />
+                    <canvas
+                      ref={(el) => {
+                        canvasRefs.current[activeImageIndex] = el;
+                      }}
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      style={{ mixBlendMode: "normal" }}
+                    />
+                    {analysisResult.damages?.some((d) => d.boundingBox) && (
+                      <div className="absolute bottom-2 left-2 flex flex-col gap-1">
+                        {["Minor", "Moderate", "Severe"].map((sev) => {
+                          const has = analysisResult.damages.some(
+                            (d) => d.severity === sev && d.boundingBox,
+                          );
+                          if (!has) return null;
+                          const c = SEVERITY_COLORS[sev];
+                          return (
+                            <div
+                              key={sev}
+                              className="flex items-center gap-1 bg-black/70 rounded px-1.5 py-0.5"
+                            >
+                              <div
+                                className="w-2.5 h-2.5 rounded-sm border"
+                                style={{
+                                  borderColor: c.stroke,
+                                  backgroundColor: c.fill,
+                                }}
+                              />
+                              <span className="text-[9px] text-white font-medium">
+                                {sev}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {!analysisResult.damages?.some((d) => d.boundingBox) &&
+                    analysisResult.damages?.length > 0 && (
+                      <p className="text-gray-600 text-[10px] text-center">
+                        AI could not precisely localize damages in this photo. See
+                        descriptions below.
+                      </p>
+                    )}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
-                  Recommended Services
+                  Detected Damages
                 </p>
-                {analysisResult.matchedServices.map((svc) => (
-                  <div
-                    key={svc.id}
-                    className="bg-red-600/8 border border-red-600/20 rounded-xl p-3 flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-white font-semibold text-xs sm:text-sm truncate">
-                        {svc.name}
-                      </p>
-                      <p className="text-gray-500 text-[10px]">
-                        {svc.category}
-                      </p>
+                {analysisResult.damages?.length === 0 ? (
+                  <p className="text-gray-500 text-xs">No damage detected.</p>
+                ) : (
+                  analysisResult.damages.map((d, i) => (
+                    <div
+                      key={i}
+                      className="bg-white/4 rounded-xl p-3 border border-white/8 flex items-start gap-3"
+                    >
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-black shrink-0 mt-0.5"
+                        style={{
+                          backgroundColor:
+                            SEVERITY_COLORS[d.severity]?.stroke ?? "#facc15",
+                        }}
+                      >
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-white font-semibold text-xs sm:text-sm">
+                            {d.type}
+                          </span>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full ${SEVERITY_COLORS[d.severity]?.label ?? "bg-gray-600/20 text-gray-400"}`}
+                          >
+                            {d.severity}
+                          </span>
+                        </div>
+                        <p className="text-gray-400 text-[10px] sm:text-xs">
+                          📍 {d.location}
+                        </p>
+                        <p className="text-gray-500 text-[9px] sm:text-[10px]">
+                          Confidence: {(d.confidence * 100).toFixed(0)}%
+                          {d.boundingBox ? " · Marked on photo" : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-red-400 font-black text-sm shrink-0">
-                      ₱{parseFloat(svc.price).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-                <p className="text-gray-600 text-[9px]">
-                  These services will be pre-selected when you proceed to
-                  booking.
-                </p>
+                  ))
+                )}
               </div>
-            )}
 
-            <div>
-              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                Recommendations
-              </p>
-              <ul className="space-y-1.5">
-                {analysisResult.recommendations?.map((r, i) => (
-                  <li
-                    key={i}
-                    className="flex items-start gap-1.5 text-gray-300"
-                  >
-                    <span className="text-red-500 text-xs">•</span>
-                    <span className="text-[10px] sm:text-xs">{r}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="bg-red-600/10 rounded-xl p-3 sm:p-4 border border-red-600/20 space-y-2">
-              <div>
-                <p className="text-gray-400 text-[10px] sm:text-xs mb-1">
-                  AI Damage Repair Estimate
-                </p>
-                <p className="text-xl sm:text-2xl font-black text-white">
-                  {analysisResult.estimatedCost}
-                </p>
-                <p className="text-gray-500 text-[9px] sm:text-[10px] mt-1">
-                  *AI estimate based on detected damage
-                </p>
-              </div>
               {analysisResult.matchedServices?.length > 0 && (
-                <div className="border-t border-red-600/20 pt-2">
-                  <p className="text-gray-400 text-[10px] sm:text-xs mb-1">
-                    Matched Service Pricing
+                <div className="space-y-2">
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
+                    Recommended Services
                   </p>
-                  <p className="text-xl sm:text-2xl font-black text-green-400">
-                    ₱
-                    {analysisResult.matchedServices
-                      .reduce((sum, s) => sum + parseFloat(s.price ?? 0), 0)
-                      .toLocaleString()}
-                  </p>
-                  <p className="text-gray-500 text-[9px] sm:text-[10px] mt-1">
-                    Based on {analysisResult.matchedServices.length} matched
-                    service
-                    {analysisResult.matchedServices.length !== 1 ? "s" : ""} ·
-                    Final cost confirmed at service
+                  {analysisResult.matchedServices.map((svc) => (
+                    <div
+                      key={svc.id}
+                      className="bg-red-600/8 border border-red-600/20 rounded-xl p-3 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-white font-semibold text-xs sm:text-sm truncate">
+                          {svc.name}
+                        </p>
+                        <p className="text-gray-500 text-[10px]">
+                          {svc.category}
+                        </p>
+                      </div>
+                      <div className="text-red-400 font-black text-sm shrink-0">
+                        ₱{parseFloat(svc.price).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-gray-600 text-[9px]">
+                    These services will be pre-selected when you proceed to
+                    booking.
                   </p>
                 </div>
               )}
+
+              <div>
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  Recommendations
+                </p>
+                <ul className="space-y-1.5">
+                  {analysisResult.recommendations?.map((r, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-1.5 text-gray-300"
+                    >
+                      <span className="text-red-500 text-xs">•</span>
+                      <span className="text-[10px] sm:text-xs">{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-red-600/10 rounded-xl p-3 sm:p-4 border border-red-600/20 space-y-2">
+                <div>
+                  <p className="text-gray-400 text-[10px] sm:text-xs mb-1">
+                    AI Damage Repair Estimate
+                  </p>
+                  <p className="text-xl sm:text-2xl font-black text-white">
+                    {analysisResult.estimatedCost}
+                  </p>
+                  <p className="text-gray-500 text-[9px] sm:text-[10px] mt-1">
+                    *AI estimate based on detected damage
+                  </p>
+                </div>
+                {analysisResult.matchedServices?.length > 0 && (
+                  <div className="border-t border-red-600/20 pt-2">
+                    <p className="text-gray-400 text-[10px] sm:text-xs mb-1">
+                      Matched Service Pricing
+                    </p>
+                    <p className="text-xl sm:text-2xl font-black text-green-400">
+                      ₱
+                      {analysisResult.matchedServices
+                        .reduce((sum, s) => sum + parseFloat(s.price ?? 0), 0)
+                        .toLocaleString()}
+                    </p>
+                    <p className="text-gray-500 text-[9px] sm:text-[10px] mt-1">
+                      Based on {analysisResult.matchedServices.length} matched
+                      service
+                      {analysisResult.matchedServices.length !== 1 ? "s" : ""} ·
+                      Final cost confirmed at service
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="mt-3 flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-3 py-2.5 text-red-400 text-[10px] sm:text-xs">
-            <svg
-              className="w-3.5 h-3.5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {error}
-          </div>
-        )}
-      </div>
+          {/* Remove inline error display */}
+        </div>
 
-      <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
-        <button
-          onClick={onClose}
-          className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 font-semibold text-xs sm:text-sm transition-all duration-200"
-        >
-          Cancel
-        </button>
-        {!analysisResult ? (
+        <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
           <button
-            onClick={analyzeDamage}
-            disabled={images.length === 0 || uploading}
-            className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5"
+            onClick={onClose}
+            className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 font-semibold text-xs sm:text-sm transition-all duration-200"
           >
-            {uploading ? (
-              <>
-                <svg
-                  className="w-3.5 h-3.5 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Analyzing...
-              </>
-            ) : (
-              "Analyze Damage"
-            )}
+            Cancel
           </button>
-        ) : (
-          <button
-            onClick={() =>
-              onBack({ type: "booking", damageData: analysisResult })
-            }
-            className="flex-1 py-2 sm:py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5"
-          >
-            Proceed to Booking
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          {!analysisResult ? (
+            <button
+              onClick={analyzeDamage}
+              disabled={images.length === 0 || uploading}
+              className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 7l5 5m0 0l-5 5m5-5H6"
-              />
-            </svg>
-          </button>
-        )}
-      </div>
-    </SlidePanel>
+              {uploading ? (
+                <>
+                  <svg
+                    className="w-3.5 h-3.5 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Analyzing...
+                </>
+              ) : (
+                "Analyze Damage"
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={() =>
+                onBack({ type: "booking", damageData: analysisResult })
+              }
+              className="flex-1 py-2 sm:py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5"
+            >
+              Proceed to Booking
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+      </CenterModal>
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60]">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onDismiss={() => setToast(null)}
+          />
+        </div>
+      )}
+    </>
   );
 }
 
-// ─── New Booking Modal ────────────────────────────────────────────────────────
+// Replace the SlidePanel wrapper with CenterModal for NewBookingModal
+// And add toast notifications for error/success
 
 function NewBookingModal({
   onClose,
@@ -1223,6 +1234,13 @@ function NewBookingModal({
   const [userBookings, setUserBookings] = useState([]);
   const [userBookingsLoaded, setUserBookingsLoaded] = useState(false);
   const [hasActiveBooking, setHasActiveBooking] = useState(false);
+  const [toast, setToast] = useState(null); // Add toast state
+
+  // Toast helper functions
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4500);
+  };
 
   // ── Load user bookings ──
   useEffect(() => {
@@ -1343,7 +1361,7 @@ function NewBookingModal({
     setForm((prev) => {
       const prevIds = (prev.services || []).map((s) => s.id).join(",");
       const newIds = fullyHydrated.map((s) => s.id).join(",");
-      if (prevIds === newIds) return prev; // no-op if already synced
+      if (prevIds === newIds) return prev;
       return { ...prev, services: fullyHydrated };
     });
   }, [initialDamageData, services]);
@@ -1639,8 +1657,11 @@ function NewBookingModal({
         }
         throw new Error(`Error ${res.status}`);
       }
-      onSuccess(await res.json());
+      const newBooking = await res.json();
+      showToast("Booking created successfully!");
+      onSuccess(newBooking);
     } catch (err) {
+      showToast(err.message || "Something went wrong.", "error");
       setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
@@ -1652,148 +1673,269 @@ function NewBookingModal({
     : 0;
 
   return (
-    <SlidePanel onClose={onClose}>
-      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
-        <div>
-          <h2 className="text-base sm:text-xl font-black text-white">
-            Book an <span className="text-red-500">Appointment</span>
-          </h2>
-          <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">
-            Step {step + 1} of {STEPS.length}
-          </p>
-        </div>
-        <CloseBtn onClick={onClose} />
-      </div>
-      <StepIndicator current={step} />
-
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
-        {/* ── Step 0: Service ── */}
-        {step === 0 && (
+    <>
+      <CenterModal onClose={onClose}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
           <div>
-
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-              Choose services
+            <h2 className="text-base sm:text-xl font-black text-white">
+              Book an <span className="text-red-500">Appointment</span>
+            </h2>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">
+              Step {step + 1} of {STEPS.length}
             </p>
-            {!servicesLoading && !servicesError && (
-              <div className="mb-3">
-                <p className="text-[9px] sm:text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">
-                  Categories
-                </p>
-                {categoriesLoading ? (
-                  <p className="text-[10px] text-gray-500">Loading…</p>
-                ) : categoryOptions.length === 0 ? (
-                  <p className="text-[10px] text-gray-500">No categories.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCategory("all")}
-                      className={`px-2.5 py-1 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all duration-200 ${selectedCategory === "all" ? "border-red-500 bg-red-600/20 text-red-300 shadow-sm shadow-red-600/20" : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/25"}`}
-                    >
-                      All
-                    </button>
-                    {categoryOptions.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`px-2.5 py-1 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all duration-200 ${String(selectedCategory).toLowerCase() === String(cat).toLowerCase() ? "border-red-500 bg-red-600/20 text-red-300 shadow-sm shadow-red-600/20" : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/25"}`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {categoriesError && (
-                  <p className="mt-1.5 text-[10px] text-yellow-500">
-                    {categoriesError}
+          </div>
+          <CloseBtn onClick={onClose} />
+        </div>
+        <StepIndicator current={step} />
+
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 max-h-[calc(100vh-16rem)]">
+          {/* ── Step 0: Service ── */}
+          {step === 0 && (
+            <div>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                Choose services
+              </p>
+              {!servicesLoading && !servicesError && (
+                <div className="mb-3">
+                  <p className="text-[9px] sm:text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-2">
+                    Categories
                   </p>
-                )}
-              </div>
-            )}
-            {servicesLoading ? (
-              <div className="flex items-center justify-center py-12 text-gray-500 text-xs">
-                <svg
-                  className="w-4 h-4 animate-spin mr-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Loading services…
-              </div>
-            ) : servicesError ? (
-              <p className="text-center py-12 text-red-400 text-xs">
-                {servicesError}
-              </p>
-            ) : filteredServices.length === 0 ? (
-              <p className="text-center py-12 text-gray-500 text-xs">
-                No services available.
-              </p>
-            ) : (
-              <>
-                <div className="flex flex-col gap-2 sm:hidden">
-                  {filteredServices.map((s) => {
-                    const active = form.services?.some(
-                      (sel) => sel.id === s.id,
-                    );
-                    return (
+                  {categoriesLoading ? (
+                    <p className="text-[10px] text-gray-500">Loading…</p>
+                  ) : categoryOptions.length === 0 ? (
+                    <p className="text-[10px] text-gray-500">No categories.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
                       <button
-                        key={s.id}
                         type="button"
-                        onClick={() => {
-                          const already = form.services?.some(
-                            (sel) => sel.id === s.id,
-                          );
-                          set(
-                            "services",
-                            already
-                              ? form.services.filter((sel) => sel.id !== s.id)
-                              : [...(form.services || []), s],
-                          );
-                        }}
-                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                        onClick={() => setSelectedCategory("all")}
+                        className={`px-2.5 py-1 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all duration-200 ${selectedCategory === "all" ? "border-red-500 bg-red-600/20 text-red-300 shadow-sm shadow-red-600/20" : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/25"}`}
                       >
-                        <div className="text-lg shrink-0">
-                          {CATEGORY_ICON[s.category] || (
-                            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
+                        All
+                      </button>
+                      {categoryOptions.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setSelectedCategory(cat)}
+                          className={`px-2.5 py-1 rounded-lg border text-[10px] sm:text-xs font-semibold transition-all duration-200 ${String(selectedCategory).toLowerCase() === String(cat).toLowerCase() ? "border-red-500 bg-red-600/20 text-red-300 shadow-sm shadow-red-600/20" : "border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/25"}`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {categoriesError && (
+                    <p className="mt-1.5 text-[10px] text-yellow-500">
+                      {categoriesError}
+                    </p>
+                  )}
+                </div>
+              )}
+              {servicesLoading ? (
+                <div className="flex items-center justify-center py-12 text-gray-500 text-xs">
+                  <svg
+                    className="w-4 h-4 animate-spin mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Loading services…
+                </div>
+              ) : servicesError ? (
+                <p className="text-center py-12 text-red-400 text-xs">
+                  {servicesError}
+                </p>
+              ) : filteredServices.length === 0 ? (
+                <p className="text-center py-12 text-gray-500 text-xs">
+                  No services available.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-2 sm:hidden">
+                    {filteredServices.map((s) => {
+                      const active = form.services?.some(
+                        (sel) => sel.id === s.id,
+                      );
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            const already = form.services?.some(
+                              (sel) => sel.id === s.id,
+                            );
+                            set(
+                              "services",
+                              already
+                                ? form.services.filter((sel) => sel.id !== s.id)
+                                : [...(form.services || []), s],
+                            );
+                          }}
+                          className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                        >
+                          <div className="text-lg shrink-0">
+                            {CATEGORY_ICON[s.category] ?? "🔧"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className={`font-bold text-xs truncate ${active ? "text-white" : "text-gray-300"}`}
+                            >
+                              {s.name}
+                            </div>
+                            {s.category && (
+                              <div className="text-gray-500 text-[9px]">
+                                {s.category}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-red-400 font-black text-xs">
+                              ₱{parseFloat(s.price || 0).toLocaleString()}
+                            </div>
+                            {s.duration && (
+                              <div className="text-gray-600 text-[9px]">
+                                ⏱ {s.duration}
+                              </div>
+                            )}
+                          </div>
+                          {active && <SelectedBadge size="sm" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="hidden sm:grid sm:grid-cols-2 gap-3">
+                    {filteredServices.map((s) => {
+                      const active = form.services?.some(
+                        (sel) => sel.id === s.id,
+                      );
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            const already = form.services?.some(
+                              (sel) => sel.id === s.id,
+                            );
+                            set(
+                              "services",
+                              already
+                                ? form.services.filter((sel) => sel.id !== s.id)
+                                : [...(form.services || []), s],
+                            );
+                          }}
+                          className={`p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                        >
+                          <div className="text-2xl mb-2">
+                            {CATEGORY_ICON[s.category] ?? "🔧"}
+                          </div>
                           <div
-                            className={`font-bold text-xs truncate ${active ? "text-white" : "text-gray-300"}`}
+                            className={`font-bold text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}
                           >
                             {s.name}
                           </div>
+                          <div className="text-red-400 font-black text-base">
+                            ₱{parseFloat(s.price || 0).toLocaleString()}
+                          </div>
+                          {s.duration && (
+                            <div className="text-gray-600 text-[10px] mt-1">
+                              ⏱ {s.duration}
+                            </div>
+                          )}
                           {s.category && (
-                            <div className="text-gray-500 text-[9px]">
+                            <div className="text-gray-600 text-[10px]">
                               {s.category}
                             </div>
                           )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-red-400 font-black text-xs">
-                            {s.price_display || `₱${parseFloat(s.price || 0).toLocaleString()}`}
-                          </div>
-                          {s.duration && (
-                            <div className="text-gray-600 text-[9px] flex items-center justify-end gap-1">
+                          {active && (
+                            <div className="absolute top-3 right-3">
+                              <SelectedBadge />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Step 1: Branch ── */}
+          {step === 1 && (
+            <div>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                Choose a Branch
+              </p>
+              {branchLoading ? (
+                <div className="flex items-center justify-center py-12 text-gray-500 text-xs">
+                  <svg
+                    className="w-4 h-4 animate-spin mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Loading branches…
+                </div>
+              ) : branchError ? (
+                <p className="text-center py-12 text-red-400 text-xs">
+                  {branchError}
+                </p>
+              ) : (
+                (() => {
+                  const availableBranches = availableBranchesForSelectedServices;
+                  if (availableBranches.length === 0)
+                    return (
+                      <p className="text-center py-12 text-gray-500 text-xs">
+                        No branches available for the selected services.
+                      </p>
+                    );
+                  return (
+                    <div className="space-y-2">
+                      {availableBranches.map((b) => {
+                        const active = form.branch?.id === b.id;
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => {
+                              set("branch", b);
+                              if (bookingMode === "specific")
+                                set("preferredEmployee", null);
+                            }}
+                            className={`w-full p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-3 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                          >
+                            <div
+                              className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 ${active ? "bg-red-600 shadow-md shadow-red-600/40" : "bg-white/8"}`}
+                            >
                               <svg
-                                className="w-2.5 h-2.5"
+                                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${active ? "text-white" : "text-gray-500"}`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -1802,462 +1944,286 @@ function NewBookingModal({
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"
                                 />
                               </svg>
-                              {s.duration}
                             </div>
-                          )}
-                        </div>
-                        {active && <SelectedBadge size="sm" />}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="hidden sm:grid sm:grid-cols-2 gap-3">
-                  {filteredServices.map((s) => {
-                    const active = form.services?.some(
-                      (sel) => sel.id === s.id,
-                    );
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          const already = form.services?.some(
-                            (sel) => sel.id === s.id,
-                          );
-                          set(
-                            "services",
-                            already
-                              ? form.services.filter((sel) => sel.id !== s.id)
-                              : [...(form.services || []), s],
-                          );
-                        }}
-                        className={`p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
-                      >
-                        <div className="text-2xl mb-2">
-                          {CATEGORY_ICON[s.category] || (
-                            <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                          )}
-                        </div>
-                        <div
-                          className={`font-bold text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}
-                        >
-                          {s.name}
-                        </div>
-                        <div className="text-red-400 font-black text-base">
-                          {s.price_display || `₱${parseFloat(s.price || 0).toLocaleString()}`}
-                        </div>
-                        {s.duration && (
-                          <div className="flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            {s.duration}
-                          </div>
-                        )}
-                        {s.category && (
-                          <div className="text-gray-600 text-[10px]">
-                            {s.category}
-                          </div>
-                        )}
-                        {active && (
-                          <div className="absolute top-3 right-3">
-                            <SelectedBadge />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ── Step 1: Branch ── */}
-        {step === 1 && (
-          <div>
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-              Choose a Branch
-            </p>
-            {branchLoading ? (
-              <div className="flex items-center justify-center py-12 text-gray-500 text-xs">
-                <svg
-                  className="w-4 h-4 animate-spin mr-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Loading branches…
-              </div>
-            ) : branchError ? (
-              <p className="text-center py-12 text-red-400 text-xs">
-                {branchError}
-              </p>
-            ) : (
-              (() => {
-                const availableBranches = availableBranchesForSelectedServices;
-                if (availableBranches.length === 0)
-                  return (
-                    <p className="text-center py-12 text-gray-500 text-xs">
-                      No branches available for the selected services.
-                    </p>
-                  );
-                return (
-                  <div className="space-y-2">
-                    {availableBranches.map((b) => {
-                      const active = form.branch?.id === b.id;
-                      return (
-                        <button
-                          key={b.id}
-                          type="button"
-                          onClick={() => {
-                            set("branch", b);
-                            if (bookingMode === "specific")
-                              set("preferredEmployee", null);
-                          }}
-                          className={`w-full p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-3 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
-                        >
-                          <div
-                            className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 ${active ? "bg-red-600 shadow-md shadow-red-600/40" : "bg-white/8"}`}
-                          >
-                            <svg
-                              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${active ? "text-white" : "text-gray-500"}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div
-                              className={`font-bold text-xs sm:text-sm mb-0.5 ${active ? "text-white" : "text-gray-200"}`}
-                            >
-                              {b.name}
-                            </div>
-                            <div className="text-gray-500 text-[9px] sm:text-[10px] truncate">
-                              {b.address}
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap mt-1">
-                              <span className="text-gray-600 text-[9px] sm:text-[10px]">
-                                {b.hours}
-                              </span>
-                              <span className="text-green-400 text-[9px] sm:text-[10px] font-semibold">
-                                {b.slots} slots open
-                              </span>
-                            </div>
-                            {b.latitude && b.longitude && (
-                              <div className="mt-1.5 sm:mt-2">
-                                <a
-                                  href={`https://www.google.com/maps/search/?api=1&query=${b.latitude},${b.longitude}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-blue-400 hover:text-blue-300 font-semibold px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all hover:scale-105 duration-200"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <svg
-                                    className="w-3 h-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                                    />
-                                  </svg>
-                                  View in Map
-                                </a>
+                            <div className="flex-1 min-w-0">
+                              <div
+                                className={`font-bold text-xs sm:text-sm mb-0.5 ${active ? "text-white" : "text-gray-200"}`}
+                              >
+                                {b.name}
                               </div>
-                            )}
-                          </div>
-                          {active && <SelectedBadge />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })()
-            )}
-          </div>
-        )}
-
-        {/* ── Step 2: Booking Mode ── */}
-        {step === 2 && (
-          <div className="space-y-4">
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
-              Choose Booking Mode
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {[
-                {
-                  key: "general",
-                  label: "General Booking",
-                  desc: "Any available employee will be assigned.",
-                },
-                {
-                  key: "specific",
-                  label: "Book Specific Employee",
-                  desc: "Choose the employee you want.",
-                },
-              ].map(({ key, label, desc }) => {
-                const active = bookingMode === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => {
-                      setBookingMode(key);
-                      if (key === "general") set("preferredEmployee", null);
-                    }}
-                    className={`relative p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
-                  >
-                    <div className="text-white font-bold text-sm sm:text-base pr-6">
-                      {label}
-                    </div>
-                    <div className="text-gray-400 text-[10px] sm:text-xs mt-1">
-                      {desc}
-                    </div>
-                    {active && (
-                      <div className="absolute top-3 right-3">
-                        <SelectedBadge size="sm" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {bookingMode === "specific" && (
-              <div>
-                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Select Employee
-                </p>
-                {employeesLoading ? (
-                  <p className="text-gray-500 text-xs py-6">
-                    Loading employees...
-                  </p>
-                ) : employeesError ? (
-                  <p className="text-red-400 text-xs py-6">{employeesError}</p>
-                ) : employees.length === 0 ? (
-                  <p className="text-gray-500 text-xs py-6">
-                    No active employees for this branch.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {employees.map((emp) => {
-                      const active = form.preferredEmployee?.id === emp.id;
-                      return (
-                        <button
-                          key={emp.id}
-                          type="button"
-                          onClick={() => set("preferredEmployee", emp)}
-                          className={`relative w-full p-3 rounded-xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
-                        >
-                          <div
-                            className={`font-semibold text-xs sm:text-sm pr-6 ${active ? "text-white" : "text-gray-200"}`}
-                          >
-                            {emp.full_name}
-                          </div>
-                          <div className="text-gray-500 text-[10px]">
-                            Branch:{" "}
-                            {emp.branch || form.branch?.name || "Unassigned"}
-                          </div>
-                          {active && (
-                            <div className="absolute top-1/2 right-3 -translate-y-1/2">
-                              <SelectedBadge size="sm" />
+                              <div className="text-gray-500 text-[9px] sm:text-[10px] truncate">
+                                {b.address}
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap mt-1">
+                                <span className="text-gray-600 text-[9px] sm:text-[10px]">
+                                  {b.hours}
+                                </span>
+                                <span className="text-green-400 text-[9px] sm:text-[10px] font-semibold">
+                                  {b.slots} slots open
+                                </span>
+                              </div>
+                              {b.latitude && b.longitude && (
+                                <div className="mt-1.5 sm:mt-2">
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${b.latitude},${b.longitude}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-blue-400 hover:text-blue-300 font-semibold px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all hover:scale-105 duration-200"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <svg
+                                      className="w-3 h-3"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                                      />
+                                    </svg>
+                                    View in Map
+                                  </a>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Step 3: Schedule ── */}
-        {step === 3 && (
-          <div className="space-y-4 sm:space-y-5">
-            <div>
-              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
-                Pick a Date{" "}
-                <span className="text-yellow-500 text-[8px] sm:text-[10px]">
-                  (Tomorrow onward)
-                </span>
-              </p>
-              <input
-                type="date"
-                min={tomorrowISO()}
-                value={form.date}
-                onChange={(e) => set("date", e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 [color-scheme:dark]"
-              />
-              {form.date && form.date < tomorrowISO() && (
-                <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
-                  Past dates are not allowed. Please select a future date.
-                </p>
-              )}
-              {hasActiveBooking && (
-                <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">
-                  You already have an active booking. Please complete or cancel
-                  it before creating a new one.
-                </p>
-              )}
-              {scheduleWindowText && (
-                <p className="text-gray-500 text-[8px] sm:text-[10px] mt-1">
-                  {scheduleWindowText}
-                </p>
+                            {active && <SelectedBadge />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               )}
             </div>
+          )}
 
-            <div>
-              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                Pick a Time Slot
-                {checkingAvailability && (
-                  <span className="ml-2 text-gray-500 font-normal normal-case text-[9px]">
-                    (Checking…)
-                  </span>
-                )}
+          {/* ── Step 2: Booking Mode ── */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
+                Choose Booking Mode
               </p>
-              {form.date &&
-                availableSlots === null &&
-                !checkingAvailability && (
-                  <p className="text-gray-500 text-[10px] sm:text-xs mb-2">
-                    Select a date and branch to see slots.
-                  </p>
-                )}
-              {availableSlots !== null && visibleTimeSlots.length === 0 && (
-                <p className="text-gray-500 text-[10px] sm:text-xs mb-2">
-                  No available slots for this date.
-                </p>
-              )}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
-                {visibleTimeSlots.map((t) => {
-                  const active = form.time === t;
-                  const slotsLoaded = availableSlots !== null;
-                  const slotAvailable =
-                    slotsLoaded && availableSlots[t] === true;
-                  const dateValid = form.date && form.date >= todayISO();
-                  const isDisabled =
-                    !slotsLoaded ||
-                    !slotAvailable ||
-                    !dateValid ||
-                    hasActiveBooking ||
-                    checkingAvailability;
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  {
+                    key: "general",
+                    label: "General Booking",
+                    desc: "Any available employee will be assigned.",
+                  },
+                  {
+                    key: "specific",
+                    label: "Book Specific Employee",
+                    desc: "Choose the employee you want.",
+                  },
+                ].map(({ key, label, desc }) => {
+                  const active = bookingMode === key;
                   return (
                     <button
-                      key={t}
+                      key={key}
                       type="button"
                       onClick={() => {
-                        if (!isDisabled) set("time", t);
+                        setBookingMode(key);
+                        if (key === "general") set("preferredEmployee", null);
                       }}
-                      disabled={isDisabled}
-                      title={
-                        !dateValid
-                          ? "Select a valid date first"
-                          : hasActiveBooking
-                            ? "You already have an active booking"
-                            : !slotsLoaded || checkingAvailability
-                              ? "Loading availability…"
-                              : !slotAvailable
-                                ? "This slot is fully booked"
-                                : ""
-                      }
-                      className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${active && !isDisabled ? "border-red-500 bg-red-600/20 text-white shadow-md shadow-red-600/20 ring-1 ring-red-500/40" : isDisabled ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40" : "border-white/8 bg-white/3 text-gray-400 hover:border-red-500/40 hover:bg-red-600/8 hover:text-white cursor-pointer"}`}
+                      className={`relative p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
                     >
-                      {t}
-                      {isDisabled &&
-                        slotsLoaded &&
-                        !checkingAvailability &&
-                        !hasActiveBooking &&
-                        dateValid && (
-                          <span className="block text-[8px] text-gray-600 font-normal">
-                            Fully Booked
-                          </span>
-                        )}
-                      {checkingAvailability && (
-                        <span className="block text-[8px] text-gray-600 font-normal">
-                          Loading…
-                        </span>
+                      <div className="text-white font-bold text-sm sm:text-base pr-6">
+                        {label}
+                      </div>
+                      <div className="text-gray-400 text-[10px] sm:text-xs mt-1">
+                        {desc}
+                      </div>
+                      {active && (
+                        <div className="absolute top-3 right-3">
+                          <SelectedBadge size="sm" />
+                        </div>
                       )}
                     </button>
                   );
                 })}
               </div>
-              {form.date &&
-                form.date >= todayISO() &&
-                !checkingAvailability &&
-                availableSlots !== null &&
-                !hasActiveBooking && (
-                  <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
-                    {availableCount > 0
-                      ? `${availableCount} slot${availableCount !== 1 ? "s" : ""} available`
-                      : "No slots available. Please choose another day."}
+              {bookingMode === "specific" && (
+                <div>
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                    Select Employee
+                  </p>
+                  {employeesLoading ? (
+                    <p className="text-gray-500 text-xs py-6">
+                      Loading employees...
+                    </p>
+                  ) : employeesError ? (
+                    <p className="text-red-400 text-xs py-6">{employeesError}</p>
+                  ) : employees.length === 0 ? (
+                    <p className="text-gray-500 text-xs py-6">
+                      No active employees for this branch.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {employees.map((emp) => {
+                        const active = form.preferredEmployee?.id === emp.id;
+                        return (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => set("preferredEmployee", emp)}
+                            className={`relative w-full p-3 rounded-xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                          >
+                            <div
+                              className={`font-semibold text-xs sm:text-sm pr-6 ${active ? "text-white" : "text-gray-200"}`}
+                            >
+                              {emp.full_name}
+                            </div>
+                            <div className="text-gray-500 text-[10px]">
+                              Branch:{" "}
+                              {emp.branch || form.branch?.name || "Unassigned"}
+                            </div>
+                            {active && (
+                              <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                                <SelectedBadge size="sm" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Step 3: Schedule ── */}
+          {step === 3 && (
+            <div className="space-y-4 sm:space-y-5">
+              <div>
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 sm:mb-3">
+                  Pick a Date{" "}
+                  <span className="text-yellow-500 text-[8px] sm:text-[10px]">
+                    (Tomorrow onward)
+                  </span>
+                </p>
+                <input
+                  type="date"
+                  min={tomorrowISO()}
+                  value={form.date}
+                  onChange={(e) => set("date", e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 [color-scheme:dark]"
+                />
+                {form.date && form.date < tomorrowISO() && (
+                  <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
+                    Past dates are not allowed. Please select a future date.
                   </p>
                 )}
-            </div>
-
-            {form.date && form.time && (
-              <div className="flex items-center gap-2 bg-white/4 rounded-xl px-3 py-2.5 border border-white/8">
-                <svg
-                  className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                <span className="text-gray-300 text-[10px] sm:text-xs">
-                  <span className="text-white font-semibold">{form.date}</span>{" "}
-                  at{" "}
-                  <span className="text-white font-semibold">{form.time}</span>{" "}
-                  · <span className="text-gray-500">{form.branch?.name}</span>
-                </span>
+                {hasActiveBooking && (
+                  <p className="text-red-400 text-[8px] sm:text-[10px] mt-1">
+                    You already have an active booking. Please complete or cancel
+                    it before creating a new one.
+                  </p>
+                )}
+                {scheduleWindowText && (
+                  <p className="text-gray-500 text-[8px] sm:text-[10px] mt-1">
+                    {scheduleWindowText}
+                  </p>
+                )}
               </div>
-            )}
-          </div>
-        )}
 
-        {/* ── Step 4: Details ── */}
-        {step === 4 && (
-          <div className="space-y-4">
-            {form.damageData && (
-              <div className="bg-blue-600/10 border border-blue-600/20 rounded-xl p-3">
-                <div className="flex items-center gap-2 mb-1">
+              <div>
+                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  Pick a Time Slot
+                  {checkingAvailability && (
+                    <span className="ml-2 text-gray-500 font-normal normal-case text-[9px]">
+                      (Checking…)
+                    </span>
+                  )}
+                </p>
+                {form.date &&
+                  availableSlots === null &&
+                  !checkingAvailability && (
+                    <p className="text-gray-500 text-[10px] sm:text-xs mb-2">
+                      Select a date and branch to see slots.
+                    </p>
+                  )}
+                {availableSlots !== null && visibleTimeSlots.length === 0 && (
+                  <p className="text-gray-500 text-[10px] sm:text-xs mb-2">
+                    No available slots for this date.
+                  </p>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
+                  {visibleTimeSlots.map((t) => {
+                    const active = form.time === t;
+                    const slotsLoaded = availableSlots !== null;
+                    const slotAvailable =
+                      slotsLoaded && availableSlots[t] === true;
+                    const dateValid = form.date && form.date >= todayISO();
+                    const isDisabled =
+                      !slotsLoaded ||
+                      !slotAvailable ||
+                      !dateValid ||
+                      hasActiveBooking ||
+                      checkingAvailability;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          if (!isDisabled) set("time", t);
+                        }}
+                        disabled={isDisabled}
+                        title={
+                          !dateValid
+                            ? "Select a valid date first"
+                            : hasActiveBooking
+                              ? "You already have an active booking"
+                              : !slotsLoaded || checkingAvailability
+                                ? "Loading availability…"
+                                : !slotAvailable
+                                  ? "This slot is fully booked"
+                                  : ""
+                        }
+                        className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${active && !isDisabled ? "border-red-500 bg-red-600/20 text-white shadow-md shadow-red-600/20 ring-1 ring-red-500/40" : isDisabled ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40" : "border-white/8 bg-white/3 text-gray-400 hover:border-red-500/40 hover:bg-red-600/8 hover:text-white cursor-pointer"}`}
+                      >
+                        {t}
+                        {isDisabled &&
+                          slotsLoaded &&
+                          !checkingAvailability &&
+                          !hasActiveBooking &&
+                          dateValid && (
+                            <span className="block text-[8px] text-gray-600 font-normal">
+                              Fully Booked
+                            </span>
+                          )}
+                        {checkingAvailability && (
+                          <span className="block text-[8px] text-gray-600 font-normal">
+                            Loading…
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {form.date &&
+                  form.date >= todayISO() &&
+                  !checkingAvailability &&
+                  availableSlots !== null &&
+                  !hasActiveBooking && (
+                    <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
+                      {availableCount > 0
+                        ? `${availableCount} slot${availableCount !== 1 ? "s" : ""} available`
+                        : "No slots available. Please choose another day."}
+                    </p>
+                  )}
+              </div>
+
+              {form.date && form.time && (
+                <div className="flex items-center gap-2 bg-white/4 rounded-xl px-3 py-2.5 border border-white/8">
                   <svg
-                    className="w-4 h-4 text-blue-500"
+                    className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -2266,282 +2232,301 @@ function NewBookingModal({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                     />
                   </svg>
-                  <span className="text-blue-400 font-semibold text-[10px] sm:text-xs">
-                    Damage Detection Data Included
+                  <span className="text-gray-300 text-[10px] sm:text-xs">
+                    <span className="text-white font-semibold">{form.date}</span>{" "}
+                    at{" "}
+                    <span className="text-white font-semibold">{form.time}</span>{" "}
+                    · <span className="text-gray-500">{form.branch?.name}</span>
                   </span>
                 </div>
-                <p className="text-gray-400 text-[9px] sm:text-[10px]">
-                  AI analysis results will be attached to your booking
-                </p>
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
-            {/* Vehicle Size selection removed from here as per user request */}
-
-            {[
-              {
-                label: "Vehicle Type / Model",
-                key: "vehicle",
-                placeholder: "e.g. Toyota Vios, Honda Civic...",
-                apiKey: "vehicle",
-              },
-              {
-                label: "Plate Number",
-                key: "plateNumber",
-                placeholder: "e.g. ABC1234 (max 8 chars)",
-                apiKey: "plate_number",
-              },
-            ].map(({ label, key, placeholder, apiKey }) => (
-              <div key={key}>
-                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                  {label} <span className="text-red-500">*</span>
-                  {key === "plateNumber" && (
-                    <span className="ml-2 text-gray-600 font-normal normal-case text-[9px]">
-                      Letters & numbers only · max 8 chars
-                    </span>
-                  )}
-                </label>
-                <input
-                  type="text"
-                  placeholder={placeholder}
-                  value={form[key]}
-                  maxLength={key === "plateNumber" ? 8 : undefined}
-                  onChange={(e) => {
-                    if (key === "plateNumber")
-                      set("plateNumber", sanitizePlate(e.target.value));
-                    else set(key, e.target.value);
-                  }}
-                  className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 ${fieldErrors[apiKey] ? "border-red-500" : "border-white/10"}`}
-                />
-                {key === "plateNumber" && (
-                  <div className="flex items-center justify-between mt-1">
-                    <p
-                      className={`text-[9px] sm:text-[10px] transition-colors ${form.plateNumber.length === 8 ? "text-yellow-500" : "text-gray-600"}`}
+          {/* ── Step 4: Details ── */}
+          {step === 4 && (
+            <div className="space-y-4">
+              {form.damageData && (
+                <div className="bg-blue-600/10 border border-blue-600/20 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg
+                      className="w-4 h-4 text-blue-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      {form.plateNumber.length}/8
-                    </p>
-                    {fieldErrors[apiKey] && (
-                      <p className="text-red-400 text-[9px] sm:text-[10px]">
-                        {fieldErrors[apiKey]}
-                      </p>
-                    )}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="text-blue-400 font-semibold text-[10px] sm:text-xs">
+                      Damage Detection Data Included
+                    </span>
                   </div>
-                )}
-                {key !== "plateNumber" && fieldErrors[apiKey] && (
-                  <p className="text-red-400 text-[9px] sm:text-[10px] mt-1">
-                    {fieldErrors[apiKey]}
+                  <p className="text-gray-400 text-[9px] sm:text-[10px]">
+                    AI analysis results will be attached to your booking
                   </p>
-                )}
-              </div>
-            ))}
+                </div>
+              )}
 
-            <div>
-              <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                Employee Assignment
-              </label>
-              <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">
-                {bookingMode === "specific"
-                  ? form.preferredEmployee?.full_name ||
-                  "Specific employee selected"
-                  : "General (any available employee)"}
-              </div>
-            </div>
+              {[
+                {
+                  label: "Vehicle Type",
+                  key: "vehicle",
+                  placeholder: "e.g. Toyota Vios, Honda Civic...",
+                  apiKey: "vehicle",
+                },
+                {
+                  label: "Plate Number",
+                  key: "plateNumber",
+                  placeholder: "e.g. ABC1234 (max 8 chars)",
+                  apiKey: "plate_number",
+                },
+              ].map(({ label, key, placeholder, apiKey }) => (
+                <div key={key}>
+                  <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                    {label} <span className="text-red-500">*</span>
+                    {key === "plateNumber" && (
+                      <span className="ml-2 text-gray-600 font-normal normal-case text-[9px]">
+                        Letters & numbers only · max 8 chars
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={form[key]}
+                    maxLength={key === "plateNumber" ? 8 : undefined}
+                    onChange={(e) => {
+                      if (key === "plateNumber")
+                        set("plateNumber", sanitizePlate(e.target.value));
+                      else set(key, e.target.value);
+                    }}
+                    className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 ${fieldErrors[apiKey] ? "border-red-500" : "border-white/10"}`}
+                  />
+                  {key === "plateNumber" && (
+                    <div className="flex items-center justify-between mt-1">
+                      <p
+                        className={`text-[9px] sm:text-[10px] transition-colors ${form.plateNumber.length === 8 ? "text-yellow-500" : "text-gray-600"}`}
+                      >
+                        {form.plateNumber.length}/8
+                      </p>
+                      {fieldErrors[apiKey] && (
+                        <p className="text-red-400 text-[9px] sm:text-[10px]">
+                          {fieldErrors[apiKey]}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {key !== "plateNumber" && fieldErrors[apiKey] && (
+                    <p className="text-red-400 text-[9px] sm:text-[10px] mt-1">
+                      {fieldErrors[apiKey]}
+                    </p>
+                  )}
+                </div>
+              ))}
 
-            <div>
-              <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                Special Requests{" "}
-                <span className="text-gray-600 font-normal normal-case">
-                  (optional)
-                </span>
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Specific areas of concern, access instructions..."
-                value={form.notes}
-                onChange={(e) => set("notes", e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 resize-none"
-              />
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
-              <div className="px-3 sm:px-4 py-2.5 border-b border-white/8">
-                <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
-                  Booking Summary
-                </p>
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                  Employee Assignment
+                </label>
+                <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">
+                  {bookingMode === "specific"
+                    ? form.preferredEmployee?.full_name ||
+                      "Specific employee selected"
+                    : "General (any available employee)"}
+                </div>
               </div>
-              <div className="divide-y divide-white/5">
-                {[
-                  [
-                    "Booking Type",
-                    bookingMode === "specific"
-                      ? "Specific Employee"
-                      : "General Booking",
-                  ],
-                  [
-                    "Service",
-                    form.services?.length > 0
-                      ? form.services.map((s) => s.name).join(", ")
-                      : "—",
-                  ],
-                  ["Branch", form.branch?.name],
-                  ["Date", form.date],
-                  ["Time", form.time],
-                  [
-                    "Employee",
-                    form.preferredEmployee?.full_name || "No preference",
-                  ],
-                  [
-                    "Service Price",
-                    form.services?.length > 0
-                      ? `₱${form.services.reduce((sum, s) => {
-                        const tieredPrice = s.price_list?.[form.vehicleSize];
-                        const basePrice = parseFloat(tieredPrice ?? s.price ?? 0);
-                        return sum + basePrice;
-                      }, 0).toLocaleString()}`
-                      : "—",
-                    true,
-                  ],
-                  ...(form.damageData?.estimatedCost
-                    ? [
-                      [
-                        "AI Repair Estimate",
-                        form.damageData.estimatedCost,
-                        "estimate",
-                      ],
-                    ]
-                    : []),
-                ].map(([label, value, highlight]) => (
-                  <div
-                    key={label}
-                    className="flex items-center justify-between px-3 sm:px-4 py-2"
-                  >
-                    <span className="text-gray-500 text-[10px] sm:text-xs">
-                      {label}
-                    </span>
-                    <span
-                      className={`text-[10px] sm:text-xs font-semibold ${highlight ? "text-red-400 text-sm font-black" : "text-white"}`}
+
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                  Special Requests{" "}
+                  <span className="text-gray-600 font-normal normal-case">
+                    (optional)
+                  </span>
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Specific areas of concern, access instructions..."
+                  value={form.notes}
+                  onChange={(e) => set("notes", e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 resize-none"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
+                <div className="px-3 sm:px-4 py-2.5 border-b border-white/8">
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
+                    Booking Summary
+                  </p>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {[
+                    [
+                      "Booking Type",
+                      bookingMode === "specific"
+                        ? "Specific Employee"
+                        : "General Booking",
+                    ],
+                    [
+                      "Service",
+                      form.services?.length > 0
+                        ? form.services.map((s) => s.name).join(", ")
+                        : "—",
+                    ],
+                    ["Branch", form.branch?.name],
+                    ["Date", form.date],
+                    ["Time", form.time],
+                    [
+                      "Employee",
+                      form.preferredEmployee?.full_name || "No preference",
+                    ],
+                    [
+                      "Service Price",
+                      form.services?.length > 0
+                        ? `₱${form.services.reduce((sum, s) => sum + parseFloat(s.price || 0), 0).toLocaleString()}`
+                        : "—",
+                      true,
+                    ],
+                    ...(form.damageData?.estimatedCost
+                      ? [
+                          [
+                            "AI Repair Estimate",
+                            form.damageData.estimatedCost,
+                            "estimate",
+                          ],
+                        ]
+                      : []),
+                  ].map(([label, value, highlight]) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between px-3 sm:px-4 py-2"
                     >
-                      {value || "—"}
-                    </span>
-                  </div>
-                ))}
+                      <span className="text-gray-500 text-[10px] sm:text-xs">
+                        {label}
+                      </span>
+                      <span
+                        className={`text-[10px] sm:text-xs font-semibold ${highlight ? "text-red-400 text-sm font-black" : "text-white"}`}
+                      >
+                        {value || "—"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="mt-3 flex items-center gap-2 bg-red-600/10 border border-red-600/25 rounded-xl px-3 py-2.5 text-red-400 text-[10px] sm:text-xs">
-            <svg
-              className="w-3.5 h-3.5 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {error}
-          </div>
-        )}
-      </div>
+          {/* Remove the error display here since we'll use toast instead */}
+        </div>
 
-      <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
-        <button
-          type="button"
-          onClick={
-            step > 0
-              ? () => {
-                setStep((s) => s - 1);
-                setError("");
-                setFieldErrors({});
-              }
-              : onClose
-          }
-          className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 font-semibold text-xs sm:text-sm transition-all duration-200"
-        >
-          {step > 0 ? "Back" : "Cancel"}
-        </button>
-        {step < STEPS.length - 1 ? (
+        <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
           <button
             type="button"
-            onClick={handleNext}
-            className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-600/25 transition-all duration-200 flex items-center justify-center gap-1.5"
+            onClick={
+              step > 0
+                ? () => {
+                    setStep((s) => s - 1);
+                    setError("");
+                    setFieldErrors({});
+                  }
+                : onClose
+            }
+            className="px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 font-semibold text-xs sm:text-sm transition-all duration-200"
           >
-            Continue
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            {step > 0 ? "Back" : "Cancel"}
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading}
-            className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-600/25 transition-all duration-200 flex items-center justify-center gap-1.5"
-          >
-            {loading ? (
-              <>
-                <svg
-                  className="w-3.5 h-3.5 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
+          {step < STEPS.length - 1 ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-600/25 transition-all duration-200 flex items-center justify-center gap-1.5"
+            >
+              Continue
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 py-2 sm:py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-600/25 transition-all duration-200 flex items-center justify-center gap-1.5"
+            >
+              {loading ? (
+                <>
+                  <svg
+                    className="w-3.5 h-3.5 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  Confirm Booking
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
                     stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Submitting...
-              </>
-            ) : (
-              <>
-                Confirm Booking
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </>
-            )}
-          </button>
-        )}
-      </div>
-    </SlidePanel>
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </CenterModal>
+      
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60]">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onDismiss={() => setToast(null)}
+          />
+        </div>
+      )}
+    </>
   );
 }
 
