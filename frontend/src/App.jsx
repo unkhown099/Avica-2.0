@@ -67,6 +67,7 @@ import ManagerInventory from "./pages/manager/ManagerInventory.jsx";
 import ManagerAccountManagement from "./pages/manager/ManagerAccountManagement.jsx";
 import ManagerHistory from "./pages/manager/ManagerHistory.jsx";
 import ManagerCustomerManagement from "./pages/manager/ManagerCustomerManagement.jsx";
+import ManagerReviews from "./pages/manager/ManagerReviews.jsx";
 
 // Inventory Imports
 import InventoryDashboard from "./pages/inventory/InventoryDashboard.jsx";
@@ -493,6 +494,14 @@ function Layout() {
             element={
               <ProtectedRoute allowedRoles={["branch_manager"]}>
                 <ManagerCustomerManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/reviews"
+            element={
+              <ProtectedRoute allowedRoles={["branch_manager"]}>
+                <ManagerReviews />
               </ProtectedRoute>
             }
           />

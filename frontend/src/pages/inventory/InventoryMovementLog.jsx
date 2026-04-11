@@ -442,7 +442,6 @@ function MovementLog({
 
                   {/* Desktop */}
                   <div className="hidden lg:flex col-span-3 items-center gap-3">
-                    <span className="text-xs text-gray-500 w-8 shrink-0">#{startItem + index}</span>
                     <div>
                     <p className="text-white font-semibold text-sm">{m.item}</p>
                     <span className="text-gray-600 text-xs">{m.sku}</span>

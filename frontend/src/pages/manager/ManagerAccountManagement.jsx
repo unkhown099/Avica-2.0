@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { API_BASE } from "../../hooks/useAuth.js";
@@ -129,6 +129,7 @@ function StaffCard({ staff, onEdit }) {
 }
 
 function CreateManagerStaffModal({
+  isOpen,
   mode,
   initialStaff,
   managerBranchId,
@@ -139,24 +140,58 @@ function CreateManagerStaffModal({
   onUpdated,
 }) {
   const isEdit = mode === "edit";
-  const [initialName] = useState((initialStaff?.name || "").trim());
-  const parsedFirstName =
-    initialStaff?.first_name ||
-    initialName.split(" ").slice(0, -1).join(" ") ||
-    initialName;
-  const parsedLastName =
-    initialStaff?.last_name || initialName.split(" ").slice(-1).join(" ") || "";
-
-  const [form, setForm] = useState({
-    firstName: parsedFirstName || "",
-    lastName: parsedLastName || "",
-    email: initialStaff?.email || "",
-    phone: initialStaff?.phone || "",
-    role: initialStaff?.role && roleOptions.includes(initialStaff.role) ? initialStaff.role : roleOptions[0],
-    status: initialStaff?.status || "Active",
+  const createDraftRef = useRef({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    role: roleOptions[0] || "",
+    status: "Active",
     password: "",
     confirmPassword: "",
   });
+  const contextRef = useRef("create");
+
+  const buildEditForm = (staff) => {
+    const initialName = (staff?.name || "").trim();
+    const parsedFirstName =
+      staff?.first_name ||
+      initialName.split(" ").slice(0, -1).join(" ") ||
+      initialName;
+    const parsedLastName =
+      staff?.last_name || initialName.split(" ").slice(-1).join(" ") || "";
+
+    return {
+      firstName: parsedFirstName || "",
+      lastName: parsedLastName || "",
+      email: staff?.email || "",
+      phone: staff?.phone || "",
+      role: staff?.role && roleOptions.includes(staff.role) ? staff.role : roleOptions[0],
+      status: staff?.status || "Active",
+      password: "",
+      confirmPassword: "",
+    };
+  };
+
+  const [form, setForm] = useState(() =>
+    isEdit ? buildEditForm(initialStaff) : createDraftRef.current,
+  );
+
+  useEffect(() => {
+    if (!isEdit) createDraftRef.current = form;
+  }, [form, isEdit]);
+
+  useEffect(() => {
+    const nextContext = isEdit ? `edit:${initialStaff?.id ?? "new"}` : "create";
+    if (contextRef.current === nextContext) return;
+
+    if (nextContext === "create") {
+      setForm(createDraftRef.current);
+    } else {
+      setForm(buildEditForm(initialStaff));
+    }
+    contextRef.current = nextContext;
+  }, [isEdit, initialStaff, roleOptions]);
 
   const inputCls =
     "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm";
@@ -226,6 +261,8 @@ function CreateManagerStaffModal({
       });
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 p-0 sm:p-4">
@@ -718,25 +755,24 @@ function ManagerAccountManagement() {
         )}
       </div>
 
-      {showCreateModal && (
-        <CreateManagerStaffModal
-          mode={editingStaff ? "edit" : "create"}
-          initialStaff={editingStaff}
-          managerBranchId={managerBranchId}
-          managerBranchName={managerBranchName}
-          roleOptions={editingStaff ? editRoles : createRoles}
-          onClose={() => {
-            setShowCreateModal(false);
-            setEditingStaff(null);
-          }}
-          onCreated={(newStaff) => setStaffAccounts((prev) => [...prev, newStaff])}
-          onUpdated={(updatedStaff) =>
-            setStaffAccounts((prev) =>
-              prev.map((s) => (s.id === updatedStaff.id ? updatedStaff : s)),
-            )
-          }
-        />
-      )}
+      <CreateManagerStaffModal
+        isOpen={showCreateModal}
+        mode={editingStaff ? "edit" : "create"}
+        initialStaff={editingStaff}
+        managerBranchId={managerBranchId}
+        managerBranchName={managerBranchName}
+        roleOptions={editingStaff ? editRoles : createRoles}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingStaff(null);
+        }}
+        onCreated={(newStaff) => setStaffAccounts((prev) => [...prev, newStaff])}
+        onUpdated={(updatedStaff) =>
+          setStaffAccounts((prev) =>
+            prev.map((s) => (s.id === updatedStaff.id ? updatedStaff : s)),
+          )
+        }
+      />
     </ManagerLayout>
   );
 }

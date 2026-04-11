@@ -62,7 +62,7 @@ from api.views.queue_views import (
     queue_conversations,
 )
 from api.views.customer_history import CustomerHistoryAPIView
-from api.views.ratings_views import RatingCreateView
+from api.views.ratings_views import RatingCreateView, ManagerBranchReviewsView, ManagerReviewReplyView
 from api.views.business_owner_views import (
     OwnerDashboardStatsView,
     OwnerRevenueTrendView,
@@ -96,6 +96,7 @@ from api.views.super_admin_views import (
 )
 from api.views.landing_content_views import (
     LandingContentPublicView,
+    PublicSignInStatsView,
     LandingContentAdminView,
     MediaAssetListView,
     MediaAssetDetailView,
@@ -196,6 +197,8 @@ urlpatterns = [
 
     # ── Ratings ───────────────────────────────────────────────────────────────
     path('api/ratings/', RatingCreateView.as_view(), name='rating-create'),
+    path("api/manager/reviews/", ManagerBranchReviewsView.as_view(), name="manager-branch-reviews"),
+    path("api/manager/reviews/<int:review_id>/reply/", ManagerReviewReplyView.as_view(), name="manager-review-reply"),
 
     # ── Admin endpoints ───────────────────────────────────────────────────────
     path('dashboard/',             AdminDashboardView.as_view(),        name='admin-dashboard'),
@@ -241,6 +244,7 @@ urlpatterns = [
 
     # ── Landing content ───────────────────────────────────────────────────────────
     path("api/landing-content/",              LandingContentPublicView.as_view()),   # public
+    path("api/public/signin-stats/",          PublicSignInStatsView.as_view()),
     path("super-admin/landing-content/",      LandingContentAdminView.as_view()), # admin-only
     path("super-admin/media-assets/",         MediaAssetListView.as_view()),
     path("super-admin/media-assets/<int:pk>/", MediaAssetDetailView.as_view()),

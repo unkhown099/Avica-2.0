@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "./AdminLayout";
 import axios from "axios";
 import { API_BASE } from "../../hooks/useAuth.js";
@@ -542,32 +542,32 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
         )}
       </div>
 
-      {showCreateModal && (
-        <CreateStaffModal
-          mode={editStaff ? "edit" : "create"}
-          initialStaff={editStaff}
-          roles={editStaff ? editRoles : createRoles}
-          branches={branches}
-          staffAccounts={staffAccounts}
-          onClose={() => {
-            setShowCreateModal(false);
-            setEditStaff(null);
-          }}
-          onCreated={(newStaff) =>
-            setStaffAccounts((prev) => [...prev, newStaff])
-          }
-          onUpdated={(updatedStaff) =>
-            setStaffAccounts((prev) =>
-              prev.map((s) => (s.id === updatedStaff.id ? updatedStaff : s)),
-            )
-          }
-        />
-      )}
+      <CreateStaffModal
+        isOpen={showCreateModal}
+        mode={editStaff ? "edit" : "create"}
+        initialStaff={editStaff}
+        roles={editStaff ? editRoles : createRoles}
+        branches={branches}
+        staffAccounts={staffAccounts}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditStaff(null);
+        }}
+        onCreated={(newStaff) =>
+          setStaffAccounts((prev) => [...prev, newStaff])
+        }
+        onUpdated={(updatedStaff) =>
+          setStaffAccounts((prev) =>
+            prev.map((s) => (s.id === updatedStaff.id ? updatedStaff : s)),
+          )
+        }
+      />
     </AdminLayout>
   );
 }
 
 function CreateStaffModal({
+  isOpen,
   mode,
   initialStaff,
   onClose,
@@ -578,38 +578,62 @@ function CreateStaffModal({
   onUpdated,
 }) {
   const isEdit = mode === "edit";
-  const [initialName] = useState((initialStaff?.name || "").trim());
-  const parsedFirstName =
-    initialStaff?.first_name ||
-    initialName.split(" ").slice(0, -1).join(" ") ||
-    initialName;
-  const parsedLastName =
-    initialStaff?.last_name || initialName.split(" ").slice(-1).join(" ") || "";
-  const [form, setForm] = useState({
-    firstName: parsedFirstName || "",
-    lastName: parsedLastName || "",
-    email: initialStaff?.email || "",
-    phone: initialStaff?.phone || "",
-    role: roles[0],
+  const createDraftRef = useRef({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    role: roles[0] || "",
     branch: "",
-    status: initialStaff?.status || "Active",
+    status: "Active",
     password: "",
     confirmPassword: "",
   });
+  const contextRef = useRef("create");
+
+  const buildEditForm = (staff) => {
+    const initialName = (staff?.name || "").trim();
+    const parsedFirstName =
+      staff?.first_name ||
+      initialName.split(" ").slice(0, -1).join(" ") ||
+      initialName;
+    const parsedLastName =
+      staff?.last_name || initialName.split(" ").slice(-1).join(" ") || "";
+    const branchMatch = branches.find(
+      (branch) => String(branch.id) === String(staff?.branch_id) || branch.name === staff?.branch,
+    );
+    return {
+      firstName: parsedFirstName || "",
+      lastName: parsedLastName || "",
+      email: staff?.email || "",
+      phone: staff?.phone || "",
+      role: staff?.role || roles[0] || "",
+      branch: branchMatch ? String(branchMatch.id) : "",
+      status: staff?.status || "Active",
+      password: "",
+      confirmPassword: "",
+    };
+  };
+
+  const [form, setForm] = useState(() =>
+    isEdit ? buildEditForm(initialStaff) : createDraftRef.current,
+  );
 
   useEffect(() => {
-    if (!isEdit || !initialStaff) return;
-    const branchMatch = branches.find(
-      (branch) =>
-        String(branch.id) === String(initialStaff.branch_id) ||
-        branch.name === initialStaff.branch,
-    );
-    setForm((prev) => ({
-      ...prev,
-      role: initialStaff.role || prev.role,
-      branch: branchMatch ? String(branchMatch.id) : "",
-    }));
-  }, [isEdit, initialStaff, branches]);
+    if (!isEdit) createDraftRef.current = form;
+  }, [form, isEdit]);
+
+  useEffect(() => {
+    const nextContext = isEdit ? `edit:${initialStaff?.id ?? "new"}` : "create";
+    if (contextRef.current === nextContext) return;
+
+    if (nextContext === "create") {
+      setForm(createDraftRef.current);
+    } else {
+      setForm(buildEditForm(initialStaff));
+    }
+    contextRef.current = nextContext;
+  }, [isEdit, initialStaff, roles, branches]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -708,6 +732,8 @@ function CreateStaffModal({
 
   const inputCls =
     "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm";
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 p-0 sm:p-4">

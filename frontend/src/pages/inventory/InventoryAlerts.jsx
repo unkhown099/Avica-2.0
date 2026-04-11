@@ -7,11 +7,17 @@ import usePagination from "../../hooks/usePagination";
 // ── Severity helpers ──────────────────────────────────────────────────────────
 function deriveSeverity(item) {
   const s = String(item.status ?? "").toLowerCase();
-  if (s.includes("out") || item.quantity === 0) return "critical";
-  if (s.includes("low") || item.quantity <= item.minimum_qty) return "critical";
-  // quantity within 150% of minimum = warning
-  if (item.minimum_qty && item.quantity <= item.minimum_qty * 1.5)
-    return "warning";
+  const quantity = Number(item.quantity ?? 0);
+  const minimum = Number(item.minimum_qty ?? 0);
+
+  // Critical only when there is no stock left.
+  if (s.includes("out") || quantity <= 0) return "critical";
+
+  // Warning when stock is low but still available.
+  if (s.includes("low")) return "warning";
+  if (minimum > 0 && quantity <= minimum) return "warning";
+  if (minimum > 0 && quantity <= minimum * 1.5) return "warning";
+
   return "warning"; // anything surfaced by the API is at least a warning
 }
 
@@ -236,6 +242,8 @@ export default function ReorderAlerts() {
   const [orderAllError, setOrderAllError] = useState(null);
   const [orderAllSuccess, setOrderAllSuccess] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [cancelingRequestId, setCancelingRequestId] = useState(null);
 
   // ── Fetch low-stock items ─────────────────────────────────────────────────
   const fetchAlerts = useCallback(async () => {
@@ -278,10 +286,44 @@ export default function ReorderAlerts() {
     fetchAlerts();
   }, [fetchAlerts]);
 
+  const fetchPendingRequests = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await fetch(`${API_BASE}/inventory/restock-requests/`, {
+        headers,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setPendingRequests([]);
+        return;
+      }
+      const data = await res.json();
+      const pendingOnly = (Array.isArray(data) ? data : []).filter(
+        (req) => String(req?.status).toLowerCase() === "pending",
+      );
+      setPendingRequests(pendingOnly);
+    } catch {
+      setPendingRequests([]);
+    }
+  }, [isAuthenticated, headers]);
+
+  useEffect(() => {
+    fetchPendingRequests();
+  }, [fetchPendingRequests]);
+
   // ── Derived lists ─────────────────────────────────────────────────────────
   const active = alerts.filter((a) => !dismissed.includes(a.id));
+  const pendingItemIds = new Set(
+    pendingRequests.map((req) => req.inventory_item).filter(Boolean),
+  );
+  const pendingFiltered = pendingRequests.filter((req) => {
+    if (filterBranch !== "All Branches" && req.branch_name !== filterBranch)
+      return false;
+    return true;
+  });
+  const activeWithoutPending = active.filter((a) => !pendingItemIds.has(a.id));
 
-  const filtered = active.filter((a) => {
+  const filtered = activeWithoutPending.filter((a) => {
     if (filterSeverity !== "All" && a.severity !== filterSeverity.toLowerCase())
       return false;
     if (filterBranch !== "All Branches" && a.branch_name !== filterBranch)
@@ -302,8 +344,39 @@ export default function ReorderAlerts() {
     resetDeps: [filterSeverity, filterBranch, alerts.length, dismissed.length],
   });
 
-  const criticalActive = active.filter((a) => a.severity === "critical");
-  const warningActive = active.filter((a) => a.severity === "warning");
+  const criticalActive = activeWithoutPending.filter(
+    (a) => a.severity === "critical",
+  );
+  const warningActive = activeWithoutPending.filter(
+    (a) => a.severity === "warning",
+  );
+
+  const handleCancelRequest = async (requestRow) => {
+    const requestId = requestRow?.id;
+    if (!requestId) return;
+    try {
+      setCancelingRequestId(requestId);
+      const res = await fetch(
+        `${API_BASE}/inventory/restock-requests/${requestId}/action/`,
+        {
+          method: "PATCH",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ action: "cancel" }),
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || `Failed to cancel request (${res.status})`);
+      }
+      await fetchAlerts();
+      await fetchPendingRequests();
+    } catch (err) {
+      setError(err.message || "Failed to cancel request.");
+    } finally {
+      setCancelingRequestId(null);
+    }
+  };
 
   // ── Order All Critical ────────────────────────────────────────────────────
   const handleOrderAllCritical = async () => {
@@ -331,6 +404,7 @@ export default function ReorderAlerts() {
       );
       setOrderAllSuccess(true);
       await fetchAlerts();
+      await fetchPendingRequests();
     } catch (err) {
       setOrderAllError(err.message);
     } finally {
@@ -464,7 +538,7 @@ export default function ReorderAlerts() {
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            All critical restock requests submitted successfully.
+            Critical restock requests submitted successfully.
           </div>
         )}
 
@@ -503,12 +577,12 @@ export default function ReorderAlerts() {
                   </p>
                 )}
               </div>
-              <button
-                onClick={handleOrderAllCritical}
-                disabled={orderingAll}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-red-600/20 flex-shrink-0"
-              >
-                {orderingAll ? "Submitting…" : "Order All Critical"}
+                <button
+                  onClick={handleOrderAllCritical}
+                  disabled={orderingAll || criticalActive.length === 0}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-red-600/20 flex-shrink-0"
+                >
+                  {orderingAll ? "Submitting…" : "Order All Critical"}
               </button>
             </div>
           </div>
@@ -560,6 +634,54 @@ export default function ReorderAlerts() {
             </div>
           )}
         </div>
+
+        {/* Pending Restock Section (separate from table) */}
+        {!loading && pendingFiltered.length > 0 && (
+          <div className="bg-amber-500/5 border border-amber-500/25 rounded-2xl p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-amber-300 uppercase tracking-wider">
+                Pending Restock
+              </h3>
+              <span className="text-sm text-gray-400">
+                {pendingFiltered.length} pending
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {pendingFiltered.map((req) => (
+                <div
+                  key={req.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-950/60 border border-white/5 rounded-xl px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-white font-bold text-sm truncate">
+                      {req.inventory_item_name}
+                    </p>
+                    <p className="text-gray-400 text-xs">
+                      Branch: {req.branch_name || "—"} · Qty:{" "}
+                      <span className="text-amber-300 font-bold">
+                        {req.quantity_requested}
+                      </span>
+                    </p>
+                    {req.notes && (
+                      <p className="text-gray-500 text-xs italic mt-0.5 truncate">
+                        "{req.notes}"
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleCancelRequest(req)}
+                    disabled={cancelingRequestId === req.id}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold bg-red-600/15 hover:bg-red-600 border border-red-500/30 text-red-300 hover:text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {cancelingRequestId === req.id ? "Canceling..." : "Cancel Request"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Alerts Table */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
@@ -796,7 +918,10 @@ export default function ReorderAlerts() {
           alert={selectedAlert}
           headers={headers}
           onClose={() => setSelectedAlert(null)}
-          onSuccess={fetchAlerts}
+          onSuccess={async () => {
+            await fetchAlerts();
+            await fetchPendingRequests();
+          }}
         />
       )}
     </InventoryLayout>

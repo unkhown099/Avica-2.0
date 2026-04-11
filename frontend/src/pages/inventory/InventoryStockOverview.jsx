@@ -3,6 +3,7 @@ import InventoryLayout from "./InventoryLayout";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
+import Swal from "sweetalert2";
 
 const CATEGORY_STYLES = {
   Lubricants: {
@@ -393,9 +394,25 @@ function StockOverview() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [branch, setBranch] = useState("");
+  const [itemStateFilter, setItemStateFilter] = useState("active");
   const [branches, setBranches] = useState([]); // for admin filter dropdown
   const [restockItem, setRestockItem] = useState(null);
   const [transferItem, setTransferItem] = useState(null);
+  const [disablingItemId, setDisablingItemId] = useState(null);
+
+  const notify = (icon, title) => {
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      timer: 2200,
+      timerProgressBar: true,
+      showConfirmButton: false,
+      icon,
+      title,
+      background: "#111827",
+      color: "#f9fafb",
+    });
+  };
 
   // ── Fetch branches (admin only, for filter dropdown) ──────────────────────
   useEffect(() => {
@@ -416,6 +433,7 @@ function StockOverview() {
       if (branch) params.set("branch", branch);
       if (category !== "All") params.set("category", category);
       if (search) params.set("search", search);
+      params.set("archived", itemStateFilter === "disabled" ? "true" : "false");
 
       const res = await fetch(`${API_BASE}/inventory/?${params}`, {
         headers,
@@ -429,7 +447,7 @@ function StockOverview() {
     } finally {
       setLoading(false);
     }
-  }, [branch, category, search, isAuthenticated, headers]);
+  }, [branch, category, search, itemStateFilter, isAuthenticated, headers]);
 
   useEffect(() => {
     fetchInventory();
@@ -475,10 +493,39 @@ function StockOverview() {
         throw new Error(data?.detail || `Failed to mark as received (${res.status})`);
       }
       await Promise.all([fetchInventory(), fetchRestockRequests()]);
+      notify("success", "Request marked as received.");
     } catch (err) {
       setError(err.message || "Failed to mark request as received.");
+      notify("error", err.message || "Failed to mark request as received.");
     } finally {
       setReceivingRequestId(null);
+    }
+  };
+
+  const toggleProductStatus = async (item) => {
+    if (!item?.id) return;
+
+    try {
+      setDisablingItemId(item.id);
+      setError("");
+      const newStatus = !item.is_active;
+      const res = await fetch(`${API_BASE}/inventory/${item.id}/`, {
+        method: "PATCH",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ is_active: newStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || `Failed to update product status (${res.status})`);
+      }
+      await fetchInventory();
+      notify("success", `Product "${item.name}" ${newStatus ? "enabled" : "disabled"}.`);
+    } catch (err) {
+      setError(err.message || "Failed to update product status.");
+      notify("error", err.message || "Failed to update product status.");
+    } finally {
+      setDisablingItemId(null);
     }
   };
 
@@ -648,6 +695,14 @@ function StockOverview() {
                   {cat}
                 </button>
               ))}
+              <select
+                value={itemStateFilter}
+                onChange={(e) => setItemStateFilter(e.target.value)}
+                className="bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-red-500 transition-colors"
+              >
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
             </div>
           </div>
 
@@ -728,21 +783,31 @@ function StockOverview() {
                         {item.branch_name || "—"}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p
-                        className={`font-black text-lg ${quantityColor(item.quantity, item.minimum_qty)}`}
-                      >
-                        {item.quantity}
-                      </p>
-                      <p className="text-gray-500 text-xs">{item.unit}</p>
-                      {/* Mobile restock button — always on a real item */}
-                      <button
-                        onClick={() => setRestockItem(item)}
-                        className="mt-1 px-2 py-1 bg-red-600/15 hover:bg-red-600 border border-red-500/25 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all"
-                      >
-                        Restock
-                      </button>
-                    </div>
+                     <div className="text-right">
+                       <p
+                         className={`font-black text-lg ${quantityColor(item.quantity, item.minimum_qty)}`}
+                       >
+                         {item.quantity}
+                       </p>
+                       <p className="text-gray-500 text-xs">{item.unit}</p>
+                       {/* Mobile restock button — always on a real item */}
+                       <button
+                         onClick={() => setRestockItem(item)}
+                         className="mt-1 px-2 py-1 bg-red-600/15 hover:bg-red-600 border border-red-500/25 text-red-400 hover:text-white rounded-lg text-xs font-semibold transition-all"
+                       >
+                         Restock
+                       </button>
+                       <button
+                         onClick={() => toggleProductStatus(item)}
+                         disabled={disablingItemId === item.id}
+                         title={item.is_active ? "Disable Product" : "Enable Product"}
+                         className={`mt-1 ml-1 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${item.is_active ? "bg-emerald-500" : "bg-gray-600"} ${disablingItemId === item.id ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                       >
+                         <span
+                           className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.is_active ? "translate-x-6" : "translate-x-1"}`}
+                         />
+                       </button>
+                     </div>
                   </div>
 
                   {/* Desktop */}
@@ -781,13 +846,13 @@ function StockOverview() {
                   <div className="hidden lg:flex col-span-1 items-center justify-center">
                     <StockBadge status={item.status} />
                   </div>
-                  <div className="hidden lg:flex col-span-1 items-center justify-end gap-1">
-                    {/* Restock — opens modal pre-filled with THIS item */}
-                    <button
-                      onClick={() => setRestockItem(item)}
-                      className="opacity-100 p-1.5 text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all"
-                      title="Request Restock"
-                    >
+                   <div className="hidden lg:flex col-span-1 items-center justify-end gap-1">
+                     {/* Restock — opens modal pre-filled with THIS item */}
+                     <button
+                       onClick={() => setRestockItem(item)}
+                       className="opacity-100 p-1.5 text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all"
+                       title="Request Restock"
+                     >
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -801,8 +866,18 @@ function StockOverview() {
                           d="M12 4v16m8-8H4"
                         />
                       </svg>
-                    </button>
-                    {isAdmin && (
+                     </button>
+                     <button
+                       onClick={() => toggleProductStatus(item)}
+                       disabled={disablingItemId === item.id}
+                       title={item.is_active ? "Disable Product" : "Enable Product"}
+                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${item.is_active ? "bg-emerald-500" : "bg-gray-600"} ${disablingItemId === item.id ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                     >
+                       <span
+                         className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.is_active ? "translate-x-6" : "translate-x-1"}`}
+                       />
+                     </button>
+                     {isAdmin && (
                       <button
                         onClick={() => setTransferItem(item)}
                         className="opacity-100 p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"

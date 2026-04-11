@@ -78,6 +78,10 @@ function SignIn() {
   const [errors, setErrors] = useState({});
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
+  const [publicStats, setPublicStats] = useState({
+    customersRegistered: null,
+    averageRating: null,
+  });
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -325,6 +329,25 @@ function SignIn() {
     return () => window.removeEventListener("maintenance-mode-changed", handleChange);
   }, []);
 
+  useEffect(() => {
+    const fetchPublicStats = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/public/signin-stats/`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        setPublicStats({
+          customersRegistered: Number(data.customers_registered) || 0,
+          averageRating: Number(data.average_rating) || 0,
+        });
+      } catch (err) {
+        console.error("Failed to fetch sign-in stats:", err);
+      }
+    };
+
+    fetchPublicStats();
+  }, []);
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="h-screen bg-black flex items-center justify-center px-6 relative overflow-hidden">
@@ -411,13 +434,17 @@ function SignIn() {
                 <div className="grid grid-cols-2 gap-6">
                   <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-7 border border-white/5">
                     <div className="text-5xl font-black text-red-600 mb-2">
-                      10K+
+                      {publicStats.customersRegistered !== null
+                        ? publicStats.customersRegistered.toLocaleString()
+                        : "—"}
                     </div>
-                    <div className="text-lg text-gray-400">Happy Customers</div>
+                    <div className="text-lg text-gray-400">Served Customers</div>
                   </div>
                   <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-7 border border-white/5">
                     <div className="text-5xl font-black text-red-600 mb-2">
-                      5★
+                      {publicStats.averageRating !== null
+                        ? `${publicStats.averageRating.toFixed(1)}★`
+                        : "—"}
                     </div>
                     <div className="text-lg text-gray-400">Average Rating</div>
                   </div>

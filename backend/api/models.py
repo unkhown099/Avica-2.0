@@ -259,12 +259,29 @@ class Booking(models.Model):
 # One rating per booking (OneToOne).
 class Rating(models.Model):
     SCORE_CHOICES = [(i, str(i)) for i in range(1, 6)]   # 1–5 stars
+    RESPONSE_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("responded", "Responded"),
+    ]
 
     booking  = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name="rating")
     customer = models.ForeignKey(Customer,  on_delete=models.CASCADE, related_name="ratings")
     branch   = models.ForeignKey(Branch,    on_delete=models.CASCADE, related_name="ratings")
     score    = models.PositiveSmallIntegerField(choices=SCORE_CHOICES)
     comment  = models.TextField(blank=True, default="")
+    response_status = models.CharField(
+        max_length=20,
+        choices=RESPONSE_STATUS_CHOICES,
+        default="pending",
+    )
+    responded_at = models.DateTimeField(null=True, blank=True)
+    responded_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ratings_responded",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

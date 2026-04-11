@@ -141,7 +141,31 @@ class InventoryListCreateView(APIView):
         serializer = InventoryItemSerializer(qs, many=True)
         data = serializer.data
         if inv_status and inv_status != "All Status":
-            data = [i for i in data if i["status"] == inv_status]
+            tokens = {
+                str(token).strip().lower()
+                for token in str(inv_status).split(",")
+                if str(token).strip()
+            }
+            if tokens:
+                def _matches_status(label):
+                    s = str(label or "").strip().lower()
+                    if "all status" in tokens:
+                        return True
+                    if "low stock" in tokens and s == "low stock":
+                        return True
+                    if "out of stock" in tokens and s == "out of stock":
+                        return True
+                    if "in stock" in tokens and s == "in stock":
+                        return True
+                    if "low" in tokens and "low" in s:
+                        return True
+                    if "out" in tokens and "out" in s:
+                        return True
+                    if "in" in tokens and s == "in stock":
+                        return True
+                    return s in tokens
+
+                data = [i for i in data if _matches_status(i.get("status"))]
         return Response(data)
 
     def post(self, request):
@@ -310,8 +334,47 @@ class RestockRequestActionView(APIView):
         reviewer_note = request.data.get("reviewer_note", "")
         actor = getattr(request.user, "staff_profile", None)
 
-        if action not in ["approve", "reject", "receive"]:
+        if action not in ["approve", "reject", "receive", "cancel"]:
             return Response({"detail": "Invalid action."}, status=400)
+
+        if action == "cancel":
+            if rr.status != "pending":
+                return Response({"detail": "Only pending requests can be canceled."}, status=400)
+            if not actor:
+                return Response({"detail": "Staff profile required."}, status=403)
+
+            is_manager_override = role in ["super_admin", "Inventory Manager"]
+            is_request_owner = rr.requested_by_id == actor.id
+            if not (is_manager_override or is_request_owner):
+                return Response({"detail": "You can only cancel your own pending request."}, status=403)
+
+            rr.status = "rejected"
+            rr.reviewed_by = actor
+            rr.reviewer_note = request.data.get("reviewer_note") or "Cancelled by requester."
+            rr.reviewed_at = timezone.now()
+            rr.save(update_fields=["status", "reviewed_by", "reviewer_note", "reviewed_at", "updated_at"])
+            _log_inventory_transaction(
+                inventory_item=rr.inventory_item,
+                action_type="restock_rejected",
+                quantity_before=rr.inventory_item.quantity or 0,
+                quantity_after=rr.inventory_item.quantity or 0,
+                quantity_changed=0,
+                branch_name=rr.branch.name if rr.branch else "",
+                performed_by=actor,
+                notes=rr.reviewer_note,
+            )
+            _notify_roles(
+                roles=["Inventory"],
+                branch_id=rr.branch_id,
+                title="Stock Request Cancelled",
+                message=(
+                    f"Restock request #{rr.id} for {rr.inventory_item.name} "
+                    f"was cancelled."
+                ),
+                notification_type="inventory",
+                target_path="/inventory/alerts",
+            )
+            return Response(RestockRequestSerializer(rr).data)
 
         if action in ["approve", "reject"]:
             if role not in ["super_admin", "Inventory Manager"]:
@@ -381,6 +444,17 @@ class RestockRequestActionView(APIView):
                     branch_name=rr.branch.name if rr.branch else "",
                     performed_by=actor,
                     notes=reviewer_note,
+                )
+                _notify_roles(
+                    roles=["Inventory"],
+                    branch_id=rr.branch_id,
+                    title="Stock Request Rejected",
+                    message=(
+                        f"Restock request #{rr.id} for {rr.inventory_item.name} "
+                        f"was rejected. {reviewer_note or 'Please review and submit a new request if needed.'}"
+                    ),
+                    notification_type="inventory",
+                    target_path="/inventory/alerts",
                 )
             return Response(RestockRequestSerializer(rr).data)
 

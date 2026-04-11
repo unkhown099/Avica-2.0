@@ -158,7 +158,7 @@ const priceInputStyle = `
   }
 `;
 
-function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
+function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categories }) {
   const isEdit = !!editService;
   const editPriceList =
     editService?.price_list && typeof editService.price_list === "object"
@@ -326,6 +326,8 @@ function ServiceModal({ onClose, onSaved, editService, branches, categories }) {
       setSaving(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end sm:items-center z-50 p-0 sm:p-4">
@@ -1202,15 +1204,14 @@ function AdminServices() {
         )}
       </div>
 
-      {showModal && (
-        <ServiceModal
-          onClose={() => setShowModal(false)}
-          onSaved={fetchServices}
-          editService={editService}
-          branches={branches}
-          categories={visibleCategoryNames.map((name) => ({ name }))}
-        />
-      )}
+      <ServiceModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSaved={fetchServices}
+        editService={editService}
+        branches={branches}
+        categories={visibleCategoryNames.map((name) => ({ name }))}
+      />
       {showCategoryModal && (
         <CategoryModal
           onClose={() => setShowCategoryModal(false)}

@@ -8,6 +8,7 @@ function ManagerInventory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [productStateFilter, setProductStateFilter] = useState("active");
   const activeTab = "inventory";
   const [loading, setLoading] = useState(false);
   const [services, setServices] = useState([]);
@@ -15,6 +16,7 @@ function ManagerInventory() {
   const [restockRequests, setRestockRequests] = useState([]);
   const [updatingServiceId, setUpdatingServiceId] = useState(null);
   const [requestingRestockId, setRequestingRestockId] = useState(null);
+  const [disablingInventoryId, setDisablingInventoryId] = useState(null);
 
   const notify = (icon, title) => {
     Swal.fire({
@@ -185,7 +187,7 @@ function ManagerInventory() {
   }, [activeTab, categoryFilter, searchQuery]);
   useEffect(() => {
     if (activeTab === "inventory") fetchInventory();
-  }, [activeTab, categoryFilter, statusFilter, searchQuery]);
+  }, [activeTab, categoryFilter, statusFilter, searchQuery, productStateFilter]);
 
   const fetchServices = async () => {
     setLoading(true);
@@ -241,6 +243,7 @@ function ManagerInventory() {
       if (searchQuery) params.append("search", searchQuery);
       if (categoryFilter !== "All Categories")
         params.append("category", categoryFilter);
+      params.append("archived", productStateFilter === "disabled" ? "true" : "false");
       const url = `inventory/${params.toString() ? `?${params.toString()}` : ""}`;
       const response = await apiClient.get(url);
       const inventoryData = Array.isArray(response.data) ? response.data : [];
@@ -259,6 +262,7 @@ function ManagerInventory() {
             item.status ||
             (item.quantity && item.quantity < 10 ? "Low Stock" : "In Stock"),
           minimum: item.minimum_qty ?? 10,
+          is_active: item.is_active !== false,
         })),
       );
     } catch (err) {
@@ -366,6 +370,34 @@ function ManagerInventory() {
       notify("error", handleApiError(err, "Failed to update service status."));
     } finally {
       setUpdatingServiceId(null);
+    }
+  };
+
+  const toggleInventoryItemStatus = async (item) => {
+    if (!item?.originalId) {
+      notify("error", "Unable to update this product.");
+      return;
+    }
+
+    setDisablingInventoryId(item.originalId);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        notify("error", "Please login to continue");
+        return;
+      }
+      const apiClient = createApiClient();
+      const newStatus = !item.is_active;
+      await apiClient.patch(`inventory/${item.originalId}/`, { is_active: newStatus });
+      await fetchInventory();
+      notify(
+        "success",
+        `Product "${item.name}" ${newStatus ? "enabled" : "disabled"}.`,
+      );
+    } catch (err) {
+      notify("error", handleApiError(err, "Failed to update product status."));
+    } finally {
+      setDisablingInventoryId(null);
     }
   };
 
@@ -769,6 +801,14 @@ function ManagerInventory() {
                   </option>
                 ))}
               </select>
+              <select
+                value={productStateFilter}
+                onChange={(e) => setProductStateFilter(e.target.value)}
+                className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 cursor-pointer"
+              >
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
             </>
           ) : (
             <select
@@ -805,7 +845,7 @@ function ManagerInventory() {
                 <div className="col-span-2">Quantity</div>
                 <div className="col-span-1">Price</div>
                 <div className="col-span-2">Supplier</div>
-                <div className="col-span-1 text-right">Status</div>
+                <div className="col-span-1 text-right">Actions</div>
               </div>
             ) : (
               <div className="hidden sm:grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -868,8 +908,19 @@ function ManagerInventory() {
                       <div className="col-span-2 text-gray-400 text-sm">
                         {item.supplier}
                       </div>
-                      <div className="col-span-1 flex justify-end">
+                      <div className="col-span-1 flex justify-end items-center gap-2">
                         {getStatusBadge(item)}
+                        <button
+                          type="button"
+                          onClick={() => toggleInventoryItemStatus(item)}
+                          disabled={disablingInventoryId === item.originalId}
+                          title={item.is_active ? "Disable Product" : "Enable Product"}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${item.is_active ? "bg-emerald-500" : "bg-gray-600"} ${disablingInventoryId === item.originalId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.is_active ? "translate-x-6" : "translate-x-1"}`}
+                          />
+                        </button>
                       </div>
                     </div>
                     {/* Mobile card */}
@@ -884,7 +935,20 @@ function ManagerInventory() {
                             <span className="font-mono">{item.sku}</span>
                           </div>
                         </div>
-                        {getStatusBadge(item)}
+                        <div className="flex flex-col items-end gap-2">
+                          {getStatusBadge(item)}
+                          <button
+                            type="button"
+                            onClick={() => toggleInventoryItemStatus(item)}
+                            disabled={disablingInventoryId === item.originalId}
+                            title={item.is_active ? "Disable Product" : "Enable Product"}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${item.is_active ? "bg-emerald-500" : "bg-gray-600"} ${disablingInventoryId === item.originalId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.is_active ? "translate-x-6" : "translate-x-1"}`}
+                            />
+                          </button>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400 mt-1">
                         <span className="text-gray-300 font-semibold">

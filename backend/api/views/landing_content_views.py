@@ -1,10 +1,11 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Count, Sum
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from api.models import LandingContent, MediaAsset
+from api.models import LandingContent, MediaAsset, Customer, QueueEntry, Rating
 from api.permissions import IsSuperAdmin
 
 
@@ -171,6 +172,35 @@ class LandingContentPublicView(APIView):
                 content["hero"] = hero
 
         return Response(content)
+
+
+class PublicSignInStatsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        customers_registered = Customer.objects.count()
+
+        booking_rating_totals = Rating.objects.aggregate(
+            total_score=Sum("score"),
+            total_count=Count("id"),
+        )
+        walkin_rating_totals = QueueEntry.objects.filter(
+            booking__isnull=True,
+            rating_score__isnull=False,
+        ).aggregate(
+            total_score=Sum("rating_score"),
+            total_count=Count("id"),
+        )
+
+        combined_score = (booking_rating_totals["total_score"] or 0) + (walkin_rating_totals["total_score"] or 0)
+        combined_count = (booking_rating_totals["total_count"] or 0) + (walkin_rating_totals["total_count"] or 0)
+        average_rating = round(combined_score / combined_count, 1) if combined_count else 0.0
+
+        return Response({
+            "customers_registered": customers_registered,
+            "served_customers": customers_registered,
+            "average_rating": average_rating,
+        })
 
 
 # ── Super-admin GET + PUT ──────────────────────────────────────────────────────

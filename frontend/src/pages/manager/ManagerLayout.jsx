@@ -13,6 +13,7 @@ const PAGE_TITLES = {
   "/manager/accounts": "Account Management",
   "/manager/history": "History",
   "/manager/customers": "Customer Management",
+  "/manager/reviews": "Customer Reviews",
 };
 
 function ManagerLayout({ children }) {

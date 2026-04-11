@@ -1714,7 +1714,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div>
             <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight print:text-black">
-              Admin Dashboard
+              {dataScope === "manager" ? "Manager Dashboard" : "Admin Dashboard"}
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-0.5 print:text-gray-600">
               Welcome back — here's what's happening today.
