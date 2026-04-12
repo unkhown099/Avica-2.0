@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { apiFetch } from "../../hooks/api";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 
+// ── Validation Functions ──────────────────────────────────────────────────────
 const isValidName = (value) =>
   /^[A-Za-z]+(?: [A-Za-z]+)*$/.test(String(value || "").trim());
 const isValidPhone = (value) =>
@@ -19,6 +20,51 @@ const sanitizePhoneInput = (value) => {
   if (digits.startsWith("0")) digits = digits.slice(1);
   return digits.slice(0, 10);
 };
+
+// ── Toast Component ──────────────────────────────────────────────────────────
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor =
+    type === "success"
+      ? "bg-green-500/20 border-green-500/50"
+      : "bg-red-500/20 border-red-500/50";
+  const textColor = type === "success" ? "text-green-400" : "text-red-400";
+  const icon = type === "success" ? "✓" : "✕";
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
+      <div
+        className={`${bgColor} border rounded-xl px-4 py-3 shadow-xl backdrop-blur-sm min-w-[280px]`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`${textColor} font-bold text-lg`}>{icon}</div>
+          <p className={`${textColor} text-sm flex-1`}>{message}</p>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Small components ──────────────────────────────────────────────────────────
 function StatCard({ title, value, icon, accentBg, accentText, border, sub }) {
@@ -70,7 +116,7 @@ const Icon = ({ d }) => (
 );
 
 // ── User Table Component (Mobile Responsive) ──────────────────────────────────
-function UsersTable({ users, loading, onEdit, onDelete, onStatusToggle }) {
+function UsersTable({ users, loading, onArchive, onDelete, onRestore }) {
   if (loading) {
     return (
       <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden">
@@ -97,253 +143,254 @@ function UsersTable({ users, loading, onEdit, onDelete, onStatusToggle }) {
     );
   }
 
-  const getRoleBadge = (role) => {
-    const colors = {
-      super_admin: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-      admin: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-      branch_manager: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-      employee: "bg-gray-500/10 text-gray-400 border-gray-500/20",
-      inventory_manager:
-        "bg-orange-500/10 text-orange-400 border-orange-500/20",
-      customer: "bg-green-500/10 text-green-400 border-green-500/20",
-    };
-    return colors[role] || "bg-gray-500/10 text-gray-400 border-gray-500/20";
+  const roleColors = {
+    super_admin: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+    Admin: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    "Branch Manager": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+    Employee: "bg-gray-500/10 text-gray-400 border-gray-500/20",
+    "Inventory Manager":
+      "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    "Business Owner": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+    Staff: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
   };
 
-  const roleLabels = {
-    super_admin: "Super Admin",
-    admin: "Admin",
-    branch_manager: "Branch Manager",
-    employee: "Employee",
-    inventory_manager: "Inventory Manager",
-    customer: "Customer",
+  const customerBadge = "bg-green-500/10 text-green-400 border-green-500/20";
+
+  const getRoleBadgeClass = (user) => {
+    if (user.account_type === "customer") return customerBadge;
+    return (
+      roleColors[user.profile?.role] ||
+      "bg-gray-500/10 text-gray-400 border-gray-500/20"
+    );
+  };
+
+  const getRoleLabel = (user) => {
+    if (user.account_type === "customer") return "Customer";
+    return user.profile?.role || user.account_type || "—";
+  };
+
+  const getInitial = (user) =>
+    user.profile?.name?.charAt(0)?.toUpperCase() ||
+    user.email.charAt(0).toUpperCase();
+
+  const getStatusBadge = (user) => {
+    if (user.is_archived)
+      return {
+        label: "Archived",
+        cls: "bg-gray-500/10 text-gray-400 border border-gray-500/20",
+      };
+    if (user.is_active)
+      return {
+        label: "Active",
+        cls: "bg-green-500/10 text-green-400 border border-green-500/20",
+      };
+    return {
+      label: "Inactive",
+      cls: "bg-red-500/10 text-red-400 border border-red-500/20",
+    };
   };
 
   return (
     <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-      {/* Desktop Table View - Hidden on mobile */}
+      {/* ── Desktop Table ── */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-800/50">
+          <thead className="bg-gray-800/50 border-b border-white/5">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                #
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                User
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Role
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Last Login
-              </th>
-              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Actions
-              </th>
+              {[
+                "User",
+                "Role",
+                "Branch",
+                "Status",
+                "Last Login",
+                "Actions",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {users.map((user, index) => (
-              <tr
-                key={user.id}
-                className="hover:bg-white/[0.02] transition-colors"
-              >
-                <td className="px-6 py-4 text-xs text-gray-500">
-                  #{index + 1}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0">
-                      <span className="text-gray-400 font-medium text-sm">
-                        {user.profile?.name?.charAt(0) || user.email.charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-white font-semibold text-sm">
-                        {user.profile?.name || "—"}
+            {users.map((user) => {
+              const status = getStatusBadge(user);
+              return (
+                <tr
+                  key={user.id}
+                  className="hover:bg-white/[0.02] transition-colors"
+                >
+                  {/* User */}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0 text-sm font-bold text-white">
+                        {getInitial(user)}
                       </div>
-                      <div className="text-gray-500 text-xs">{user.email}</div>
-                      {user.profile?.phone && (
-                        <div className="text-gray-600 text-xs mt-1">
-                          {user.profile.phone}
+                      <div>
+                        <div className="text-white font-semibold text-sm leading-tight">
+                          {user.profile?.name || "—"}
                         </div>
-                      )}
+                        <div className="text-gray-500 text-xs mt-0.5">
+                          {user.email}
+                        </div>
+                        {user.profile?.phone && (
+                          <div className="text-gray-600 text-xs mt-0.5">
+                            {user.profile.phone}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${getRoleBadge(user.profile?.role)}`}
-                  >
-                    {roleLabels[user.profile?.role] || user.account_type}
-                  </span>
-                  {user.profile?.branch && (
-                    <div className="text-gray-600 text-xs mt-1">
-                      {user.profile.branch}
-                    </div>
-                  )}
-                  {user.profile?.loyalty_points && (
-                    <div className="text-green-500 text-xs mt-1">
-                      {user.profile.loyalty_points} pts
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-col gap-1">
+                  </td>
+
+                  {/* Role */}
+                  <td className="px-6 py-4">
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${
-                        user.is_active
-                          ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                          : "bg-red-500/10 text-red-400 border border-red-500/20"
-                      }`}
+                      className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border ${getRoleBadgeClass(user)}`}
                     >
-                      {user.is_active ? "Active" : "Inactive"}
+                      {getRoleLabel(user)}
                     </span>
-                    {!user.email_verified &&
-                      user.account_type === "customer" && (
-                        <span className="text-yellow-500 text-xs">
-                          Email not verified
-                        </span>
+                  </td>
+
+                  {/* Branch */}
+                  <td className="px-6 py-4">
+                    {user.profile?.branch ? (
+                      <span className="text-gray-400 text-sm">
+                        {user.profile.branch}
+                      </span>
+                    ) : (
+                      <span className="text-gray-600 text-sm">—</span>
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit ${status.cls}`}
+                      >
+                        {status.label}
+                      </span>
+                      {!user.email_verified &&
+                        user.account_type === "customer" && (
+                          <span className="text-yellow-500 text-xs">
+                            Unverified email
+                          </span>
+                        )}
+                    </div>
+                  </td>
+
+                  {/* Last Login */}
+                  <td className="px-6 py-4 text-gray-400 text-sm whitespace-nowrap">
+                    {user.last_login
+                      ? new Date(user.last_login).toLocaleDateString()
+                      : "Never"}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1">
+                      {!user.is_archived ? (
+                        <button
+                          onClick={() => onArchive(user)}
+                          title="Archive"
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-yellow-400 hover:bg-yellow-400/10 transition-all"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                            />
+                          </svg>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onRestore(user)}
+                          title="Restore"
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-green-400 hover:bg-green-400/10 transition-all"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </svg>
+                        </button>
                       )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-gray-400 text-sm">
-                  {user.last_login
-                    ? new Date(user.last_login).toLocaleDateString()
-                    : "Never"}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => onEdit(user)}
-                      className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
-                      title="Edit user"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      <button
+                        onClick={() => onDelete(user)}
+                        title="Permanently delete"
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => onStatusToggle(user)}
-                      className={`p-2 transition-colors ${
-                        user.is_active
-                          ? "text-red-400 hover:text-red-300"
-                          : "text-green-400 hover:text-green-300"
-                      }`}
-                      title={
-                        user.is_active ? "Deactivate user" : "Activate user"
-                      }
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d={
-                            user.is_active
-                              ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-                              : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          }
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => onDelete(user)}
-                      className="p-2 text-gray-400 hover:text-red-400 transition-colors"
-                      title="Delete user"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* Mobile Card View */}
+      {/* ── Mobile Cards ── */}
       <div className="md:hidden divide-y divide-white/5">
-        {users.map((user, index) => (
-          <div
-            key={user.id}
-            className="p-4 hover:bg-white/[0.02] transition-colors"
-          >
-            <div className="text-[11px] text-gray-500 mb-2">#{index + 1}</div>
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3 flex-1">
-                <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0">
-                  <span className="text-gray-400 font-medium text-base">
-                    {user.profile?.name?.charAt(0) || user.email.charAt(0)}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-white font-semibold text-sm truncate">
-                    {user.profile?.name || "—"}
+        {users.map((user) => {
+          const status = getStatusBadge(user);
+          return (
+            <div
+              key={user.id}
+              className="p-4 hover:bg-white/[0.02] transition-colors"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-11 h-11 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0 text-base font-bold text-white">
+                    {getInitial(user)}
                   </div>
-                  <div className="text-gray-500 text-xs truncate">
-                    {user.email}
-                  </div>
-                  {user.profile?.phone && (
-                    <div className="text-gray-600 text-xs mt-1">
-                      {user.profile.phone}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-semibold text-sm truncate">
+                      {user.profile?.name || "—"}
                     </div>
-                  )}
+                    <div className="text-gray-500 text-xs truncate">
+                      {user.email}
+                    </div>
+                    {user.profile?.phone && (
+                      <div className="text-gray-600 text-xs mt-0.5">
+                        {user.profile.phone}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => onEdit(user)}
-                  className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                </button>
                 <button
                   onClick={() => onDelete(user)}
-                  className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                  className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all ml-2"
                 >
                   <svg
                     className="w-4 h-4"
@@ -360,56 +407,56 @@ function UsersTable({ users, loading, onEdit, onDelete, onStatusToggle }) {
                   </svg>
                 </button>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span
-                className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${getRoleBadge(user.profile?.role)}`}
-              >
-                {roleLabels[user.profile?.role] || user.account_type}
-              </span>
-              <span
-                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                  user.is_active
-                    ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                    : "bg-red-500/10 text-red-400 border border-red-500/20"
-                }`}
-              >
-                {user.is_active ? "Active" : "Inactive"}
-              </span>
-              {user.profile?.branch && (
-                <span className="text-gray-500 text-xs bg-gray-800 px-2 py-1 rounded-full">
-                  {user.profile.branch}
+
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getRoleBadgeClass(user)}`}
+                >
+                  {getRoleLabel(user)}
                 </span>
-              )}
-              {user.profile?.loyalty_points && (
-                <span className="text-green-500 text-xs bg-green-500/10 px-2 py-1 rounded-full">
-                  {user.profile.loyalty_points} pts
+                <span
+                  className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${status.cls}`}
+                >
+                  {status.label}
                 </span>
+                {user.profile?.branch && (
+                  <span className="text-gray-400 text-xs bg-gray-800 px-2.5 py-0.5 rounded-full">
+                    {user.profile.branch}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center mt-3 pt-2 border-t border-white/5">
+                <span className="text-gray-600 text-xs">
+                  Last login:{" "}
+                  {user.last_login
+                    ? new Date(user.last_login).toLocaleDateString()
+                    : "Never"}
+                </span>
+                {!user.is_archived ? (
+                  <button
+                    onClick={() => onArchive(user)}
+                    className="text-xs font-semibold text-yellow-400 hover:text-yellow-300"
+                  >
+                    Archive
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onRestore(user)}
+                    className="text-xs font-semibold text-green-400 hover:text-green-300"
+                  >
+                    Restore
+                  </button>
+                )}
+              </div>
+              {!user.email_verified && user.account_type === "customer" && (
+                <div className="mt-1.5 text-yellow-500 text-xs">
+                  ⚠ Unverified email
+                </div>
               )}
             </div>
-            <div className="flex justify-between items-center mt-3 pt-2 border-t border-white/5">
-              <div className="text-gray-500 text-xs">
-                Last login:{" "}
-                {user.last_login
-                  ? new Date(user.last_login).toLocaleDateString()
-                  : "Never"}
-              </div>
-              <button
-                onClick={() => onStatusToggle(user)}
-                className={`text-xs font-semibold ${
-                  user.is_active ? "text-red-400" : "text-green-400"
-                }`}
-              >
-                {user.is_active ? "Deactivate" : "Activate"}
-              </button>
-            </div>
-            {!user.email_verified && user.account_type === "customer" && (
-              <div className="mt-2 text-yellow-500 text-xs">
-                Email not verified
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -923,17 +970,16 @@ export default function SuperAdminUsers() {
   const [users, setUsers] = useState([]);
   const [branches, setBranches] = useState([]);
   const [roles, setRoles] = useState([]);
-  const location = useLocation();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [editingUser, setEditingUser] = useState(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [activeSection, setActiveSection] = useState("all-users");
-  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type) => {
+    setToast({ message, type });
+  };
 
   const fetchData = async () => {
     try {
@@ -951,6 +997,7 @@ export default function SuperAdminUsers() {
       setRoles(rolesData?.roles || []);
     } catch (err) {
       setError(err.message || "Failed to fetch data");
+      showToast(err.message || "Failed to fetch data", "error");
     } finally {
       setLoading(false);
     }
@@ -960,125 +1007,60 @@ export default function SuperAdminUsers() {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (location.pathname !== "/super-admin/users") return;
-
-    const hash = location.hash;
-    if (hash === "#add-user") {
-      setShowAddForm(true);
-      setActiveSection("add-user");
+  const handleArchiveUser = async (user) => {
+    if (
+      !confirm(
+        `Archive ${user.email}? Archived users will be restricted from logging in and can be restored later.`,
+      )
+    )
       return;
-    }
 
-    setShowAddForm(false);
-    setActiveSection("all-users");
-  }, [location.pathname, location.hash]);
-
-  const closeSection = () => {
-    setShowAddForm(false);
-    setActiveSection("all-users");
-    navigate("/super-admin/users", { replace: true });
-  };
-
-  const openAddUserSection = () => {
-    if (showAddForm && activeSection === "add-user") {
-      closeSection();
-      return;
-    }
-    navigate("/super-admin/users#add-user", { replace: true });
-  };
-
-  const handleEditUser = (user) => {
-    setEditingUser(user);
-  };
-
-  const handleSaveUser = async (userId, formData) => {
-    setSubmitting(true);
     try {
-      const payload = {
-        is_active: formData.is_active,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone: formData.phone,
-      };
-
-      if (formData.staff_role) {
-        payload.staff_role = formData.staff_role;
-      }
-
-      if (formData.staff_branch) {
-        payload.staff_branch = formData.staff_branch;
-      }
-
-      await apiFetch(`/super-admin/users/${userId}/`, {
-        method: "PATCH",
-        body: payload,
+      await apiFetch(`/super-admin/users/${user.id}/archive/`, {
+        method: "POST",
       });
-
-      setEditingUser(null);
       fetchData();
+      showToast(`User ${user.email} has been archived.`, "success");
     } catch (err) {
-      alert(err.message);
-    } finally {
-      setSubmitting(false);
+      showToast(err.message || "Failed to archive user.", "error");
+    }
+  };
+
+  const handleRestoreUser = async (user) => {
+    if (
+      !confirm(
+        `Restore ${user.email}? This will allow the user to access the system again.`,
+      )
+    )
+      return;
+
+    try {
+      await apiFetch(`/super-admin/users/${user.id}/restore/`, {
+        method: "POST",
+      });
+      fetchData();
+      showToast(`User ${user.email} has been restored.`, "success");
+    } catch (err) {
+      showToast(err.message || "Failed to restore user.", "error");
     }
   };
 
   const handleDeleteUser = async (user) => {
     if (
       !confirm(
-        `Are you sure you want to delete ${user.email}? This action cannot be undone.`,
+        `⚠️ PERMANENT DELETION ⚠️\n\nAre you ABSOLUTELY SURE you want to permanently delete ${user.email}?\n\nThis action is IRREVERSIBLE and will:\n- Permanently remove all user data\n- Delete all associated records\n- Remove all activity history\n\nThis cannot be undone!`,
       )
     )
       return;
 
     try {
-      await apiFetch(`/super-admin/users/${user.id}/`, { method: "DELETE" });
+      await apiFetch(`/super-admin/users/${user.id}/permanent-delete/`, {
+        method: "DELETE",
+      });
       setUsers((prevUsers) => prevUsers.filter((u) => u.id !== user.id));
-      alert(`User ${user.email} has been deleted.`);
+      showToast(`User ${user.email} has been PERMANENTLY DELETED.`, "success");
     } catch (err) {
-      alert(err.message || "Failed to delete user.");
-    }
-  };
-
-  const handleStatusToggle = async (user) => {
-    try {
-      await apiFetch(`/super-admin/users/${user.id}/`, {
-        method: "PATCH",
-        body: { is_active: !user.is_active },
-      });
-      fetchData();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleAddUser = async (formData) => {
-    setSubmitting(true);
-    try {
-      const payload = {
-        email: formData.email,
-        password: formData.password,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone: formData.phone,
-        account_type: formData.account_type,
-        role: formData.role,
-        branch_id: formData.branch_id || null,
-        send_welcome_email: formData.send_welcome_email,
-      };
-
-      await apiFetch("/super-admin/create/", {
-        method: "POST",
-        body: payload,
-      });
-
-      fetchData();
-      setShowAddForm(false);
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setSubmitting(false);
+      showToast(err.message || "Failed to delete user.", "error");
     }
   };
 
@@ -1091,16 +1073,21 @@ export default function SuperAdminUsers() {
       selectedRole === "all" || user.profile?.role === selectedRole;
     const matchesStatus =
       selectedStatus === "all" ||
-      (selectedStatus === "active" && user.is_active) ||
-      (selectedStatus === "inactive" && !user.is_active);
+      (selectedStatus === "active" && user.is_active && !user.is_archived) ||
+      (selectedStatus === "inactive" && !user.is_active && !user.is_archived) ||
+      (selectedStatus === "archived" && user.is_archived);
     return matchesSearch && matchesRole && matchesStatus;
   });
 
   const stats = {
     total: users.length,
-    active: users.filter((u) => u.is_active).length,
-    staff: users.filter((u) => u.account_type === "staff").length,
-    customers: users.filter((u) => u.account_type === "customer").length,
+    active: users.filter((u) => u.is_active && !u.is_archived).length,
+    archived: users.filter((u) => u.is_archived).length,
+    staff: users.filter((u) => u.account_type === "staff" && !u.is_archived)
+      .length,
+    customers: users.filter(
+      (u) => u.account_type === "customer" && !u.is_archived,
+    ).length,
   };
 
   const roleLabels = {
@@ -1115,6 +1102,15 @@ export default function SuperAdminUsers() {
   return (
     <SuperAdminLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-3 sm:p-8">
+        {/* Toast Notifications */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+
         {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -1122,49 +1118,28 @@ export default function SuperAdminUsers() {
               User Management
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-              Manage system users
+              Manage system users - Archive, Restore, or Permanently Delete
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={openAddUserSection}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all text-sm font-semibold"
+          <button
+            onClick={fetchData}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold w-fit"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Add User
-            </button>
-            <button
-              onClick={fetchData}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-              Refresh
-            </button>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            Refresh
+          </button>
         </div>
 
         {/* Error */}
@@ -1214,6 +1189,16 @@ export default function SuperAdminUsers() {
             icon={<Icon d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />}
           />
           <StatCard
+            title="Archived"
+            value={stats.archived.toLocaleString()}
+            accentBg="bg-gray-500/10"
+            accentText="text-gray-400"
+            border="border-gray-500/20"
+            icon={
+              <Icon d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            }
+          />
+          <StatCard
             title="Staff Members"
             value={stats.staff.toLocaleString()}
             accentBg="bg-blue-500/10"
@@ -1223,30 +1208,7 @@ export default function SuperAdminUsers() {
               <Icon d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             }
           />
-          <StatCard
-            title="Customers"
-            value={stats.customers.toLocaleString()}
-            accentBg="bg-yellow-500/10"
-            accentText="text-yellow-400"
-            border="border-yellow-500/20"
-            icon={
-              <Icon d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            }
-          />
         </div>
-
-        {/* Add User Form */}
-        {showAddForm && (
-          <div className="mb-6">
-            <AddUserForm
-              onSubmit={handleAddUser}
-              onCancel={closeSection}
-              branches={branches}
-              roles={roles}
-              loading={submitting}
-            />
-          </div>
-        )}
 
         {/* Filters */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 mb-6">
@@ -1294,6 +1256,7 @@ export default function SuperAdminUsers() {
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
+                <option value="archived">Archived</option>
               </select>
             </div>
           </div>
@@ -1303,21 +1266,10 @@ export default function SuperAdminUsers() {
         <UsersTable
           users={filteredUsers}
           loading={loading}
-          onEdit={handleEditUser}
+          onArchive={handleArchiveUser}
           onDelete={handleDeleteUser}
-          onStatusToggle={handleStatusToggle}
+          onRestore={handleRestoreUser}
         />
-
-        {/* Edit User Modal */}
-        {editingUser && (
-          <EditUserModal
-            user={editingUser}
-            onClose={() => setEditingUser(null)}
-            onSave={handleSaveUser}
-            branches={branches}
-            loading={submitting}
-          />
-        )}
       </div>
     </SuperAdminLayout>
   );

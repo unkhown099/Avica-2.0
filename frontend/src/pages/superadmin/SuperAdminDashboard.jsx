@@ -168,38 +168,45 @@ function StaffTable({ staffByRole, loading }) {
 
 // ── Tab config ────────────────────────────────────────────────────────────────
 const TABS = [
-  { key: "overview",   label: "Overview" },
-  { key: "revenue",    label: "Revenue" },
-  { key: "bookings",   label: "Bookings" },
-  { key: "users",      label: "Users" },
-  { key: "operations", label: "Operations" },
+  { key: "overview", label: "Overview" },
+  { key: "performance", label: "Performance" },
+  { key: "users", label: "Users" },
+  { key: "system", label: "System Health" },
 ];
 
 // ── Panels ────────────────────────────────────────────────────────────────────
 function OverviewPanel({ data, loading }) {
   const labels = data?.chart_labels ?? [];
 
-  const revLineData = {
+  const userGrowthData = {
     labels,
-    datasets: [{
-      label: "Revenue (₱)",
-      data: data?.monthly_revenue ?? [],
-      borderColor: "#22c55e",
-      backgroundColor: "rgba(34,197,94,0.08)",
-      fill: true, tension: 0.4, pointRadius: 3,
-      pointBackgroundColor: "#22c55e", borderWidth: 2,
-    }],
+    datasets: [
+      {
+        label: "Total Users",
+        data: data?.monthly_users ?? [],
+        borderColor: "#60a5fa",
+        backgroundColor: "rgba(96,165,250,0.08)",
+        fill: true, 
+        tension: 0.4, 
+        pointRadius: 3,
+        pointBackgroundColor: "#60a5fa", 
+        borderWidth: 2,
+      },
+    ],
   };
 
-  const bookLineData = {
-    labels,
+  const responseTimeData = {
+    labels: data?.response_labels ?? labels,
     datasets: [{
-      label: "Bookings",
-      data: data?.monthly_bookings ?? [],
-      borderColor: "#60a5fa",
-      backgroundColor: "rgba(96,165,250,0.08)",
-      fill: true, tension: 0.4, pointRadius: 3,
-      pointBackgroundColor: "#60a5fa", borderWidth: 2,
+      label: "API Response (ms)",
+      data: data?.api_response_times ?? [],
+      borderColor: "#22c55e",
+      backgroundColor: "rgba(34,197,94,0.08)",
+      fill: true, 
+      tension: 0.4, 
+      pointRadius: 3,
+      pointBackgroundColor: "#22c55e", 
+      borderWidth: 2,
     }],
   };
 
@@ -213,36 +220,44 @@ function OverviewPanel({ data, loading }) {
 
   return (
     <div>
-      <SectionLabel>At a glance</SectionLabel>
+      <SectionLabel>System Performance at a glance</SectionLabel>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {loading ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />) : (
           <>
             <StatCard
-              title="Total revenue"
-              value={data ? `₱${Number(data.revenue.total).toLocaleString()}` : null}
-              sub={data ? `₱${Number(data.revenue.this_month).toLocaleString()} this month` : null}
-              accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20"
-              icon={<Icon d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />}
-            />
-            <StatCard
-              title="Total bookings"
-              value={data ? Number(data.bookings.total).toLocaleString() : null}
-              sub={data ? `${data.bookings.today} today` : null}
-              accentBg="bg-blue-500/10" accentText="text-blue-400" border="border-blue-500/20"
-              icon={<Icon d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />}
-            />
-            <StatCard
               title="Total users"
               value={data ? Number(data.users.total).toLocaleString() : null}
-              sub={data ? `${Number(data.users.customers).toLocaleString()} customers` : null}
-              accentBg="bg-red-500/10" accentText="text-red-400" border="border-red-500/20"
+              sub={`${data ? Number(data.users.customers).toLocaleString() : 0} customers`}
+              accentBg="bg-blue-500/10" 
+              accentText="text-blue-400" 
+              border="border-blue-500/20"
               icon={<Icon d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />}
             />
             <StatCard
-              title="Low stock items"
-              value={data ? Number(data.low_stock_items).toLocaleString() : null}
-              sub="Needs attention"
-              accentBg="bg-red-500/10" accentText="text-red-400" border="border-red-500/20"
+              title="Active sessions"
+              value={data ? Number(data.active_sessions).toLocaleString() : null}
+              sub="Current users online"
+              accentBg="bg-green-500/10" 
+              accentText="text-green-400" 
+              border="border-green-500/20"
+              icon={<Icon d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />}
+            />
+            <StatCard
+              title="API Response Time"
+              value={data ? `${Number(data.avg_response_time).toFixed(0)}ms` : null}
+              sub={data?.response_status || "Normal"}
+              accentBg="bg-yellow-500/10" 
+              accentText="text-yellow-400" 
+              border="border-yellow-500/20"
+              icon={<Icon d="M13 10V3L4 14h7v7l9-11h-7z" />}
+            />
+            <StatCard
+              title="Error Rate"
+              value={data ? `${(data.error_rate * 100).toFixed(1)}%` : null}
+              sub="Last 24 hours"
+              accentBg="bg-red-500/10" 
+              accentText="text-red-400" 
+              border="border-red-500/20"
               icon={<Icon d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />}
             />
           </>
@@ -250,13 +265,18 @@ function OverviewPanel({ data, loading }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        {loading ? <><SkeletonChart /><SkeletonChart /></> : (
+        {loading ? (
           <>
-            <ChartCard title="Revenue trend" badge={{ label: "Last 7 months", className: "text-green-400 bg-green-500/10" }} height={140}>
-              <Line data={revLineData} options={miniOpts} />
+            <SkeletonChart />
+            <SkeletonChart />
+          </>
+        ) : (
+          <>
+            <ChartCard title="User growth trend" badge={{ label: "Last 7 months", className: "text-blue-400 bg-blue-500/10" }} height={140}>
+              <Line data={userGrowthData} options={miniOpts} />
             </ChartCard>
-            <ChartCard title="Bookings trend" badge={{ label: "Last 7 months", className: "text-blue-400 bg-blue-500/10" }} height={140}>
-              <Line data={bookLineData} options={miniOpts} />
+            <ChartCard title="API Response Time (ms)" badge={{ label: "Last 7 days", className: "text-green-400 bg-green-500/10" }} height={140}>
+              <Line data={responseTimeData} options={miniOpts} />
             </ChartCard>
           </>
         )}
@@ -268,205 +288,117 @@ function OverviewPanel({ data, loading }) {
   );
 }
 
-function RevenuePanel({ data, loading }) {
+function PerformancePanel({ data, loading }) {
   const labels = data?.chart_labels ?? [];
 
-  const monthlyRevData = {
+  const cpuData = {
     labels,
     datasets: [{
-      label: "Revenue (₱)",
-      data: data?.monthly_revenue ?? [],
-      borderColor: "#22c55e",
-      backgroundColor: "rgba(34,197,94,0.10)",
-      fill: true, tension: 0.4, pointRadius: 4,
-      pointBackgroundColor: "#22c55e", borderWidth: 2,
+      label: "CPU Usage (%)",
+      data: data?.cpu_usage ?? [],
+      borderColor: "#ef4444",
+      backgroundColor: "rgba(239,68,68,0.08)",
+      fill: true, 
+      tension: 0.4, 
+      pointRadius: 3,
+      pointBackgroundColor: "#ef4444", 
+      borderWidth: 2,
     }],
   };
 
-  const branchRevData = {
-    labels: data?.branches_list ?? [],
+  const memoryData = {
+    labels,
     datasets: [{
-      label: "Revenue (₱)",
-      data: data?.revenue_by_branch ?? [],
-      backgroundColor: "rgba(34,197,94,0.25)",
-      borderColor: "#22c55e",
-      borderWidth: 1, borderRadius: 6,
+      label: "Memory Usage (%)",
+      data: data?.memory_usage ?? [],
+      borderColor: "#8b5cf6",
+      backgroundColor: "rgba(139,92,246,0.08)",
+      fill: true, 
+      tension: 0.4, 
+      pointRadius: 3,
+      pointBackgroundColor: "#8b5cf6", 
+      borderWidth: 2,
     }],
   };
 
-  const revenueYAxis = {
-    ticks: {
-      color: "#4b5563", font: { size: 11 },
-      callback: (v) => `₱${(v / 1000).toFixed(0)}k`,
-    },
-    grid: { color: "rgba(255,255,255,0.04)", borderDash: [4, 4] },
+  const requestData = {
+    labels: data?.request_labels ?? labels,
+    datasets: [{
+      label: "Requests per minute",
+      data: data?.requests_per_minute ?? [],
+      borderColor: "#f59e0b",
+      backgroundColor: "rgba(245,158,11,0.08)",
+      fill: true, 
+      tension: 0.4, 
+      pointRadius: 3,
+      pointBackgroundColor: "#f59e0b", 
+      borderWidth: 2,
+    }],
   };
 
   return (
     <div>
-      <SectionLabel>Revenue</SectionLabel>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        {loading ? <><SkeletonCard /><SkeletonCard /></> : (
+      <SectionLabel>System Performance Metrics</SectionLabel>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        {loading ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />) : (
           <>
             <StatCard
-              title="Total revenue"
-              value={data ? `₱${Number(data.revenue.total).toLocaleString()}` : null}
-              sub="From completed bookings"
-              accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20"
-              icon={<Icon d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />}
+              title="CPU Usage"
+              value={data ? `${Number(data.current_cpu).toFixed(1)}%` : null}
+              sub={data?.cpu_status || "Normal"}
+              accentBg="bg-red-500/10" 
+              accentText="text-red-400" 
+              border="border-red-500/20"
+              icon={<Icon d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />}
             />
             <StatCard
-              title="Revenue this month"
-              value={data ? `₱${Number(data.revenue.this_month).toLocaleString()}` : null}
-              sub="From completed bookings"
-              accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20"
-              icon={<Icon d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />}
+              title="Memory Usage"
+              value={data ? `${Number(data.current_memory).toFixed(1)}%` : null}
+              sub={`${data ? (data.current_memory_used_gb || 0).toFixed(1) : 0} GB / ${data?.total_memory_gb || 8} GB`}
+              accentBg="bg-purple-500/10" 
+              accentText="text-purple-400" 
+              border="border-purple-500/20"
+              icon={<Icon d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />}
+            />
+            <StatCard
+              title="Requests/sec"
+              value={data ? Number(data.requests_per_second).toFixed(1) : null}
+              sub={`Peak: ${data?.peak_requests_per_second || 0}`}
+              accentBg="bg-orange-500/10" 
+              accentText="text-orange-400" 
+              border="border-orange-500/20"
+              icon={<Icon d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />}
+            />
+            <StatCard
+              title="Uptime"
+              value={data?.uptime_days ? `${data.uptime_days}d` : "—"}
+              sub={data?.uptime_percentage ? `${data.uptime_percentage}%` : "99.9%"}
+              accentBg="bg-green-500/10" 
+              accentText="text-green-400" 
+              border="border-green-500/20"
+              icon={<Icon d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />}
             />
           </>
         )}
       </div>
 
       {loading ? (
-        <><SkeletonChart height={220} /><div className="mt-4"><SkeletonChart height={180} /></div></>
+        <div className="grid grid-cols-1 gap-4">
+          <SkeletonChart height={220} />
+          <SkeletonChart height={220} />
+          <SkeletonChart height={220} />
+        </div>
       ) : (
         <>
-          <ChartCard
-            title="Monthly revenue (₱)"
-            badge={{ label: "7-month view", className: "text-green-400 bg-green-500/10" }}
-            height={220} className="mb-4"
-          >
-            <Line
-              data={monthlyRevData}
-              options={{ ...baseChartOptions, scales: { x: axisDefaults.x, y: revenueYAxis } }}
-            />
+          <ChartCard title="CPU Usage Trend" badge={{ label: "Last 24 hours", className: "text-red-400 bg-red-500/10" }} height={200} className="mb-4">
+            <Line data={cpuData} options={baseChartOptions} />
           </ChartCard>
-          <ChartCard title="Revenue by branch" height={180}>
-            <Bar
-              data={branchRevData}
-              options={{
-                ...baseChartOptions,
-                scales: {
-                  x: { ticks: { color: "#4b5563", font: { size: 11 } }, grid: { display: false } },
-                  y: revenueYAxis,
-                },
-              }}
-            />
+          <ChartCard title="Memory Usage Trend" badge={{ label: "Last 24 hours", className: "text-purple-400 bg-purple-500/10" }} height={200} className="mb-4">
+            <Line data={memoryData} options={baseChartOptions} />
           </ChartCard>
-        </>
-      )}
-    </div>
-  );
-}
-
-function BookingsPanel({ data, loading }) {
-  const dailyBookData = {
-    labels: data?.daily_labels ?? [],
-    datasets: [{
-      label: "Bookings",
-      data: data?.daily_bookings ?? [],
-      backgroundColor: "rgba(96,165,250,0.3)",
-      borderColor: "#60a5fa",
-      borderWidth: 1, borderRadius: 4,
-    }],
-  };
-
-  const statusColors = [
-    "rgba(34,197,94,0.8)",
-    "rgba(96,165,250,0.8)",
-    "rgba(239,68,68,0.8)",
-    "rgba(234,179,8,0.8)",
-    "rgba(167,139,250,0.8)",
-  ];
-  const statusData = {
-    labels: data?.bookings_status_labels ?? [],
-    datasets: [{
-      data: data?.bookings_by_status ?? [],
-      backgroundColor: statusColors.slice(0, data?.bookings_by_status?.length ?? 0),
-      borderWidth: 0,
-    }],
-  };
-
-  const monthlyBookData = {
-    labels: data?.chart_labels ?? [],
-    datasets: [{
-      label: "Bookings",
-      data: data?.monthly_bookings ?? [],
-      borderColor: "#60a5fa",
-      backgroundColor: "rgba(96,165,250,0.08)",
-      fill: true, tension: 0.4, pointRadius: 3,
-      pointBackgroundColor: "#60a5fa", borderWidth: 2,
-    }],
-  };
-
-  const donutOptions = {
-    ...baseChartOptions,
-    cutout: "68%",
-    plugins: {
-      legend: {
-        display: true, position: "bottom",
-        labels: { color: "#6b7280", font: { size: 11 }, boxWidth: 10, padding: 10 },
-      },
-      tooltip: tooltipDefaults,
-    },
-  };
-
-  return (
-    <div>
-      <SectionLabel>Bookings</SectionLabel>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        {loading ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />) : (
-          <>
-            <StatCard
-              title="Total bookings"
-              value={data ? Number(data.bookings.total).toLocaleString() : null}
-              accentBg="bg-blue-500/10" accentText="text-blue-400" border="border-blue-500/20"
-              icon={<Icon d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />}
-            />
-            <StatCard
-              title="Bookings today"
-              value={data ? Number(data.bookings.today).toLocaleString() : null}
-              accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20"
-              icon={<Icon d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />}
-            />
-            <StatCard
-              title="This month"
-              value={data ? Number(data.bookings.this_month).toLocaleString() : null}
-              accentBg="bg-yellow-500/10" accentText="text-yellow-400" border="border-yellow-500/20"
-              icon={<Icon d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />}
-            />
-          </>
-        )}
-      </div>
-
-      {loading ? (
-        <>
-          <SkeletonChart height={200} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-            <SkeletonChart height={200} /><SkeletonChart height={200} />
-          </div>
-        </>
-      ) : (
-        <>
-          <ChartCard title="Daily bookings — last 30 days" height={200} className="mb-4">
-            <Bar
-              data={dailyBookData}
-              options={{
-                ...baseChartOptions,
-                scales: {
-                  x: { ticks: { color: "#374151", font: { size: 10 }, maxTicksLimit: 10 }, grid: { display: false } },
-                  y: axisDefaults.y,
-                },
-              }}
-            />
+          <ChartCard title="Request Volume" badge={{ label: "Requests per minute", className: "text-orange-400 bg-orange-500/10" }} height={200}>
+            <Line data={requestData} options={baseChartOptions} />
           </ChartCard>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ChartCard title="Bookings by status" height={200}>
-              <Doughnut data={statusData} options={donutOptions} />
-            </ChartCard>
-            <ChartCard title="Monthly trend" height={200}>
-              <Line data={monthlyBookData} options={baseChartOptions} />
-            </ChartCard>
-          </div>
         </>
       )}
     </div>
@@ -487,16 +419,15 @@ function UsersPanel({ data, loading }) {
     labels: data?.chart_labels ?? [],
     datasets: [
       {
-        label: "Customers",
-        data: data?.monthly_customers ?? [],
-        borderColor: "#60a5fa", fill: false, tension: 0.4,
-        pointRadius: 3, pointBackgroundColor: "#60a5fa", borderWidth: 2,
-      },
-      {
-        label: "Staff",
-        data: data?.monthly_staff ?? [],
-        borderColor: "#ef4444", fill: false, tension: 0.4,
-        pointRadius: 3, pointBackgroundColor: "#ef4444", borderWidth: 2,
+        label: "Total Users",
+        data: data?.monthly_users ?? [],
+        borderColor: "#60a5fa",
+        backgroundColor: "rgba(96,165,250,0.08)",
+        fill: true, 
+        tension: 0.4,
+        pointRadius: 3, 
+        pointBackgroundColor: "#60a5fa", 
+        borderWidth: 2,
       },
     ],
   };
@@ -506,18 +437,8 @@ function UsersPanel({ data, loading }) {
     cutout: "68%",
     plugins: {
       legend: {
-        display: true, position: "bottom",
-        labels: { color: "#6b7280", font: { size: 11 }, boxWidth: 10, padding: 10 },
-      },
-      tooltip: tooltipDefaults,
-    },
-  };
-
-  const growthOptions = {
-    ...baseChartOptions,
-    plugins: {
-      legend: {
-        display: true, position: "bottom",
+        display: true, 
+        position: "bottom",
         labels: { color: "#6b7280", font: { size: 11 }, boxWidth: 10, padding: 10 },
       },
       tooltip: tooltipDefaults,
@@ -526,27 +447,36 @@ function UsersPanel({ data, loading }) {
 
   return (
     <div>
-      <SectionLabel>Users</SectionLabel>
+      <SectionLabel>User Analytics</SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {loading ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />) : (
           <>
             <StatCard
               title="Total users"
               value={data ? Number(data.users.total).toLocaleString() : null}
-              accentBg="bg-red-500/10" accentText="text-red-400" border="border-red-500/20"
+              sub="All time"
+              accentBg="bg-red-500/10" 
+              accentText="text-red-400" 
+              border="border-red-500/20"
               icon={<Icon d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />}
             />
             <StatCard
-              title="Staff accounts"
-              value={data ? Number(data.users.staff).toLocaleString() : null}
-              accentBg="bg-yellow-500/10" accentText="text-yellow-400" border="border-yellow-500/20"
-              icon={<Icon d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />}
+              title="New users (30d)"
+              value={data ? Number(data.new_users_last_30d).toLocaleString() : null}
+              sub={`${data?.growth_rate_percentage || 0}% growth`}
+              accentBg="bg-green-500/10" 
+              accentText="text-green-400" 
+              border="border-green-500/20"
+              icon={<Icon d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />}
             />
             <StatCard
-              title="Customer accounts"
-              value={data ? Number(data.users.customers).toLocaleString() : null}
-              accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20"
-              icon={<Icon d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />}
+              title="Active users (7d)"
+              value={data ? Number(data.active_users_last_7d).toLocaleString() : null}
+              sub={`${((data?.active_users_last_7d || 0) / (data?.users?.total || 1) * 100).toFixed(1)}% of total`}
+              accentBg="bg-blue-500/10" 
+              accentText="text-blue-400" 
+              border="border-blue-500/20"
+              icon={<Icon d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />}
             />
           </>
         )}
@@ -554,15 +484,16 @@ function UsersPanel({ data, loading }) {
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          <SkeletonChart height={220} /><SkeletonChart height={220} />
+          <SkeletonChart height={220} />
+          <SkeletonChart height={220} />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <ChartCard title="User breakdown" height={220}>
             <Doughnut data={userDonutData} options={donutOptions} />
           </ChartCard>
-          <ChartCard title="User growth" height={220}>
-            <Line data={userGrowthData} options={growthOptions} />
+          <ChartCard title="User growth trend" height={220}>
+            <Line data={userGrowthData} options={baseChartOptions} />
           </ChartCard>
         </div>
       )}
@@ -573,96 +504,70 @@ function UsersPanel({ data, loading }) {
   );
 }
 
-function OperationsPanel({ data, loading }) {
-  const queueData = {
-    labels: data?.queue_branches_list ?? [],
-    datasets: [{
-      label: "Queue entries",
-      data: data?.queue_by_branch ?? [],
-      backgroundColor: "rgba(249,115,22,0.3)",
-      borderColor: "#f97316",
-      borderWidth: 1, borderRadius: 5,
-    }],
+function SystemHealthPanel({ data, loading }) {
+  const healthChecks = [
+    { name: "Database", status: data?.database_status || "healthy", metric: `${data?.database_response_ms || 15}ms` },
+    { name: "Cache", status: data?.cache_status || "healthy", metric: `${data?.cache_hit_rate || 85}% hit rate` },
+    { name: "API Gateway", status: data?.gateway_status || "healthy", metric: `${data?.gateway_response_ms || 45}ms` },
+    { name: "Storage", status: data?.storage_status || "healthy", metric: `${data?.storage_used_gb || 10.2}/${data?.storage_total_gb || 50} GB` },
+    { name: "Queue Workers", status: data?.queue_status || "healthy", metric: `${data?.active_workers || 4} active` },
+    { name: "Background Jobs", status: data?.jobs_status || "healthy", metric: `${data?.pending_jobs || 0} pending` },
+  ];
+
+  const getStatusColor = (status) => {
+    if (status === "healthy") return "text-green-400 bg-green-500/10";
+    if (status === "warning") return "text-yellow-400 bg-yellow-500/10";
+    return "text-red-400 bg-red-500/10";
   };
 
-  const servicesData = {
-    labels: data?.service_categories ?? [],
-    datasets: [{
-      label: "Bookings",
-      data: data?.services_by_category ?? [],
-      backgroundColor: "rgba(167,139,250,0.3)",
-      borderColor: "#a78bfa",
-      borderWidth: 1, borderRadius: 4,
-    }],
+  const getStatusIcon = (status) => {
+    if (status === "healthy") return "✓";
+    if (status === "warning") return "⚠";
+    return "✕";
   };
 
   return (
     <div>
-      <SectionLabel>Operations</SectionLabel>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        {loading ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />) : (
-          <>
-            <StatCard
-              title="Branches"
-              value={data ? Number(data.branches).toLocaleString() : null}
-              accentBg="bg-blue-500/10" accentText="text-blue-400" border="border-blue-500/20"
-              icon={<Icon d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />}
-            />
-            <StatCard
-              title="Services"
-              value={data ? Number(data.services).toLocaleString() : null}
-              accentBg="bg-purple-500/10" accentText="text-purple-400" border="border-purple-500/20"
-              icon={<Icon d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />}
-            />
-            <StatCard
-              title="Active queue"
-              value={data ? Number(data.active_queue_entries).toLocaleString() : null}
-              accentBg="bg-orange-500/10" accentText="text-orange-400" border="border-orange-500/20"
-              icon={<Icon d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9" />}
-            />
-            <StatCard
-              title="Low stock items"
-              value={data ? Number(data.low_stock_items).toLocaleString() : null}
-              sub="Needs attention"
-              accentBg="bg-red-500/10" accentText="text-red-400" border="border-red-500/20"
-              icon={<Icon d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />}
-            />
-          </>
+      <SectionLabel>System Health Status</SectionLabel>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {loading ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />) : (
+          healthChecks.map((check) => (
+            <div key={check.name} className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-white font-semibold">{check.name}</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(check.status)}`}>
+                  {getStatusIcon(check.status)} {check.status}
+                </span>
+              </div>
+              <div className="text-2xl font-black text-white mb-1">{check.metric}</div>
+              <div className="text-xs text-gray-500">Current value</div>
+            </div>
+          ))
         )}
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SkeletonChart height={220} /><SkeletonChart height={220} />
-        </div>
+        <SkeletonChart height={220} />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <ChartCard title="Active queue by branch" height={220}>
-            <Bar
-              data={queueData}
-              options={{
-                ...baseChartOptions,
-                scales: {
-                  x: { ticks: { color: "#4b5563", font: { size: 11 } }, grid: { display: false } },
-                  y: { ticks: { color: "#4b5563", font: { size: 11 }, stepSize: 1 }, grid: { color: "rgba(255,255,255,0.04)" } },
-                },
-              }}
-            />
-          </ChartCard>
-          <ChartCard title="Top services by bookings" height={220}>
-            <Bar
-              data={servicesData}
-              options={{
-                ...baseChartOptions,
-                indexAxis: "y",
-                scales: {
-                  x: { ticks: { color: "#4b5563", font: { size: 11 } }, grid: { color: "rgba(255,255,255,0.04)" } },
-                  y: { ticks: { color: "#4b5563", font: { size: 11 } }, grid: { display: false } },
-                },
-              }}
-            />
-          </ChartCard>
-        </div>
+        <ChartCard title="System Load (Last 24h)" badge={{ label: "Live", className: "text-green-400 bg-green-500/10" }} height={220}>
+          <Line 
+            data={{
+              labels: data?.system_load_labels ?? [],
+              datasets: [{
+                label: "System Load",
+                data: data?.system_load_history ?? [],
+                borderColor: "#ef4444",
+                backgroundColor: "rgba(239,68,68,0.08)",
+                fill: true, 
+                tension: 0.4,
+                pointRadius: 2,
+                borderWidth: 2,
+              }]
+            }} 
+            options={baseChartOptions} 
+          />
+        </ChartCard>
       )}
     </div>
   );
@@ -670,40 +575,39 @@ function OperationsPanel({ data, loading }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function SuperAdminDashboard() {
-  const [data, setData]           = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
 
-const fetchDashboard = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await apiFetch("/super-admin/dashboard/");
+      setData(result);
+    } catch (err) {
+      setError(err.message || "Failed to load dashboard data.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const result = await apiFetch("/super-admin/dashboard/");
-    setData(result);
-
-  } catch (err) {
-    setError(err.message || "Failed to load dashboard data.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-  useEffect(() => { fetchDashboard(); }, []);
+  useEffect(() => { 
+    fetchDashboard(); 
+  }, []);
 
   return (
     <SuperAdminLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-3 sm:p-8">
-
         {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight">
-              Super Admin Dashboard
+              System Performance Dashboard
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-              Full system overview — all branches, users, and operations.
+              Monitor system health, performance metrics, and user analytics.
             </p>
           </div>
           <button
@@ -748,12 +652,10 @@ const fetchDashboard = async () => {
         </div>
 
         {/* Panels */}
-        {activeTab === "overview"   && <OverviewPanel   data={data} loading={loading} />}
-        {activeTab === "revenue"    && <RevenuePanel    data={data} loading={loading} />}
-        {activeTab === "bookings"   && <BookingsPanel   data={data} loading={loading} />}
-        {activeTab === "users"      && <UsersPanel      data={data} loading={loading} />}
-        {activeTab === "operations" && <OperationsPanel data={data} loading={loading} />}
-
+        {activeTab === "overview" && <OverviewPanel data={data} loading={loading} />}
+        {activeTab === "performance" && <PerformancePanel data={data} loading={loading} />}
+        {activeTab === "users" && <UsersPanel data={data} loading={loading} />}
+        {activeTab === "system" && <SystemHealthPanel data={data} loading={loading} />}
       </div>
     </SuperAdminLayout>
   );

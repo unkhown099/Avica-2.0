@@ -3,11 +3,10 @@ import { useLocation } from "react-router-dom";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 import { API_BASE, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 
-const SECTION_KEYS = ["general", "email", "security"];
+const SECTION_KEYS = ["general", "email"];
 const SECTION_TITLES = {
   general: "General",
   email: "Email",
-  security: "Security",
 };
 
 // ── Reusable field components ──────────────────────────────────────────────
@@ -365,70 +364,9 @@ function EmailSection({ state, onChange }) {
   );
 }
 
-function SecuritySection({ state, onChange }) {
-  const o = (key) => (val) => onChange("security", key, val);
-  return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <FieldGroup
-        title="Password & session"
-        description="Enforce password strength and session expiry."
-      >
-        <Toggle
-          label="Require strong passwords"
-          description="Force complexity for all user accounts."
-          checked={!!state.requireStrongPasswords}
-          onChange={o("requireStrongPasswords")}
-        />
-        <TextInput
-          label="Session timeout (minutes)"
-          value={state.sessionTimeoutMinutes}
-          onChange={o("sessionTimeoutMinutes")}
-          type="number"
-        />
-        <TextInput
-          label="Max login attempts"
-          value={state.maxLoginAttempts}
-          onChange={o("maxLoginAttempts")}
-          type="number"
-        />
-        <TextInput
-          label="Lockout duration (minutes)"
-          value={state.lockoutDurationMinutes}
-          onChange={o("lockoutDurationMinutes")}
-          type="number"
-        />
-      </FieldGroup>
-      <FieldGroup
-        title="Authentication"
-        description="Two-factor and OAuth provider settings."
-      >
-        <Toggle
-          label="Allow two-factor authentication"
-          description="Enforce 2FA for super admin logins."
-          checked={!!state.allowTwoFactor}
-          onChange={o("allowTwoFactor")}
-        />
-        <Toggle
-          label="Allow Google OAuth"
-          description="Let users sign in with their Google account."
-          checked={!!state.allowGoogleOAuth}
-          onChange={o("allowGoogleOAuth")}
-        />
-        <Toggle
-          label="Allow Facebook OAuth"
-          description="Let users sign in with their Facebook account."
-          checked={!!state.allowFacebookOAuth}
-          onChange={o("allowFacebookOAuth")}
-        />
-      </FieldGroup>
-    </div>
-  );
-}
-
 const SECTION_COMPONENTS = {
   general: GeneralSection,
   email: EmailSection,
-  security: SecuritySection,
 };
 
 // ── Main page ──────────────────────────────────────────────────────────────
@@ -588,8 +526,7 @@ const handleSave = async () => {
                 System Settings
               </h1>
               <p className="max-w-2xl text-sm text-gray-400">
-                Configure global application settings including site identity,
-                email delivery, and security policies.
+                Configure global application settings including site identity and email delivery.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">

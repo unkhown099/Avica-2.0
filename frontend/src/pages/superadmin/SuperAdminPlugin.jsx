@@ -2,17 +2,49 @@ import React, { useState, useEffect, useCallback } from "react";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 import { API_BASE, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function Toast({ toasts, removeToast }) {
+  return (
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-sm min-w-[280px] max-w-sm animate-slide-up transition-all ${
+            t.type === "success"
+              ? "bg-green-500/20 border-green-500/30 text-green-300"
+              : t.type === "error"
+                ? "bg-red-500/20 border-red-500/30 text-red-300"
+                : "bg-blue-500/20 border-blue-500/30 text-blue-300"
+          }`}
+        >
+          <span className="text-lg flex-shrink-0">
+            {t.type === "success" ? "✓" : t.type === "error" ? "✕" : "ℹ"}
+          </span>
+          <p className="text-sm flex-1">{t.message}</p>
+          <button
+            onClick={() => removeToast(t.id)}
+            className="text-current opacity-50 hover:opacity-100 flex-shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function SuperAdminPlugin() {
   const [plugins, setPlugins] = useState([]);
   const [statusCounts, setStatusCounts] = useState({});
   const [categories, setCategories] = useState({});
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState({ type: "", text: "" });
+  const [toasts, setToasts] = useState([]);
   const [selectedPlugin, setSelectedPlugin] = useState(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [actionLoading, setActionLoading] = useState(null); // pluginId being acted on
   const [newPlugin, setNewPlugin] = useState({
     name: "",
     slug: "",
@@ -23,6 +55,21 @@ export default function SuperAdminPlugin() {
     category: "other",
   });
 
+  // ── Toast helpers ───────────────────────────────────────────────────────────
+  const addToast = useCallback((message, type = "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(
+      () => setToasts((prev) => prev.filter((t) => t.id !== id)),
+      4000,
+    );
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // ── Fetch ───────────────────────────────────────────────────────────────────
   const fetchPlugins = useCallback(async () => {
     setLoading(true);
     try {
@@ -34,17 +81,27 @@ export default function SuperAdminPlugin() {
       setStatusCounts(data.status_counts);
       setCategories(data.categories);
     } catch (err) {
-      setMessage({ type: "error", text: err.message });
+      addToast(err.message, "error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [addToast]);
 
   useEffect(() => {
     fetchPlugins();
   }, [fetchPlugins]);
 
+  // ── Actions ─────────────────────────────────────────────────────────────────
   const handlePluginAction = async (pluginId, action, settings = null) => {
+    setActionLoading(pluginId);
+    const actionLabel =
+      action === "activate"
+        ? "Activating"
+        : action === "deactivate"
+          ? "Deactivating"
+          : "Saving settings for";
+    addToast(`${actionLabel} plugin...`, "info");
+
     try {
       const headers = await getAuthHeadersAsync();
       const body = settings ? { action, settings } : { action };
@@ -60,13 +117,14 @@ export default function SuperAdminPlugin() {
       }
 
       const data = await res.json();
-      setMessage({ type: "success", text: data.message });
-      fetchPlugins(); // Refresh list
-
+      addToast(data.message, "success");
+      fetchPlugins();
       if (showConfigModal) setShowConfigModal(false);
       if (selectedPlugin) setSelectedPlugin(null);
     } catch (err) {
-      setMessage({ type: "error", text: err.message });
+      addToast(err.message, "error");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -75,9 +133,11 @@ export default function SuperAdminPlugin() {
       !window.confirm(
         `Are you sure you want to uninstall "${pluginName}"? This action cannot be undone.`,
       )
-    ) {
+    )
       return;
-    }
+
+    setActionLoading(pluginId);
+    addToast(`Uninstalling ${pluginName}...`, "info");
 
     try {
       const headers = await getAuthHeadersAsync();
@@ -91,19 +151,22 @@ export default function SuperAdminPlugin() {
         throw new Error(error.error || "Uninstall failed");
       }
 
-      const data = await res.json();
-      setMessage({ type: "success", text: data.message });
+      addToast(`"${pluginName}" has been uninstalled.`, "success");
       fetchPlugins();
     } catch (err) {
-      setMessage({ type: "error", text: err.message });
+      addToast(err.message, "error");
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleInstall = async () => {
     if (!newPlugin.name || !newPlugin.slug) {
-      setMessage({ type: "error", text: "Name and slug are required" });
+      addToast("Name and slug are required.", "error");
       return;
     }
+
+    addToast(`Installing ${newPlugin.name}...`, "info");
 
     try {
       const headers = await getAuthHeadersAsync();
@@ -119,7 +182,7 @@ export default function SuperAdminPlugin() {
       }
 
       const data = await res.json();
-      setMessage({ type: "success", text: data.message });
+      addToast(data.message, "success");
       setShowInstallModal(false);
       setNewPlugin({
         name: "",
@@ -132,7 +195,7 @@ export default function SuperAdminPlugin() {
       });
       fetchPlugins();
     } catch (err) {
-      setMessage({ type: "error", text: err.message });
+      addToast(err.message, "error");
     }
   };
 
@@ -156,6 +219,8 @@ export default function SuperAdminPlugin() {
 
   return (
     <SuperAdminLayout>
+      <Toast toasts={toasts} removeToast={removeToast} />
+
       <div className="space-y-6">
         {/* Header */}
         <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6">
@@ -236,7 +301,6 @@ export default function SuperAdminPlugin() {
               <option value="needs_update">Needs Update</option>
               <option value="error">Error</option>
             </select>
-
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
@@ -252,20 +316,6 @@ export default function SuperAdminPlugin() {
           </div>
         </div>
 
-        {/* Message Banner */}
-        {message.text && (
-          <div
-            className={`rounded-3xl border px-5 py-4 text-sm ${
-              message.type === "success"
-                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
-                : "border-red-500/20 bg-red-500/10 text-red-300"
-            }`}
-          >
-            {message.type === "success" ? "✓ " : "✕ "}
-            {message.text}
-          </div>
-        )}
-
         {/* Plugins List */}
         {loading ? (
           <div className="space-y-3">
@@ -274,109 +324,121 @@ export default function SuperAdminPlugin() {
                 key={i}
                 className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 animate-pulse"
               >
-                <div className="h-6 w-48 bg-white/10 rounded mb-2"></div>
-                <div className="h-4 w-96 bg-white/5 rounded"></div>
+                <div className="h-6 w-48 bg-white/10 rounded mb-2" />
+                <div className="h-4 w-96 bg-white/5 rounded" />
               </div>
             ))}
           </div>
+        ) : filteredPlugins.length === 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-gray-900/80 px-6 py-16 text-center text-gray-500 text-sm">
+            No plugins match your filters.
+          </div>
         ) : (
           <div className="space-y-3">
-            {filteredPlugins.map((plugin) => (
-              <div
-                key={plugin.id}
-                className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 transition hover:border-white/20"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h3 className="text-lg font-semibold text-white">
-                        {plugin.name}
-                      </h3>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-xs ${getStatusColor(plugin.status)}`}
-                      >
-                        {plugin.status.toUpperCase()}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        v{plugin.version}
-                      </span>
-                      {plugin.is_system && (
-                        <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-400">
-                          System
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-2 text-sm text-gray-400">
-                      {plugin.description}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
-                      <span>By: {plugin.author || "Unknown"}</span>
-                      <span>
-                        Category:{" "}
-                        {categories[plugin.category] || plugin.category}
-                      </span>
-                      {plugin.website && (
-                        <a
-                          href={plugin.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-red-400 hover:underline"
+            {filteredPlugins.map((plugin) => {
+              const isActing = actionLoading === plugin.id;
+              return (
+                <div
+                  key={plugin.id}
+                  className={`rounded-3xl border bg-gray-900/80 p-6 transition hover:border-white/20 ${
+                    isActing ? "border-white/20 opacity-75" : "border-white/10"
+                  }`}
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-lg font-semibold text-white">
+                          {plugin.name}
+                        </h3>
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-xs ${getStatusColor(plugin.status)}`}
                         >
-                          Website
-                        </a>
+                          {plugin.status.toUpperCase()}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          v{plugin.version}
+                        </span>
+                        {plugin.is_system && (
+                          <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-400">
+                            System
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-2 text-sm text-gray-400">
+                        {plugin.description}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                        <span>By: {plugin.author || "Unknown"}</span>
+                        <span>
+                          Category:{" "}
+                          {categories[plugin.category] || plugin.category}
+                        </span>
+                        {plugin.website && (
+                          <a
+                            href={plugin.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-red-400 hover:underline"
+                          >
+                            Website
+                          </a>
+                        )}
+                      </div>
+                      {plugin.dependencies?.length > 0 && (
+                        <div className="mt-2 text-xs text-yellow-400">
+                          Requires: {plugin.dependencies.join(", ")}
+                        </div>
                       )}
                     </div>
-                    {plugin.dependencies?.length > 0 && (
-                      <div className="mt-2 text-xs text-yellow-400">
-                        Requires: {plugin.dependencies.join(", ")}
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="flex gap-2">
-                    {plugin.is_active ? (
+                    <div className="flex gap-2 flex-wrap">
+                      {plugin.is_active ? (
+                        <button
+                          onClick={() =>
+                            handlePluginAction(plugin.id, "deactivate")
+                          }
+                          disabled={isActing}
+                          className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-400 hover:bg-yellow-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isActing ? "..." : "Deactivate"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            handlePluginAction(plugin.id, "activate")
+                          }
+                          disabled={isActing || plugin.status === "error"}
+                          className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isActing ? "..." : "Activate"}
+                        </button>
+                      )}
                       <button
-                        onClick={() =>
-                          handlePluginAction(plugin.id, "deactivate")
-                        }
-                        className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-400 hover:bg-yellow-500/20"
+                        onClick={() => {
+                          setSelectedPlugin(plugin);
+                          setShowConfigModal(true);
+                        }}
+                        disabled={isActing}
+                        className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-white/10 disabled:opacity-50"
                       >
-                        Deactivate
+                        Configure
                       </button>
-                    ) : (
-                      <button
-                        onClick={() =>
-                          handlePluginAction(plugin.id, "activate")
-                        }
-                        disabled={plugin.status === "error"}
-                        className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-50"
-                      >
-                        Activate
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setSelectedPlugin(plugin);
-                        setShowConfigModal(true);
-                      }}
-                      className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-white/10"
-                    >
-                      Configure
-                    </button>
-
-                    {!plugin.is_system && (
-                      <button
-                        onClick={() => handleUninstall(plugin.id, plugin.name)}
-                        className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/20"
-                      >
-                        Uninstall
-                      </button>
-                    )}
+                      {!plugin.is_system && (
+                        <button
+                          onClick={() =>
+                            handleUninstall(plugin.id, plugin.name)
+                          }
+                          disabled={isActing}
+                          className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/20 disabled:opacity-50"
+                        >
+                          {isActing ? "..." : "Uninstall"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -391,15 +453,18 @@ export default function SuperAdminPlugin() {
               </h2>
               <button
                 onClick={() => setShowConfigModal(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white text-xl"
               >
                 ✕
               </button>
             </div>
-
             <div className="space-y-4">
-              {Object.entries(selectedPlugin.settings || {}).map(
-                ([key, value]) => (
+              {Object.keys(selectedPlugin.settings || {}).length === 0 ? (
+                <p className="text-gray-500 text-sm">
+                  This plugin has no configurable settings.
+                </p>
+              ) : (
+                Object.entries(selectedPlugin.settings).map(([key, value]) => (
                   <div key={key}>
                     <label className="block text-sm font-medium text-gray-300 mb-1">
                       {key
@@ -408,17 +473,16 @@ export default function SuperAdminPlugin() {
                     </label>
                     {typeof value === "boolean" ? (
                       <select
-                        value={value}
-                        onChange={(e) => {
-                          const newSettings = {
-                            ...selectedPlugin.settings,
-                            [key]: e.target.value === "true",
-                          };
+                        value={String(value)}
+                        onChange={(e) =>
                           setSelectedPlugin({
                             ...selectedPlugin,
-                            settings: newSettings,
-                          });
-                        }}
+                            settings: {
+                              ...selectedPlugin.settings,
+                              [key]: e.target.value === "true",
+                            },
+                          })
+                        }
                         className="w-full rounded-xl border border-white/10 bg-gray-950 px-3 py-2 text-gray-100"
                       >
                         <option value="true">Enabled</option>
@@ -428,39 +492,36 @@ export default function SuperAdminPlugin() {
                       <input
                         type="number"
                         value={value}
-                        onChange={(e) => {
-                          const newSettings = {
-                            ...selectedPlugin.settings,
-                            [key]: parseInt(e.target.value),
-                          };
+                        onChange={(e) =>
                           setSelectedPlugin({
                             ...selectedPlugin,
-                            settings: newSettings,
-                          });
-                        }}
+                            settings: {
+                              ...selectedPlugin.settings,
+                              [key]: parseInt(e.target.value),
+                            },
+                          })
+                        }
                         className="w-full rounded-xl border border-white/10 bg-gray-950 px-3 py-2 text-gray-100"
                       />
                     ) : (
                       <input
                         type="text"
                         value={value}
-                        onChange={(e) => {
-                          const newSettings = {
-                            ...selectedPlugin.settings,
-                            [key]: e.target.value,
-                          };
+                        onChange={(e) =>
                           setSelectedPlugin({
                             ...selectedPlugin,
-                            settings: newSettings,
-                          });
-                        }}
+                            settings: {
+                              ...selectedPlugin.settings,
+                              [key]: e.target.value,
+                            },
+                          })
+                        }
                         className="w-full rounded-xl border border-white/10 bg-gray-950 px-3 py-2 text-gray-100"
                       />
                     )}
                   </div>
-                ),
+                ))
               )}
-
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() =>
@@ -496,12 +557,11 @@ export default function SuperAdminPlugin() {
               </h2>
               <button
                 onClick={() => setShowInstallModal(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white text-xl"
               >
                 ✕
               </button>
             </div>
-
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -521,7 +581,6 @@ export default function SuperAdminPlugin() {
                   placeholder="e.g., Analytics Tracker"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
                   Slug *
@@ -539,7 +598,6 @@ export default function SuperAdminPlugin() {
                   placeholder="e.g., analytics-tracker"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
                   Description
@@ -554,7 +612,6 @@ export default function SuperAdminPlugin() {
                   placeholder="Brief description of the plugin"
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -585,7 +642,6 @@ export default function SuperAdminPlugin() {
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -620,7 +676,6 @@ export default function SuperAdminPlugin() {
                   </select>
                 </div>
               </div>
-
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleInstall}
