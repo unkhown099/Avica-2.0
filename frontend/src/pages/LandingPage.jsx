@@ -145,7 +145,12 @@ function LandingPage() {
   const [branches, setBranches] = useState([]);
   const [activeBranch, setActiveBranch] = useState(null);
   const [user, setUser] = useState(null);
-  const [mapSkin, setMapSkin] = useState("dark"); // Default skin
+  const [mapSkin, setMapSkin] = useState("dark");
+  
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState({ title: "", body: "" });
+  const [legalPosts, setLegalPosts] = useState([]);
 
   // ─── Map refs ─────────────────────────────────────────────────────────────
   const mapRef = React.useRef(null);
@@ -179,7 +184,7 @@ function LandingPage() {
     if (!isDragging) return;
     e.preventDefault();
     const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // scroll-fast
+    const walk = (x - startX) * 2;
     scrollRef.current.scrollLeft = scrollLeft - walk;
   };
 
@@ -260,8 +265,13 @@ function LandingPage() {
         console.log("Normalized content:", normalized);
 
         setPageContent(normalized);
+        
+        // Load legal posts from the content
+        if (data.posts && Array.isArray(data.posts)) {
+          setLegalPosts(data.posts);
+        }
 
-        // Set up hero backgrounds - prioritize images array, then single imageUrl
+        // Set up hero backgrounds
         let bgImages = [];
         if (normalized.hero.images && normalized.hero.images.length > 0) {
           bgImages = normalized.hero.images.filter(
@@ -355,6 +365,35 @@ function LandingPage() {
     };
   }, [contentLoaded, heroBgs]);
 
+  // ─── Modal handlers ───────────────────────────────────────────────────────
+  const openModal = (postKey) => {
+    const post = legalPosts.find(p => p.key === postKey);
+    if (post) {
+      setModalContent({
+        title: post.title,
+        body: post.body
+      });
+      setModalOpen(true);
+      document.body.style.overflow = "hidden"; // Prevent scrolling when modal is open
+    }
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    document.body.style.overflow = "auto"; // Restore scrolling
+  };
+
+  // Close modal on ESC key
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape" && modalOpen) {
+        closeModal();
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [modalOpen]);
+
   const isLoggedIn = !!getToken();
 
   const handleBooking = () => {
@@ -403,6 +442,55 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-black font-sans selection:bg-red-600 selection:text-white">
       <Navbar />
+
+      {/* Modal Popup */}
+      {modalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all duration-300"
+          onClick={closeModal}
+        >
+          <div 
+            className="relative bg-gradient-to-br from-gray-900 to-black rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-hidden border border-white/20 shadow-2xl transform transition-all duration-300 scale-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10 bg-red-600/10">
+              <h2 className="text-2xl font-black text-white tracking-tighter">
+                {modalContent.title}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/10"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar">
+              <div className="prose prose-invert prose-red max-w-none">
+                {modalContent.body.split('\n').map((paragraph, idx) => (
+                  <p key={idx} className="text-gray-300 leading-relaxed mb-4">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-white/10 bg-black/50">
+              <button
+                onClick={closeModal}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-[1.02] active:scale-95 shadow-lg shadow-red-900/30"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero Section with Slideshow ── */}
       <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -916,7 +1004,7 @@ function LandingPage() {
               />
             </div>
             <p className="max-w-sm text-lg sm:text-2xl leading-relaxed text-gray-200">
-              {footer.tagline}
+              {footer.tagline || "Your trusted automotive companion"}
             </p>
             <button
               onClick={handleBackToTop}
@@ -947,16 +1035,20 @@ function LandingPage() {
                 Site Map
               </h3>
               <ul className="space-y-3 sm:space-y-4 text-base sm:text-lg text-gray-300">
-                {footer.siteMapLinks.map((item) => (
-                  <li key={item.label}>
-                    <a
-                      href={item.href}
-                      className="underline-offset-4 transition hover:text-red-400 hover:underline"
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
+                {footer.siteMapLinks && footer.siteMapLinks.length > 0 ? (
+                  footer.siteMapLinks.map((item, index) => (
+                    <li key={index}>
+                      <a
+                        href={item.href}
+                        className="underline-offset-4 transition hover:text-red-400 hover:underline"
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-gray-500">No links available</li>
+                )}
               </ul>
             </div>
             <div>
@@ -964,23 +1056,41 @@ function LandingPage() {
                 Legal
               </h3>
               <ul className="space-y-3 sm:space-y-4 text-base sm:text-lg text-gray-300">
-                {footer.legalLinks.map((item) => (
-                  <li key={item.label}>
-                    <a
-                      href={item.href}
-                      className="underline-offset-4 transition hover:text-red-400 hover:underline"
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
+                {footer.legalLinks && footer.legalLinks.length > 0 ? (
+                  footer.legalLinks.map((item, index) => {
+                    // Map the label to the post key
+                    let postKey = "";
+                    if (item.label.toLowerCase().includes("privacy")) {
+                      postKey = "privacy";
+                    } else if (item.label.toLowerCase().includes("terms")) {
+                      postKey = "terms";
+                    } else if (item.label.toLowerCase().includes("cookie")) {
+                      postKey = "cookie";
+                    } else {
+                      postKey = item.label.toLowerCase().replace(/\s+/g, "-");
+                    }
+                    
+                    return (
+                      <li key={index}>
+                        <button
+                          onClick={() => openModal(postKey)}
+                          className="underline-offset-4 transition hover:text-red-400 hover:underline cursor-pointer"
+                        >
+                          {item.label}
+                        </button>
+                      </li>
+                    );
+                  })
+                ) : (
+                  <li className="text-gray-500">No links available</li>
+                )}
               </ul>
             </div>
           </div>
         </div>
 
         <div className="border-t border-white/10 bg-[#7f1d1d] px-4 sm:px-6 py-2.5 text-center text-xs font-semibold tracking-wide text-white/90">
-          {footer.copyright}
+          {footer.copyright || "© 2024 Otokwikk. All rights reserved."}
         </div>
       </footer>
 
@@ -1017,6 +1127,20 @@ function LandingPage() {
         .scrollbar-hide {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(239, 68, 68, 0.5);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(239, 68, 68, 0.8);
         }
       `}</style>
     </div>
