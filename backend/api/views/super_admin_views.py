@@ -1150,8 +1150,6 @@ class SuperAdminPluginDetailView(APIView):
         plugin.delete()
         
         return Response({"message": f"Plugin '{plugin_name}' uninstalled successfully"}, status=204)
-<<<<<<< HEAD
-=======
     
 class SuperAdminAuditLogsView(APIView):
     """Get system audit logs"""
@@ -1230,4 +1228,3 @@ class SuperAdminUserActionsView(APIView):
         } for action in actions]
         
         return Response(data)
->>>>>>> shawny_branch10
