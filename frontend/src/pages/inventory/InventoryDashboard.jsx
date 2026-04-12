@@ -82,7 +82,7 @@ export default function InventoryDashboard({
   LayoutComponent = InventoryLayout,
   title = "Inventory Dashboard",
 }) {
-  const { isAuthenticated, isAdmin, role, headers } = useAuth();
+  const { isAuthenticated, isAdmin, role, headers, user } = useAuth();
   const isInventoryManager = role === "inventory_manager";
   const isInventoryUser = role === "inventory";
 
@@ -225,7 +225,7 @@ export default function InventoryDashboard({
   // Branch label: for non-admins, all items belong to the same branch
   const branchName = isInventoryManager
     ? "All Branches"
-    : (items[0]?.branch_name ?? "Your Branch");
+    : (items[0]?.branch_name ?? user?.branch_name ?? user?.branch ?? "Your Branch");
 
   // Category breakdown
   const CATEGORY_COLORS = ["#3b82f6", "#a855f7", "#f59e0b", "#10b981", "#ef4444", "#06b6d4"];

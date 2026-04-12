@@ -395,6 +395,10 @@ function UnifiedSidebar({ isOpen, onClose }) {
   // Fetch live reorder-alert count
   useEffect(() => {
     if (!isAuthenticated) return;
+    const hasAlertBadge = (MENU_ITEMS[role] ?? []).some(
+      (item) => item.alertBadge,
+    );
+    if (!hasAlertBadge) return;
 
     let cancelled = false;
 

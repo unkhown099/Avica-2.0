@@ -579,7 +579,12 @@ function CreateStaffModal({
 }) {
   const isEdit = mode === "edit";
   const validateName = (value) => /^[A-Za-z]+(?: [A-Za-z]+)*$/.test(String(value || "").trim());
-  const validatePhone = (value) => /^\+63\d+$/.test(String(value || "").trim()) && String(value || "").trim().length <= 12;
+  const validatePhone = (value) => {
+    const trimmed = String(value || "").trim();
+    if (!/^\+63\d+$/.test(trimmed)) return false;
+    const totalLength = trimmed.length;
+    return trimmed.length <= 13;
+  };
   const sanitizeNameInput = (value) =>
     String(value || "")
       .replace(/[^A-Za-z\s]/g, "")
@@ -725,7 +730,7 @@ function CreateStaffModal({
       await Swal.fire({
         icon: "error",
         title: "Invalid phone number",
-        text: "Phone must start with +63, contain digits only, and be at most 12 characters.",
+        text: "Phone must be a valid PH number: +63 followed by 10 digits.",
       });
       return;
     }

@@ -196,7 +196,7 @@ function ManagerContents() {
       if (!branchId) throw new Error("No branch assigned to your account.");
 
       const isCurrentlyActiveInBranch = service.branches?.some(
-        (b) => b.id === branchId
+        (b) => b.id === branchId,
       );
       const currentBranchIds = service.branches?.map((b) => b.id) || [];
       const newBranchIds = isCurrentlyActiveInBranch
@@ -208,19 +208,19 @@ function ManagerContents() {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ branch_ids: newBranchIds }),
       });
-      if (!res.ok) throw new Error("Failed to update service branch availability.");
+      if (!res.ok)
+        throw new Error("Failed to update service branch availability.");
 
       const updatedService = await res.json();
 
       setServices((prev) =>
-        prev.map((item) =>
-          item.id === service.id ? updatedService : item
-        )
+        prev.map((item) => (item.id === service.id ? updatedService : item)),
       );
       notify(
         "success",
-        `${service.name} is now ${isCurrentlyActiveInBranch ? "unavailable" : "available"
-        } in your branch.`
+        `${service.name} is now ${
+          isCurrentlyActiveInBranch ? "unavailable" : "available"
+        } in your branch.`,
       );
     } catch (err) {
       notify("error", err.message || "Failed to update service status.");
@@ -378,7 +378,7 @@ function ManagerContents() {
                           onChange={(e) =>
                             updateDay(day, { start: e.target.value })
                           }
-                          className="mt-1 w-full bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 disabled:opacity-50 text-sm"
+                          className="mt-1 w-full bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 disabled:opacity-50 text-sm [color-scheme:dark]"
                         />
                       </label>
                       <label className="text-xs text-gray-400">
@@ -390,7 +390,7 @@ function ManagerContents() {
                           onChange={(e) =>
                             updateDay(day, { end: e.target.value })
                           }
-                          className="mt-1 w-full bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 disabled:opacity-50 text-sm"
+                          className="mt-1 w-full bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 disabled:opacity-50 text-sm [color-scheme:dark]"
                         />
                       </label>
                     </div>
@@ -416,7 +416,7 @@ function ManagerContents() {
                           onChange={(e) =>
                             updateDay(day, { breakStart: e.target.value })
                           }
-                          className="mt-1 w-full bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 disabled:opacity-50 text-sm"
+                          className="mt-1 w-full bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 disabled:opacity-50 text-sm [color-scheme:dark]"
                         />
                       </label>
                       <label className="text-xs text-gray-400">
@@ -428,7 +428,7 @@ function ManagerContents() {
                           onChange={(e) =>
                             updateDay(day, { breakEnd: e.target.value })
                           }
-                          className="mt-1 w-full bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 disabled:opacity-50 text-sm"
+                          className="mt-1 w-full bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 disabled:opacity-50 text-sm [color-scheme:dark]"
                         />
                       </label>
                     </div>
@@ -501,7 +501,8 @@ function ManagerContents() {
                     date: e.target.value,
                   }))
                 }
-                className="bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2"
+                onKeyDown={(e) => e.preventDefault()}
+                className="bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 [color-scheme:dark]"
               />
               <input
                 type="time"
@@ -512,7 +513,8 @@ function ManagerContents() {
                     start: e.target.value,
                   }))
                 }
-                className="bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2"
+                onKeyDown={(e) => e.preventDefault()}
+                className="bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 [color-scheme:dark]"
               />
               <input
                 type="time"
@@ -523,7 +525,8 @@ function ManagerContents() {
                     end: e.target.value,
                   }))
                 }
-                className="bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2"
+                onKeyDown={(e) => e.preventDefault()}
+                className="bg-gray-900 border border-white/10 text-white rounded-lg px-3 py-2 [color-scheme:dark]"
               />
               <input
                 type="text"
@@ -610,9 +613,15 @@ function ManagerContents() {
                 </div>
               </div>
               <div className="bg-gray-950/70 border border-white/5 rounded-xl p-3">
-                <div className="text-gray-500 text-xs">Active (Your Branch)</div>
+                <div className="text-gray-500 text-xs">
+                  Active (Your Branch)
+                </div>
                 <div className="text-emerald-300 text-xl sm:text-2xl font-black mt-1">
-                  {services.filter((s) => s.branches?.some((b) => b.id === user?.branch_id)).length}
+                  {
+                    services.filter((s) =>
+                      s.branches?.some((b) => b.id === user?.branch_id),
+                    ).length
+                  }
                 </div>
               </div>
               <div className="bg-gray-950/70 border border-white/5 rounded-xl p-3">
@@ -678,24 +687,33 @@ function ManagerContents() {
                         <td className="px-4 py-3 text-center">
                           {(() => {
                             const isBranchActive = service.branches?.some(
-                              (b) => b.id === user?.branch_id
+                              (b) => b.id === user?.branch_id,
                             );
                             return (
                               <button
                                 onClick={() => toggleServiceStatus(service)}
                                 disabled={updatingServiceId === service.id}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isBranchActive ? "bg-emerald-500" : "bg-gray-600"
-                                  } ${updatingServiceId === service.id
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                  isBranchActive
+                                    ? "bg-emerald-500"
+                                    : "bg-gray-600"
+                                } ${
+                                  updatingServiceId === service.id
                                     ? "opacity-50 cursor-not-allowed"
                                     : "cursor-pointer"
-                                  }`}
+                                }`}
                                 title={
-                                  isBranchActive ? "Deactivate for Branch" : "Activate for Branch"
+                                  isBranchActive
+                                    ? "Deactivate for Branch"
+                                    : "Activate for Branch"
                                 }
                               >
                                 <span
-                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBranchActive ? "translate-x-6" : "translate-x-1"
-                                    }`}
+                                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    isBranchActive
+                                      ? "translate-x-6"
+                                      : "translate-x-1"
+                                  }`}
                                 />
                               </button>
                             );

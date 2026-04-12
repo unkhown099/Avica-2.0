@@ -55,7 +55,7 @@ class StaffSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"last_name": "Last name can only contain letters and spaces."}
             )
-        if len(phone) > 12:
+        if len(phone) > 13:
             raise serializers.ValidationError(
                 {"phone": "Phone number must not exceed 12 characters."}
             )

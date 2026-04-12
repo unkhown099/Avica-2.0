@@ -6,12 +6,7 @@ import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 function authHeaders() {
   const token =
     localStorage.getItem("access_token") ||
-    localStorage.getItem("access") ||
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("access_token") ||
-    sessionStorage.getItem("access") ||
-    sessionStorage.getItem("token");
-
+    sessionStorage.getItem("access_token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
