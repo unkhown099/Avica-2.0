@@ -95,9 +95,31 @@ function RestockModal({ item, headers, onClose, onSuccess }) {
         throw new Error(data?.detail || "Failed to submit restock request.");
       }
       onSuccess?.();
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        timer: 2200,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        icon: "success",
+        title: "Restock request sent.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
       onClose();
     } catch (err) {
       setError(err.message);
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        timer: 2600,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        icon: "error",
+        title: err.message || "Failed to submit restock request.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
     } finally {
       setLoading(false);
     }
@@ -131,12 +153,12 @@ function RestockModal({ item, headers, onClose, onSuccess }) {
           {/* Item summary */}
           <div className="bg-gray-800/60 rounded-xl p-3">
             <p className="text-white font-bold text-sm">{item.name}</p>
-            <p className="text-gray-500 text-xs mt-0.5">
-              {item.sku} · {item.branch_name || "—"} · Current stock:{" "}
-              <span className="text-white font-semibold">
-                {item.quantity} {item.unit}
-              </span>
-            </p>
+              <p className="text-gray-500 text-xs mt-0.5">
+                {item.sku} · {item.branch_name || "—"} · Current stock:{" "}
+                <span className="text-white font-semibold">
+                  {item.quantity} Pieces
+                </span>
+              </p>
             {item.minimum_qty != null && (
               <p className="text-gray-600 text-xs mt-0.5">
                 Minimum qty: {item.minimum_qty}
@@ -159,7 +181,7 @@ function RestockModal({ item, headers, onClose, onSuccess }) {
               min="1"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              placeholder={`Suggested: ${Math.max((item.minimum_qty ?? 10) * 2 - item.quantity, 1)}`}
+              placeholder={`Suggested: ${Math.max((item.minimum_qty ?? 0) * 2 - item.quantity, 1)}`}
               className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors placeholder-gray-600"
             />
           </div>
@@ -249,9 +271,31 @@ function TransferModal({ item, headers, onClose, onSuccess }) {
         throw new Error(data?.detail || "Transfer failed.");
       }
       onSuccess?.();
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        timer: 2200,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        icon: "success",
+        title: "Stock sent. Waiting for inventory receipt.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
       onClose();
     } catch (err) {
       setError(err.message);
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        timer: 2600,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        icon: "error",
+        title: err.message || "Transfer failed.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
     } finally {
       setLoading(false);
     }
@@ -285,7 +329,7 @@ function TransferModal({ item, headers, onClose, onSuccess }) {
           <div className="bg-gray-800/60 rounded-xl p-3">
             <p className="text-white font-bold text-sm">{item.name}</p>
             <p className="text-gray-500 text-xs mt-0.5">
-              {item.sku} · Available: {item.quantity} {item.unit}
+              {item.sku} · Available: {item.quantity} Pieces
             </p>
           </div>
           {error && (
@@ -564,8 +608,9 @@ function StockOverview() {
     return "text-white";
   };
 
-  const approvedRequests = restockRequests.filter((req) => req.status === "approved");
-
+  const approvedRequests = restockRequests.filter(
+    (req) => req.status === "approved",
+  );
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <InventoryLayout>
@@ -769,7 +814,7 @@ function StockOverview() {
                         {item.name}
                       </p>
                       <p className="text-gray-600 text-xs mt-0.5">
-                        {item.sku} · {item.unit}
+                        {item.sku} · Pieces
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <span
@@ -789,7 +834,7 @@ function StockOverview() {
                        >
                          {item.quantity}
                        </p>
-                       <p className="text-gray-500 text-xs">{item.unit}</p>
+                        <p className="text-gray-500 text-xs">Pieces</p>
                        {/* Mobile restock button — always on a real item */}
                        <button
                          onClick={() => setRestockItem(item)}
@@ -816,7 +861,7 @@ function StockOverview() {
                       {item.name}
                     </p>
                     <p className="text-gray-600 text-xs mt-0.5">
-                      {item.sku} · {item.unit}
+                      {item.sku} · Pieces
                     </p>
                   </div>
                   <div className="hidden lg:flex col-span-2 items-center">

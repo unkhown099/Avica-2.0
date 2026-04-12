@@ -14,24 +14,6 @@ const authHeaders = () => ({
   Authorization: `Bearer ${getToken()}`,
 });
 
-const FALLBACK_CATEGORIES = [
-  "Maintenance",
-  "Repair",
-  "Diagnostic",
-  "Cosmetic",
-  "Premium Carwash",
-  "Engine Steamed Wash",
-  "Under Wash",
-  "Premium Hand Wax",
-  "Buffing",
-  "Headlight Restoration",
-  "Interior Detailing",
-  "Exterior Detailing",
-  "Acid Rain Removal (Glass)",
-  "All Shine",
-  "Ceramic Coating"
-];
-
 const PRICE_TIERS = [
   { key: "motor", label: "Motorcycle", desc: "Two-wheeled vehicles" },
   { key: "small", label: "Small", desc: "Sedan / Hatchback / Small Cars" },
@@ -105,7 +87,10 @@ const CATEGORY_COLORS = {
 
 const CategoryBadge = ({ category }) => (
   <span
-    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${CATEGORY_COLORS[category]?.badge ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+      CATEGORY_COLORS[category]?.badge ??
+      "bg-gray-500/20 text-gray-400 border-gray-500/30"
+    }`}
   >
     {category}
   </span>
@@ -113,7 +98,11 @@ const CategoryBadge = ({ category }) => (
 
 const StatusBadge = ({ active }) => (
   <span
-    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+      active
+        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+        : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+    }`}
   >
     {active ? "Active" : "Inactive"}
   </span>
@@ -158,12 +147,20 @@ const priceInputStyle = `
   }
 `;
 
-function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categories }) {
+function ServiceModal({
+  isOpen,
+  onClose,
+  onSaved,
+  editService,
+  branches,
+  categories,
+}) {
   const isEdit = !!editService;
   const editPriceList =
     editService?.price_list && typeof editService.price_list === "object"
       ? editService.price_list
       : {};
+
   const [form, setForm] = useState({
     name: editService?.name ?? "",
     category: editService?.category ?? categories?.[0]?.name ?? "",
@@ -178,11 +175,21 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
       large: editPriceList?.large ?? "",
       xl: editPriceList?.xl ?? "",
     },
-    branch_ids: editService?.branches?.map((b) => b.id) ?? (branches?.map(b => b.id) || []),
+    branch_ids:
+      editService?.branches?.map((b) => b.id) ?? (branches?.map((b) => b.id) || []),
   });
+
   const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(editService?.image ? (editService.image.startsWith('http') ? editService.image : `${API_BASE}${editService.image}`) : null);
+  const [imagePreview, setImagePreview] = useState(
+    editService?.image
+      ? editService.image.startsWith("http")
+        ? editService.image
+        : `${API_BASE}${editService.image}`
+      : null
+  );
   const [saving, setSaving] = useState(false);
+
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -197,18 +204,19 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
   };
 
   useEffect(() => {
-    if (!form.category && categories?.length > 0)
+    if (!form.category && categories?.length > 0) {
       set("category", categories[0].name);
-  }, [categories]);
+    }
+  }, [categories, form.category]);
 
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const toggleBranch = (id) =>
     set(
       "branch_ids",
       form.branch_ids.includes(id)
         ? form.branch_ids.filter((b) => b !== id)
-        : [...form.branch_ids, id],
+        : [...form.branch_ids, id]
     );
+
   const setTierPrice = (tier, value) =>
     set("price_list", { ...form.price_list, [tier]: value });
 
@@ -235,6 +243,7 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
       });
       return;
     }
+
     if (form.branch_ids.length === 0) {
       Swal.fire({
         icon: "warning",
@@ -245,9 +254,12 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
       });
       return;
     }
+
     try {
       setSaving(true);
+
       const payload = { ...form };
+
       if (form.use_price_list) {
         const listPayload = buildPriceListPayload();
         if (Object.keys(listPayload).length === 0) {
@@ -269,38 +281,42 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
         const singlePrice = Number(form.price);
         payload.price = Number.isNaN(singlePrice) ? 0 : singlePrice;
       }
+
       delete payload.use_price_list;
 
       const formData = new FormData();
-      Object.keys(payload).forEach(key => {
-        if (key === 'price_list') {
+      Object.keys(payload).forEach((key) => {
+        if (key === "price_list") {
           formData.append(key, JSON.stringify(payload[key]));
-        } else if (key === 'branch_ids') {
-          payload[key].forEach(id => formData.append('branch_ids', id));
+        } else if (key === "branch_ids") {
+          payload[key].forEach((id) => formData.append("branch_ids", id));
         } else {
           formData.append(key, payload[key]);
         }
       });
+
       if (image) {
-        formData.append('image', image);
+        formData.append("image", image);
       }
 
       const headers = {
         ...authHeaders(),
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       };
 
       if (isEdit) {
         await axios.patch(`${API_BASE}/services/${editService.id}/`, formData, {
-          headers
+          headers,
         });
       } else {
         await axios.post(`${API}/services/`, formData, {
-          headers
+          headers,
         });
       }
+
       onSaved();
       onClose();
+
       Swal.fire({
         icon: "success",
         title: isEdit ? "Service updated" : "Service created",
@@ -315,6 +331,7 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
         err.response?.data?.detail ??
         JSON.stringify(err.response?.data) ??
         "Failed to save service";
+
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -362,17 +379,34 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
             </svg>
           </button>
         </div>
+
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
           <div className="flex flex-col sm:flex-row gap-6 mb-2">
             <div className="w-full sm:w-48 shrink-0">
-              <label className="block text-sm font-semibold text-gray-400 mb-2">Service Image</label>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">
+                Service Image
+              </label>
               <div className="relative group aspect-square rounded-2xl bg-gray-800 border-2 border-dashed border-white/10 hover:border-red-500/30 transition-all overflow-hidden">
                 {imagePreview ? (
-                  <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                  <img
+                    src={imagePreview}
+                    className="w-full h-full object-cover"
+                    alt="Preview"
+                  />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
-                    <svg className="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <svg
+                      className="w-8 h-8 mb-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
                     </svg>
                     <span className="text-[10px] font-bold">Recommended: 1:1</span>
                   </div>
@@ -384,10 +418,13 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
                   className="absolute inset-0 opacity-0 cursor-pointer z-10"
                 />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-white text-xs font-bold bg-black/60 px-3 py-1.5 rounded-full border border-white/20">Change Photo</span>
+                  <span className="text-white text-xs font-bold bg-black/60 px-3 py-1.5 rounded-full border border-white/20">
+                    Change Photo
+                  </span>
                 </div>
               </div>
             </div>
+
             <div className="flex-1 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Service Name">
@@ -398,16 +435,20 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
                     onChange={(e) => set("name", e.target.value)}
                   />
                 </Field>
+
                 <Field label="Category">
                   <select
                     className={inputCls}
                     value={form.category}
                     onChange={(e) => set("category", e.target.value)}
                   >
-                    {(categories?.length > 0
-                      ? categories
-                      : FALLBACK_CATEGORIES.map((name) => ({ name }))
-                    ).map((c) => (
+                    {categories?.length === 0 && (
+                      <option value="" disabled>
+                        No categories available
+                      </option>
+                    )}
+
+                    {(categories ?? []).map((c) => (
                       <option key={c.name} value={c.name}>
                         {c.name}
                       </option>
@@ -415,6 +456,7 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
                   </select>
                 </Field>
               </div>
+
               <Field label="Description">
                 <textarea
                   className={`${inputCls} resize-none`}
@@ -426,6 +468,7 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
               </Field>
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Duration">
               <select
@@ -439,6 +482,7 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
                 <option value="1 hour">1 hour</option>
               </select>
             </Field>
+
             <Field label="Price (₱)">
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-red-500 transition-colors font-bold pointer-events-none">
@@ -474,7 +518,9 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
               </div>
             </Field>
           </div>
+
           <style dangerouslySetInnerHTML={{ __html: priceInputStyle }} />
+
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
@@ -485,16 +531,24 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
                   Dynamic pricing based on vehicle size
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={() => set("use_price_list", !form.use_price_list)}
-                className={`relative w-14 h-7 rounded-full transition-all duration-300 focus:outline-none ${form.use_price_list ? "bg-red-600 shadow-[0_0_15px_-3px_rgba(220,38,38,0.5)]" : "bg-gray-800 border border-white/5"}`}
+                className={`relative w-14 h-7 rounded-full transition-all duration-300 focus:outline-none ${
+                  form.use_price_list
+                    ? "bg-red-600 shadow-[0_0_15px_-3px_rgba(220,38,38,0.5)]"
+                    : "bg-gray-800 border border-white/5"
+                }`}
               >
                 <div
-                  className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${form.use_price_list ? "left-8" : "left-1"}`}
+                  className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${
+                    form.use_price_list ? "left-8" : "left-1"
+                  }`}
                 />
               </button>
             </div>
+
             {form.use_price_list && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
                 {PRICE_TIERS.map((tier) => (
@@ -504,18 +558,36 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
                         {tier.label}
                       </label>
                       <div className="group/info relative">
-                        <button type="button" className="text-gray-600 hover:text-red-500 transition-colors">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <button
+                          type="button"
+                          className="text-gray-600 hover:text-red-500 transition-colors"
+                        >
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2.5}
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                         </button>
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 p-2 bg-gray-800 border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-20 pointer-events-none">
-                          <p className="text-[9px] font-bold text-white uppercase tracking-wider mb-1">Examples:</p>
-                          <p className="text-[10px] text-gray-400 leading-tight">{tier.desc}</p>
+                          <p className="text-[9px] font-bold text-white uppercase tracking-wider mb-1">
+                            Examples:
+                          </p>
+                          <p className="text-[10px] text-gray-400 leading-tight">
+                            {tier.desc}
+                          </p>
                           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-800" />
                         </div>
                       </div>
                     </div>
+
                     <div className="relative group">
                       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-red-500 text-[10px] font-bold pointer-events-none transition-colors">
                         ₱
@@ -552,6 +624,7 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
               </div>
             )}
           </div>
+
           <Field label="Available Branches">
             <div className="flex flex-wrap gap-2 mt-1">
               {branches.map((b) => {
@@ -561,7 +634,11 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
                     key={b.id}
                     type="button"
                     onClick={() => toggleBranch(b.id)}
-                    className={`px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all ${selected ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-600/20" : "bg-white/5 border-white/10 text-gray-400 hover:border-white/20"}`}
+                    className={`px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all ${
+                      selected
+                        ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-600/20"
+                        : "bg-white/5 border-white/10 text-gray-400 hover:border-white/20"
+                    }`}
                   >
                     {b.name}
                   </button>
@@ -572,6 +649,7 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
               )}
             </div>
           </Field>
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -586,11 +664,7 @@ function ServiceModal({ isOpen, onClose, onSaved, editService, branches, categor
               disabled={saving}
               className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-red-600/30"
             >
-              {saving
-                ? "Saving..."
-                : isEdit
-                  ? "Save Changes"
-                  : "Create Service"}
+              {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Service"}
             </button>
           </div>
         </div>
@@ -606,12 +680,13 @@ function CategoryModal({ onClose, onCreated }) {
   const submit = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+
     try {
       setSaving(true);
       const res = await axios.post(
         `${API}/services/categories/`,
         { name: trimmed },
-        { headers: authHeaders() },
+        { headers: authHeaders() }
       );
       onCreated?.(res.data);
       onClose();
@@ -668,6 +743,7 @@ function CategoryModal({ onClose, onCreated }) {
             </svg>
           </button>
         </div>
+
         <div className="p-4 sm:p-6 space-y-4">
           <Field label="Category Name">
             <input
@@ -677,6 +753,7 @@ function CategoryModal({ onClose, onCreated }) {
               onChange={(e) => setName(e.target.value)}
             />
           </Field>
+
           <div className="flex gap-3">
             <button
               type="button"
@@ -717,11 +794,13 @@ function AdminServices() {
     try {
       setLoading(true);
       setError(null);
+
       const [svcRes, branchRes, catRes] = await Promise.all([
         axios.get(`${API}/services/`, { headers: authHeaders() }),
         axios.get(`${API}/branches/`, { headers: authHeaders() }),
         axios.get(`${API}/services/categories/`, { headers: authHeaders() }),
       ]);
+
       setServices(svcRes.data);
       setBranches(branchRes.data);
       setCategories(Array.isArray(catRes.data) ? catRes.data : []);
@@ -738,6 +817,7 @@ function AdminServices() {
 
   const toggleActive = async (service) => {
     const action = service.is_active ? "deactivate" : "activate";
+
     const result = await Swal.fire({
       title: `${action.charAt(0).toUpperCase() + action.slice(1)} "${service.name}"?`,
       icon: "warning",
@@ -747,17 +827,20 @@ function AdminServices() {
       background: "#111827",
       color: "#f9fafb",
     });
+
     if (!result.isConfirmed) return;
+
     try {
       await axios.patch(
         `${API}/services/${service.id}/`,
         { is_active: !service.is_active },
-        { headers: authHeaders() },
+        { headers: authHeaders() }
       );
+
       setServices((prev) =>
         prev.map((s) =>
-          s.id === service.id ? { ...s, is_active: !s.is_active } : s,
-        ),
+          s.id === service.id ? { ...s, is_active: !s.is_active } : s
+        )
       );
     } catch {
       Swal.fire({
@@ -781,7 +864,9 @@ function AdminServices() {
       background: "#111827",
       color: "#f9fafb",
     });
+
     if (!result.isConfirmed) return;
+
     try {
       await axios.delete(`${API}/services/${service.id}/`, {
         headers: authHeaders(),
@@ -804,26 +889,25 @@ function AdminServices() {
       String(s.id).includes(q) ||
       s.name.toLowerCase().includes(q) ||
       s.description?.toLowerCase().includes(q);
+
     const matchCat =
       categoryFilter === "All Categories" || s.category === categoryFilter;
+
     const matchBranch =
       branchFilter === "All Branches" ||
       s.branches?.some((b) => b.name === branchFilter);
+
     return matchSearch && matchCat && matchBranch;
   });
 
   const categoryNamesFromDb = categories.map((c) => c.name);
-  const categoryNamesFromServices = Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
-
-  // Merge fallback categories with both DB categories and categories found in existing services
-  const visibleCategoryNames = Array.from(new Set([
-    ...FALLBACK_CATEGORIES,
-    ...categoryNamesFromDb,
-    ...categoryNamesFromServices
-  ])).sort((a, b) => a.localeCompare(b));
+  const visibleCategoryNames = [...categoryNamesFromDb].sort((a, b) =>
+    a.localeCompare(b)
+  );
 
   const handleCategoryCreated = (category) => {
     if (!category?.name) return;
+
     setCategories((prev) => {
       if (prev.some((c) => c.name === category.name)) return prev;
       return [...prev, category].sort((a, b) => a.name.localeCompare(b.name));
@@ -839,6 +923,7 @@ function AdminServices() {
     setEditService(null);
     setShowModal(true);
   };
+
   const openEdit = (s) => {
     setEditService(s);
     setShowModal(true);
@@ -847,9 +932,7 @@ function AdminServices() {
   return (
     <AdminLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
-        {/* ── Header: title left, button right ── */}
         <div className="mb-6 sm:mb-8 flex justify-between items-start">
-          {/* LEFT SIDE */}
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Services
@@ -859,7 +942,6 @@ function AdminServices() {
             </p>
           </div>
 
-          {/* RIGHT SIDE */}
           <button
             onClick={openCreate}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
@@ -880,6 +962,7 @@ function AdminServices() {
             Add New Service
           </button>
         </div>
+
         {error && (
           <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3">
             <svg
@@ -905,37 +988,37 @@ function AdminServices() {
           </div>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          {visibleCategoryNames.map((label) => (
-            <div
-              key={label}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all"
-            >
-              <div className="text-xl sm:text-2xl font-black text-white mb-1">
-                {loading ? (
-                  <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
-                ) : (
-                  (dynamicCategoryCounts[label] ?? 0)
-                )}
+        {visibleCategoryNames.length > 0 && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            {visibleCategoryNames.map((label) => (
+              <div
+                key={label}
+                className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all"
+              >
+                <div className="text-xl sm:text-2xl font-black text-white mb-1">
+                  {loading ? (
+                    <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
+                  ) : (
+                    dynamicCategoryCounts[label] ?? 0
+                  )}
+                </div>
+                <div className="text-xs text-gray-400 font-medium">{label}</div>
+                <div className="mt-2 h-1 rounded-full bg-gray-800">
+                  <div
+                    className="h-1 rounded-full transition-all duration-700"
+                    style={{
+                      width: services.length
+                        ? `${((dynamicCategoryCounts[label] ?? 0) / services.length) * 100}%`
+                        : "0%",
+                      backgroundColor: CATEGORY_COLORS[label]?.accent ?? "#6b7280",
+                    }}
+                  />
+                </div>
               </div>
-              <div className="text-xs text-gray-400 font-medium">{label}</div>
-              <div className="mt-2 h-1 rounded-full bg-gray-800">
-                <div
-                  className="h-1 rounded-full transition-all duration-700"
-                  style={{
-                    width: services.length
-                      ? `${((dynamicCategoryCounts[label] ?? 0) / services.length) * 100}%`
-                      : "0%",
-                    backgroundColor: CATEGORY_COLORS[label]?.accent,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {/* Filters */}
         <div className="flex flex-col gap-3 mb-6">
           <div className="relative">
             <svg
@@ -959,6 +1042,7 @@ function AdminServices() {
               className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm"
             />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <select
               value={categoryFilter}
@@ -980,6 +1064,7 @@ function AdminServices() {
               ))}
               <option value="__add_category__">+ Add Category...</option>
             </select>
+
             <select
               value={branchFilter}
               onChange={(e) => setBranchFilter(e.target.value)}
@@ -993,7 +1078,6 @@ function AdminServices() {
           </div>
         </div>
 
-        {/* Grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -1023,8 +1107,8 @@ function AdminServices() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {filtered.map((service) => {
-              const accent =
-                CATEGORY_COLORS[service.category]?.accent ?? "#6b7280";
+              const accent = CATEGORY_COLORS[service.category]?.accent ?? "#6b7280";
+
               return (
                 <div
                   key={service.id}
@@ -1033,30 +1117,56 @@ function AdminServices() {
                   <div className="relative aspect-video w-full bg-gray-800 overflow-hidden">
                     {service.image ? (
                       <img
-                        src={service.image.startsWith('http') ? service.image : `${API_BASE}${service.image}`}
+                        src={
+                          service.image.startsWith("http")
+                            ? service.image
+                            : `${API_BASE}${service.image}`
+                        }
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         alt={service.name}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                         <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          <svg
+                            className="w-6 h-6 text-gray-700"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
                           </svg>
                         </div>
                       </div>
                     )}
+
                     <div className="absolute top-3 left-3 flex items-center gap-2 flex-wrap">
                       <CategoryBadge category={service.category} />
                       <StatusBadge active={service.is_active} />
                       {(!service.branches || service.branches.length === 0) && (
                         <span className="bg-yellow-500/90 text-black text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-lg flex items-center gap-1">
-                          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                          <svg
+                            className="w-2.5 h-2.5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
                           No Branch
                         </span>
                       )}
                     </div>
                   </div>
+
                   <div className="p-4 sm:p-5 flex flex-col flex-1">
                     <div className="flex items-center gap-3 mb-3">
                       <div
@@ -1072,13 +1182,13 @@ function AdminServices() {
                         {service.name}
                       </h3>
                     </div>
+
                     <p className="text-gray-400 text-sm mb-4 leading-relaxed flex-1">
                       {service.description || (
-                        <span className="italic text-gray-600">
-                          No description
-                        </span>
+                        <span className="italic text-gray-600">No description</span>
                       )}
                     </p>
+
                     <div className="space-y-2 mb-4">
                       {service.duration && (
                         <div className="flex items-center gap-2 text-sm">
@@ -1103,6 +1213,7 @@ function AdminServices() {
                           </span>
                         </div>
                       )}
+
                       <div className="flex items-center gap-2 text-sm">
                         <svg
                           className="w-4 h-4 text-gray-600 shrink-0"
@@ -1124,6 +1235,7 @@ function AdminServices() {
                           </span>
                         </span>
                       </div>
+
                       {service.price_list &&
                         Object.keys(service.price_list).length > 0 && (
                           <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1142,11 +1254,10 @@ function AdminServices() {
                           </div>
                         )}
                     </div>
+
                     {service.branches?.length > 0 && (
                       <div className="mb-4">
-                        <p className="text-xs text-gray-600 mb-2">
-                          Available at:
-                        </p>
+                        <p className="text-xs text-gray-600 mb-2">Available at:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {service.branches.map((b) => (
                             <span
@@ -1159,6 +1270,7 @@ function AdminServices() {
                         </div>
                       </div>
                     )}
+
                     <div className="flex gap-2 mt-auto pt-4 border-t border-white/5">
                       <button
                         onClick={() => openEdit(service)}
@@ -1179,9 +1291,14 @@ function AdminServices() {
                         </svg>
                         Edit
                       </button>
+
                       <button
                         onClick={() => toggleActive(service)}
-                        className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all border ${service.is_active ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400" : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"}`}
+                        className={`flex-1 flex items-center justify-center gap-2 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all border ${
+                          service.is_active
+                            ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400"
+                            : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"
+                        }`}
                       >
                         {service.is_active ? "Deactivate" : "Activate"}
                       </button>
@@ -1195,10 +1312,8 @@ function AdminServices() {
 
         {!loading && filtered.length > 0 && (
           <div className="mt-6 text-sm text-gray-500">
-            Showing{" "}
-            <span className="text-white font-semibold">{filtered.length}</span>{" "}
-            of{" "}
-            <span className="text-white font-semibold">{services.length}</span>{" "}
+            Showing <span className="text-white font-semibold">{filtered.length}</span>{" "}
+            of <span className="text-white font-semibold">{services.length}</span>{" "}
             services
           </div>
         )}
@@ -1210,8 +1325,9 @@ function AdminServices() {
         onSaved={fetchServices}
         editService={editService}
         branches={branches}
-        categories={visibleCategoryNames.map((name) => ({ name }))}
+        categories={categories}
       />
+
       {showCategoryModal && (
         <CategoryModal
           onClose={() => setShowCategoryModal(false)}

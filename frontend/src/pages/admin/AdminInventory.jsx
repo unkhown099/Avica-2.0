@@ -27,6 +27,17 @@ const SKU_PREFIX = {
 const inputCls =
   "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm";
 const DARK_SWAL = { background: "#111827", color: "#f9fafb" };
+const toast = (icon, title) =>
+  Swal.fire({
+    toast: true,
+    position: "top-end",
+    timer: 2200,
+    timerProgressBar: true,
+    showConfirmButton: false,
+    icon,
+    title,
+    ...DARK_SWAL,
+  });
 const ALL_BRANCHES = "All Branches";
 const CENTRAL_BRANCH = "Central";
 
@@ -140,7 +151,7 @@ function InventoryCard({ item, onEdit, onToggleActive, archiveFilter }) {
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="bg-white/5 rounded-xl py-2 text-center">
           <div className="text-white font-bold text-sm">{item.quantity}</div>
-          <div className="text-gray-500 text-[10px]">{item.unit}</div>
+          <div className="text-gray-500 text-[10px]">Pieces</div>
         </div>
         <div className="bg-white/5 rounded-xl py-2 text-center">
           <div className="text-white font-bold text-sm">
@@ -219,7 +230,6 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
     sku: editItem?.sku ?? "",
     quantity: editItem?.quantity ?? "",
     minimum_qty: editItem?.minimum_qty ?? "",
-    unit: editItem?.unit ?? "Pieces",
     price: editItem?.price ?? "",
     supplier: editItem?.supplier ?? "",
   });
@@ -352,12 +362,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               />
             </Field>
             <Field label="Unit">
-              <input
-                className={inputCls}
-                placeholder="e.g. Liters, Pieces"
-                value={form.unit}
-                onChange={(e) => set("unit", e.target.value)}
-              />
+              <input className={inputCls} value="Pieces" disabled />
             </Field>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -426,6 +431,7 @@ function StockTransferModal({
   items,
   branches,
   authHeaders,
+  onNotify,
 }) {
   const [form, setForm] = useState({
     source_item_id: "",
@@ -467,9 +473,16 @@ function StockTransferModal({
         showConfirmButton: false,
         ...DARK_SWAL,
       });
+      onNotify?.("success", "Stock sent. Waiting for inventory receipt.");
       onTransferred();
       onClose();
     } catch (err) {
+      onNotify?.(
+        "error",
+        err.response?.data?.detail ??
+          err.response?.data?.message ??
+          "Could not send stock.",
+      );
       await Swal.fire({
         icon: "error",
         title: "Transfer failed",
@@ -542,6 +555,10 @@ function StockTransferModal({
               onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
             />
           </Field>
+          <p className="text-xs text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            This sends stock immediately to receiving queue. Inventory must mark
+            it as received when stock arrives.
+          </p>
         </div>
         <div className="flex gap-3 pt-2">
           <button
@@ -587,6 +604,7 @@ function AdminInventory({
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const notify = useCallback((icon, title) => toast(icon, title), []);
 
   const fetchData = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -687,7 +705,17 @@ function AdminInventory({
         showConfirmButton: false,
         ...DARK_SWAL,
       });
+      notify(
+        "success",
+        action === "approve"
+          ? "Request approved."
+          : "Request rejected.",
+      );
     } catch (err) {
+      notify(
+        "error",
+        err.response?.data?.detail || "Could not update request.",
+      );
       Swal.fire({
         icon: "error",
         title: "Failed",
@@ -761,7 +789,12 @@ function AdminInventory({
       key === "running_low" || key === "reorder_now" || key === "out_of_stock"
     );
   });
-  const pendingRestock = restockRequests.filter((r) => r.status === "pending");
+  const pendingRestock = restockRequests.filter(
+    (r) => r.status === "pending" && r.request_type !== "transfer",
+  );
+  const pendingTransfer = restockRequests.filter(
+    (r) => r.status === "approved" && r.request_type === "transfer",
+  );
   const totalValue = branchScopedItems.reduce(
     (sum, i) => sum + (parseFloat(i.price) || 0) * (i.quantity || 0),
     0,
@@ -805,10 +838,10 @@ function AdminInventory({
                 >
                   {tab.label}
                   {tab.key === "inventory" &&
-                    pendingRestock.length > 0 &&
+                    pendingRestock.length + pendingTransfer.length > 0 &&
                     activeTab !== "inventory" && (
                       <span className="ml-1.5 bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full">
-                        {pendingRestock.length}
+                        {pendingRestock.length + pendingTransfer.length}
                       </span>
                     )}
                 </button>
@@ -980,13 +1013,13 @@ function AdminInventory({
                           <span>
                             Current:{" "}
                             <span className="text-red-400 font-bold">
-                              {item.quantity} {item.unit}
+                              {item.quantity} Pieces
                             </span>
                           </span>
                           <span>
                             Min:{" "}
                             <span className="text-gray-300">
-                              {item.minimum_qty} {item.unit}
+                              {item.minimum_qty} Pieces
                             </span>
                           </span>
                           <span
@@ -1076,6 +1109,68 @@ function AdminInventory({
                           Reject
                         </button>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!loading && pendingTransfer.length > 0 && (
+              <div className="bg-gray-900/60 border border-blue-500/20 rounded-2xl p-4 sm:p-5 mb-6 sm:mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-4 h-4 text-blue-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    <h2 className="text-sm font-black text-blue-400 uppercase tracking-wider">
+                      Sent Transfers Awaiting Receipt
+                    </h2>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {pendingTransfer.length} awaiting receipt
+                  </span>
+                </div>
+                <div className="space-y-2.5">
+                  {pendingTransfer.map((req) => (
+                    <div
+                      key={req.id}
+                      className="bg-gray-950/60 border border-white/5 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
+                    >
+                      <div>
+                        <div className="text-white font-semibold text-sm">
+                          {req.inventory_item_name}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          Branch:{" "}
+                          <span className="text-gray-300">
+                            {req.branch_name ?? "—"}
+                          </span>
+                          {" · "}Qty:{" "}
+                          <span className="text-blue-400 font-bold">
+                            {req.quantity_requested}
+                          </span>
+                          {" · "}
+                          {req.requested_by_name ?? "Unknown"}
+                        </div>
+                        {req.notes && (
+                          <p className="text-xs text-gray-400 mt-1 italic">
+                            "{req.notes}"
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-blue-300 bg-blue-500/10 border border-blue-500/30 px-3 py-1.5 rounded-lg font-semibold">
+                        Awaiting Inventory Receipt
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1234,7 +1329,7 @@ function AdminInventory({
                     <div className="col-span-1 text-gray-300 text-sm font-semibold">
                       {item.quantity}{" "}
                       <span className="text-gray-600 font-normal text-xs">
-                        {item.unit}
+                        Pieces
                       </span>
                     </div>
                     <div className="col-span-1 text-white font-bold text-sm">
@@ -1424,6 +1519,7 @@ function AdminInventory({
           items={centralItems}
           branches={branches}
           authHeaders={authHeaders}
+          onNotify={notify}
         />
       )}
     </LayoutComponent>

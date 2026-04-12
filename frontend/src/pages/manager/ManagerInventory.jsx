@@ -109,11 +109,9 @@ function ManagerInventory() {
       .trim()
       .toLowerCase();
     if (quantity <= 0 || raw.includes("out of stock")) return "out_of_stock";
-    if (minimum > 0 && quantity <= minimum) return "reorder_now";
-    if (minimum > 0 && quantity <= Math.ceil(minimum * 1.5))
-      return "running_low";
+    if (minimum > 0 && quantity <= minimum) return "running_low";
     if (raw.includes("critical") || raw.includes("reorder"))
-      return "reorder_now";
+      return "running_low";
     if (raw.includes("low")) return "running_low";
     return "available";
   };
@@ -122,7 +120,6 @@ function ManagerInventory() {
     const key = getInventoryStatusKey(item);
     if (key === "available") return "Available 🟢";
     if (key === "running_low") return "Running Low 🟡";
-    if (key === "reorder_now") return "Reorder Now 🔴";
     return "Out of Stock ⚫";
   };
 
@@ -255,13 +252,15 @@ function ManagerInventory() {
           category: item.category || "",
           sku: item.sku || "",
           quantity: item.quantity || 0,
-          unit: item.unit || "Pieces",
+          unit: "Pieces",
           price: item.price ? `₱${Number(item.price).toLocaleString()}` : "₱0",
           supplier: item.supplier || "",
           status:
             item.status ||
-            (item.quantity && item.quantity < 10 ? "Low Stock" : "In Stock"),
-          minimum: item.minimum_qty ?? 10,
+            ((item.quantity || 0) <= (item.minimum_qty || 0)
+              ? "Low Stock"
+              : "In Stock"),
+          minimum: item.minimum_qty ?? 0,
           is_active: item.is_active !== false,
         })),
       );
@@ -294,7 +293,7 @@ function ManagerInventory() {
       notify("error", "Unable to request restock for this item.");
       return;
     }
-    const defaultQty = Math.max((item.minimum || 10) - (item.quantity || 0), 1);
+    const defaultQty = Math.max((item.minimum || 0) - (item.quantity || 0), 1);
     const qtyPrompt = await Swal.fire({
       title: "Request Restock",
       text: `${item.name} (${item.sku})`,
@@ -407,7 +406,6 @@ function ManagerInventory() {
           const key = getInventoryStatusKey(item);
           return (
             key === "running_low" ||
-            key === "reorder_now" ||
             key === "out_of_stock"
           );
         })
@@ -416,8 +414,8 @@ function ManagerInventory() {
           sku: item.sku,
           name: item.name,
           current: item.quantity,
-          minimum: item.minimum || 10,
-          unit: item.unit || "Pieces",
+          minimum: item.minimum || 0,
+          unit: "Pieces",
         }))
     : [];
 
@@ -665,12 +663,12 @@ function ManagerInventory() {
                     <div className="text-xs text-gray-500 mt-0.5">
                       Current:{" "}
                       <span className="text-red-400 font-bold">
-                        {item.current} {item.unit}
+                        {item.current} Pieces
                       </span>
                       <span className="mx-2 text-gray-700">·</span>
                       Min:{" "}
                       <span className="text-gray-300">
-                        {item.minimum} {item.unit}
+                        {item.minimum} Pieces
                       </span>
                     </div>
                   </div>
@@ -793,7 +791,6 @@ function ManagerInventory() {
                   { value: "all", label: "All Status" },
                   { value: "available", label: "Available 🟢" },
                   { value: "running_low", label: "Running Low 🟡" },
-                  { value: "reorder_now", label: "Reorder Now 🔴" },
                   { value: "out_of_stock", label: "Out of Stock ⚫" },
                 ].map((o) => (
                   <option key={o.value} value={o.value}>
@@ -899,7 +896,7 @@ function ManagerInventory() {
                       <div className="col-span-2 text-gray-300 text-sm font-semibold">
                         {item.quantity}{" "}
                         <span className="text-gray-600 font-normal text-xs">
-                          {item.unit}
+                          Pieces
                         </span>
                       </div>
                       <div className="col-span-1 text-white font-bold text-sm">
@@ -952,7 +949,7 @@ function ManagerInventory() {
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400 mt-1">
                         <span className="text-gray-300 font-semibold">
-                          {item.quantity} {item.unit}
+                          {item.quantity} Pieces
                         </span>
                         <span>{item.price}</span>
                         {item.supplier && <span>{item.supplier}</span>}

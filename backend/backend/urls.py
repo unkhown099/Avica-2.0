@@ -105,6 +105,8 @@ from api.views.maintenance_views import SystemSettingsView, MaintenanceStatusVie
 
 from api.views.direct_message_views import direct_message_contacts_view, direct_messages_view
 from api.views.payment_views import CreatePayMongoLinkView
+from api.views.payment_transaction_views import PaymentTransactionHistoryView
+from api.views.report_views import ReportGenerateView, ReportHistoryView, ReportDownloadView
 
 urlpatterns = [
     # ── Super Admin endpoints ─────────────────────────────────────────────────────
@@ -187,6 +189,10 @@ urlpatterns = [
 
     # ── Payments ──────────────────────────────────────────────────────────────
     path('api/paymongo/create-link/', CreatePayMongoLinkView.as_view(), name='paymongo-link'),
+    path('api/payment-transactions/', PaymentTransactionHistoryView.as_view(), name='payment-transactions'),
+    path('api/reports/generate/', ReportGenerateView.as_view(), name='report-generate'),
+    path('api/reports/history/', ReportHistoryView.as_view(), name='report-history'),
+    path('api/reports/<int:report_id>/download/', ReportDownloadView.as_view(), name='report-download'),
 
     # ── Customer dashboard & history ──────────────────────────────────────────
     path('api/customer/dashboard/', CustomerDashboardAPIView.as_view(), name='customer-dashboard'),

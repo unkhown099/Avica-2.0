@@ -578,6 +578,19 @@ function CreateStaffModal({
   onUpdated,
 }) {
   const isEdit = mode === "edit";
+  const validateName = (value) => /^[A-Za-z]+(?: [A-Za-z]+)*$/.test(String(value || "").trim());
+  const validatePhone = (value) => /^\+63\d+$/.test(String(value || "").trim()) && String(value || "").trim().length <= 12;
+  const sanitizeNameInput = (value) =>
+    String(value || "")
+      .replace(/[^A-Za-z\s]/g, "")
+      .replace(/\s{2,}/g, " ");
+  const sanitizePhoneInput = (value) => {
+    const raw = String(value || "");
+    let digits = raw.replace(/[^\d]/g, "");
+    if (digits.startsWith("63")) digits = digits.slice(2);
+    if (digits.startsWith("0")) digits = digits.slice(1);
+    return digits.slice(0, 10);
+  };
   const createDraftRef = useRef({
     firstName: "",
     lastName: "",
@@ -635,8 +648,16 @@ function CreateStaffModal({
     contextRef.current = nextContext;
   }, [isEdit, initialStaff, roles, branches]);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    let nextValue = value;
+    if (name === "firstName" || name === "lastName") nextValue = sanitizeNameInput(value);
+    if (name === "phone") {
+      const local = sanitizePhoneInput(value);
+      nextValue = local ? `+63${local}` : "";
+    }
+    setForm({ ...form, [name]: nextValue });
+  };
 
   const managerBranchNames = new Set(
     staffAccounts
@@ -684,6 +705,30 @@ function CreateStaffModal({
         return;
       }
     }
+    if (!validateName(form.firstName)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Invalid first name",
+        text: "First name must contain letters and spaces only.",
+      });
+      return;
+    }
+    if (!validateName(form.lastName)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Invalid last name",
+        text: "Last name must contain letters and spaces only.",
+      });
+      return;
+    }
+    if (!validatePhone(form.phone)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Invalid phone number",
+        text: "Phone must start with +63, contain digits only, and be at most 12 characters.",
+      });
+      return;
+    }
     try {
       const accessToken =
         localStorage.getItem("access_token") ||
@@ -718,6 +763,9 @@ function CreateStaffModal({
     } catch (err) {
       const msg =
         err.response?.data?.email?.[0] ||
+        err.response?.data?.first_name?.[0] ||
+        err.response?.data?.last_name?.[0] ||
+        err.response?.data?.phone?.[0] ||
         err.response?.data?.role?.[0] ||
         err.response?.data?.branch?.[0] ||
         err.response?.data?.detail ||
@@ -819,14 +867,19 @@ function CreateStaffModal({
             <label className="block text-sm font-semibold text-gray-400 mb-2">
               Phone
             </label>
-            <input
-              name="phone"
-              placeholder="Enter phone number"
-              value={form.phone}
-              onChange={handleChange}
-              required
-              className={inputCls}
-            />
+            <div className="flex items-center rounded-xl border border-white/10 bg-gray-800 focus-within:border-red-500/50 focus-within:ring-1 focus-within:ring-red-500/30 transition-all">
+              <span className="px-4 text-gray-300 border-r border-white/10">+63</span>
+              <input
+                name="phone"
+                placeholder="9XXXXXXXXX"
+                value={form.phone.replace(/^\+63/, "")}
+                onChange={handleChange}
+                required
+                inputMode="numeric"
+                maxLength={10}
+                className="w-full bg-transparent text-white placeholder-gray-600 rounded-r-xl px-4 py-3 focus:outline-none text-sm"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

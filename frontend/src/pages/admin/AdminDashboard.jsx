@@ -329,6 +329,16 @@ function weekOfYear(date) {
   return Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
 }
 
+function dateMatchesFilters(date, { period, weekFilter, monthFilter, quarterFilter, yearFilter }) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return false;
+  const year = date.getFullYear();
+  if (year !== Number(yearFilter)) return false;
+  if (period === "weekly") return weekOfYear(date) === Number(weekFilter);
+  if (period === "monthly") return date.getMonth() + 1 === Number(monthFilter);
+  if (period === "quarterly") return quarterOf(date.getMonth()) === Number(quarterFilter);
+  return true;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminDashboard({ dataScope = "admin" }) {
   const location = useLocation();
@@ -374,7 +384,12 @@ export default function AdminDashboard({ dataScope = "admin" }) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
         const forecastRes = await fetch(`${API_BASE}/api/forecast/system/`, { headers, credentials: "include" });
-        const dashboardEndpoint = `${baseUrl}/dashboard/`;
+        const dashboardPathByScope = {
+          admin: "/dashboard/",
+          manager: "/dashboard/",
+          owner: "/dashboard/",
+        };
+        const dashboardEndpoint = `${baseUrl}${dashboardPathByScope[dataScope] || "/dashboard/"}`;
         const [dashboardRes, customersRes, inventoryRes, appointmentsRes, queueHistoryRes] = await Promise.all([
           fetch(dashboardEndpoint, { headers, credentials: "include" }),
           fetch(`${baseUrl}/customers/`, { headers, credentials: "include" }),
@@ -513,10 +528,107 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const branchForecastRows = Array.isArray(analytics?.branch_forecasts) ? analytics.branch_forecasts : [];
   const branchDemandSeriesRows = Array.isArray(analytics?.branch_demand_time_series) ? analytics.branch_demand_time_series : [];
   const topServiceCards = topServicesData;
+  const selectedFilterOptions = useMemo(
+    () => ({
+      period: appointmentPeriod,
+      weekFilter: appointmentWeekFilter,
+      monthFilter: appointmentMonthFilter,
+      quarterFilter: appointmentQuarterFilter,
+      yearFilter: appointmentYearFilter,
+    }),
+    [
+      appointmentPeriod,
+      appointmentWeekFilter,
+      appointmentMonthFilter,
+      appointmentQuarterFilter,
+      appointmentYearFilter,
+    ],
+  );
+
+  const filteredRevenueByBranch = useMemo(() => {
+    const scopedRows = queueHistory.filter((entry) => {
+      const status = normalizeStatus(entry?.payment_status);
+      if (status !== "paid") return false;
+      const date = parseDateInput(entry?.completed_at ?? entry?.queued_at ?? entry?.created_at);
+      return dateMatchesFilters(date, selectedFilterOptions);
+    });
+
+    const grouped = scopedRows.reduce((acc, entry) => {
+      const branch =
+        entry?.branch?.name ||
+        entry?.branch_name ||
+        entry?.branch ||
+        "Unassigned";
+      const amount = Number(entry?.price ?? 0);
+      acc[branch] = (acc[branch] ?? 0) + (Number.isFinite(amount) ? amount : 0);
+      return acc;
+    }, {});
+
+    return Object.entries(grouped)
+      .map(([branch, revenue]) => ({ branch, revenue }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [queueHistory, selectedFilterOptions]);
+
+  const filteredCustomers = useMemo(() => {
+    return customers.filter((customer) => {
+      const created = parseDateInput(customer?.created_at ?? customer?.user?.created_at);
+      if (!created) {
+        return Number(selectedFilterOptions.yearFilter) === new Date().getFullYear();
+      }
+      return dateMatchesFilters(created, selectedFilterOptions);
+    });
+  }, [customers, selectedFilterOptions]);
+
+  const filteredInventoryItemsByDate = useMemo(() => {
+    return inventoryItems.filter((item) => {
+      const updated = parseDateInput(item?.updated_at ?? item?.modified_at ?? item?.created_at);
+      if (!updated) {
+        return Number(selectedFilterOptions.yearFilter) === new Date().getFullYear();
+      }
+      return dateMatchesFilters(updated, selectedFilterOptions);
+    });
+  }, [inventoryItems, selectedFilterOptions]);
+
+  const filteredEmployeeWorkloadRows = useMemo(() => {
+    const grouped = queueHistory.reduce((acc, entry) => {
+      const date = parseDateInput(entry?.completed_at ?? entry?.queued_at ?? entry?.created_at);
+      if (!dateMatchesFilters(date, selectedFilterOptions)) return acc;
+
+      const assignedName =
+        entry?.assigned_employee?.full_name ||
+        entry?.assigned_employee_name ||
+        "Unassigned";
+      if (!acc[assignedName]) {
+        acc[assignedName] = {
+          employee: assignedName,
+          branch: entry?.branch?.name || entry?.branch || entry?.branch_name || "Unknown Branch",
+          total: 0,
+          completed: 0,
+          skipped: 0,
+        };
+      }
+      const status = normalizeStatus(entry?.status);
+      acc[assignedName].total += 1;
+      if (status === "done" || status === "completed") acc[assignedName].completed += 1;
+      if (status === "skipped") acc[assignedName].skipped += 1;
+      return acc;
+    }, {});
+
+    const rows = Object.values(grouped).sort((a, b) => {
+      const totalDiff = Number(b.total) - Number(a.total);
+      if (totalDiff !== 0) return totalDiff;
+      return Number(b.completed) - Number(a.completed);
+    });
+    const grandTotal = rows.reduce((sum, row) => sum + Number(row.total), 0);
+    return rows.map((row) => ({
+      ...row,
+      share: grandTotal > 0 ? (Number(row.total) / grandTotal) * 100 : 0,
+    }));
+  }, [queueHistory, selectedFilterOptions]);
 
   const topCustomer =
-    customers.length > 0
-      ? [...customers].sort((a, b) => Number(b.total_spent ?? 0) - Number(a.total_spent ?? 0))[0]
+    filteredCustomers.length > 0
+      ? [...filteredCustomers].sort((a, b) => Number(b.total_spent ?? 0) - Number(a.total_spent ?? 0))[0]
       : null;
 
   const inventoryBranchOptions = [
@@ -524,7 +636,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     ...Array.from(new Set(inventoryItems.map((i) => i.branch_name || "Central"))),
   ];
 
-  const filteredInventoryItems = inventoryItems.filter((i) =>
+  const filteredInventoryItems = filteredInventoryItemsByDate.filter((i) =>
     inventoryBranchFilter === "All Branches"
       ? true
       : (i.branch_name || "Central") === inventoryBranchFilter,
@@ -583,15 +695,15 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   });
 
   const revenueBranchPagination = usePagination({
-    items: revenueByBranch,
+    items: filteredRevenueByBranch,
     pageSize: 5,
-    resetDeps: [revenueByBranch.length],
+    resetDeps: [filteredRevenueByBranch.length, appointmentPeriod, appointmentWeekFilter, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter],
   });
 
   const customersPagination = usePagination({
-    items: customers,
+    items: filteredCustomers,
     pageSize: 5,
-    resetDeps: [customers.length],
+    resetDeps: [filteredCustomers.length, appointmentPeriod, appointmentWeekFilter, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter],
   });
 
   const inventoryPagination = usePagination({
@@ -687,9 +799,9 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   };
 
   const employeeWorkloadPagination = usePagination({
-    items: employeeWorkloadRows,
+    items: filteredEmployeeWorkloadRows,
     pageSize: 5,
-    resetDeps: [employeeWorkloadRows.length],
+    resetDeps: [filteredEmployeeWorkloadRows.length, appointmentPeriod, appointmentWeekFilter, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter],
   });
 
   const filteredAppointments = useMemo(() => {
@@ -1156,11 +1268,11 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   };
 
   const revenueBarData = {
-    labels: revenueByBranch.map((r) => r.branch),
+    labels: filteredRevenueByBranch.map((r) => r.branch),
     datasets: [
       {
         label: "Revenue",
-        data: revenueByBranch.map((r) => r.revenue),
+        data: filteredRevenueByBranch.map((r) => r.revenue),
         backgroundColor: "rgba(239,68,68,0.7)",
         borderRadius: 6,
       },
@@ -1225,11 +1337,11 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   };
 
   const customerBarData = {
-    labels: customers.slice(0, 5).map((c) => (c.first_name || "N/A").split(" ")[0]),
+    labels: filteredCustomers.slice(0, 5).map((c) => (c.first_name || "N/A").split(" ")[0]),
     datasets: [
       {
         label: "Total Spent (₱)",
-        data: customers.slice(0, 5).map((c) => Number(c.total_spent ?? 0)),
+        data: filteredCustomers.slice(0, 5).map((c) => Number(c.total_spent ?? 0)),
         backgroundColor: ["#a855f7", "#7c3aed", "#6d28d9", "#8b5cf6", "#c4b5fd"],
         borderRadius: 6,
       },
@@ -1467,7 +1579,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     .map(([month, count]) => ({ month, count }))
     .sort((a, b) => b.count - a.count)[0];
 
-  const tierDistribution = customers.reduce((acc, c) => {
+  const tierDistribution = filteredCustomers.reduce((acc, c) => {
     const segment = c.segment || "New";
     acc[segment] = (acc[segment] ?? 0) + 1;
     return acc;
@@ -1495,7 +1607,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       );
     } else if (activeView === "revenue") {
       exportToCSV(
-        revenueByBranch.map((r) => [r.branch, r.revenue]),
+        filteredRevenueByBranch.map((r) => [r.branch, r.revenue]),
         ["Branch", "Revenue"],
         "revenue_by_branch.csv",
       );
@@ -1514,7 +1626,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       );
     } else if (activeView === "customers") {
       exportToCSV(
-        customers.map((c) => [
+        filteredCustomers.map((c) => [
           `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim(),
           c.visits ?? 0,
           c.total_spent ?? 0,
@@ -1571,7 +1683,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       }
     } else if (activeView === "employees") {
       exportToCSV(
-        employeeWorkloadRows.map((row) => [row.employee, row.branch, row.total, row.completed, row.skipped, row.share.toFixed(1)]),
+        filteredEmployeeWorkloadRows.map((row) => [row.employee, row.branch, row.total, row.completed, row.skipped, row.share.toFixed(1)]),
         ["Employee", "Branch", "Total Tasks", "Completed", "Skipped", "Workload Share (%)"],
         "employees_workload.csv",
       );
@@ -2533,7 +2645,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               {[
                 {
                   title: "Total Customers",
-                  value: stats ? Number(stats.total_customers).toLocaleString() : "—",
+                  value: filteredCustomers.length.toLocaleString(),
                   accentBg: "bg-purple-500/10",
                   accentText: "text-purple-400",
                   border: "border-purple-500/20",
@@ -2755,7 +2867,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                         <div
                           className="h-full rounded-full transition-all"
                           style={{
-                            width: `${customers.length ? (t.count / customers.length) * 100 : 0}%`,
+                            width: `${filteredCustomers.length ? (t.count / filteredCustomers.length) * 100 : 0}%`,
                             backgroundColor: t.color,
                           }}
                         />
@@ -2908,7 +3020,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               {[
                 {
                   title: "Total SKUs",
-                  value: String(inventoryItems.length),
+                value: String(filteredInventoryItems.length),
                   accentBg: "bg-blue-500/10",
                   accentText: "text-blue-400",
                   border: "border-blue-500/20",
@@ -3515,7 +3627,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
             {[
               {
                 title: "Assigned Employees",
-                value: String(employeeWorkloadRows.filter((row) => row.employee !== "Unassigned").length),
+                value: String(filteredEmployeeWorkloadRows.filter((row) => row.employee !== "Unassigned").length),
                 sub: "With recorded service load",
                 accentBg: "bg-cyan-500/10",
                 accentText: "text-cyan-400",
@@ -3528,7 +3640,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               },
               {
                 title: "Total Assigned Tasks",
-                value: String(employeeWorkloadRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0)),
+                value: String(filteredEmployeeWorkloadRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0)),
                 accentBg: "bg-blue-500/10",
                 accentText: "text-blue-400",
                 border: "border-blue-500/20",
@@ -3541,8 +3653,8 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               {
                 title: "Completion Rate",
                 value: `${(
-                  (employeeWorkloadRows.reduce((sum, row) => sum + Number(row.completed ?? 0), 0) /
-                    Math.max(1, employeeWorkloadRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0))) *
+                  (filteredEmployeeWorkloadRows.reduce((sum, row) => sum + Number(row.completed ?? 0), 0) /
+                    Math.max(1, filteredEmployeeWorkloadRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0))) *
                   100
                 ).toFixed(1)}%`,
                 sub: "Completed tasks across all branches",
@@ -3618,7 +3730,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
             </div>
 
             <div className="block sm:hidden">
-              {employeeWorkloadRows.length === 0 ? (
+              {filteredEmployeeWorkloadRows.length === 0 ? (
                 <div className="px-3 py-6 text-center text-gray-500 text-xs">
                   No workload data available yet.
                 </div>
@@ -3660,7 +3772,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   <div className="col-span-2">Completed</div>
                   <div className="col-span-2">Workload Share</div>
                 </div>
-                {employeeWorkloadRows.length === 0 ? (
+                {filteredEmployeeWorkloadRows.length === 0 ? (
                   <div className="px-6 py-12 text-center text-gray-500 text-sm">
                     No workload data available yet.
                   </div>
@@ -3683,7 +3795,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               </div>
             </div>
 
-            {employeeWorkloadRows.length > 0 && (
+            {filteredEmployeeWorkloadRows.length > 0 && (
               <Pagination
                 current={employeeWorkloadPagination.currentPage}
                 total={employeeWorkloadPagination.totalPages}

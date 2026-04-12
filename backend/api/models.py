@@ -378,6 +378,7 @@ class QueueEntry(models.Model):
         choices=[("unpaid", "Unpaid"), ("paid", "Paid")],
         default="unpaid",
     )
+    paid_at = models.DateTimeField(null=True, blank=True)
     payment_method = models.CharField(max_length=20, blank=True, default="")
     rating_score = models.PositiveSmallIntegerField(null=True, blank=True)
     rating_comment = models.TextField(blank=True, default="")
@@ -478,6 +479,10 @@ class InventoryItem(models.Model):
 
 
 class RestockRequest(models.Model):
+    REQUEST_TYPE_CHOICES = [
+        ("restock", "Restock"),
+        ("transfer", "Transfer"),
+    ]
     STATUS_CHOICES = [
         ("pending", "Pending"),
         ("approved", "Approved"),
@@ -504,6 +509,7 @@ class RestockRequest(models.Model):
     )
     quantity_requested = models.PositiveIntegerField(default=1)
     notes = models.TextField(blank=True, default="")
+    request_type = models.CharField(max_length=20, choices=REQUEST_TYPE_CHOICES, default="restock")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     reviewed_by = models.ForeignKey(
         Staff,
@@ -569,6 +575,106 @@ class InventoryTransaction(models.Model):
     def __str__(self):
         item_name = self.inventory_item.name if self.inventory_item else "Unknown Item"
         return f"{item_name} - {self.action_type}"
+
+
+class PaymentTransaction(models.Model):
+    TRANSACTION_TYPE_CHOICES = [
+        ("appointment", "Appointment"),
+        ("walk_in", "Walk-in"),
+        ("service", "Service"),
+        ("product", "Product"),
+    ]
+
+    staff = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payment_transactions",
+    )
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payment_transactions",
+    )
+    queue_entry = models.ForeignKey(
+        QueueEntry,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payment_transactions",
+    )
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES)
+    description = models.CharField(max_length=255, blank=True, default="")
+    quantity = models.PositiveIntegerField(default=1)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_method = models.CharField(max_length=20, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    paid_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "payment_transactions"
+        ordering = ["-paid_at", "-created_at"]
+
+    def __str__(self):
+        return f"{self.transaction_type} - {self.amount}"
+
+
+class ReportRun(models.Model):
+    REPORT_TYPE_CHOICES = [
+        ("dashboard_summary", "Dashboard Summary"),
+        ("revenue_breakdown", "Revenue Breakdown"),
+        ("customer_insights", "Customer Insights"),
+    ]
+    SCOPE_TYPE_CHOICES = [
+        ("global", "Global"),
+        ("branch", "Branch"),
+    ]
+    PERIOD_TYPE_CHOICES = [
+        ("weekly", "Weekly"),
+        ("monthly", "Monthly"),
+        ("quarterly", "Quarterly"),
+        ("yearly", "Yearly"),
+        ("custom", "Custom"),
+    ]
+    STATUS_CHOICES = [
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+
+    report_type = models.CharField(max_length=50, choices=REPORT_TYPE_CHOICES, default="dashboard_summary")
+    scope_type = models.CharField(max_length=20, choices=SCOPE_TYPE_CHOICES, default="global")
+    period_type = models.CharField(max_length=20, choices=PERIOD_TYPE_CHOICES, default="monthly")
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="report_runs",
+    )
+    filters = models.JSONField(default=dict, blank=True)
+    summary = models.JSONField(default=dict, blank=True)
+    file_path = models.CharField(max_length=255, blank=True, default="")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="completed")
+    error_message = models.TextField(blank=True, default="")
+    generated_by = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_reports",
+    )
+    generated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "report_runs"
+        ordering = ["-generated_at"]
+
+    def __str__(self):
+        return f"{self.report_type} - {self.period_type} - {self.generated_at:%Y-%m-%d %H:%M}"
 
 class Notification(models.Model):
     user = models.ForeignKey(

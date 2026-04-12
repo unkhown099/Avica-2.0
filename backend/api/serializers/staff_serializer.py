@@ -1,7 +1,11 @@
 # api/serializers/staff_serializer.py
 from rest_framework import serializers
 from django.db import transaction
+import re
 from ..models import User, Staff
+
+NAME_PATTERN = re.compile(r"^[A-Za-z]+(?: [A-Za-z]+)*$")
+PHONE_PATTERN = re.compile(r"^\+63\d+$")
 
 
 class StaffSerializer(serializers.ModelSerializer):
@@ -29,9 +33,36 @@ class StaffSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         role = attrs.get("role")
         branch = attrs.get("branch")
+        first_name = attrs.get("first_name")
+        last_name = attrs.get("last_name")
+        phone = attrs.get("phone")
         if self.instance is not None:
             role = role if role is not None else self.instance.role
             branch = branch if branch is not None else self.instance.branch
+            first_name = first_name if first_name is not None else self.instance.first_name
+            last_name = last_name if last_name is not None else self.instance.last_name
+            phone = phone if phone is not None else self.instance.phone
+
+        first_name = (first_name or "").strip()
+        last_name = (last_name or "").strip()
+        phone = (phone or "").strip()
+
+        if not NAME_PATTERN.fullmatch(first_name):
+            raise serializers.ValidationError(
+                {"first_name": "First name can only contain letters and spaces."}
+            )
+        if not NAME_PATTERN.fullmatch(last_name):
+            raise serializers.ValidationError(
+                {"last_name": "Last name can only contain letters and spaces."}
+            )
+        if len(phone) > 12:
+            raise serializers.ValidationError(
+                {"phone": "Phone number must not exceed 12 characters."}
+            )
+        if not PHONE_PATTERN.fullmatch(phone):
+            raise serializers.ValidationError(
+                {"phone": "Phone number must start with +63 and contain digits only."}
+            )
 
         request = self.context.get("request")
         requester_staff = getattr(getattr(request, "user", None), "staff_profile", None)
@@ -47,9 +78,9 @@ class StaffSerializer(serializers.ModelSerializer):
                     {"branch": "You can only manage staff for your own branch."}
                 )
 
-            if role in {"Admin", "Business Owner"}:
+            if role in {"Admin", "Business Owner", "Inventory Manager"}:
                 raise serializers.ValidationError(
-                    {"role": "Branch Manager cannot assign Admin or Business Owner roles."}
+                    {"role": "Branch Manager cannot assign Admin, Business Owner, or Inventory Manager roles."}
                 )
 
             attrs["branch"] = requester_staff.branch

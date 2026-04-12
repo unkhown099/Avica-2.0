@@ -2,7 +2,18 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from ..models import Booking, Branch, BranchScheduleConfig, Customer, Notification, QueueEntry, Rating, Staff
+from ..models import (
+    Booking,
+    Branch,
+    BranchScheduleConfig,
+    Customer,
+    Notification,
+    QueueEntry,
+    Rating,
+    Staff,
+    PaymentTransaction,
+    InventoryTransaction,
+)
 from ..serializers.dashboard_serializer import DashboardStatsSerializer, RecentTransactionSerializer
 from ..serializers.manager_schedule_serializer import ManagerScheduleConfigSerializer
 from django.db.models import Avg, Count, Sum, Value, DecimalField
@@ -11,6 +22,8 @@ from django.db.models import Q
 from django.db.models.functions import Coalesce
 from collections import defaultdict
 from datetime import timedelta
+from decimal import Decimal
+import re
 
 MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -24,6 +37,37 @@ WEEK_DAYS = [
     "Saturday",
     "Sunday",
 ]
+
+
+def clean_price(value):
+    """Normalize numeric/currency-ish values to float."""
+    try:
+        return float(str(value).replace("₱", "").replace(",", "").strip())
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def extract_pos_product_sale_amount(notes):
+    text = str(notes or "")
+    marker = "[POS Product Sale]"
+    if marker not in text:
+        return 0.0
+    tail = text.split(marker, 1)[1].strip()
+    match = re.search(r"([0-9]+(?:\.[0-9]+)?)", tail)
+    if not match:
+        return 0.0
+    return clean_price(match.group(1))
+
+
+def sum_pos_product_sales(transactions):
+    return sum(extract_pos_product_sale_amount(tx.notes) for tx in transactions)
+
+
+def payment_scope_for_branch(selected_branch=None):
+    scope = PaymentTransaction.objects.select_related("branch", "queue_entry")
+    if selected_branch:
+        scope = scope.filter(branch_id=selected_branch.id)
+    return scope
 
 
 def default_manager_schedule_config():
@@ -66,14 +110,6 @@ def merge_manager_schedule_config(raw):
     merged["assignments"] = raw.get("assignments") if isinstance(raw.get("assignments"), dict) else {}
     merged["exceptions"] = raw.get("exceptions") if isinstance(raw.get("exceptions"), list) else []
     return merged
-
-def clean_price(value):
-    """Strip currency symbols and commas, return float."""
-    try:
-        return float(str(value).replace("₱", "").replace(",", "").strip())
-    except (ValueError, TypeError):
-        return 0.0
-
 
 def build_retention_analytics(queue_scope, customer_scope, now):
     paid_entries = (
@@ -352,7 +388,6 @@ class AdminDashboardView(APIView):
         booking_scope = Booking.objects.all()
         rating_scope = Rating.objects.all()
         customer_scope = Customer.objects.all()
-
         if selected_branch:
             queue_scope = queue_scope.filter(
                 Q(branch_id=selected_branch.id) |
@@ -363,16 +398,16 @@ class AdminDashboardView(APIView):
             customer_scope = customer_scope.filter(user__bookings__branch_id=selected_branch.id).distinct()
 
         # ── Stats ────────────────────────────────────────────────────────────
-        paid_revenue = float(
-            queue_scope.filter(payment_status="paid").aggregate(
+        payment_scope = payment_scope_for_branch(selected_branch)
+        total_revenue = float(
+            payment_scope.aggregate(
                 t=Coalesce(
-                    Sum("price"),
-                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                    Sum("amount"),
+                    Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
                 )
             )["t"]
             or 0
         )
-        total_revenue = paid_revenue
         total_customers = customer_scope.count()
         services_completed = queue_scope.filter(status="done").count()
         try:
@@ -388,17 +423,12 @@ class AdminDashboardView(APIView):
         }).data
 
         # ── Monthly Chart Data (current year) ────────────────────────────────
-        paid_entries_this_year = queue_scope.filter(
-            payment_status="paid",
-            completed_at__year=current_year,
-        )
-
         monthly_revenue = defaultdict(float)
-        for q in paid_entries_this_year.only("price", "completed_at"):
-            if not q.completed_at:
+        for tx in payment_scope:
+            if not tx.paid_at or tx.paid_at.year != current_year:
                 continue
-            month = q.completed_at.month
-            monthly_revenue[month] += clean_price(q.price)
+            month = tx.paid_at.month
+            monthly_revenue[month] += float(tx.amount or 0)
 
         monthly_services = defaultdict(int)
         queue_this_year = queue_scope.filter(
@@ -458,20 +488,19 @@ class AdminDashboardView(APIView):
         ]
 
         top_services_qs = (
-            queue_scope.filter(status="done", payment_status="paid")
-            .values("service")
+            payment_scope.values("transaction_type", "description")
             .annotate(
                 count=Count("id"),
                 revenue=Coalesce(
-                    Sum("price"),
-                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                    Sum("amount"),
+                    Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
                 ),
             )
             .order_by("-revenue", "-count")
         )
         top_services = [
             {
-                "service": row["service"] or "Other",
+                "service": row["description"] or str(row["transaction_type"]).replace("_", " ").title(),
                 "count": row["count"],
                 "revenue": round(float(row["revenue"] or 0), 2),
             }
@@ -481,17 +510,16 @@ class AdminDashboardView(APIView):
         revenue_by_branch_map = defaultdict(float)
 
         paid_branch_revenue = (
-            queue_scope.filter(payment_status="paid")
-            .values("branch__name", "branch_name")
+            payment_scope.values("branch__name")
             .annotate(
                 revenue=Coalesce(
-                    Sum("price"),
-                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                    Sum("amount"),
+                    Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
                 )
             )
         )
         for row in paid_branch_revenue:
-            branch_name = row["branch__name"] or row["branch_name"] or "Unassigned"
+            branch_name = row["branch__name"] or "Unassigned"
             revenue_by_branch_map[branch_name] += float(row["revenue"] or 0)
 
         revenue_by_branch = [
@@ -677,20 +705,20 @@ class AdminDashboardView(APIView):
             )
 
         yearly_rows = (
-            queue_scope.filter(payment_status="paid", completed_at__isnull=False)
-            .values("completed_at__year")
+            payment_scope.filter(paid_at__isnull=False)
+            .values("paid_at__year")
             .annotate(
                 revenue=Coalesce(
-                    Sum("price"),
-                    Value(0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                    Sum("amount"),
+                    Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
                 )
             )
-            .order_by("completed_at__year")
+            .order_by("paid_at__year")
         )
         yearly_revenue = [
-            {"year": row["completed_at__year"], "revenue": float(row["revenue"] or 0)}
+            {"year": row["paid_at__year"], "revenue": float(row["revenue"] or 0)}
             for row in yearly_rows
-            if row["completed_at__year"] is not None
+            if row["paid_at__year"] is not None
         ]
 
         cagr_percent = 0.0
@@ -722,17 +750,19 @@ class AdminDashboardView(APIView):
 
         # ── Recent Transactions ───────────────────────────────────────────────
         recent_transactions = []
-        recent_paid_entries = queue_scope.filter(
-            payment_status="paid",
-        ).order_by("-completed_at", "-queued_at")[:5]
+        recent_paid_entries = payment_scope.order_by("-paid_at", "-created_at")[:5]
         for q in recent_paid_entries:
             recent_transactions.append(
                 {
-                    "customer_name": q.customer_name or "Walk-in Customer",
-                    "service": q.service or "Walk-in Service",
-                    "amount": clean_price(q.price),
+                    "customer_name": (
+                        q.queue_entry.customer_name
+                        if getattr(q, "queue_entry", None) and q.queue_entry.customer_name
+                        else "Walk-in Customer"
+                    ),
+                    "service": q.description or str(q.transaction_type).replace("_", " ").title(),
+                    "amount": float(q.amount or 0),
                     "status": "paid",
-                    "_ts": q.completed_at or q.queued_at,
+                    "_ts": q.paid_at or q.created_at,
                 }
             )
 
@@ -764,6 +794,18 @@ class AdminDashboardView(APIView):
                 "new_customers_30d": new_customers_30d,
                 "completion_rate": completion_rate,
                 "payment_rate": payment_rate,
+                "product_only_revenue": round(
+                    float(
+                        payment_scope.filter(transaction_type="product").aggregate(
+                            t=Coalesce(
+                                Sum("amount"),
+                                Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+                            )
+                        )["t"]
+                        or 0
+                    ),
+                    2,
+                ),
                 "service_distribution": service_distribution,
                 "top_services": top_services,
                 "revenue_by_branch": revenue_by_branch,
@@ -801,6 +843,7 @@ class ManagerDashboardView(APIView):
             now = timezone.now()
             this_month = now.month
             this_year = now.year
+            payment_scope = PaymentTransaction.objects.filter(branch=branch)
             
             # Simple last month calculation
             last_month_date = now.replace(day=1) - timedelta(days=1)
@@ -813,14 +856,19 @@ class ManagerDashboardView(APIView):
                 payment_status="paid",
                 completed_at__month=this_month,
                 completed_at__year=this_year,
-            ).aggregate(t=Sum("price"))["t"] or 0
-            rev_last = QueueEntry.objects.filter(
-                branch=branch,
-                payment_status="paid",
-                completed_at__month=last_month,
-                completed_at__year=last_month_year,
-            ).aggregate(t=Sum("price"))["t"] or 0
+            ).count()
+            rev_this = payment_scope.filter(
+                paid_at__month=this_month,
+                paid_at__year=this_year,
+            ).aggregate(t=Sum("amount"))["t"] or 0
+            rev_last = payment_scope.filter(
+                paid_at__month=last_month,
+                paid_at__year=last_month_year,
+            ).aggregate(t=Sum("amount"))["t"] or 0
             rev_change = round(((float(rev_this) - float(rev_last)) / float(rev_last)) * 100, 1) if rev_last else 0
+            rev_this = float(rev_this or 0)
+            rev_last = float(rev_last or 0)
+            rev_change = round(((rev_this - rev_last) / rev_last) * 100, 1) if rev_last else 0
 
             svc_this = Booking.objects.filter(branch=branch, status="done", date__month=this_month, date__year=this_year).count()
             svc_last = Booking.objects.filter(branch=branch, status="done", date__month=last_month, date__year=last_month_year).count()
@@ -843,14 +891,15 @@ class ManagerDashboardView(APIView):
                 m = d.month
                 y = d.year
                 qs = QueueEntry.objects.filter(
-                    branch=branch,
-                    payment_status="paid",
-                    completed_at__month=m,
-                    completed_at__year=y,
+                    branch=branch, status="done", completed_at__month=m, completed_at__year=y
+                )
+                paid_qs = payment_scope.filter(
+                    paid_at__month=m,
+                    paid_at__year=y,
                 )
                 trend.append({
                     "label": MONTH_LABELS[m-1],
-                    "revenue": float(qs.aggregate(t=Sum("price"))["t"] or 0),
+                    "revenue": float(paid_qs.aggregate(t=Sum("amount"))["t"] or 0),
                     "services": qs.count()
                 })
 
@@ -906,7 +955,8 @@ class StaffDashboardView(APIView):
 
     def get(self, request):
         staff = getattr(request.user, "staff_profile", None)
-        if not staff or staff.role != "Staff":
+        allowed_roles = {"Staff", "Employee"}
+        if not staff or staff.role not in allowed_roles:
             return Response({"detail": "Permission denied."}, status=403)
 
         full_name = f"{staff.first_name} {staff.last_name}".strip()
@@ -933,17 +983,106 @@ class StaffDashboardView(APIView):
         appointment_jobs_count = queue_scope.filter(source="booking").count()
         walkin_jobs_count = queue_scope.filter(source="walk_in").count()
 
-        # Staff revenue analytics (paid queue entries assigned to this staff profile)
-        paid_scope = queue_scope.filter(payment_status="paid")
+        # Staff revenue analytics (single source of truth: payment_transactions)
+        payment_scope = PaymentTransaction.objects.filter(staff_id=staff.id)
+        if staff.branch_id:
+            payment_scope = payment_scope.filter(branch_id=staff.branch_id)
+        else:
+            payment_scope = payment_scope.none()
+        if not payment_scope.exists():
+            fallback_notes_sales = InventoryTransaction.objects.filter(
+                action_type="update",
+                quantity_changed__lt=0,
+                notes__icontains="[POS Product Sale]",
+                created_at__date=today,
+            )
+            if staff.branch_id:
+                fallback_notes_sales = fallback_notes_sales.filter(branch_name=staff.branch.name if staff.branch else staff.branch_name)
+            fallback_amount = sum_pos_product_sales(fallback_notes_sales)
+            if fallback_amount > 0:
+                product_sales_today = fallback_amount
+                service_sales_today = 0.0
+                sales_today = product_sales_today
+                paid_today_count = fallback_notes_sales.count()
+                stats = {
+                    "my_assigned_jobs": queue_scope.count(),
+                    "my_active_jobs": queue_scope.filter(status__in=["waiting", "in_service"]).count(),
+                    "my_completed_jobs": queue_scope.filter(status="done").count(),
+                    "my_paid_jobs": paid_today_count,
+                    "my_paid_jobs_today": paid_today_count,
+                    "my_sales_today": round(sales_today, 2),
+                    "my_service_sales_today": round(service_sales_today, 2),
+                    "my_product_sales_today": round(product_sales_today, 2),
+                    "my_appointment_jobs": appointment_jobs_count,
+                    "my_walkin_jobs": walkin_jobs_count,
+                    "my_upcoming_bookings": booking_scope.filter(
+                        date__gte=today,
+                        status__in=["pending", "confirmed", "rescheduled"],
+                    ).count(),
+                    "my_bookings_today": booking_scope.filter(date=today).count(),
+                    "my_unread_notifications": notifications_qs.filter(is_read=False).count(),
+                    "my_notifications_today": notifications_qs.filter(created_at__date=today).count(),
+                }
+                return Response(
+                    {
+                        "staff": {
+                            "id": staff.id,
+                            "name": full_name,
+                            "branch_name": staff.branch.name if staff.branch else staff.branch_name,
+                        },
+                        "stats": stats,
+                        "analytics": {
+                            "earnings_per_hour": [
+                                {"hour": f"{h:02d}:00", "value": 0.0} for h in range(24)
+                            ],
+                            "daily_revenue_trend": [
+                                {
+                                    "date": day.isoformat(),
+                                    "label": day.strftime("%b %d"),
+                                    "value": round(product_sales_today if day == today else 0.0, 2),
+                                }
+                                for day in [today - timedelta(days=offset) for offset in range(6, -1, -1)]
+                            ],
+                        },
+                        "recent_jobs": [],
+                        "recent_notifications": list(
+                            notifications_qs.order_by("-created_at")
+                            .values("id", "title", "message", "notification_type", "created_at", "is_read")[:6]
+                        ),
+                    }
+                )
+
+        paid_today_scope = payment_scope.filter(paid_at__date=today)
+        paid_scope = payment_scope
+
+        service_sales_today = float(
+            paid_today_scope.filter(transaction_type__in=["appointment", "walk_in", "service"]).aggregate(
+                total=Coalesce(
+                    Sum("amount", output_field=DecimalField(max_digits=12, decimal_places=2)),
+                    Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
+                )
+            )["total"]
+            or 0
+        )
+        product_sales_today = float(
+            paid_today_scope.filter(transaction_type="product").aggregate(
+                total=Coalesce(
+                    Sum("amount", output_field=DecimalField(max_digits=12, decimal_places=2)),
+                    Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
+                )
+            )["total"]
+            or 0
+        )
+        sales_today = service_sales_today + product_sales_today
         earnings_by_hour = {hour: 0.0 for hour in range(24)}
         daily_dates = [today - timedelta(days=offset) for offset in range(6, -1, -1)]
         revenue_by_day = {day.isoformat(): 0.0 for day in daily_dates}
 
         for entry in paid_scope:
-            amount = float(entry.price or 0)
+            amount = float(entry.amount or 0)
             if amount <= 0:
                 continue
-            event_dt = entry.completed_at or entry.queued_at
+            event_dt = entry.paid_at or entry.created_at
             if not event_dt:
                 continue
 
@@ -976,7 +1115,11 @@ class StaffDashboardView(APIView):
             "my_assigned_jobs": queue_scope.count(),
             "my_active_jobs": queue_scope.filter(status__in=["waiting", "in_service"]).count(),
             "my_completed_jobs": queue_scope.filter(status="done").count(),
-            "my_paid_jobs": queue_scope.filter(payment_status="paid").count(),
+            "my_paid_jobs": paid_scope.count(),
+            "my_paid_jobs_today": paid_today_scope.count(),
+            "my_sales_today": round(sales_today, 2),
+            "my_service_sales_today": round(service_sales_today, 2),
+            "my_product_sales_today": round(product_sales_today, 2),
             "my_appointment_jobs": appointment_jobs_count,
             "my_walkin_jobs": walkin_jobs_count,
             "my_upcoming_bookings": booking_scope.filter(

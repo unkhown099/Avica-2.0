@@ -17,8 +17,8 @@ const roles = [
   "super_admin",
 ];
 
-const createRoles = ["Staff", "Employee", "Inventory", "Inventory Manager"];
-const editRoles = ["Staff", "Employee", "Inventory", "Inventory Manager", "Branch Manager"];
+const createRoles = ["Staff", "Employee", "Inventory"];
+const editRoles = ["Staff", "Employee", "Inventory", "Branch Manager"];
 
 const roleColors = {
   Admin: "#ef4444",
@@ -55,7 +55,12 @@ const normalizeRole = (role) => {
 
 const isProtectedRole = (role) => {
   const norm = normalizeRole(role);
-  return norm === "Admin" || norm === "Business Owner" || norm === "super_admin";
+  return (
+    norm === "Admin" ||
+    norm === "Business Owner" ||
+    norm === "super_admin" ||
+    norm === "Inventory Manager"
+  );
 };
 
 const getRoleBadge = (role) => {
@@ -196,7 +201,30 @@ function CreateManagerStaffModal({
   const inputCls =
     "w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm";
 
-  const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const validateName = (value) => /^[A-Za-z]+(?: [A-Za-z]+)*$/.test(String(value || "").trim());
+  const validatePhone = (value) => /^\+63\d+$/.test(String(value || "").trim()) && String(value || "").trim().length <= 12;
+  const sanitizeNameInput = (value) =>
+    String(value || "")
+      .replace(/[^A-Za-z\s]/g, "")
+      .replace(/\s{2,}/g, " ");
+  const sanitizePhoneInput = (value) => {
+    const raw = String(value || "");
+    let digits = raw.replace(/[^\d]/g, "");
+    if (digits.startsWith("63")) digits = digits.slice(2);
+    if (digits.startsWith("0")) digits = digits.slice(1);
+    return digits.slice(0, 10);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    let nextValue = value;
+    if (name === "firstName" || name === "lastName") nextValue = sanitizeNameInput(value);
+    if (name === "phone") {
+      const local = sanitizePhoneInput(value);
+      nextValue = local ? `+63${local}` : "";
+    }
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -208,6 +236,33 @@ function CreateManagerStaffModal({
 
     if (!isEdit && form.password !== form.confirmPassword) {
       await Swal.fire({ icon: "error", title: "Password mismatch", text: "Passwords do not match." });
+      return;
+    }
+
+    if (!validateName(form.firstName)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Invalid first name",
+        text: "First name must contain letters and spaces only.",
+      });
+      return;
+    }
+
+    if (!validateName(form.lastName)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Invalid last name",
+        text: "Last name must contain letters and spaces only.",
+      });
+      return;
+    }
+
+    if (!validatePhone(form.phone)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Invalid phone number",
+        text: "Phone must start with +63, contain digits only, and be at most 12 characters.",
+      });
       return;
     }
 
@@ -249,6 +304,9 @@ function CreateManagerStaffModal({
     } catch (err) {
       const msg =
         err.response?.data?.email?.[0] ||
+        err.response?.data?.first_name?.[0] ||
+        err.response?.data?.last_name?.[0] ||
+        err.response?.data?.phone?.[0] ||
         err.response?.data?.role?.[0] ||
         err.response?.data?.branch?.[0] ||
         err.response?.data?.detail ||
@@ -304,7 +362,19 @@ function CreateManagerStaffModal({
 
           <div>
             <label className="block text-sm font-semibold text-gray-400 mb-2">Phone</label>
-            <input name="phone" value={form.phone} onChange={handleChange} required className={inputCls} />
+            <div className="flex items-center rounded-xl border border-white/10 bg-gray-800 focus-within:border-red-500/50 focus-within:ring-1 focus-within:ring-red-500/30 transition-all">
+              <span className="px-4 text-gray-300 border-r border-white/10">+63</span>
+              <input
+                name="phone"
+                value={form.phone.replace(/^\+63/, "")}
+                onChange={handleChange}
+                required
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="9XXXXXXXXX"
+                className="w-full bg-transparent text-white placeholder-gray-600 rounded-r-xl px-4 py-3 focus:outline-none text-sm"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -669,7 +739,6 @@ function ManagerAccountManagement() {
 
         <div className="hidden md:block bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
           <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            <div className="col-span-1">#</div>
             <div className="col-span-2">Name</div>
             <div className="col-span-2">Email</div>
             <div className="col-span-2">Phone</div>

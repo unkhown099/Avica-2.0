@@ -269,8 +269,8 @@ function normalizeWalkInPhoneInput(value = "") {
   const digitsOnly = String(value).replace(/\D/g, "");
   let local = digitsOnly;
   if (local.startsWith("63")) local = local.slice(2);
-  local = local.slice(0, 11);
   if (local.startsWith("0")) local = local.slice(1);
+  local = local.slice(0, 10);
   return `+63${local}`;
 }
 
@@ -997,28 +997,46 @@ function WalkInModal({ onClose, onAdded }) {
                 <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
                   {label}
                 </label>
-                <input
-                  type={type}
-                  value={form[key]}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    if (key === "phone") {
-                      set(key, normalizeWalkInPhoneInput(raw));
-                    } else if (key === "plateNumber") {
-                      set(key, raw.toUpperCase().slice(0, 8));
-                    } else {
-                      set(key, raw);
-                    }
-                    if (fieldErrors[key]) {
-                      setFieldErrors((prev) => ({ ...prev, [key]: false }));
-                    }
-                  }}
-                  placeholder={placeholder}
-                  className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${fieldErrors[key] ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
-                    }`}
-                />
+                {key === "phone" ? (
+                  <div className={`flex items-center rounded-xl overflow-hidden bg-gray-800 border ${fieldErrors[key] ? "border-red-500/70 focus-within:border-red-500" : "border-white/10 focus-within:border-red-500/60"} transition-all`}>
+                    <span className="px-4 py-2.5 text-gray-300 border-r border-white/10 text-sm font-semibold">+63</span>
+                    <input
+                      type="tel"
+                      value={String(form[key] || "").replace(/^\+63/, "")}
+                      onChange={(e) => {
+                        set(key, normalizeWalkInPhoneInput(e.target.value));
+                        if (fieldErrors[key]) {
+                          setFieldErrors((prev) => ({ ...prev, [key]: false }));
+                        }
+                      }}
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="9XXXXXXXXX"
+                      className="w-full bg-transparent text-white placeholder-gray-600 px-4 py-2.5 focus:outline-none text-sm"
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type={type}
+                    value={form[key]}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (key === "plateNumber") {
+                        set(key, raw.toUpperCase().slice(0, 8));
+                      } else {
+                        set(key, raw);
+                      }
+                      if (fieldErrors[key]) {
+                        setFieldErrors((prev) => ({ ...prev, [key]: false }));
+                      }
+                    }}
+                    placeholder={placeholder}
+                    className={`w-full bg-gray-800 border text-white placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm ${fieldErrors[key] ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
+                      }`}
+                  />
+                )}
                 {key === "phone" && (
-                  <p className="text-[11px] text-gray-500 mt-1">Format: +63 + numbers only (max 11 digits)</p>
+                  <p className="text-[11px] text-gray-500 mt-1">Format: +63 + 10 digits</p>
                 )}
               </div>
             ))}

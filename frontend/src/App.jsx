@@ -84,6 +84,7 @@ import StaffPOS from "./pages/staff/StaffPOS.jsx";
 import StaffAppointment from "./pages/staff/StaffAppointment.jsx";
 import StaffVehicleRecognition from "./pages/staff/StaffVehicleRecognition.jsx";
 import StaffQueue from "./pages/staff/StaffQueue.jsx";
+import StaffTransactionHistory from "./pages/staff/StaffTransactionHistory.jsx";
 
 // Employee Imports
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard.jsx";
@@ -586,6 +587,14 @@ function Layout() {
             element={
               <ProtectedRoute allowedRoles={["staff"]}>
                 <StaffQueue />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/transactions"
+            element={
+              <ProtectedRoute allowedRoles={["staff"]}>
+                <StaffTransactionHistory />
               </ProtectedRoute>
             }
           />

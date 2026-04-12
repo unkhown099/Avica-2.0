@@ -57,7 +57,7 @@ function CustomerCard({ customer, onAction }) {
           <div className="text-white font-bold text-sm">
             {customer.loyalty_points ?? 0}
           </div>
-          <div className="text-gray-500 text-[10px] mt-0.5">Points</div>
+
         </div>
         <div className="bg-white/5 rounded-xl py-2">
           <div className="text-white font-bold text-sm">
@@ -403,7 +403,7 @@ function AdminCustomers() {
           <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <div className="col-span-3">Customer</div>
             <div className="col-span-2">Phone</div>
-            <div className="col-span-1 text-center">Points</div>
+     
             <div className="col-span-2">Total Spent</div>
             <div className="col-span-1 text-center">Visits</div>
             <div className="col-span-1">Segment</div>
@@ -463,9 +463,7 @@ function AdminCustomers() {
                   <div className="col-span-2 text-gray-400 text-sm">
                     {customer.phone || <span className="text-gray-700">—</span>}
                   </div>
-                  <div className="col-span-1 text-center text-gray-400 text-sm">
-                    {customer.loyalty_points ?? 0}
-                  </div>
+
                   <div className="col-span-2 text-white font-bold text-sm">
                     {customer.total_spent > 0 ? (
                       `₱${Number(customer.total_spent).toLocaleString()}`

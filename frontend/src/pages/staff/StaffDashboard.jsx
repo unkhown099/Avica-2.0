@@ -86,9 +86,9 @@ export default function StaffDashboard() {
         ),
       },
       {
-        label: "My Completed Jobs",
-        value: stats.my_completed_jobs ?? 0,
-        hint: `${stats.my_paid_jobs ?? 0} marked as paid`,
+        label: "Sales Today",
+        value: `P${formatMoney(stats.my_sales_today ?? 0)}`,
+        hint: `Services P${formatMoney(stats.my_service_sales_today ?? 0)} · Products P${formatMoney(stats.my_product_sales_today ?? 0)}`,
         accentBg: "bg-emerald-500/10",
         accentText: "text-emerald-400",
         border: "border-emerald-500/20",

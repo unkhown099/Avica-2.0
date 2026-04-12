@@ -207,7 +207,9 @@ class InventoryDetailView(APIView):
             return Response({"detail": "Not found."}, status=404)
         before_qty = item.quantity or 0
         was_active = item.is_active
-        serializer = InventoryItemSerializer(item, data=request.data, partial=True)
+        payload = request.data.copy()
+        notes = payload.pop("notes", "")
+        serializer = InventoryItemSerializer(item, data=payload, partial=True)
         if serializer.is_valid():
             item = serializer.save()
             after_qty = item.quantity or 0
@@ -228,7 +230,7 @@ class InventoryDetailView(APIView):
                     quantity_changed=qty_changed,
                     branch_name=item.branch.name if item.branch else "Central",
                     performed_by=getattr(request.user, "staff_profile", None),
-                    notes=request.data.get("notes", ""),
+                    notes=notes,
                 )
 
             return Response(InventoryItemSerializer(item).data)
@@ -363,16 +365,17 @@ class RestockRequestActionView(APIView):
                 performed_by=actor,
                 notes=rr.reviewer_note,
             )
+            request_label = "Transfer" if rr.request_type == "transfer" else "Restock"
             _notify_roles(
                 roles=["Inventory"],
                 branch_id=rr.branch_id,
-                title="Stock Request Cancelled",
+                title=f"{request_label} Request Cancelled",
                 message=(
-                    f"Restock request #{rr.id} for {rr.inventory_item.name} "
+                    f"{request_label} request #{rr.id} for {rr.inventory_item.name} "
                     f"was cancelled."
                 ),
                 notification_type="inventory",
-                target_path="/inventory/alerts",
+                target_path="/inventory/stock-overview" if rr.request_type == "transfer" else "/inventory/alerts",
             )
             return Response(RestockRequestSerializer(rr).data)
 
@@ -448,13 +451,14 @@ class RestockRequestActionView(APIView):
                 _notify_roles(
                     roles=["Inventory"],
                     branch_id=rr.branch_id,
-                    title="Stock Request Rejected",
+                    title=f"{'Transfer' if rr.request_type == 'transfer' else 'Stock'} Request Rejected",
                     message=(
-                        f"Restock request #{rr.id} for {rr.inventory_item.name} "
-                        f"was rejected. {reviewer_note or 'Please review and submit a new request if needed.'}"
+                        f"{'Transfer' if rr.request_type == 'transfer' else 'Restock'} request #{rr.id} "
+                        f"for {rr.inventory_item.name} was rejected. "
+                        f"{reviewer_note or 'Please review and submit a new request if needed.'}"
                     ),
                     notification_type="inventory",
-                    target_path="/inventory/alerts",
+                    target_path="/inventory/stock-overview" if rr.request_type == "transfer" else "/inventory/alerts",
                 )
             return Response(RestockRequestSerializer(rr).data)
 
@@ -503,7 +507,7 @@ class RestockRequestActionView(APIView):
                 branch_name="Central",
                 target_branch_name=rr.branch.name if rr.branch else "",
                 performed_by=actor,
-                notes=f"Received restock request #{rr.id}",
+                notes=f"Received {'transfer' if rr.request_type == 'transfer' else 'restock'} request #{rr.id}",
             )
             _log_inventory_transaction(
                 inventory_item=rr.inventory_item,
@@ -514,7 +518,7 @@ class RestockRequestActionView(APIView):
                 branch_name=rr.branch.name if rr.branch else "",
                 target_branch_name="Central",
                 performed_by=actor,
-                notes=f"Received restock request #{rr.id}",
+                notes=f"Received {'transfer' if rr.request_type == 'transfer' else 'restock'} request #{rr.id}",
             )
             _log_inventory_transaction(
                 inventory_item=rr.inventory_item,
@@ -524,14 +528,14 @@ class RestockRequestActionView(APIView):
                 quantity_changed=rr.quantity_requested or 0,
                 branch_name=rr.branch.name if rr.branch else "",
                 performed_by=actor,
-                notes=f"Inventory confirmed receipt for request #{rr.id}",
+                notes=f"Inventory confirmed {'transfer' if rr.request_type == 'transfer' else 'restock'} receipt for request #{rr.id}",
             )
 
         _notify_roles(
             roles=["Inventory Manager"],
-            title="Stock Received",
+            title="Transfer Received" if rr.request_type == "transfer" else "Stock Received",
             message=(
-                f"Inventory confirmed stock receipt for request #{rr.id} "
+                f"Inventory confirmed {'transfer' if rr.request_type == 'transfer' else 'stock'} receipt for request #{rr.id} "
                 f"({rr.inventory_item.name}, qty {rr.quantity_requested}) in {rr.branch.name}."
             ),
             notification_type="inventory",
@@ -580,56 +584,71 @@ class DirectStockTransferView(APIView):
             name=source.name,
             category=source.category,
         ).first()
-
-        with transaction.atomic():
-            source_before = source.quantity or 0
-            source.quantity = (source.quantity or 0) - quantity
-            source.save(update_fields=["quantity", "updated_at"])
-
-            if target:
-                target_before = target.quantity or 0
-                target.quantity = (target.quantity or 0) + quantity
-                target.save(update_fields=["quantity", "updated_at"])
-            else:
-                target_before = 0
-                target = InventoryItem.objects.create(
-                    name=source.name,
-                    category=source.category,
-                    sku=_next_branch_sku(source.sku, target_branch_id),
-                    quantity=quantity,
-                    minimum_qty=source.minimum_qty,
-                    unit=source.unit,
-                    price=source.price,
-                    supplier=source.supplier,
-                    branch_id=target_branch_id,
-                )
-
-            _log_inventory_transaction(
-                inventory_item=source,
-                action_type="transfer_out",
-                quantity_before=source_before,
-                quantity_after=source.quantity or 0,
-                quantity_changed=-(quantity or 0),
-                branch_name="Central",
-                target_branch_name=target.branch.name if target.branch else "",
-                performed_by=getattr(request.user, "staff_profile", None),
-                notes=note,
+        if not target:
+            return Response(
+                {"detail": "Target branch item not found. Create the branch inventory item first."},
+                status=400,
             )
-            _log_inventory_transaction(
-                inventory_item=target,
-                action_type="transfer_in",
-                quantity_before=target_before,
-                quantity_after=target.quantity or 0,
-                quantity_changed=quantity or 0,
-                branch_name=target.branch.name if target.branch else "",
-                target_branch_name="Central",
-                performed_by=getattr(request.user, "staff_profile", None),
-                notes=note,
+
+        existing_pending = RestockRequest.objects.filter(
+            inventory_item=target,
+            status__in=["pending", "approved"],
+            request_type="transfer",
+        ).exists()
+        if existing_pending:
+            return Response(
+                {"detail": "A pending transfer request already exists for this item and branch."},
+                status=400,
             )
+
+        actor = getattr(request.user, "staff_profile", None)
+        rr = RestockRequest.objects.create(
+            inventory_item=target,
+            branch_id=target_branch_id,
+            requested_by=actor,
+            quantity_requested=quantity,
+            notes=note,
+            request_type="transfer",
+            status="approved",
+        )
+        _log_inventory_transaction(
+            inventory_item=source,
+            action_type="restock_request",
+            quantity_before=source.quantity or 0,
+            quantity_after=source.quantity or 0,
+            quantity_changed=quantity or 0,
+            branch_name="Central",
+            target_branch_name=target.branch.name if target.branch else "",
+            performed_by=actor,
+            notes=f"Transfer request #{rr.id}: {note}".strip(),
+        )
+        requester_name = f"{actor.first_name} {actor.last_name}".strip() if actor else "A staff member"
+        _notify_roles(
+            roles=["Inventory"],
+            branch_id=target_branch_id,
+            title="Incoming Transfer",
+            message=(
+                f"{requester_name} sent transfer #{rr.id} for {source.name} "
+                f"(qty {quantity}). Mark as received when stock arrives."
+            ),
+            notification_type="inventory",
+            target_path="/inventory/stock-overview",
+        )
+        _notify_roles(
+            roles=["Inventory Manager"],
+            title="Transfer Sent",
+            message=(
+                f"Transfer #{rr.id} for {source.name} "
+                f"(qty {quantity}) to {target.branch.name if target.branch else 'branch'} was sent."
+            ),
+            notification_type="inventory",
+            target_path="/inventory-manager/inventory",
+        )
 
         return Response(
             {
-                "detail": "Stock transferred successfully.",
+                "detail": "Stock sent. Waiting for inventory to mark as received.",
+                "request_id": rr.id,
                 "source_item_id": source.id,
                 "target_item_id": target.id,
                 "quantity": quantity,

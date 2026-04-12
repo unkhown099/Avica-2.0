@@ -14,7 +14,16 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from api.models import QueueEntry, Booking, Staff, InventoryItem, Service, Notification, Customer
+from api.models import (
+    QueueEntry,
+    Booking,
+    Staff,
+    InventoryItem,
+    Service,
+    Notification,
+    Customer,
+    PaymentTransaction,
+)
 from api.serializers.queue_serializer import (
     QueueEntrySerializer,
     QueueEntryCreateSerializer,
@@ -860,11 +869,31 @@ def queue_mark_paid(request, pk):
         return Response({"detail": "Not found."}, status=404)
 
     previous_payment_status = entry.payment_status
+    next_payment_status = request.data.get("payment_status", "paid")
     entry.payment_status = request.data.get("payment_status", "paid")
     entry.payment_method = request.data.get("payment_method", "")
     if "price" in request.data:
         entry.price = request.data["price"]
+    if previous_payment_status != "paid" and next_payment_status == "paid":
+        entry.paid_at = timezone.now()
+    elif next_payment_status != "paid":
+        entry.paid_at = None
     entry.save()
+
+    if previous_payment_status != "paid" and entry.payment_status == "paid":
+        txn_type = "appointment" if entry.source == "booking" else "walk_in"
+        PaymentTransaction.objects.create(
+            staff=getattr(request.user, "staff_profile", None),
+            branch=entry.branch,
+            queue_entry=entry,
+            transaction_type=txn_type,
+            description=f"{entry.service} payment",
+            quantity=1,
+            amount=entry.price or 0,
+            payment_method=entry.payment_method or "",
+            notes=entry.notes or "",
+            paid_at=entry.paid_at or timezone.now(),
+        )
 
     if previous_payment_status != "paid" and entry.payment_status == "paid":
         _notify_queue_customer_event(entry, "paid")

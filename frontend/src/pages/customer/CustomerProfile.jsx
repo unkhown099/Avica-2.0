@@ -19,6 +19,13 @@ const formatDate = (dateStr) => {
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 };
 
+const normalizePhoneLocal = (value) =>
+  String(value || "")
+    .replace(/\D/g, "")
+    .replace(/^63/, "")
+    .replace(/^0/, "")
+    .slice(0, 10);
+
 function CustomerProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,16 +86,21 @@ function CustomerProfile() {
       else if (value.length < 2) error = "Too short";
     }
     if (name === "phone") {
-      const phoneRegex = /^(09|\+639)\d{9}$/;
-      if (value && !phoneRegex.test(value)) error = "Invalid PH phone number (e.g. 09123456789)";
+      const phoneRegex = /^\+639\d{9}$/;
+      if (value && !phoneRegex.test(value)) error = "Invalid PH phone number (e.g. +639123456789)";
     }
     setErrors(prev => ({ ...prev, [name]: error }));
     return !error;
   };
 
   const handleInputChange = (name, value) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-    validateField(name, value);
+    let nextValue = value;
+    if (name === "phone") {
+      const local = normalizePhoneLocal(value);
+      nextValue = local ? `+63${local}` : "";
+    }
+    setFormData(prev => ({ ...prev, [name]: nextValue }));
+    validateField(name, nextValue);
     setIsDirty(true);
   };
 
@@ -609,19 +621,24 @@ function CustomerProfile() {
 
                   <div className="space-y-2 text-left">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      disabled={!isEditing}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      placeholder="09XXXXXXXXX"
-                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-4 text-white font-bold transition-all outline-none ${!isEditing
-                        ? "border-transparent text-gray-500 cursor-not-allowed"
-                        : errors.phone
-                          ? "border-red-600/50 focus:ring-4 focus:ring-red-600/10"
-                          : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
-                        }`}
-                    />
+                    <div className={`flex items-center bg-black/40 border-2 rounded-2xl overflow-hidden transition-all ${!isEditing
+                      ? "border-transparent text-gray-500 cursor-not-allowed"
+                      : errors.phone
+                        ? "border-red-600/50 focus-within:ring-4 focus-within:ring-red-600/10"
+                        : "border-white/5 focus-within:border-red-600 focus-within:ring-4 focus-within:ring-red-600/10"
+                      }`}>
+                      <span className="px-5 py-4 text-gray-400 border-r border-white/10 font-bold">+63</span>
+                      <input
+                        type="tel"
+                        value={String(formData.phone || "").replace(/^\+63/, "")}
+                        disabled={!isEditing}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder="9XXXXXXXXX"
+                        className="w-full bg-transparent px-5 py-4 text-white font-bold outline-none placeholder-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed"
+                      />
+                    </div>
                     {isEditing && errors.phone && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.phone}</p>}
                   </div>
                 </div>

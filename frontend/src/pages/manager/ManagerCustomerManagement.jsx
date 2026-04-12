@@ -295,7 +295,7 @@ function ManagerCustomerManagement() {
           <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <div className="col-span-3">Customer</div>
             <div className="col-span-2">Phone</div>
-            <div className="col-span-1 text-center">Vehicles</div>
+
             <div className="col-span-2">Total Spent</div>
             <div className="col-span-1 text-center">Visits</div>
             <div className="col-span-1">Segment</div>
@@ -353,9 +353,6 @@ function ManagerCustomerManagement() {
                   </div>
                   <div className="col-span-2 text-gray-400 text-sm">
                     {customer.phone}
-                  </div>
-                  <div className="col-span-1 text-center text-gray-400 text-sm">
-                    {customer.vehicles}
                   </div>
                   <div className="col-span-2 text-white font-bold text-sm">
                     ₱{Number(customer.totalSpent || 0).toLocaleString()}

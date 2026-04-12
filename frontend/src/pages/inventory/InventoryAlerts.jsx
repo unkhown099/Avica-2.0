@@ -16,8 +16,6 @@ function deriveSeverity(item) {
   // Warning when stock is low but still available.
   if (s.includes("low")) return "warning";
   if (minimum > 0 && quantity <= minimum) return "warning";
-  if (minimum > 0 && quantity <= minimum * 1.5) return "warning";
-
   return "warning"; // anything surfaced by the API is at least a warning
 }
 
@@ -74,7 +72,7 @@ function formatDate(dateStr) {
 // ── Restock Modal ─────────────────────────────────────────────────────────────
 function RestockModal({ alert, headers, onClose, onSuccess }) {
   const [qty, setQty] = useState(
-    Math.max((alert.minimum_qty ?? 10) * 2 - alert.quantity, 1),
+    Math.max((alert.minimum_qty ?? 0) * 2 - alert.quantity, 1),
   );
   const [supplier, setSupplier] = useState(alert.supplier_name ?? "");
   const [priority, setPriority] = useState("urgent");
@@ -152,10 +150,11 @@ function RestockModal({ alert, headers, onClose, onSuccess }) {
               </span>
             </div>
             <p className="text-white font-bold text-sm">{alert.name}</p>
-            <p className="text-gray-500 text-xs">
-              {alert.branch_name ?? "—"} · Current: {alert.quantity} / Min:{" "}
-              {alert.minimum_qty ?? "—"}
-            </p>
+              <p className="text-gray-500 text-xs">
+                {alert.branch_name ?? "—"} · Current: {alert.quantity} / Min:{" "}
+                {alert.minimum_qty ?? "—"}
+                {" "}Pieces
+              </p>
           </div>
 
           {error && (
@@ -391,10 +390,10 @@ export default function ReorderAlerts() {
             method: "POST",
             headers,
             credentials: "include",
-            body: JSON.stringify({
-              inventory_item: item.id,
-              quantity_requested: Math.max(
-                (item.minimum_qty ?? 10) * 2 - item.quantity,
+              body: JSON.stringify({
+                inventory_item: item.id,
+                quantity_requested: Math.max(
+                (item.minimum_qty ?? 0) * 2 - item.quantity,
                 1,
               ),
               priority: "urgent",
@@ -790,6 +789,7 @@ export default function ReorderAlerts() {
                           {alert.quantity}
                         </span>
                         {alert.minimum_qty ? ` / min ${alert.minimum_qty}` : ""}
+                        {" "}Pieces
                       </span>
                       <span>
                         Updated:{" "}
@@ -852,7 +852,7 @@ export default function ReorderAlerts() {
                         >
                           {alert.quantity}
                           {alert.minimum_qty ? ` / ${alert.minimum_qty}` : ""}
-                          {alert.unit ? ` ${alert.unit}` : ""}
+                          {" "}Pieces
                         </span>
                       </div>
                       <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">

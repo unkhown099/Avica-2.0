@@ -95,7 +95,6 @@ function SignUpPage() {
     suffix: "",
     birthDate: "",
     email: "",
-    countryCode: "+63",
     phone: "",
     password: "",
     confirmPassword: "",
@@ -197,29 +196,12 @@ function SignUpPage() {
     });
   }, [formData.password, formData.confirmPassword]);
 
-  const countryCodes = [
-    { code: "+63", country: "PH", flag: "🇵🇭" },
-    { code: "+1", country: "US", flag: "🇺🇸" },
-    { code: "+44", country: "GB", flag: "🇬🇧" },
-    { code: "+81", country: "JP", flag: "🇯🇵" },
-    { code: "+82", country: "KR", flag: "🇰🇷" },
-    { code: "+86", country: "CN", flag: "🇨🇳" },
-    { code: "+65", country: "SG", flag: "🇸🇬" },
-    { code: "+60", country: "MY", flag: "🇲🇾" },
-    { code: "+66", country: "TH", flag: "🇹🇭" },
-    { code: "+84", country: "VN", flag: "🇻🇳" },
-    { code: "+61", country: "AU", flag: "🇦🇺" },
-    { code: "+64", country: "NZ", flag: "🇳🇿" },
-  ];
-
-  const formatPhoneNumber = (value) => {
-    const phoneNumber = value.replace(/\D/g, "");
-    if (phoneNumber.length <= 3) return phoneNumber;
-    else if (phoneNumber.length <= 6)
-      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3)}`;
-    else
-      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6, 10)}`;
-  };
+  const normalizeLocalPhone = (value) =>
+    String(value || "")
+      .replace(/\D/g, "")
+      .replace(/^63/, "")
+      .replace(/^0/, "")
+      .slice(0, 10);
 
   const calculatePasswordStrength = (password) => {
     let score = 0;
@@ -313,8 +295,8 @@ function SignUpPage() {
     }
 
     if (name === "phone") {
-      const formattedPhone = formatPhoneNumber(value);
-      setFormData((prev) => ({ ...prev, phone: formattedPhone }));
+      const localPhone = normalizeLocalPhone(value);
+      setFormData((prev) => ({ ...prev, phone: localPhone }));
       if (errors.phone) setErrors((prev) => ({ ...prev, phone: "" }));
       return;
     }
@@ -451,9 +433,7 @@ function SignUpPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateStep(3)) return;
-    const cleanedPhone = formData.phone
-      ? formData.phone.replace(/\s/g, "")
-      : "";
+    const cleanedPhone = formData.phone ? normalizeLocalPhone(formData.phone) : "";
     const userData = {
       email: formData.email,
       password: formData.password,
@@ -461,7 +441,7 @@ function SignUpPage() {
       last_name: formData.lastName,
       suffix: formData.suffix,
       birth_date: formData.birthDate,
-      phone: cleanedPhone ? `${formData.countryCode}${cleanedPhone}` : null,
+      phone: cleanedPhone ? `+63${cleanedPhone}` : null,
       role: formData.role,
     };
     try {
@@ -490,7 +470,6 @@ function SignUpPage() {
           suffix: "",
           birthDate: "",
           email: "",
-          countryCode: "+63",
           phone: "",
           password: "",
           confirmPassword: "",
@@ -967,19 +946,10 @@ function SignUpPage() {
                       >
                         Phone Number
                       </label>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <select
-                          name="countryCode"
-                          value={formData.countryCode}
-                          onChange={handleChange}
-                          className="w-full sm:w-[120px] px-3 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-base focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 cursor-pointer"
-                        >
-                          {countryCodes.map((item) => (
-                            <option key={item.code} value={item.code}>
-                              {item.flag} {item.code}
-                            </option>
-                          ))}
-                        </select>
+                      <div className={`flex items-center rounded-xl bg-gray-900 border ${errors.phone ? "border-red-600" : "border-gray-700"} focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-600/50 transition-all duration-300`}>
+                        <span className="px-4 py-3.5 text-gray-300 border-r border-gray-700 font-semibold">
+                          +63
+                        </span>
                         <input
                           type="tel"
                           id="phone"
@@ -987,8 +957,10 @@ function SignUpPage() {
                           value={formData.phone}
                           onChange={handleChange}
                           autoComplete="off"
-                          className={`flex-1 px-4 py-3.5 bg-gray-900 border ${errors.phone ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
-                          placeholder="XXX XXX XXXX"
+                          inputMode="numeric"
+                          maxLength={10}
+                          className="flex-1 px-4 py-3.5 bg-transparent text-white text-base placeholder-gray-500 focus:outline-none"
+                          placeholder="9XXXXXXXXX"
                         />
                       </div>
                       {errors.phone && (

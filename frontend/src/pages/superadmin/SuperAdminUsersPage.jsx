@@ -3,6 +3,23 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { apiFetch } from "../../hooks/api";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 
+const isValidName = (value) =>
+  /^[A-Za-z]+(?: [A-Za-z]+)*$/.test(String(value || "").trim());
+const isValidPhone = (value) =>
+  /^\+63\d+$/.test(String(value || "").trim()) &&
+  String(value || "").trim().length <= 12;
+const sanitizeNameInput = (value) =>
+  String(value || "")
+    .replace(/[^A-Za-z\s]/g, "")
+    .replace(/\s{2,}/g, " ");
+const sanitizePhoneInput = (value) => {
+  const raw = String(value || "");
+  let digits = raw.replace(/[^\d]/g, "");
+  if (digits.startsWith("63")) digits = digits.slice(2);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return digits.slice(0, 10);
+};
+
 // ── Small components ──────────────────────────────────────────────────────────
 function StatCard({ title, value, icon, accentBg, accentText, border, sub }) {
   return (
@@ -419,6 +436,20 @@ function AddUserForm({ onSubmit, onCancel, branches, roles, loading }) {
       alert("Passwords don't match");
       return;
     }
+    if (!isValidName(formData.first_name)) {
+      alert("First name must contain letters and spaces only.");
+      return;
+    }
+    if (!isValidName(formData.last_name)) {
+      alert("Last name must contain letters and spaces only.");
+      return;
+    }
+    if (formData.phone && !isValidPhone(formData.phone)) {
+      alert(
+        "Phone must start with +63, contain digits only, and be at most 12 characters.",
+      );
+      return;
+    }
     onSubmit(formData);
   };
 
@@ -452,7 +483,10 @@ function AddUserForm({ onSubmit, onCancel, branches, roles, loading }) {
               required
               value={formData.first_name}
               onChange={(e) =>
-                setFormData({ ...formData, first_name: e.target.value })
+                setFormData({
+                  ...formData,
+                  first_name: sanitizeNameInput(e.target.value),
+                })
               }
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
             />
@@ -466,7 +500,10 @@ function AddUserForm({ onSubmit, onCancel, branches, roles, loading }) {
               required
               value={formData.last_name}
               onChange={(e) =>
-                setFormData({ ...formData, last_name: e.target.value })
+                setFormData({
+                  ...formData,
+                  last_name: sanitizeNameInput(e.target.value),
+                })
               }
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
             />
@@ -492,14 +529,25 @@ function AddUserForm({ onSubmit, onCancel, branches, roles, loading }) {
           <label className="block text-xs font-semibold text-gray-400 mb-1">
             Phone
           </label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) =>
-              setFormData({ ...formData, phone: e.target.value })
-            }
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
-          />
+          <div className="flex items-center rounded-lg border border-gray-700 bg-gray-800 focus-within:border-red-500">
+            <span className="px-3 text-gray-300 border-r border-gray-700">+63</span>
+            <input
+              type="tel"
+              value={String(formData.phone || "").replace(/^\+63/, "")}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  phone: sanitizePhoneInput(e.target.value)
+                    ? `+63${sanitizePhoneInput(e.target.value)}`
+                    : "",
+                })
+              }
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="9XXXXXXXXX"
+              className="w-full px-3 py-2 bg-transparent text-white text-sm placeholder-gray-500 focus:outline-none"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -665,6 +713,20 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!isValidName(formData.first_name)) {
+      alert("First name must contain letters and spaces only.");
+      return;
+    }
+    if (!isValidName(formData.last_name)) {
+      alert("Last name must contain letters and spaces only.");
+      return;
+    }
+    if (formData.phone && !isValidPhone(formData.phone)) {
+      alert(
+        "Phone must start with +63, contain digits only, and be at most 12 characters.",
+      );
+      return;
+    }
     onSave(user.id, formData);
   };
 
@@ -731,7 +793,10 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
                 type="text"
                 value={formData.first_name}
                 onChange={(e) =>
-                  setFormData({ ...formData, first_name: e.target.value })
+                  setFormData({
+                    ...formData,
+                    first_name: sanitizeNameInput(e.target.value),
+                  })
                 }
                 className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
               />
@@ -744,7 +809,10 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
                 type="text"
                 value={formData.last_name}
                 onChange={(e) =>
-                  setFormData({ ...formData, last_name: e.target.value })
+                  setFormData({
+                    ...formData,
+                    last_name: sanitizeNameInput(e.target.value),
+                  })
                 }
                 className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
               />
@@ -754,14 +822,25 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
             <label className="block text-xs font-semibold text-gray-400 mb-1">
               Phone
             </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) =>
-                setFormData({ ...formData, phone: e.target.value })
-              }
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
-            />
+            <div className="flex items-center rounded-lg border border-gray-700 bg-gray-800 focus-within:border-red-500">
+              <span className="px-3 text-gray-300 border-r border-gray-700">+63</span>
+              <input
+                type="tel"
+                value={String(formData.phone || "").replace(/^\+63/, "")}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    phone: sanitizePhoneInput(e.target.value)
+                      ? `+63${sanitizePhoneInput(e.target.value)}`
+                      : "",
+                  })
+                }
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="9XXXXXXXXX"
+                className="w-full px-3 py-2 bg-transparent text-white text-sm placeholder-gray-500 focus:outline-none"
+              />
+            </div>
           </div>
           {user.account_type === "staff" && (
             <>
@@ -918,6 +997,9 @@ export default function SuperAdminUsers() {
     try {
       const payload = {
         is_active: formData.is_active,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
       };
 
       if (formData.staff_role) {

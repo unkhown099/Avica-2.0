@@ -1,4 +1,5 @@
 import json
+import re
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Sum, Q
@@ -18,6 +19,8 @@ from api.models import (
 from api.permissions import IsSuperAdmin
 
 User = get_user_model()
+NAME_PATTERN = re.compile(r"^[A-Za-z]+(?: [A-Za-z]+)*$")
+PHONE_PATTERN = re.compile(r"^\+63\d+$")
 
 def _notification_dashboard_path_for_user(user):
     try:
@@ -415,6 +418,33 @@ class SuperAdminUserDetailView(APIView):
 
         if hasattr(user, "staff_profile"):
             s = user.staff_profile
+            first_name = request.data.get("first_name")
+            last_name = request.data.get("last_name")
+            phone = request.data.get("phone")
+
+            if first_name is not None:
+                first_name = str(first_name).strip()
+                if not NAME_PATTERN.fullmatch(first_name):
+                    return Response({"error": "First name can only contain letters and spaces."}, status=400)
+                s.first_name = first_name
+                changed.append("first_name")
+
+            if last_name is not None:
+                last_name = str(last_name).strip()
+                if not NAME_PATTERN.fullmatch(last_name):
+                    return Response({"error": "Last name can only contain letters and spaces."}, status=400)
+                s.last_name = last_name
+                changed.append("last_name")
+
+            if phone is not None:
+                phone = str(phone).strip()
+                if len(phone) > 12:
+                    return Response({"error": "Phone number must not exceed 12 characters."}, status=400)
+                if phone and not PHONE_PATTERN.fullmatch(phone):
+                    return Response({"error": "Phone number must start with +63 and contain digits only."}, status=400)
+                s.phone = phone
+                changed.append("phone")
+
             if "staff_role" in request.data:
                 s.role = request.data["staff_role"]
                 changed.append("role")
@@ -693,6 +723,15 @@ class SuperAdminCreateView(APIView):
                 {"error": "email, password, first_name, last_name are required."},
                 status=400,
             )
+
+        if not NAME_PATTERN.fullmatch(first_name):
+            return Response({"error": "First name can only contain letters and spaces."}, status=400)
+        if not NAME_PATTERN.fullmatch(last_name):
+            return Response({"error": "Last name can only contain letters and spaces."}, status=400)
+        if len(phone) > 12:
+            return Response({"error": "Phone number must not exceed 12 characters."}, status=400)
+        if phone and not PHONE_PATTERN.fullmatch(phone):
+            return Response({"error": "Phone number must start with +63 and contain digits only."}, status=400)
 
         if User.objects.filter(email=email).exists():
             return Response({"error": "Email already in use."}, status=400)

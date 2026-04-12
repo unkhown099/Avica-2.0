@@ -3,6 +3,7 @@ import InventoryLayout from "./InventoryLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import { exportToCSV } from "../../components/admin/DashboardUI";
 
 const TYPE_STYLES = {
   create: {
@@ -211,6 +212,26 @@ function MovementLog({
     (m) => m.type === "transfer_in" || m.type === "transfer_out",
   ).length;
 
+  const handleExportCSV = useCallback(() => {
+    const rows = filtered.map((m) => [
+      m.id,
+      m.item,
+      m.sku,
+      m.typeLabel,
+      m.qty,
+      m.branch,
+      m.by,
+      m.date,
+      m.time,
+      m.notes,
+    ]);
+    exportToCSV(
+      rows,
+      ["ID", "Item", "SKU", "Type", "Quantity", "Branch", "By", "Date", "Time", "Notes"],
+      `inventory-movement-log-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  }, [filtered]);
+
   return (
     <LayoutComponent>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
@@ -224,7 +245,10 @@ function MovementLog({
               {subtitle}
             </p>
           </div>
-          <button className="mt-10 flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit">
+          <button
+            onClick={handleExportCSV}
+            className="mt-10 flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit"
+          >
             <svg
               className="w-4 h-4"
               fill="none"

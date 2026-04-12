@@ -20,6 +20,7 @@ class RestockRequestSerializer(serializers.ModelSerializer):
             "requested_by_name",
             "quantity_requested",
             "notes",
+            "request_type",
             "status",
             "reviewed_by",
             "reviewed_by_name",
@@ -35,6 +36,7 @@ class RestockRequestSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "status",
+            "request_type",
         ]
 
     def get_requested_by_name(self, obj):

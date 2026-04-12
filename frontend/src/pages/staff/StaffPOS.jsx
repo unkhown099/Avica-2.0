@@ -14,12 +14,20 @@ const authHeaders = () => ({
 const API = API_BASE;
 const fmt = (n) => Number(n ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 });
 const normalizeServiceName = (name = "") => String(name).trim().toLowerCase();
+const isServiceInactive = (service) => {
+  if (!service) return true;
+  const status = String(service?.status ?? "").trim().toLowerCase();
+  const explicitActive = String(service?.is_active ?? "").trim().toLowerCase();
+  if (service?.is_active === false) return true;
+  if (explicitActive === "false" || explicitActive === "0" || explicitActive === "inactive" || explicitActive === "disabled") return true;
+  return status === "inactive" || status === "disabled";
+};
 
 const getServiceCatalogPrice = (serviceName, services) => {
   const normalized = normalizeServiceName(serviceName);
   if (!normalized || !Array.isArray(services) || services.length === 0) return 0;
   const matched = services.find(
-    (s) => normalizeServiceName(s?.name) === normalized && s?.is_active !== false,
+    (s) => normalizeServiceName(s?.name) === normalized && !isServiceInactive(s),
   );
   return parseFloat(matched?.price ?? 0) || 0;
 };
@@ -233,19 +241,36 @@ function PrintableReceipt({ customerName, items, total, paymentMethod, amountGiv
     <div id="printable-receipt" style={{ display: "none" }}>
       <style>{`
         @media print {
+          @page {
+            size: 80mm 200mm;
+            margin: 0;
+          }
+          html, body {
+            width: 80mm !important;
+            min-height: 0 !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+            overflow: hidden !important;
+          }
           body * { visibility: hidden !important; }
           #printable-receipt, #printable-receipt * { visibility: visible !important; }
           #printable-receipt {
             display: block !important;
-            position: fixed;
-            left: 0; top: 0;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            z-index: 999999 !important;
             width: 80mm;
             font-family: 'Courier New', monospace;
             font-size: 12px;
             color: #000;
             background: #fff;
-            padding: 8mm;
+            padding: 4mm;
             box-sizing: border-box;
+            page-break-after: avoid;
+            page-break-inside: avoid;
           }
         }
       `}</style>
@@ -308,8 +333,13 @@ function ReceiptModal({ customerName, items, subtotal, total, paymentMethod, amo
 
   const handlePrint = () => {
     const el = document.getElementById("printable-receipt");
-    if (el) { el.style.display = "block"; window.print(); el.style.display = "none"; }
-    else window.print();
+    if (el) {
+      el.style.display = "block";
+      window.print();
+      el.style.display = "none";
+      return;
+    }
+    window.print();
   };
 
   const numberedItems = buildReceiptLines(items);
@@ -390,22 +420,43 @@ function ReceiptModal({ customerName, items, subtotal, total, paymentMethod, amo
 }
 
 // ── Input Field with validation ───────────────────────────────────────────────
-function ValidatedInput({ value, onChange, placeholder, type = "text", hasError, errorMsg, inputMode, maxLength }) {
+function ValidatedInput({ value, onChange, placeholder, type = "text", hasError, errorMsg, inputMode, maxLength, prefix }) {
   return (
     <div className="space-y-1">
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        inputMode={inputMode}
-        maxLength={maxLength}
-        className={`w-full bg-gray-800/50 border text-white placeholder-gray-600 rounded-lg px-4 py-3 text-base focus:outline-none transition-all
-          ${hasError
-            ? "border-red-500/70 focus:border-red-500 bg-red-500/5"
-            : "border-white/8 focus:border-red-500/50"
-          }`}
-      />
+      {prefix ? (
+        <div
+          className={`flex items-center bg-gray-800/50 border text-white rounded-lg overflow-hidden transition-all
+            ${hasError
+              ? "border-red-500/70 focus-within:border-red-500 bg-red-500/5"
+              : "border-white/8 focus-within:border-red-500/50"
+            }`}
+        >
+          <span className="px-4 py-3 text-gray-300 border-r border-white/10 font-semibold">{prefix}</span>
+          <input
+            type={type}
+            placeholder={placeholder}
+            value={value}
+            onChange={onChange}
+            inputMode={inputMode}
+            maxLength={maxLength}
+            className="w-full bg-transparent text-white placeholder-gray-600 px-4 py-3 text-base focus:outline-none"
+          />
+        </div>
+      ) : (
+        <input
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={onChange}
+          inputMode={inputMode}
+          maxLength={maxLength}
+          className={`w-full bg-gray-800/50 border text-white placeholder-gray-600 rounded-lg px-4 py-3 text-base focus:outline-none transition-all
+            ${hasError
+              ? "border-red-500/70 focus:border-red-500 bg-red-500/5"
+              : "border-white/8 focus:border-red-500/50"
+            }`}
+        />
+      )}
       {hasError && (
         <p className="text-xs text-red-400 flex items-center gap-1 px-1">
           <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -494,9 +545,10 @@ export default function StaffPOS() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchUnpaid]);
 
-  const filteredServices = services.filter(
-    (s) => s.is_active !== false && s.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+const filteredServices = services.filter((s) => {
+  if (isServiceInactive(s)) return false;
+  return String(s?.name ?? "").toLowerCase().includes(searchQuery.toLowerCase());
+});
   const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const addToCart = (item, type) => {
@@ -563,6 +615,7 @@ export default function StaffPOS() {
   const total = subtotal;
   const queueItems = cart.filter((c) => c.type === "queue");
   const hasQueueItems = queueItems.length > 0;
+  const hasOnlyProducts = cart.length > 0 && cart.every((c) => c.type === "product");
   const queueOnlyCart = hasQueueItems && cart.every((c) => c.type === "queue");
   const queueCheckoutItem = queueItems[0] ?? null;
   const effectiveTotal = queueOnlyCart && queueCheckoutItem ? queueCheckoutItem._price * queueCheckoutItem.quantity : total;
@@ -574,31 +627,39 @@ export default function StaffPOS() {
 
   // ── Validate inputs ─────────────────────────────────────────────────────────
   const validateInputs = () => {
-    const nameErr = !customerInfo.name.trim() || !isValidPersonName(customerInfo.name);
+    const nameRequired = !hasOnlyProducts;
+    const nameErr = nameRequired
+      ? !customerInfo.name.trim() || !isValidPersonName(customerInfo.name)
+      : customerInfo.name.trim() !== "" && !isValidPersonName(customerInfo.name);
     const phoneErr = customerInfo.phone.trim() !== "" && !isValidPhone(customerInfo.phone);
     setFieldErrors({ name: nameErr, phone: phoneErr });
-    if (nameErr) { pushSnack("Customer name must contain letters and spaces only.", "error"); return false; }
+    if (nameErr) {
+      pushSnack(
+        nameRequired
+          ? "Customer name must contain letters and spaces only."
+          : "If provided, customer name must contain letters and spaces only.",
+        "error",
+      );
+      return false;
+    }
     if (phoneErr) { pushSnack("Enter a valid phone number (e.g. +639171234567).", "error"); return false; }
     return true;
   };
 
   // ── Record a POS-only service sale (no booking, no queue) ───────────────────
   const recordServiceSale = async (item) => {
-    // Try a lightweight POS sale endpoint first; fall back to a generic transaction log
     const payload = {
-      customer_name: customerInfo.name,
-      customer_phone: customerInfo.phone || "",
-      service_name: item.name,
-      quantity: item.quantity,
-      unit_price: item._price,
-      total_price: item._price * item.quantity,
-      payment_method: paymentMethod,
       transaction_type: "service",
-      date: new Date().toISOString().split("T")[0],
+      description: `POS service sale - ${item.name}`,
+      quantity: item.quantity,
+      amount: item._price * item.quantity,
+      payment_method: paymentMethod,
+      notes: customerInfo.name
+        ? `Customer: ${customerInfo.name}${customerInfo.phone ? ` (${customerInfo.phone})` : ""}`
+        : "",
     };
 
-    // First, try a dedicated POS transactions endpoint
-    const posTxnRes = await fetch(`${API}/pos/transactions/`, {
+    const posTxnRes = await fetch(`${API}/api/payment-transactions/`, {
       method: "POST",
       headers: authHeaders(),
       credentials: "include",
@@ -606,22 +667,13 @@ export default function StaffPOS() {
     });
 
     if (posTxnRes.ok) return { ok: true };
-
-    // Fallback: try sales-record endpoint
-    const salesRes = await fetch(`${API}/sales/`, {
-      method: "POST",
-      headers: authHeaders(),
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-
-    if (salesRes.ok) return { ok: true };
-
-    // Last resort: silently succeed — POS service items don't need a booking record
-    // but we still want the payment to go through for queue/product items.
-    // Return ok:true with a warning flag so the caller can note it.
-    return { ok: true, warned: true, name: item.name };
+    return { ok: false, name: item.name };
   };
+
+  const buildPaymentNotes = () =>
+    customerInfo.name
+      ? `Customer: ${customerInfo.name}${customerInfo.phone ? ` (${customerInfo.phone})` : ""}`
+      : "";
 
   const processInternalCheckout = async () => {
     setCheckingOut(true);
@@ -656,13 +708,34 @@ export default function StaffPOS() {
       // ── Product items ──────────────────────────────────────────────────────
       for (const item of cart.filter((c) => c.type === "product")) {
         const product = products.find((p) => p.id === item.id);
+        const productSaleAmount = (parseFloat(item._price || 0) || 0) * (item.quantity || 0);
         const res = await fetch(`${API}/inventory/${item.id}/`, {
           method: "PATCH", headers: authHeaders(), credentials: "include",
-          body: JSON.stringify({ quantity: (product?.quantity ?? item.quantity) - item.quantity }),
+          body: JSON.stringify({
+            quantity: (product?.quantity ?? item.quantity) - item.quantity,
+            notes: `[POS Product Sale] ${productSaleAmount.toFixed(2)}`,
+          }),
         });
         if (!res.ok) {
           const e = await res.json().catch(() => ({}));
           errors.push(`Product "${item.name}": ${e.detail ?? res.status}`);
+        } else {
+          const txnRes = await fetch(`${API}/api/payment-transactions/`, {
+            method: "POST",
+            headers: authHeaders(),
+            credentials: "include",
+            body: JSON.stringify({
+              transaction_type: "product",
+              description: `POS product sale - ${item.name}`,
+              quantity: item.quantity,
+              amount: productSaleAmount,
+              payment_method: paymentMethod,
+              notes: buildPaymentNotes(),
+            }),
+          });
+          if (!txnRes.ok) {
+            errors.push(`Product "${item.name}" payment log failed.`);
+          }
         }
       }
 
@@ -670,6 +743,10 @@ export default function StaffPOS() {
         // Partial failure
         pushSnack(`Payment partially failed: ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more)` : ""}`, "error", 7000);
       } else {
+        if (hasOnlyProducts && cart.length > 0) {
+          const customerLabel = customerInfo.name.trim() ? customerInfo.name.trim() : "Walk-in";
+          pushSnack(`Payment recorded under ${customerLabel}.`, "info", 4500);
+        }
         // Full success
         if (warnings.length > 0) {
           warnings.forEach((w) => pushSnack(w, "info", 5000));
@@ -848,7 +925,9 @@ export default function StaffPOS() {
           {/* ══ COL 2: Customer + Cart ══ */}
           <div className={`bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
             <div className="px-5 pt-5 pb-4 border-b border-white/8 shrink-0">
-              <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Customer</p>
+              <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">
+                Customer {hasOnlyProducts ? "(Optional)" : ""}
+              </p>
               <div className="space-y-3">
                 <ValidatedInput
                   value={customerInfo.name}
@@ -857,22 +936,23 @@ export default function StaffPOS() {
                     setCustomerInfo({ ...customerInfo, name: cleaned });
                     if (fieldErrors.name && isValidPersonName(cleaned)) setFieldErrors((p) => ({ ...p, name: false }));
                   }}
-                  placeholder="Name *"
+                  placeholder={hasOnlyProducts ? "Name (optional)" : "Name *"}
                   type="text"
                   hasError={fieldErrors.name}
                   errorMsg="Use letters and spaces only"
                 />
                 <ValidatedInput
-                  value={customerInfo.phone}
+                  value={String(customerInfo.phone || "").replace(/^\+63/, "")}
                   onChange={(e) => {
                     const normalized = normalizePHPhone(e.target.value);
                     setCustomerInfo({ ...customerInfo, phone: normalized });
                     if (fieldErrors.phone && isValidPhone(normalized)) setFieldErrors((p) => ({ ...p, phone: false }));
                   }}
-                  placeholder="Phone (e.g. +639171234567)"
+                  placeholder="9XXXXXXXXX"
                   type="tel"
-                  inputMode="tel"
-                  maxLength={13}
+                  inputMode="numeric"
+                  maxLength={10}
+                  prefix="+63"
                   hasError={fieldErrors.phone}
                   errorMsg="Enter a valid +63 phone number"
                 />

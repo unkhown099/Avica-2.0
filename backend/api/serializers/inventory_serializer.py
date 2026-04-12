@@ -20,6 +20,15 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "sku": {"required": False},
         }
 
+    def validate(self, attrs):
+        attrs["unit"] = "Pieces"
+        return super().validate(attrs)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["unit"] = "Pieces"
+        return data
+
     def _generate_sku(self, category):
         prefix_map = {
             "Lubricants": "LUB",
@@ -40,6 +49,11 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             next_number += 1
 
     def create(self, validated_data):
+        validated_data["unit"] = "Pieces"
         if not validated_data.get("sku"):
             validated_data["sku"] = self._generate_sku(validated_data.get("category"))
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data["unit"] = "Pieces"
+        return super().update(instance, validated_data)

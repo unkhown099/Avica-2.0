@@ -52,6 +52,7 @@ class QueueEntrySerializer(serializers.ModelSerializer):
             "service_base_price",
             "price",
             "payment_status",
+            "paid_at",
             "payment_method",
             "rating_score",
             "rating_comment",

@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta, date
 from calendar import month_abbr
 
-from ..models import Branch, Booking, QueueEntry, Service, InventoryItem, Staff, Rating
+from ..models import Branch, Booking, QueueEntry, Service, InventoryItem, Staff, Rating, PaymentTransaction
 from ..serializers.business_owner_serializers import (
     BranchSummarySerializer,
     OwnerAppointmentSerializer,
@@ -57,22 +57,17 @@ class OwnerDashboardStatsView(APIView):
 
             this_month  = _month_start(0)
             last_month  = _month_start(1)
+            payment_scope = PaymentTransaction.objects.all()
+            rev_total = payment_scope.aggregate(t=Sum("amount"))["t"] or 0
 
-            # Revenue (align with admin: total paid revenue)
-            rev_total = QueueEntry.objects.filter(
-                payment_status="paid",
-            ).aggregate(t=Sum("price"))["t"] or 0
+            rev_this = payment_scope.filter(
+                paid_at__date__gte=this_month,
+            ).aggregate(t=Sum("amount"))["t"] or 0
 
-            rev_this = QueueEntry.objects.filter(
-                payment_status="paid",
-                completed_at__date__gte=this_month,
-            ).aggregate(t=Sum("price"))["t"] or 0
-
-            rev_last = QueueEntry.objects.filter(
-                payment_status="paid",
-                completed_at__date__gte=last_month,
-                completed_at__date__lt=this_month,
-            ).aggregate(t=Sum("price"))["t"] or 0
+            rev_last = payment_scope.filter(
+                paid_at__date__gte=last_month,
+                paid_at__date__lt=this_month,
+            ).aggregate(t=Sum("amount"))["t"] or 0
 
             rev_change = (
                 round(((float(rev_this) - float(rev_last)) / float(rev_last)) * 100, 1)
@@ -145,11 +140,10 @@ class OwnerRevenueTrendView(APIView):
                 else:
                     end = date(current_year, month + 1, 1)
 
-                rev = QueueEntry.objects.filter(
-                    payment_status="paid",
-                    completed_at__date__gte=start,
-                    completed_at__date__lt=end,
-                ).aggregate(t=Sum("price"))["t"] or 0
+                rev = PaymentTransaction.objects.filter(
+                    paid_at__date__gte=start,
+                    paid_at__date__lt=end,
+                ).aggregate(t=Sum("amount"))["t"] or 0
 
                 cnt = QueueEntry.objects.filter(
                     status="done",
@@ -184,10 +178,9 @@ class OwnerBranchRevenueView(APIView):
             branches = Branch.objects.filter(is_active=True)
             data = []
             for b in branches:
-                rev = QueueEntry.objects.filter(
+                rev = PaymentTransaction.objects.filter(
                     branch=b,
-                    payment_status="paid",
-                ).aggregate(t=Sum("price"))["t"] or 0
+                ).aggregate(t=Sum("amount"))["t"] or 0
                 data.append({"id": b.id, "name": b.name, "revenue": float(rev)})
 
             return Response(data)
@@ -319,18 +312,18 @@ class OwnerServiceListView(APIView):
             performance_mode = str(request.query_params.get("performance", "")).lower() in {"1", "true", "yes"}
             if performance_mode:
                 branch_id = request.query_params.get("branch")
-                perf_qs = QueueEntry.objects.filter(status="done", payment_status="paid")
+                perf_qs = PaymentTransaction.objects.all()
                 if branch_id:
                     perf_qs = perf_qs.filter(branch_id=branch_id)
 
                 top_services = (
-                    perf_qs.values("service")
-                    .annotate(count=Count("id"), revenue=Sum("price"))
+                    perf_qs.values("transaction_type", "description")
+                    .annotate(count=Count("id"), revenue=Sum("amount"))
                     .order_by("-revenue", "-count")
                 )
                 data = [
                     {
-                        "service": row["service"] or "Other",
+                        "service": row["description"] or str(row["transaction_type"]).replace("_", " ").title(),
                         "count": int(row["count"] or 0),
                         "revenue": float(row["revenue"] or 0),
                         "avg_time": "—",

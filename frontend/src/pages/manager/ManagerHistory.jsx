@@ -5,6 +5,7 @@ import { API_BASE } from "../../hooks/useAuth.js";
 import ManagerLayout from "./ManagerLayout";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
+import MovementLog from "../inventory/InventoryMovementLog.jsx";
 
 const HISTORY_SECTION_KEYS = ["service-history", "inventory-transaction"];
 
@@ -14,7 +15,6 @@ function ManagerHistory() {
   const [serviceFilter, setServiceFilter] = useState("All Services");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [serviceHistory, setServiceHistory] = useState([]);
-  const [inventoryTransactions, setInventoryTransactions] = useState([]);
   const [activeSection, setActiveSection] = useState("service-history");
   const [loading, setLoading] = useState(true);
 
@@ -34,10 +34,7 @@ function ManagerHistory() {
           localStorage.getItem("access_token") ||
           sessionStorage.getItem("access_token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const [serviceRes, inventoryRes] = await Promise.all([
-          axios.get(`${API_BASE}/api/queue/history/`, { headers }),
-          axios.get(`${API_BASE}/inventory/transactions/`, { headers }),
-        ]);
+        const serviceRes = await axios.get(`${API_BASE}/api/queue/history/`, { headers });
         const mapped = (
           Array.isArray(serviceRes.data) ? serviceRes.data : []
         ).map((row) => ({
@@ -51,42 +48,10 @@ function ManagerHistory() {
           amount: Number(row.price || 0),
           status: row.status === "done" ? "Completed" : "Skipped",
         }));
-        const actionLabel = {
-          restock: "Restock",
-          restock_approved: "Restock Approved",
-          restock_received: "Restock Received",
-          transfer_in: "Transfer In",
-          transfer_out: "Transfer Out",
-          consume: "Consumed",
-          adjustment: "Adjustment",
-          add: "Added",
-          remove: "Removed",
-        };
-        const inventoryMapped = (
-          Array.isArray(inventoryRes.data) ? inventoryRes.data : []
-        ).map((row) => ({
-          id: `IT-${String(row.id).padStart(3, "0")}`,
-          date: row.created_at || row.date || "",
-          item:
-            row.item_name || row.inventory_item_name || row.item?.name || "—",
-          action:
-            actionLabel[row.action] ||
-            String(row.action || "—").replace(/_/g, " "),
-          quantity: Number(row.quantity || row.qty || 0),
-          unit: row.unit || row.item?.unit || "",
-          branch: row.branch_name || row.branch || "—",
-          actor:
-            row.actor_name ||
-            row.performed_by_name ||
-            row.staff_name ||
-            "System",
-        }));
         setServiceHistory(mapped);
-        setInventoryTransactions(inventoryMapped);
       } catch (error) {
         console.error("Failed to load manager history:", error);
         setServiceHistory([]);
-        setInventoryTransactions([]);
       } finally {
         setLoading(false);
       }
@@ -126,12 +91,6 @@ function ManagerHistory() {
       serviceHistory.length,
     ],
   });
-  const inventoryPagination = usePagination({
-    items: inventoryTransactions,
-    pageSize: 10,
-    resetDeps: [inventoryTransactions.length],
-  });
-
   if (loading) {
     return (
       <ManagerLayout title="" subtitle="">
@@ -294,7 +253,6 @@ function ManagerHistory() {
                   <div className="col-span-2">Vehicle</div>
                   <div className="col-span-2">Service</div>
                   <div className="col-span-1">Employee</div>
-                  <div className="col-span-1">Duration</div>
                   <div className="col-span-1">Amount</div>
                   <div className="col-span-1">Status</div>
                   <div className="col-span-1 text-right">Act.</div>
@@ -343,9 +301,7 @@ function ManagerHistory() {
                         <div className="col-span-1 text-gray-500 text-xs">
                           {record.employee.split(" ")[0]}
                         </div>
-                        <div className="col-span-1 text-gray-500 text-xs">
-                          {record.duration}
-                        </div>
+
                         <div className="col-span-1 text-white font-bold text-sm">
                           ₱{Number(record.amount || 0).toLocaleString()}
                         </div>
@@ -439,117 +395,11 @@ function ManagerHistory() {
 
         {activeSection === "inventory-transaction" && (
           <section id="inventory-transaction" className="scroll-mt-24">
-            <div className="mb-4">
-              <h2 className="text-xl font-black text-white">
-                Inventory Transaction
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                Stock movements and adjustments
-              </p>
-            </div>
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              {/* Desktop header */}
-              <div className="hidden sm:grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                <div className="col-span-2">Date</div>
-                <div className="col-span-3">Item</div>
-                <div className="col-span-2">Action</div>
-                <div className="col-span-1">Qty</div>
-                <div className="col-span-2">Branch</div>
-                <div className="col-span-2">By</div>
-              </div>
-
-              {inventoryTransactions.length === 0 ? (
-                <div className="py-20 text-center">
-                  <svg
-                    className="w-12 h-12 text-gray-700 mx-auto mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"
-                    />
-                  </svg>
-                  <p className="text-gray-500 text-lg">
-                    No inventory transactions yet
-                  </p>
-                </div>
-              ) : (
-                inventoryPagination.paginatedItems.map((record) => (
-                  <div
-                    key={record.id}
-                    className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
-                  >
-                    {/* Desktop */}
-                    <div className="hidden sm:grid grid-cols-12 gap-3 px-6 py-4 items-center">
-                      <div className="col-span-2 text-gray-500 text-xs">
-                        {record.date ? String(record.date).slice(0, 10) : "—"}
-                      </div>
-                      <div className="col-span-3 text-white font-semibold text-sm truncate">
-                        {record.item}
-                      </div>
-                      <div className="col-span-2 text-gray-300 text-xs capitalize">
-                        {record.action}
-                      </div>
-                      <div className="col-span-1 text-white font-bold text-sm">
-                        {record.quantity} {record.unit}
-                      </div>
-                      <div className="col-span-2 text-gray-400 text-sm truncate">
-                        {record.branch}
-                      </div>
-                      <div className="col-span-2 text-gray-500 text-xs truncate">
-                        {record.actor}
-                      </div>
-                    </div>
-                    {/* Mobile card */}
-                    <div className="sm:hidden px-4 py-3">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="text-white font-semibold text-sm">
-                          {record.item}
-                        </span>
-                        <span className="text-white font-bold text-sm">
-                          {record.quantity} {record.unit}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-gray-400">
-                        <span className="capitalize">{record.action}</span>
-                        <span>
-                          ·{" "}
-                          {record.date ? String(record.date).slice(0, 10) : "—"}
-                        </span>
-                        <span>· {record.actor}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-
-              {inventoryTransactions.length > 0 && (
-                <div className="px-4 sm:px-6 py-4">
-                  <p className="text-gray-500 text-sm">
-                    Showing{" "}
-                    <span className="text-white font-semibold">
-                      {inventoryPagination.startItem}-
-                      {inventoryPagination.endItem}
-                    </span>{" "}
-                    of{" "}
-                    <span className="text-white font-semibold">
-                      {inventoryTransactions.length}
-                    </span>{" "}
-                    records
-                  </p>
-                </div>
-              )}
-              <Pagination
-                current={inventoryPagination.currentPage}
-                total={inventoryPagination.totalPages}
-                onChange={inventoryPagination.setCurrentPage}
-                className="px-4 sm:px-6 pb-6"
-              />
-            </div>
+            <MovementLog
+              LayoutComponent={({ children }) => <>{children}</>}
+              pageTitle="Inventory Transaction"
+              subtitle="Stock movements and adjustments"
+            />
           </section>
         )}
       </div>
