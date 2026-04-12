@@ -64,10 +64,19 @@ const EMPTY_CONTENT = {
     },
   ],
   footer: {
-    tagline: "",
-    copyright: "",
-    siteMapLinks: [],
-    legalLinks: [],
+    tagline: "Your trusted automotive companion",
+    copyright: "© 2024 Otokwikk. All rights reserved.",
+    siteMapLinks: [
+      { label: "Home", href: "/" },
+      { label: "Services", href: "/services" },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+    ],
+    legalLinks: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Cookie Policy", href: "/cookies" },
+    ],
   },
 };
 
@@ -640,16 +649,53 @@ function FbPagesEditor({ data, onChange }) {
 }
 
 function FooterEditor({ data, onChange }) {
-  const setSiteMapLink = (i, key) => (val) => {
-    const updated = data.siteMapLinks.map((l, idx) =>
-      idx === i ? { ...l, [key]: val } : l,
-    );
+  // Add new site map link
+  const addSiteMapLink = () => {
+    onChange({
+      ...data,
+      siteMapLinks: [
+        ...(data.siteMapLinks || []),
+        { label: "New Link", href: "/" },
+      ],
+    });
+  };
+
+  // Remove site map link
+  const removeSiteMapLink = (index) => {
+    const updated = [...(data.siteMapLinks || [])];
+    updated.splice(index, 1);
     onChange({ ...data, siteMapLinks: updated });
   };
-  const setLegalLink = (i, key) => (val) => {
-    const updated = data.legalLinks.map((l, idx) =>
-      idx === i ? { ...l, [key]: val } : l,
-    );
+
+  // Update site map link
+  const updateSiteMapLink = (index, field, value) => {
+    const updated = [...(data.siteMapLinks || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    onChange({ ...data, siteMapLinks: updated });
+  };
+
+  // Add new legal link
+  const addLegalLink = () => {
+    onChange({
+      ...data,
+      legalLinks: [
+        ...(data.legalLinks || []),
+        { label: "New Legal Link", href: "/" },
+      ],
+    });
+  };
+
+  // Remove legal link
+  const removeLegalLink = (index) => {
+    const updated = [...(data.legalLinks || [])];
+    updated.splice(index, 1);
+    onChange({ ...data, legalLinks: updated });
+  };
+
+  // Update legal link
+  const updateLegalLink = (index, field, value) => {
+    const updated = [...(data.legalLinks || [])];
+    updated[index] = { ...updated[index], [field]: value };
     onChange({ ...data, legalLinks: updated });
   };
 
@@ -658,47 +704,126 @@ function FooterEditor({ data, onChange }) {
       <Card title="Brand Copy" accent>
         <Field
           label="Tagline"
-          value={data.tagline}
+          value={data.tagline || ""}
           onChange={(v) => onChange({ ...data, tagline: v })}
           textarea
+          placeholder="e.g., Your trusted automotive companion"
         />
         <Field
           label="Copyright Text"
-          value={data.copyright}
+          value={data.copyright || ""}
           onChange={(v) => onChange({ ...data, copyright: v })}
+          placeholder="e.g., © 2024 Otokwikk. All rights reserved."
         />
       </Card>
+
       <Card title="Site Map Links">
-        {data.siteMapLinks.map((link, i) => (
-          <div key={i} className="grid grid-cols-2 gap-3">
-            <Field
-              label={`Label ${i + 1}`}
-              value={link.label}
-              onChange={setSiteMapLink(i, "label")}
-            />
-            <Field
-              label="Href"
-              value={link.href}
-              onChange={setSiteMapLink(i, "href")}
-            />
+        <p className="text-xs text-gray-500 mb-3">
+          These links appear in the footer navigation under "Site Map"
+        </p>
+        {(data.siteMapLinks || []).map((link, index) => (
+          <div key={index} className="space-y-3 p-4 bg-white/5 rounded-xl mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-red-400 font-bold">
+                Link {index + 1}
+              </span>
+              <button
+                onClick={() => removeSiteMapLink(index)}
+                className="text-xs text-red-500 hover:text-red-400 font-bold"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label="Label"
+                value={link.label || ""}
+                onChange={(v) => updateSiteMapLink(index, "label", v)}
+                placeholder="e.g., Home"
+              />
+              <Field
+                label="URL"
+                value={link.href || ""}
+                onChange={(v) => updateSiteMapLink(index, "href", v)}
+                placeholder="e.g., /"
+              />
+            </div>
           </div>
         ))}
+        <button
+          onClick={addSiteMapLink}
+          className="w-full rounded-xl border border-dashed border-white/20 py-2 text-xs font-bold text-gray-500 hover:text-white hover:border-white/40 transition-colors mt-2"
+        >
+          + Add Site Map Link
+        </button>
       </Card>
+
       <Card title="Legal Links">
-        {data.legalLinks.map((link, i) => (
-          <div key={i} className="grid grid-cols-2 gap-3">
-            <Field
-              label={`Label ${i + 1}`}
-              value={link.label}
-              onChange={setLegalLink(i, "label")}
-            />
-            <Field
-              label="Href"
-              value={link.href}
-              onChange={setLegalLink(i, "href")}
-            />
+        <p className="text-xs text-gray-500 mb-3">
+          These links appear in the footer under "Legal" (Privacy Policy, Terms,
+          etc.)
+        </p>
+        {(data.legalLinks || []).map((link, index) => (
+          <div key={index} className="space-y-3 p-4 bg-white/5 rounded-xl mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-red-400 font-bold">
+                Legal Link {index + 1}
+              </span>
+              <button
+                onClick={() => removeLegalLink(index)}
+                className="text-xs text-red-500 hover:text-red-400 font-bold"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label="Label"
+                value={link.label || ""}
+                onChange={(v) => updateLegalLink(index, "label", v)}
+                placeholder="e.g., Privacy Policy"
+              />
+              <Field
+                label="URL"
+                value={link.href || ""}
+                onChange={(v) => updateLegalLink(index, "href", v)}
+                placeholder="e.g., /privacy"
+              />
+            </div>
           </div>
         ))}
+        <button
+          onClick={addLegalLink}
+          className="w-full rounded-xl border border-dashed border-white/20 py-2 text-xs font-bold text-gray-500 hover:text-white hover:border-white/40 transition-colors mt-2"
+        >
+          + Add Legal Link
+        </button>
+      </Card>
+
+      {/* Preview section */}
+      <Card title="Footer Preview">
+        <div className="bg-black/40 rounded-xl p-4 space-y-3">
+          <div className="text-sm text-gray-300">
+            <span className="text-red-400">Tagline:</span>{" "}
+            {data.tagline || "(not set)"}
+          </div>
+          <div className="text-sm text-gray-300">
+            <span className="text-red-400">Copyright:</span>{" "}
+            {data.copyright || "(not set)"}
+          </div>
+          <div className="text-sm text-gray-300">
+            <span className="text-red-400">Site Map Links:</span>{" "}
+            {(data.siteMapLinks || []).length > 0
+              ? (data.siteMapLinks || []).map((l) => l.label).join(", ")
+              : "(none)"}
+          </div>
+          <div className="text-sm text-gray-300">
+            <span className="text-red-400">Legal Links:</span>{" "}
+            {(data.legalLinks || []).length > 0
+              ? (data.legalLinks || []).map((l) => l.label).join(", ")
+              : "(none)"}
+          </div>
+        </div>
       </Card>
     </div>
   );
@@ -739,8 +864,8 @@ function PostsEditor() {
       const posts = Array.isArray(prev.posts) ? [...prev.posts] : [];
       posts.push({
         key: `post-${Date.now()}`,
-        title: "New Post",
-        body: "Write the content here.",
+        title: "New Legal Document",
+        body: "Write the legal content here.",
       });
       return { ...prev, posts };
     });
@@ -820,6 +945,50 @@ function PostsEditor() {
   }
 
   const posts = Array.isArray(content.posts) ? content.posts : [];
+
+  // Helper to get post type icon and label
+  const getPostTypeInfo = (key) => {
+    const types = {
+      privacy: {
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        ),
+        label: "Privacy Policy",
+        color: "text-blue-400",
+      },
+      terms: {
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        ),
+        label: "Terms & Conditions",
+        color: "text-purple-400",
+      },
+      cookie: {
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h.01M15 10h.01M12 14h.01" />
+          </svg>
+        ),
+        label: "Cookie Policy",
+        color: "text-yellow-400",
+      },
+    };
+    return types[key] || {
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 21v-4H7v4" />
+        </svg>
+      ),
+      label: "Legal Document",
+      color: "text-gray-400",
+    };
+  };
 
   return (
     <div>
@@ -913,52 +1082,125 @@ function PostsEditor() {
       </div>
 
       <div className="space-y-4">
-        <Card title="Editable posts" accent>
-          <p className="text-sm text-gray-300">
-            Edit the Terms & Conditions, Privacy Policy, Cookie Policy, or add
-            new post content that can be published later.
-          </p>
+        <Card title="Legal Content" accent>
+          <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-300">
+                  These are the legal documents that appear in modals when users click on 
+                  <span className="text-red-400 font-bold mx-1">Privacy Policy</span>,
+                  <span className="text-red-400 font-bold mx-1">Terms of Service</span>, and
+                  <span className="text-red-400 font-bold mx-1">Cookie Policy</span> links in the footer.
+                </p>
+                <p className="text-xs text-gray-500 mt-3 flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Tip: Each document is identified by its unique "key" (privacy, terms, cookie). Don't change these keys unless you update the footer links!
+                </p>
+              </div>
+            </div>
+          </div>
         </Card>
 
-        {posts.map((post, index) => (
-          <Card
-            key={post.key || index}
-            title={post.title || `Post ${index + 1}`}
-          >
-            <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+        {posts.map((post, index) => {
+          const postInfo = getPostTypeInfo(post.key);
+          return (
+            <Card key={post.key || index}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-10 h-10 bg-${postInfo.color.replace('text-', '')}/20 rounded-xl flex items-center justify-center`}>
+                  <div className={postInfo.color}>
+                    {postInfo.icon}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">{postInfo.label}</h3>
+                  {post.key && ["privacy", "terms", "cookie"].includes(post.key) && (
+                    <span className="text-[10px] text-green-500 bg-green-500/20 px-2 py-0.5 rounded-full">
+                      Default Document
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Field
+                  label="Document Title"
+                  value={post.title || ""}
+                  onChange={updatePost(index, "title")}
+                  placeholder="e.g., Privacy Policy"
+                />
+                <Field
+                  label="Unique Key (identifier)"
+                  value={post.key || ""}
+                  onChange={updatePost(index, "key")}
+                  placeholder="privacy, terms, cookie, etc."
+                />
+              </div>
               <Field
-                label="Post Title"
-                value={post.title || ""}
-                onChange={updatePost(index, "title")}
+                label="Document Content"
+                value={post.body || ""}
+                onChange={updatePost(index, "body")}
+                textarea
+                placeholder="Write the full legal text here. This will appear in the modal popup."
               />
-              <Field
-                label="Post Key"
-                value={post.key || ""}
-                onChange={updatePost(index, "key")}
-                placeholder="Unique internal key"
-              />
-            </div>
-            <Field
-              label="Content"
-              value={post.body || ""}
-              onChange={updatePost(index, "body")}
-              textarea
-            />
-            <button
-              onClick={() => removePost(index)}
-              className="text-xs text-red-500 hover:text-red-400 font-bold"
-            >
-              — Remove post
-            </button>
-          </Card>
-        ))}
+              {!post.key || !["privacy", "terms", "cookie"].includes(post.key) ? (
+                <button
+                  onClick={() => removePost(index)}
+                  className="text-xs text-red-500 hover:text-red-400 font-bold mt-2 flex items-center gap-1"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Remove custom post
+                </button>
+              ) : null}
+            </Card>
+          );
+        })}
 
         <button
           onClick={addPost}
-          className="w-full rounded-xl border border-dashed border-white/20 py-3 text-xs font-bold text-gray-500 hover:text-white hover:border-white/40 transition-colors"
+          className="w-full rounded-xl border border-dashed border-white/20 py-4 text-xs font-bold text-gray-500 hover:text-white hover:border-white/40 transition-colors flex items-center justify-center gap-2"
         >
-          + Add Post
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Custom Legal Document
         </button>
+
+        <Card title="How it works">
+          <div className="space-y-4 text-sm">
+            <div className="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+              <div className="w-7 h-7 bg-red-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-red-400 font-black text-xs">1</span>
+              </div>
+              <span className="text-gray-300">Edit the content above for Privacy Policy, Terms, and Cookie Policy</span>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+              <div className="w-7 h-7 bg-red-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-red-400 font-black text-xs">2</span>
+              </div>
+              <span className="text-gray-300">Save your changes</span>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+              <div className="w-7 h-7 bg-red-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-red-400 font-black text-xs">3</span>
+              </div>
+              <span className="text-gray-300">Users clicking footer links will see the updated content in a modal popup</span>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+              <div className="w-7 h-7 bg-red-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-red-400 font-black text-xs">4</span>
+              </div>
+              <span className="text-gray-300">You can add custom legal documents and link them in the Footer editor</span>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );
@@ -972,6 +1214,7 @@ const PAGE_TABS = [
   { key: "reviews", label: "Reviews" },
   { key: "fbPages", label: "FB Pages" },
   { key: "footer", label: "Footer" },
+  { key: "legal", label: "Legal Content" },
 ];
 
 function PagesEditor() {
@@ -1005,7 +1248,7 @@ function PagesEditor() {
   );
 
   const handleSave = async () => {
-    console.log("Saving imageUrl:", content.hero.imageUrl); // ← add this
+    console.log("Saving imageUrl:", content.hero.imageUrl);
     setStatus("saving");
     try {
       const result = await saveContentToAPI(content);
@@ -1069,96 +1312,6 @@ function PagesEditor() {
 
   return (
     <div>
-      {/* Save bar */}
-      <div className="sticky top-0 z-20 rounded-2xl border border-white/10 bg-gray-900/95 backdrop-blur px-5 py-3 flex items-center justify-between gap-3 mb-6">
-        <span className="text-xs font-medium min-w-0">
-          {status === "saved" && (
-            <span className="text-green-400 flex items-center gap-1.5">
-              <svg
-                className="w-3.5 h-3.5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              Saved to database
-              {lastSaved && (
-                <span className="text-gray-500 font-normal ml-1">
-                  · {lastSaved.toLocaleTimeString()}
-                </span>
-              )}
-            </span>
-          )}
-          {status === "saving" && (
-            <span className="text-yellow-400 flex items-center gap-1.5">
-              <svg
-                className="w-3.5 h-3.5 animate-spin flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8H4z"
-                />
-              </svg>
-              Saving to database…
-            </span>
-          )}
-          {status === "error" && (
-            <span className="text-red-400 flex items-center gap-1.5 truncate">
-              <svg
-                className="w-3.5 h-3.5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span className="truncate">{errorMsg}</span>
-            </span>
-          )}
-          {status === "idle" && (
-            <span className="text-gray-500">Unsaved changes</span>
-          )}
-        </span>
-        <div className="flex gap-2 flex-shrink-0">
-          <button
-            onClick={handleReset}
-            disabled={status === "saving"}
-            className="rounded-xl px-4 py-2 text-xs font-bold bg-white/5 text-gray-400 hover:bg-white/10 transition-colors disabled:opacity-40"
-          >
-            Reset Defaults
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={status === "saving"}
-            className="rounded-xl px-5 py-2 text-xs font-black bg-red-600 text-white hover:bg-red-700 transition-colors shadow-lg shadow-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {status === "saving" ? "Saving…" : "Save Changes"}
-          </button>
-        </div>
-      </div>
-
       {/* Sub-tabs */}
       <div className="rounded-2xl border border-white/10 bg-gray-900/80 p-3 mb-6">
         <div className="flex flex-wrap gap-2">
@@ -1195,6 +1348,7 @@ function PagesEditor() {
       {activeTab === "footer" && (
         <FooterEditor data={content.footer} onChange={update("footer")} />
       )}
+      {activeTab === "legal" && <PostsEditor />}
     </div>
   );
 }
