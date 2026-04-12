@@ -369,6 +369,9 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState("All Branches");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reportRun, setReportRun] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState(null);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -482,6 +485,63 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     };
     fetchInventoryForecast();
   }, [inventoryForecastPeriod, inventoryBranchFilter]);
+
+  const reportRequestPayload = useMemo(
+    () => ({
+      report_type: "dashboard_summary",
+      period_type: appointmentPeriod,
+      scope_type: dataScope === "manager" ? "branch" : "global",
+      filters: {
+        week: Number(appointmentWeekFilter),
+        month: Number(appointmentMonthFilter),
+        quarter: Number(appointmentQuarterFilter),
+        year: Number(appointmentYearFilter),
+        reconciliation_threshold: 1.0,
+      },
+    }),
+    [
+      dataScope,
+      appointmentPeriod,
+      appointmentWeekFilter,
+      appointmentMonthFilter,
+      appointmentQuarterFilter,
+      appointmentYearFilter,
+    ],
+  );
+
+  useEffect(() => {
+    const fetchReportSnapshot = async () => {
+      try {
+        setReportLoading(true);
+        setReportError(null);
+        const token =
+          localStorage.getItem("access_token") ??
+          sessionStorage.getItem("access_token");
+        const baseUrl = API_BASE;
+        const headers = {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+        const res = await fetch(`${baseUrl}/api/reports/generate/`, {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify(reportRequestPayload),
+        });
+        if (!res.ok) {
+          throw new Error(`Report: ${res.status}`);
+        }
+        const data = await res.json();
+        setReportRun(data ?? null);
+      } catch (err) {
+        setReportRun(null);
+        setReportError(err?.message || "Failed to load report snapshot.");
+      } finally {
+        setReportLoading(false);
+      }
+    };
+    fetchReportSnapshot();
+  }, [reportRequestPayload]);
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
@@ -1132,6 +1192,13 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const recommendedRetentionActions = Array.isArray(retention?.recommended_actions) ? retention.recommended_actions : [];
   const campaignOutcomes = retention?.campaign_outcomes ?? {};
   const campaignRows = Array.isArray(campaignOutcomes?.campaigns) ? campaignOutcomes.campaigns : [];
+  const reportSummary = reportRun?.summary ?? {};
+  const reportKpi = reportSummary?.kpi ?? {};
+  const reportPoP = reportSummary?.period_over_period ?? {};
+  const reportPeaks = reportSummary?.peak_periods ?? {};
+  const reportRevenueSplit = reportSummary?.revenue_split ?? {};
+  const reportReconciliation = reportSummary?.reconciliation ?? {};
+  const reportMismatch = Boolean(reportReconciliation?.data_mismatch);
 
   // ── Stat cards config ────────────────────────────────────────────────────
   const statCards = [
@@ -1826,7 +1893,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div>
             <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight print:text-black">
-              {dataScope === "manager" ? "Manager Dashboard" : "Admin Dashboard"}
+              {dataScope === "manager" ? "Manager Dashboard" : dataScope === "owner" ? "Owner Dashboard" : "Admin Dashboard"}
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-0.5 print:text-gray-600">
               Welcome back — here's what's happening today.
@@ -1839,6 +1906,9 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         {/* ── Error Banner ────────────────────────────────────────────────── */}
         {error && (
           <ErrorBanner message={error} onRetry={refetch} />
+        )}
+        {reportError && (
+          <ErrorBanner message={reportError} onRetry={refetch} />
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
@@ -1887,6 +1957,63 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       onYearChange={setAppointmentYearFilter}
       years={appointmentYears}
     />
+            <section className="mb-4 sm:mb-6">
+              <div className={`rounded-xl sm:rounded-2xl border p-3 sm:p-4 ${reportMismatch ? "bg-red-950/30 border-red-500/30" : "bg-emerald-950/20 border-emerald-500/20"}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-black text-white">Decision Report Snapshot</h3>
+                    <p className="text-[10px] sm:text-xs text-gray-400">
+                      KPI summary, period comparison, peak periods, revenue split, and reconciliation status.
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-[10px] sm:text-xs font-bold border ${reportMismatch ? "bg-red-500/20 text-red-200 border-red-500/40" : "bg-emerald-500/20 text-emerald-200 border-emerald-500/40"}`}>
+                    {reportLoading ? "Checking..." : reportMismatch ? "DATA MISMATCH" : "RECONCILED"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mt-3">
+                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
+                    <div className="text-[10px] text-gray-400">Revenue</div>
+                    <div className="text-sm font-bold text-white">₱{Number(reportKpi?.total_revenue ?? 0).toLocaleString()}</div>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
+                    <div className="text-[10px] text-gray-400">Conversion / Payment</div>
+                    <div className="text-sm font-bold text-white">{Number(reportKpi?.conversion_rate ?? 0).toFixed(1)}% / {Number(reportKpi?.payment_rate ?? 0).toFixed(1)}%</div>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
+                    <div className="text-[10px] text-gray-400">PoP Revenue Change</div>
+                    <div className={`text-sm font-bold ${Number(reportPoP?.revenue_change_pct ?? 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                      {Number(reportPoP?.revenue_change_pct ?? 0).toFixed(2)}%
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
+                    <div className="text-[10px] text-gray-400">Mismatch Amount</div>
+                    <div className={`text-sm font-bold ${reportMismatch ? "text-red-300" : "text-emerald-300"}`}>
+                      ₱{Number(reportReconciliation?.mismatch_amount ?? 0).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mt-3">
+                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
+                    <div className="text-[10px] text-gray-400">Peak Periods</div>
+                    <div className="text-xs text-gray-200">
+                      {reportPeaks?.hour?.label ?? "N/A"} · {reportPeaks?.day?.label ?? "N/A"} · {reportPeaks?.month?.label ?? "N/A"}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
+                    <div className="text-[10px] text-gray-400">Revenue Split</div>
+                    <div className="text-xs text-gray-200">
+                      A: ₱{Number(reportRevenueSplit?.appointments ?? 0).toLocaleString()} | W: ₱{Number(reportRevenueSplit?.walk_ins ?? 0).toLocaleString()} | P: ₱{Number(reportRevenueSplit?.products ?? 0).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
+                    <div className="text-[10px] text-gray-400">Reconciliation Totals</div>
+                    <div className="text-xs text-gray-200">
+                      Pay: ₱{Number(reportReconciliation?.payment_total ?? 0).toLocaleString()} · Dash: ₱{Number(reportReconciliation?.dashboard_total ?? 0).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
             {(() => {
               const overviewKpiCards = [
                 ...statCards,

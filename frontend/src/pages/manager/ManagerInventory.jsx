@@ -32,17 +32,7 @@ function ManagerInventory() {
     });
   };
 
-  const serviceCategories = [
-    "Maintenance",
-    "Brakes",
-    "AC",
-    "Engine",
-    "Tires",
-    "Electrical",
-    "Suspension",
-    "Transmission",
-    "Diagnostic",
-  ];
+
 
   useEffect(() => {
     debugStorage();
@@ -841,8 +831,9 @@ function ManagerInventory() {
                 <div className="col-span-2">SKU</div>
                 <div className="col-span-2">Quantity</div>
                 <div className="col-span-1">Price</div>
-                <div className="col-span-2">Supplier</div>
-                <div className="col-span-1 text-right">Actions</div>
+                <div className="col-span-1">Supplier</div>
+                <div className="col-span-1 text-center">Status</div>
+                <div className="col-span-1 text-right">Action</div>
               </div>
             ) : (
               <div className="hidden sm:grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -902,11 +893,13 @@ function ManagerInventory() {
                       <div className="col-span-1 text-white font-bold text-sm">
                         {item.price}
                       </div>
-                      <div className="col-span-2 text-gray-400 text-sm">
+                      <div className="col-span-1 text-gray-400 text-sm truncate">
                         {item.supplier}
                       </div>
-                      <div className="col-span-1 flex justify-end items-center gap-2">
+                      <div className="col-span-1 flex justify-center items-center">
                         {getStatusBadge(item)}
+                      </div>
+                      <div className="col-span-1 flex justify-end items-center">
                         <button
                           type="button"
                           onClick={() => toggleInventoryItemStatus(item)}
