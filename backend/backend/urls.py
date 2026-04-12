@@ -93,6 +93,8 @@ from api.views.super_admin_views import (
     SuperAdminCreateView,
     SuperAdminPluginView,
     SuperAdminPluginDetailView,
+    SuperAdminAuditLogsView,  # Add this
+    SuperAdminUserActionsView,
 )
 from api.views.landing_content_views import (
     LandingContentPublicView,
@@ -121,6 +123,8 @@ urlpatterns = [
     path('super-admin/plugins/<int:pk>/', SuperAdminPluginDetailView.as_view(), name='super-admin-plugin-detail'),
     path("super-admin/settings/",      SystemSettingsView.as_view()),
     path("system/maintenance-status/", MaintenanceStatusView.as_view()),
+    path("super-admin/audit-logs/", SuperAdminAuditLogsView.as_view(), name='super-admin-audit-logs'),
+    path("super-admin/user-actions/", SuperAdminUserActionsView.as_view(), name='super-admin-user-actions'),
 
     path('admin/', admin.site.urls),
 
