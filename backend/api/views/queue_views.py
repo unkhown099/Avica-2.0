@@ -601,12 +601,16 @@ def queue_from_booking(request):
     try:
         booking = Booking.objects.select_related(
             "branch", "user__customer_profile"
-        ).get(id=booking_id, status="confirmed")
+        ).get(id=booking_id, status__in=["pending", "confirmed"])
     except Booking.DoesNotExist:
         return Response(
-            {"detail": "Booking not found or not confirmed."},
+            {"detail": "Booking not found or not queueable."},
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    if booking.status == "pending":
+        booking.status = "confirmed"
+        booking.save(update_fields=["status"])
 
     entry = _booking_to_queue_entry(booking)
     return Response(QueueEntrySerializer(entry).data, status=status.HTTP_201_CREATED)
@@ -715,6 +719,19 @@ def queue_assign(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     employee_id = serializer.validated_data["employee_id"]
+    if entry.status == "in_service":
+        current_employee_id = entry.assigned_employee_id
+        if current_employee_id is None:
+            return Response(
+                {"detail": "Cannot assign employee while service is in progress."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if employee_id is None or int(employee_id) != int(current_employee_id):
+            return Response(
+                {"detail": "Assigned employee is locked once service is in progress."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     if employee_id is None:
         if entry.assigned_employee_id:
             return Response(
@@ -1023,7 +1040,7 @@ def queue_add_products(request, pk):
         entry.price = (entry.price or Decimal("0.00")) + added_total
         existing_notes = entry.notes or ""
         appended = ", ".join([f"{r['name']} x{r['quantity']}" for r in added_rows])
-        note_line = f"[Products Added] {appended} (+{added_total})"
+        note_line = f"[Required Products] {appended} (+{added_total})"
         entry.notes = f"{existing_notes}\n{note_line}".strip()
         entry.save(update_fields=["price", "notes"])
 
@@ -1104,7 +1121,26 @@ def queue_edit_service_details(request, pk):
 
     previous_base = Decimal(str(entry.service_base_price or 0))
     previous_total = Decimal(str(entry.price or 0))
-    previous_products_total = previous_total - previous_base
+
+    # Older queue rows may have service_base_price saved as 0 even when price already
+    # includes the base service amount. Infer a safe previous base to avoid double-counting.
+    inferred_previous_base = previous_base
+    if inferred_previous_base <= Decimal("0.00") and service_obj:
+        default_base = Decimal(str(service_obj.price or 0))
+        previous_vehicle_type = (entry.vehicle_type or "").strip().lower()
+        if previous_vehicle_type:
+            tier_prices = (
+                service_obj.price_list if isinstance(service_obj.price_list, dict) else {}
+            )
+            tier_value = tier_prices.get(previous_vehicle_type)
+            if tier_value not in (None, ""):
+                try:
+                    default_base = Decimal(str(tier_value))
+                except Exception:
+                    pass
+        inferred_previous_base = default_base
+
+    previous_products_total = previous_total - inferred_previous_base
     if previous_products_total < Decimal("0.00"):
         previous_products_total = Decimal("0.00")
 
@@ -1156,7 +1192,12 @@ def queue_edit_service_details(request, pk):
             if not line.strip().startswith("[Service Details]")
             and not line.strip().startswith("[Required Products]")
         ).strip()
-        entry.notes = cleaned_notes
+        if added_rows:
+            appended = ", ".join([f"{r['name']} x{r['quantity']}" for r in added_rows])
+            note_line = f"[Required Products] {appended} (+{added_total})"
+            entry.notes = f"{cleaned_notes}\n{note_line}".strip()
+        else:
+            entry.notes = cleaned_notes
 
         entry.save(update_fields=["service_base_price", "vehicle_type", "price", "notes"])
 

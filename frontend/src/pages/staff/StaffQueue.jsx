@@ -334,17 +334,19 @@ function AssignDropdown({ entry, employees, onAssign, assigning }) {
   }, []);
 
   const current = entry.assigned_employee;
+  const isLocked = entry.status === "in_service";
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((p) => !p)}
-        disabled={assigning}
+        onClick={() => !isLocked && setOpen((p) => !p)}
+        disabled={assigning || isLocked}
         className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all w-full
           ${current
             ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25"
             : "bg-gray-700/40 border-white/10 text-gray-400 hover:text-white hover:border-white/20"
           }`}
+        title={isLocked ? "Assigned employee is locked while service is in progress." : ""}
       >
         {assigning ? (
           <svg

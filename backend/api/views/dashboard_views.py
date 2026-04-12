@@ -10,6 +10,7 @@ from ..models import (
     Notification,
     QueueEntry,
     Rating,
+    Service,
     Staff,
     PaymentTransaction,
     InventoryTransaction,
@@ -475,16 +476,29 @@ class AdminDashboardView(APIView):
             .annotate(count=Count("id"))
             .order_by("-count")
         )
-        total_service_count = sum(item["count"] for item in service_counts)
+        service_category_map = {
+            (name or "").strip().lower(): (category or "Other")
+            for name, category in Service.objects.values_list("name", "category")
+        }
+        category_totals = defaultdict(int)
+        for item in service_counts:
+            service_name = (item.get("service") or "").strip().lower()
+            category = service_category_map.get(service_name, "Other")
+            category_totals[category] += int(item.get("count") or 0)
+
+        category_distribution = sorted(
+            category_totals.items(),
+            key=lambda pair: pair[1],
+            reverse=True,
+        )
+        total_service_count = sum(count for _, count in category_distribution)
         service_distribution = [
             {
-                "label": item["service"] or "Other",
-                "count": item["count"],
-                "pct": round(
-                    (item["count"] / total_service_count) * 100, 1
-                ) if total_service_count else 0.0,
+                "label": category or "Other",
+                "count": count,
+                "pct": round((count / total_service_count) * 100, 1) if total_service_count else 0.0,
             }
-            for item in service_counts[:6]
+            for category, count in category_distribution[:6]
         ]
 
         top_services_qs = (

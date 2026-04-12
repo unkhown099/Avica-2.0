@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import StaffLayout from "./StaffLayout";
-import { API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE, useAuth } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
 
 const getToken = () =>
@@ -21,6 +21,15 @@ const isServiceInactive = (service) => {
   if (service?.is_active === false) return true;
   if (explicitActive === "false" || explicitActive === "0" || explicitActive === "inactive" || explicitActive === "disabled") return true;
   return status === "inactive" || status === "disabled";
+};
+
+const isServiceAvailableInBranch = (service, branchId) => {
+  if (!service) return false;
+  if (!Number.isFinite(Number(branchId)) || Number(branchId) <= 0) return true;
+  const branches = Array.isArray(service.branches) ? service.branches : [];
+  if (branches.length === 0) return false;
+  const normalizedBranchId = Number(branchId);
+  return branches.some((branch) => Number(branch?.id) === normalizedBranchId);
 };
 
 const getServiceCatalogPrice = (serviceName, services) => {
@@ -89,8 +98,12 @@ const buildReceiptLines = (items = []) => {
     if (item.type === "queue") {
       const serviceAmount = parseFloat(item._servicePrice ?? item._price ?? 0) || 0;
       const productAmount = parseFloat(item._productsPrice ?? 0) || 0;
-      lines.push({ label: "Service Price", amount: serviceAmount });
-      if (productAmount > 0) lines.push({ label: "Product Used", amount: productAmount });
+      const serviceName = String(item._serviceName || item.name || "Service").trim();
+      const requiredProductsName = String(item._requiredProducts || "Used Products").trim();
+      lines.push({ label: `Service - ${serviceName}`, amount: serviceAmount });
+      if (productAmount > 0) {
+        lines.push({ label: `Products - ${requiredProductsName}`, amount: productAmount });
+      }
       return;
     }
     const kind = item.type === "product" ? "Product" : "Service";
@@ -471,6 +484,8 @@ function ValidatedInput({ value, onChange, placeholder, type = "text", hasError,
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function StaffPOS() {
+  const { user } = useAuth();
+  const staffBranchId = Number(user?.branch_id);
   const [services, setServices] = useState([]);
   const [products, setProducts] = useState([]);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -547,6 +562,7 @@ export default function StaffPOS() {
 
 const filteredServices = services.filter((s) => {
   if (isServiceInactive(s)) return false;
+  if (!isServiceAvailableInBranch(s, staffBranchId)) return false;
   return String(s?.name ?? "").toLowerCase().includes(searchQuery.toLowerCase());
 });
   const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -573,6 +589,8 @@ const filteredServices = services.filter((s) => {
     const rawPrice = parseFloat(entry.price ?? 0) || 0;
     const price = rawPrice > 0 ? rawPrice : getServiceCatalogPrice(entry.service, services);
     const breakdown = getQueuePriceBreakdown(entry, price);
+    const serviceName = String(entry?.service || "Service").trim() || "Service";
+    const requiredProducts = getLatestRequiredProductsFromNotes(entry?.notes);
     if (cart.length === 0) {
       setCustomerInfo({
         name: sanitizePersonNameInput(entry.customer_name ?? ""),
@@ -581,7 +599,20 @@ const filteredServices = services.filter((s) => {
     }
     setCart((prev) => {
       if (prev.find((c) => c._queueId === entry.id)) return prev;
-      return [...prev, { id: `queue_${entry.id}`, _queueId: entry.id, name: getQueueDisplayName(entry), quantity: 1, type: "queue", _price: price, _servicePrice: breakdown.servicePrice, _productsPrice: breakdown.productsPrice, _entryId: entry.id, _needsPrice: false }];
+      return [...prev, {
+        id: `queue_${entry.id}`,
+        _queueId: entry.id,
+        name: getQueueDisplayName(entry),
+        _serviceName: serviceName,
+        _requiredProducts: requiredProducts,
+        quantity: 1,
+        type: "queue",
+        _price: price,
+        _servicePrice: breakdown.servicePrice,
+        _productsPrice: breakdown.productsPrice,
+        _entryId: entry.id,
+        _needsPrice: false,
+      }];
     });
   };
 
@@ -992,7 +1023,7 @@ const filteredServices = services.filter((s) => {
                       {item.type === "queue" ? (
                         <>
                           <ReceiptLine
-                            title={`${idx + 1}.1 Service Price`}
+                            title={`${idx + 1}.1 Service - ${item._serviceName || "Service"}`}
                             meta={item.name}
                             qty={1}
                             unitPrice={item._servicePrice ?? item._price}
@@ -1001,8 +1032,8 @@ const filteredServices = services.filter((s) => {
                           />
                           {Number(item._productsPrice ?? 0) > 0 && (
                             <ReceiptLine
-                              title={`${idx + 1}.2 Product Used`}
-                              meta="Required products from employee details"
+                              title={`${idx + 1}.2 Products - ${item._requiredProducts || "Used Products"}`}
+                              meta="Required products from service details"
                               qty={1}
                               unitPrice={item._productsPrice}
                               amount={item._productsPrice}

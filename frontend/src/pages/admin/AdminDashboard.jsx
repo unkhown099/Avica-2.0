@@ -433,15 +433,43 @@ export default function AdminDashboard({ dataScope = "admin" }) {
             created_at: row.created_at ?? null,
           })),
         );
-        setCategoryForecastRows(
-          (forecastData?.category_forecast?.results ?? []).map((row) => ({
-            category: row.category ?? "Uncategorized",
-            predicted_demand: Number(row.predicted_demand ?? 0),
-            predicted_revenue: Number(row.predicted_revenue ?? 0),
-            historical_average_count: Number(row.historical_average_count ?? 0),
-            trend: row.trend ?? "stable",
-          })),
-        );
+        const categoryRowsFromApi = forecastData?.category_forecast?.results ?? [];
+        const normalizedCategoryRows = categoryRowsFromApi.length
+          ? categoryRowsFromApi.map((row) => ({
+              category: row.category ?? "Uncategorized",
+              predicted_demand: Number(row.predicted_demand ?? 0),
+              predicted_revenue: Number(row.predicted_revenue ?? 0),
+              historical_average_count: Number(row.historical_average_count ?? 0),
+              trend: row.trend ?? "stable",
+            }))
+          : (() => {
+              const byCategory = new Map();
+              for (const row of forecastData?.service_forecast?.results ?? []) {
+                const category = row.service_category ?? "Uncategorized";
+                const demand = Number(row.predicted_booking_count ?? row.predicted_queue_count ?? 0);
+                const revenue = Number(row.predicted_revenue ?? 0);
+                const historical = Number(row.historical_average_count ?? 0);
+                const existing = byCategory.get(category) ?? {
+                  category,
+                  predicted_demand: 0,
+                  predicted_revenue: 0,
+                  historical_average_count: 0,
+                };
+                existing.predicted_demand += demand;
+                existing.predicted_revenue += revenue;
+                existing.historical_average_count += historical;
+                byCategory.set(category, existing);
+              }
+              return Array.from(byCategory.values()).map((row) => {
+                const ratio =
+                  row.historical_average_count > 0
+                    ? (row.predicted_demand - row.historical_average_count) / row.historical_average_count
+                    : 0;
+                const trend = ratio >= 0.1 ? "increasing" : ratio <= -0.1 ? "decreasing" : "stable";
+                return { ...row, trend };
+              });
+            })();
+        setCategoryForecastRows(normalizedCategoryRows);
         setAppointments(Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData.results ?? []));
         setQueueHistory(Array.isArray(queueHistoryData) ? queueHistoryData : (queueHistoryData?.results ?? []));
       } catch (err) {
@@ -905,7 +933,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
             }
             return date.getHours();
           })(),
-          cancellationReason: apt.cancel_reason || apt.cancellation_reason || apt.reason || apt.notes || "Unspecified",
+          cancellationReason: apt.cancel_reason || apt.cancellation_reason || apt.reason || "Unspecified",
         };
       })
       .filter(Boolean);

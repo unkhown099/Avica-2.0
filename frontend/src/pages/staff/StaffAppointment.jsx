@@ -966,18 +966,7 @@ function StaffAppointments() {
                             Confirmed
                           </div>
 
-                          {b.queue_id && (
-                            <button
-                              onClick={() => setChatQueueId(b.queue_id)}
-                              className="w-full flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                              </svg>
-                              Message Customer
-                            </button>
-                          )}
-
+            
                           <button
                             onClick={() => handleReschedule(b)}
                             disabled={actionLoading === b.id}

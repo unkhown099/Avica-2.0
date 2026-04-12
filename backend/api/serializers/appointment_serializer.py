@@ -35,6 +35,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "id", "customer_name", "service", "vehicle", "plate_number",
             "date", "time", "status", "staff", "notes",
             "branch", "branch_name", "price", "created_at",
+            "cancellation_reason",
         ]
 
     def get_customer_name(self, obj):

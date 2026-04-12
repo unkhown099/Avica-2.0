@@ -1623,7 +1623,7 @@ function NewBookingModal({
         date: form.date,
         time: formatTimeForAPI(form.time),
         vehicle,
-        vehicle_size: "pending",
+        vehicle_size: form.vehicleSize || "small",
         plate_number: plateNumber,
         notes: form.notes || "",
         price: totalPrice,
