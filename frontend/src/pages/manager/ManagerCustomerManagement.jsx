@@ -162,7 +162,7 @@ function ManagerCustomerManagement() {
             Customer Management
           </h1>
           <p className="text-gray-400 mt-1 text-sm">
-            Manage customers for San Mateo Rizal branch
+            Manage customers and view their transaction history. Data is based on branch-processed
           </p>
         </div>
 

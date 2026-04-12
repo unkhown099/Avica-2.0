@@ -578,7 +578,7 @@ function ManagerInventory() {
             Inventory Management
           </h1>
           <p className="text-gray-400 mt-1 text-sm">
-            Track and manage inventory for San Mateo Rizal branch.
+            Track and manage inventory levels, suppliers, and restock requests. 
           </p>
         </div>
 
