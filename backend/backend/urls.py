@@ -1,4 +1,5 @@
 # backend/urls.py
+
 from django import views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -93,8 +94,6 @@ from api.views.super_admin_views import (
     SuperAdminCreateView,
     SuperAdminPluginView,
     SuperAdminPluginDetailView,
-    SuperAdminAuditLogsView,  # Add this
-    SuperAdminUserActionsView,
 )
 from api.views.landing_content_views import (
     LandingContentPublicView,
@@ -104,11 +103,18 @@ from api.views.landing_content_views import (
     MediaAssetDetailView,
 )
 from api.views.maintenance_views import SystemSettingsView, MaintenanceStatusView
-
 from api.views.direct_message_views import direct_message_contacts_view, direct_messages_view
 from api.views.payment_views import CreatePayMongoLinkView
 from api.views.payment_transaction_views import PaymentTransactionHistoryView
 from api.views.report_views import ReportGenerateView, ReportHistoryView, ReportDownloadView
+
+# Import superadmin logs views
+from api.views.superadmin_logs import (
+    SuperAdminAuditLogsView,
+    SuperAdminUserActionsView,
+    SuperAdminReportStatsView,
+    SuperAdminUserListView as SuperAdminUserListForReports,
+)
 
 urlpatterns = [
     # ── Super Admin endpoints ─────────────────────────────────────────────────────
@@ -121,12 +127,16 @@ urlpatterns = [
     path("super-admin/branches/",            SuperAdminBranchOverviewView.as_view()),
     path("super-admin/broadcast/",           SuperAdminBroadcastView.as_view()),
     path("super-admin/create/",              SuperAdminCreateView.as_view()),
-    path('super-admin/plugins/', SuperAdminPluginView.as_view(), name='super-admin-plugins'),
-    path('super-admin/plugins/<int:pk>/', SuperAdminPluginDetailView.as_view(), name='super-admin-plugin-detail'),
-    path("super-admin/settings/",      SystemSettingsView.as_view()),
-    path("system/maintenance-status/", MaintenanceStatusView.as_view()),
-    path("super-admin/audit-logs/", SuperAdminAuditLogsView.as_view(), name='super-admin-audit-logs'),
-    path("super-admin/user-actions/", SuperAdminUserActionsView.as_view(), name='super-admin-user-actions'),
+    path('super-admin/plugins/',             SuperAdminPluginView.as_view(), name='super-admin-plugins'),
+    path('super-admin/plugins/<int:pk>/',    SuperAdminPluginDetailView.as_view(), name='super-admin-plugin-detail'),
+    path("super-admin/settings/",            SystemSettingsView.as_view()),
+    path("system/maintenance-status/",       MaintenanceStatusView.as_view()),
+    
+    # Super Admin Reports & Logs
+    path('super-admin/audit-logs/',          SuperAdminAuditLogsView.as_view(), name='super-admin-audit-logs'),
+    path('super-admin/user-actions/',        SuperAdminUserActionsView.as_view(), name='super-admin-user-actions'),
+    path('super-admin/report-stats/',        SuperAdminReportStatsView.as_view(), name='super-admin-report-stats'),
+    path('super-admin/users-list/',          SuperAdminUserListForReports.as_view(), name='super-admin-users-list'),
 
     path('admin/', admin.site.urls),
 
@@ -204,7 +214,6 @@ urlpatterns = [
     path('api/customer/settings/',  CustomerSettingsView.as_view(),      name='customer-settings'),
     path('api/customers/me/', CurrentCustomerProfileView.as_view(), name='current-customer-profile'),
 
-
     # ── Ratings ───────────────────────────────────────────────────────────────
     path('api/ratings/', RatingCreateView.as_view(), name='rating-create'),
     path("api/manager/reviews/", ManagerBranchReviewsView.as_view(), name="manager-branch-reviews"),
@@ -259,10 +268,10 @@ urlpatterns = [
     path("super-admin/media-assets/",         MediaAssetListView.as_view()),
     path("super-admin/media-assets/<int:pk>/", MediaAssetDetailView.as_view()),
 
-
-
     # ── Redirect root ─────────────────────────────────────────────────────────
     path('', RedirectView.as_view(url='/signup/', permanent=False)),
+    
+    # ── Forecast endpoints ────────────────────────────────────────────────────
     path("forecast/all/<int:branch_id>/", generate_all_forecasts, name="generate_all_forecasts"),
     path("forecast/all/<int:branch_id>/latest/", get_latest_all_forecasts, name="get_latest_all_forecasts"),
     path("api/forecast/system/", get_latest_system_forecasts, name="system-forecast"),
