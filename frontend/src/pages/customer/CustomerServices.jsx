@@ -82,17 +82,6 @@ const FALLBACK_CATEGORIES = [
   "Repair",
   "Diagnostic",
   "Cosmetic",
-  "Premium Carwash",
-  "Engine Steamed Wash",
-  "Under Wash",
-  "Premium Hand Wax",
-  "Buffing",
-  "Headlight Restoration",
-  "Interior Detailing",
-  "Exterior Detailing",
-  "Acid Rain Removal (Glass)",
-  "All Shine",
-  "Ceramic Coating"
 ];
 
 const CategoryBadge = ({ category }) => (

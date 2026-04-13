@@ -403,7 +403,7 @@ function Navbar({ user: userProp, setUser }) {
 
   const PROFILE_ITEMS = [
     { label: "My Profile", href: "/profile", icon: <IconUser /> },
-    { label: "Settings", href: "/settings", icon: <IconSettings /> },
+    // { label: "Settings", href: "/settings", icon: <IconSettings /> },
     { label: "Help & Support", href: "/help", icon: <IconHelp /> },
   ];
 

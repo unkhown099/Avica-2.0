@@ -15,12 +15,19 @@ class CreatePayMongoLinkView(APIView):
         if not amount:
             return Response({"error": "Amount is required"}, status=status.HTTP_400_BAD_REQUEST)
             
-        amount_cents = int(float(amount) * 100) # PayMongo accepts amount in cents
+        amount_cents = int(float(amount) * 100)  # PayMongo accepts amount in cents
         
-        PAYMONGO_SECRET_KEY = getattr(settings, "PAYMONGO_SECRET_KEY", "").strip()
+        # FIX: Handle None value safely
+        paymongo_secret_key = getattr(settings, "PAYMONGO_SECRET_KEY", None)
         
-        # If in test/mock mode
-        if not PAYMONGO_SECRET_KEY or PAYMONGO_SECRET_KEY == "sk_test_placeholder":
+        # Convert to string and strip, handling None
+        if paymongo_secret_key is None:
+            paymongo_secret_key = ""
+        else:
+            paymongo_secret_key = str(paymongo_secret_key).strip()
+        
+        # If in test/mock mode (key is empty or placeholder)
+        if not paymongo_secret_key or paymongo_secret_key == "sk_test_placeholder":
             return Response({
                 "checkout_url": "mock_qrph",
                 "reference_number": "MOCK-12345",
@@ -28,7 +35,7 @@ class CreatePayMongoLinkView(APIView):
             }, status=status.HTTP_200_OK)
             
         import base64
-        encoded_key = base64.b64encode(f"{PAYMONGO_SECRET_KEY}:".encode()).decode('utf-8')
+        encoded_key = base64.b64encode(f"{paymongo_secret_key}:".encode()).decode('utf-8')
         headers = {
             "accept": "application/json",
             "content-type": "application/json",
@@ -64,6 +71,6 @@ class CreatePayMongoLinkView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
                 
         except requests.exceptions.Timeout:
-            return Response({"error": "PayMongo API request timed out."}, status=status.HTTP_544_GATEWAY_TIMEOUT)
+            return Response({"error": "PayMongo API request timed out."}, status=status.HTTP_504_GATEWAY_TIMEOUT)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

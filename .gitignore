@@ -50,7 +50,7 @@ out/
 .env.*.local
 
 # Optional IDE files
-.vscode/
+# .vscode/
 .idea/
 
 # Python cache
