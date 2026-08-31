@@ -205,6 +205,7 @@ def _get_profile_data(user):
         "Inventory":      "inventory",
         "Inventory Manager": "inventory_manager",
         "Super Admin":    "super_admin",
+        "super_admin":    "super_admin",
     }
 
     def get_pic_url(pic):
