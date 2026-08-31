@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
+import Swal from "sweetalert2";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 import { apiFetch } from "../../hooks/api.js";
 import { getAuthHeadersAsync, API_BASE } from "../../hooks/useAuth";
@@ -34,8 +35,10 @@ const EMPTY_CONTENT = {
     ctaGuest: "BOOK YOUR EXPERIENCE",
     signInPrompt: "",
     signInLabel: "SIGN IN HERE",
+    bgMode: "slideshow",
     imageUrl: "",
     images: [],
+    videoUrl: "",
   },
   services: {
     sectionTitle: "",
@@ -143,9 +146,7 @@ function HeroEditor({ data, onChange }) {
     try {
       const assets = await apiFetch("/super-admin/media-assets/");
       setMediaAssets(
-        assets
-          .filter((a) => a.media_type === "image")
-          .map((a) => ({ ...a, url: toMediaUrl(a.url) })),
+        assets.map((a) => ({ ...a, url: toMediaUrl(a.url) })),
       );
     } catch {
       setMediaError("Unable to load media library.");
@@ -189,7 +190,11 @@ function HeroEditor({ data, onChange }) {
       const normalized = { ...asset, url: toMediaUrl(asset.url) };
       setMediaAssets((prev) => [normalized, ...prev]);
       setAssetName("");
-      onChange({ ...data, imageUrl: normalized.url });
+      if (data.bgMode === "video" || file.type.startsWith("video/")) {
+        onChange({ ...data, videoUrl: normalized.url });
+      } else {
+        onChange({ ...data, imageUrl: normalized.url });
+      }
     } catch {
       setMediaError("Upload failed. Try again.");
     } finally {
@@ -219,153 +224,315 @@ function HeroEditor({ data, onChange }) {
           onChange={set("subtitle")}
         />
       </Card>
-      <Card title="Hero Background">
-        <Field
-          label="Background Image URL"
-          value={data.imageUrl || ""}
-          onChange={set("imageUrl")}
-          placeholder="Paste direct image URL or choose from media assets"
-        />
-        {data.imageUrl && (
-          <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/30">
-            <img
-              src={data.imageUrl}
-              alt="Selected hero preview"
-              className="w-full h-52 object-cover"
+      {/* ── Mode Selector ── */}
+      <Card title="Hero Background Mode" accent>
+        <div className="text-xs text-gray-400 mb-3">
+          Choose whether the landing page hero displays a dynamic Picture Slideshow or a high-definition Looping Video Background.
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => set("bgMode")("slideshow")}
+            className={`flex items-center justify-center gap-2.5 p-4 rounded-2xl border font-bold text-sm transition-all ${
+              (data.bgMode || "slideshow") === "slideshow"
+                ? "bg-red-600/20 border-red-500 text-white shadow-lg shadow-red-600/20 ring-2 ring-red-500/40"
+                : "bg-gray-950 border-white/10 text-gray-400 hover:text-white hover:border-white/20"
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>Picture Slideshow</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => set("bgMode")("video")}
+            className={`flex items-center justify-center gap-2.5 p-4 rounded-2xl border font-bold text-sm transition-all ${
+              data.bgMode === "video"
+                ? "bg-red-600/20 border-red-500 text-white shadow-lg shadow-red-600/20 ring-2 ring-red-500/40"
+                : "bg-gray-950 border-white/10 text-gray-400 hover:text-white hover:border-white/20"
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span>Video Background</span>
+          </button>
+        </div>
+      </Card>
+
+      {/* ── VIDEO MODE CONFIGURATION ── */}
+      {data.bgMode === "video" && (
+        <Card title="Hero Background Video">
+          <Field
+            label="Video URL (.mp4, .webm, or direct link)"
+            value={data.videoUrl || ""}
+            onChange={set("videoUrl")}
+            placeholder="Paste direct video URL or choose from uploaded videos"
+          />
+
+          {data.videoUrl && (
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                Live Video Preview
+              </div>
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-black aspect-video max-h-72 w-full flex items-center justify-center relative shadow-2xl">
+                <video
+                  src={toMediaUrl(data.videoUrl)}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Video Upload Box */}
+          <div className="space-y-3 pt-2">
+            <Field
+              label="Upload video label"
+              value={assetName}
+              onChange={setAssetName}
+              placeholder="Optional video label (e.g. Hero Cinematic Video)"
             />
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-sm font-black text-white cursor-pointer hover:border-white/40 hover:bg-white/10 transition-colors">
+                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                {uploading ? "Uploading Video…" : "Upload Video File (.mp4, .webm, .mov)"}
+                <input
+                  type="file"
+                  accept="video/*"
+                  hidden
+                  onChange={handleUpload}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={loadMediaAssets}
+                disabled={mediaLoading}
+                className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {mediaLoading ? "Refreshing…" : "Refresh library"}
+              </button>
+            </div>
+            {mediaError && <div className="text-sm text-red-400">{mediaError}</div>}
           </div>
-        )}
-        <Card title="Hero Background Slideshow">
-          <div className="text-xs text-gray-400 mb-2">
-            Select multiple images to cycle through as a slideshow. Click to
-            add/remove.
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {mediaAssets.map((asset) => {
-              const isSelected = (data.images ?? []).includes(asset.url);
-              return (
-                <button
-                  key={asset.id}
-                  type="button"
-                  onClick={() => {
-                    const current = data.images ?? [];
-                    const next = isSelected
-                      ? current.filter((u) => u !== asset.url)
-                      : [...current, asset.url];
-                    set("images")(next);
-                  }}
-                  className={`group overflow-hidden rounded-3xl border text-left transition ${
-                    isSelected
-                      ? "border-red-500 ring-2 ring-red-500/40"
-                      : "border-white/10"
-                  } bg-gray-950`}
-                >
-                  <div className="relative h-32 overflow-hidden">
-                    <img
-                      src={asset.url}
-                      alt={asset.name}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
-                    {isSelected && (
-                      <div className="absolute inset-0 bg-red-600/30 flex items-center justify-center">
-                        <svg
-                          className="w-8 h-8 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
+
+          {/* Video assets from library */}
+          {mediaAssets.filter((a) => a.media_type === "video" || a.url?.match(/\.(mp4|webm|mov|ogg|mkv)$/i)).length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="text-xs uppercase tracking-[0.3em] text-gray-400">
+                Choose a video from your media library
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {mediaAssets
+                  .filter((a) => a.media_type === "video" || a.url?.match(/\.(mp4|webm|mov|ogg|mkv)$/i))
+                  .map((asset) => {
+                    const isSelected = data.videoUrl === asset.url;
+                    return (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        onClick={() => {
+                          set("videoUrl")(asset.url);
+                        }}
+                        className={`group overflow-hidden rounded-3xl border text-left transition ${
+                          isSelected
+                            ? "border-red-500 ring-2 ring-red-500/40 bg-red-600/10"
+                            : "border-white/10 bg-gray-950 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="relative h-32 bg-black flex items-center justify-center overflow-hidden">
+                          <video
+                            src={asset.url}
+                            muted
+                            playsInline
+                            className="h-full w-full object-cover opacity-70 group-hover:opacity-100 transition duration-300"
                           />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <div className="px-3 py-2">
-                    <div className="text-xs text-gray-300 truncate">
-                      {asset.name}
-                    </div>
-                    <div className="text-[11px] text-red-400 mt-0.5">
-                      {isSelected ? "✓ Selected" : "Click to add"}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {(data.images ?? []).length > 0 && (
-            <div className="text-xs text-green-400 mt-2">
-              {data.images.length} image{data.images.length > 1 ? "s" : ""}{" "}
-              selected for slideshow
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-red-600/80 flex items-center justify-center text-white shadow-lg">
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-4 py-3">
+                          <div className="text-xs font-bold text-gray-200 truncate">
+                            {asset.name}
+                          </div>
+                          <div className="text-[11px] text-red-400 mt-1 font-semibold">
+                            {isSelected ? "✓ Active Video" : "Click to select video"}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+              </div>
             </div>
           )}
         </Card>
-        <Field
-          label="Upload asset label"
-          value={assetName}
-          onChange={setAssetName}
-          placeholder="Optional file label"
-        />
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <label className="flex items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-sm font-black text-white cursor-pointer hover:border-white/40">
-            {uploading ? "Uploading…" : "Upload image file"}
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={handleUpload}
-            />
-          </label>
-          <button
-            type="button"
-            onClick={loadMediaAssets}
-            disabled={mediaLoading}
-            className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white hover:bg-red-700 disabled:opacity-50"
-          >
-            {mediaLoading ? "Refreshing…" : "Refresh media library"}
-          </button>
-        </div>
-        {mediaError && <div className="text-sm text-red-400">{mediaError}</div>}
-        {mediaAssets.length > 0 && (
-          <div className="space-y-3">
-            <div className="text-xs uppercase tracking-[0.3em] text-gray-400">
-              Choose an image from your media library
+      )}
+
+      {/* ── SLIDESHOW MODE CONFIGURATION ── */}
+      {(data.bgMode || "slideshow") === "slideshow" && (
+        <Card title="Hero Background Slideshow">
+          <Field
+            label="Single Background Image URL"
+            value={data.imageUrl || ""}
+            onChange={set("imageUrl")}
+            placeholder="Paste direct image URL or choose from media assets"
+          />
+          {data.imageUrl && (
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/30">
+              <img
+                src={data.imageUrl}
+                alt="Selected hero preview"
+                className="w-full h-52 object-cover"
+              />
+            </div>
+          )}
+
+          <Card title="Slideshow Image Gallery">
+            <div className="text-xs text-gray-400 mb-2">
+              Select multiple images to cycle through as a slideshow. Click an image to add or remove.
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {mediaAssets.map((asset) => (
-                <button
-                  key={asset.id}
-                  type="button"
-                  onClick={() => {
-                    console.log("Selected asset URL:", asset.url);
-                    set("imageUrl")(asset.url);
-                  }}
-                  className="group overflow-hidden rounded-3xl border border-white/10 bg-gray-950 text-left"
-                >
-                  <div className="relative h-32 overflow-hidden">
-                    <img
-                      src={asset.url}
-                      alt={asset.name}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="px-3 py-3">
-                    <div className="text-xs text-gray-300 truncate">
-                      {asset.name}
-                    </div>
-                    <div className="text-[11px] text-gray-500 mt-1">
-                      Use for hero banner
-                    </div>
-                  </div>
-                </button>
-              ))}
+              {mediaAssets
+                .filter((a) => a.media_type !== "video" && !a.url?.match(/\.(mp4|webm|mov|ogg|mkv)$/i))
+                .map((asset) => {
+                  const isSelected = (data.images ?? []).includes(asset.url);
+                  return (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      onClick={() => {
+                        const current = data.images ?? [];
+                        const next = isSelected
+                          ? current.filter((u) => u !== asset.url)
+                          : [...current, asset.url];
+                        set("images")(next);
+                      }}
+                      className={`group overflow-hidden rounded-3xl border text-left transition ${
+                        isSelected
+                          ? "border-red-500 ring-2 ring-red-500/40"
+                          : "border-white/10"
+                      } bg-gray-950`}
+                    >
+                      <div className="relative h-32 overflow-hidden">
+                        <img
+                          src={asset.url}
+                          alt={asset.name}
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-red-600/30 flex items-center justify-center">
+                            <svg
+                              className="w-8 h-8 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={3}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-3 py-2">
+                        <div className="text-xs text-gray-300 truncate">
+                          {asset.name}
+                        </div>
+                        <div className="text-[11px] text-red-400 mt-0.5">
+                          {isSelected ? "✓ Selected" : "Click to add"}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
             </div>
+            {(data.images ?? []).length > 0 && (
+              <div className="text-xs text-green-400 mt-2 font-bold">
+                ✓ {data.images.length} image{data.images.length > 1 ? "s" : ""} selected for slideshow
+              </div>
+            )}
+          </Card>
+
+          <Field
+            label="Upload asset label"
+            value={assetName}
+            onChange={setAssetName}
+            placeholder="Optional file label"
+          />
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label className="flex items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-sm font-black text-white cursor-pointer hover:border-white/40 hover:bg-white/10 transition-colors">
+              {uploading ? "Uploading…" : "Upload image file"}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleUpload}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={loadMediaAssets}
+              disabled={mediaLoading}
+              className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {mediaLoading ? "Refreshing…" : "Refresh media library"}
+            </button>
           </div>
-        )}
-      </Card>
+          {mediaError && <div className="text-sm text-red-400">{mediaError}</div>}
+          {mediaAssets.filter((a) => a.media_type !== "video" && !a.url?.match(/\.(mp4|webm|mov|ogg|mkv)$/i)).length > 0 && (
+            <div className="space-y-3">
+              <div className="text-xs uppercase tracking-[0.3em] text-gray-400">
+                Choose a single image from your media library
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {mediaAssets
+                  .filter((a) => a.media_type !== "video" && !a.url?.match(/\.(mp4|webm|mov|ogg|mkv)$/i))
+                  .map((asset) => (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      onClick={() => {
+                        set("imageUrl")(asset.url);
+                      }}
+                      className="group overflow-hidden rounded-3xl border border-white/10 bg-gray-950 text-left hover:border-white/30 transition-all"
+                    >
+                      <div className="relative h-32 overflow-hidden">
+                        <img
+                          src={asset.url}
+                          alt={asset.name}
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                      <div className="px-3 py-3">
+                        <div className="text-xs text-gray-300 truncate">
+                          {asset.name}
+                        </div>
+                        <div className="text-[11px] text-gray-500 mt-1">
+                          Use for hero banner
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
       <Card title="CTA Buttons">
         <Field
           label="Logged-in Button"
@@ -395,79 +562,151 @@ function HeroEditor({ data, onChange }) {
 }
 
 function ServicesEditor({ data, onChange }) {
-  const setItem = (i, key) => (val) => {
-    const items = data.items.map((item, idx) =>
-      idx === i ? { ...item, [key]: val } : item,
-    );
-    onChange({ ...data, items });
+  // Ensure there are at least 3 reel slots
+  const rawItems = Array.isArray(data?.items) ? data.items : [];
+  const slots = [0, 1, 2].map((idx) => {
+    const it = rawItems[idx];
+    if (!it) return { url: "" };
+    if (typeof it === "string") return { url: it };
+    return { url: it.url || it.link || it.image || "" };
+  });
+
+  const setSlotUrl = (index, url) => {
+    const updated = [...slots];
+    updated[index] = { ...updated[index], url: url.trim() };
+    onChange({ ...data, items: updated });
   };
-  const addItem = () =>
-    onChange({
-      ...data,
-      items: [
-        ...data.items,
-        { title: "NEW SERVICE", sub: "Subtitle", desc: "Description here." },
-      ],
-    });
-  const removeItem = (i) =>
-    onChange({ ...data, items: data.items.filter((_, idx) => idx !== i) });
+
+  const getEmbedPreviewUrl = (rawUrl) => {
+    if (!rawUrl || typeof rawUrl !== "string") return "";
+    const trimmed = rawUrl.trim();
+    if (trimmed.startsWith("https://www.facebook.com/plugins/")) {
+      return trimmed;
+    }
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(trimmed)}&show_text=false&autoplay=true&loop=true&mute=1&t=0`;
+  };
 
   return (
-    <div className="space-y-4">
-      <Card title="Section Header" accent>
-        <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-6">
+      {/* Section Header */}
+      <Card title="Facebook Reels Section Header" accent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field
-            label="Title"
-            value={data.sectionTitle}
+            label="Section Title"
+            value={data?.sectionTitle || ""}
             onChange={(v) => onChange({ ...data, sectionTitle: v })}
+            placeholder="e.g. FEATURED"
           />
           <Field
             label="Title Accent"
-            value={data.sectionTitleAccent}
+            value={data?.sectionTitleAccent || ""}
             onChange={(v) => onChange({ ...data, sectionTitleAccent: v })}
+            placeholder="e.g. REELS & HIGHLIGHTS"
           />
         </div>
         <Field
-          label="Subtitle"
-          value={data.sectionSubtitle}
+          label="Section Subtitle"
+          value={data?.sectionSubtitle || ""}
           onChange={(v) => onChange({ ...data, sectionSubtitle: v })}
+          placeholder="Subtitle text describing the video reels..."
           textarea
         />
       </Card>
-      {data.items.map((item, i) => (
-        <Card key={i} title={`Service ${i + 1}`}>
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Title"
-              value={item.title}
-              onChange={setItem(i, "title")}
-            />
-            <Field
-              label="Subtitle"
-              value={item.sub}
-              onChange={setItem(i, "sub")}
-            />
+
+      {/* Guide Card */}
+      <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4 text-xs text-blue-300 flex items-start gap-3">
+        <svg className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div className="space-y-1">
+          <div className="font-bold text-white">How to embed Facebook Reels & Videos:</div>
+          <div>
+            1. Open any public Facebook Reel or Video from your Facebook Page.<br />
+            2. Copy the URL (e.g. <span className="font-mono text-white/90">https://www.facebook.com/reel/123456789</span> or <span className="font-mono text-white/90">https://www.facebook.com/watch/?v=123456789</span>).<br />
+            3. Paste the URL into any of the 3 slots below. The Facebook video player will automatically embed and stream directly on your landing page.
           </div>
-          <Field
-            label="Description"
-            value={item.desc}
-            onChange={setItem(i, "desc")}
-            textarea
-          />
-          <button
-            onClick={() => removeItem(i)}
-            className="text-xs text-red-500 hover:text-red-400 font-bold"
-          >
-            — Remove service
-          </button>
-        </Card>
-      ))}
-      <button
-        onClick={addItem}
-        className="w-full rounded-xl border border-dashed border-white/20 py-3 text-xs font-bold text-gray-500 hover:text-white hover:border-white/40 transition-colors"
-      >
-        + Add Service
-      </button>
+        </div>
+      </div>
+
+      {/* 3 Facebook Reel Embed Slots */}
+      <div className="space-y-6">
+        <div className="text-xs uppercase tracking-[0.3em] text-red-400 font-black">
+          3 Facebook Reel Video Slots
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {slots.map((slot, i) => {
+            const previewEmbedUrl = getEmbedPreviewUrl(slot.url);
+            return (
+              <Card key={i} title={`Facebook Reel Slot #${i + 1}`}>
+                <div className="space-y-4">
+                  {/* Live Embed Preview */}
+                  <div className="relative aspect-[9/14] sm:aspect-[9/13] w-full rounded-2xl overflow-hidden border border-white/10 bg-black shadow-2xl flex flex-col items-center justify-center">
+                    {previewEmbedUrl ? (
+                      <iframe
+                        src={previewEmbedUrl}
+                        title={`Facebook Reel Slot ${i + 1} Preview`}
+                        className="w-full h-full border-0 bg-black"
+                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                        allowFullScreen={true}
+                        scrolling="no"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 p-6 text-center text-gray-500">
+                        <div className="w-14 h-14 rounded-full bg-red-600/10 border border-red-600/20 flex items-center justify-center mb-3 text-red-500">
+                          <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+                          </svg>
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-wider text-gray-300">
+                          No Reel URL Set
+                        </span>
+                        <span className="text-[11px] text-gray-600 mt-1">
+                          Paste a Facebook Reel link below
+                        </span>
+                      </div>
+                    )}
+
+                    {slot.url && (
+                      <div className="absolute top-2.5 right-2.5 z-20">
+                        <button
+                          type="button"
+                          onClick={() => setSlotUrl(i, "")}
+                          className="px-2.5 py-1 rounded-lg bg-black/90 hover:bg-red-600 text-[10px] font-black uppercase text-white border border-white/20 transition-colors shadow-lg"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Input Field */}
+                  <Field
+                    label={`Reel #${i + 1} Facebook URL`}
+                    value={slot.url}
+                    onChange={(val) => setSlotUrl(i, val)}
+                    placeholder="https://www.facebook.com/reel/..."
+                  />
+
+                  {slot.url && (
+                    <div className="flex items-center justify-between pt-1 text-[11px]">
+                      <a
+                        href={slot.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-red-400 hover:text-red-300 font-bold flex items-center gap-1"
+                      >
+                        Open on Facebook ↗
+                      </a>
+                      <span className="text-green-400 font-semibold">✓ Link detected</span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1209,7 +1448,7 @@ function PostsEditor() {
 // ─── Pages section (the full landing editor) ──────────────────────────────────
 const PAGE_TABS = [
   { key: "hero", label: "Hero" },
-  { key: "services", label: "Services" },
+  { key: "services", label: "Facebook Reels" },
   { key: "branches", label: "Branches" },
   { key: "reviews", label: "Reviews" },
   { key: "fbPages", label: "FB Pages" },
@@ -1248,35 +1487,73 @@ function PagesEditor() {
   );
 
   const handleSave = async () => {
-    console.log("Saving imageUrl:", content.hero.imageUrl);
     setStatus("saving");
+    setErrorMsg("");
     try {
       const result = await saveContentToAPI(content);
       setLastSaved(
         result.updated_at ? new Date(result.updated_at) : new Date(),
       );
       setStatus("saved");
-    } catch {
+      Swal.fire({
+        title: "Content Saved!",
+        text: "Landing page changes have been saved to database and are now live.",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#fff",
+      });
+    } catch (err) {
+      console.error("Save error:", err);
       setErrorMsg("Save failed. Check your connection and try again.");
       setStatus("error");
+      Swal.fire({
+        title: "Save Failed",
+        text: "Could not save content to the server. Please try again.",
+        icon: "error",
+        confirmButtonColor: "#dc2626",
+        background: "#111827",
+        color: "#fff",
+      });
     }
   };
 
   const handleReset = async () => {
-    if (
-      !window.confirm("Reset all content to defaults? This cannot be undone.")
-    )
-      return;
+    const result = await Swal.fire({
+      title: "Reset Landing Content?",
+      text: "This will reset all landing sections to default values. This cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#374151",
+      confirmButtonText: "Yes, Reset All",
+      cancelButtonText: "Cancel",
+      background: "#111827",
+      color: "#fff",
+    });
+
+    if (!result.isConfirmed) return;
+
     setStatus("saving");
     try {
-      const result = await apiFetch("/super-admin/landing-content/", {
+      const res = await apiFetch("/super-admin/landing-content/", {
         method: "DELETE",
       });
-      setContent(result.content);
+      setContent(res.content);
       setLastSaved(
-        result.updated_at ? new Date(result.updated_at) : new Date(),
+        res.updated_at ? new Date(res.updated_at) : new Date(),
       );
       setStatus("saved");
+      Swal.fire({
+        title: "Reset Complete",
+        text: "Landing page content has been reset to defaults.",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#fff",
+      });
     } catch {
       setErrorMsg("Reset failed — content could not be reset on the server.");
       setStatus("error");
@@ -1311,9 +1588,10 @@ function PagesEditor() {
   }
 
   return (
-    <div>
-      {/* Sub-tabs */}
-      <div className="rounded-2xl border border-white/10 bg-gray-900/80 p-3 mb-6">
+    <div className="space-y-6 pb-24">
+      {/* Top Header Controls */}
+      <div className="rounded-2xl border border-white/10 bg-gray-900/80 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {/* Sub-tabs */}
         <div className="flex flex-wrap gap-2">
           {PAGE_TABS.map((tab) => (
             <button
@@ -1329,7 +1607,44 @@ function PagesEditor() {
             </button>
           ))}
         </div>
+
+        {/* Top Save Trigger */}
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          {lastSaved && (
+            <span className="text-[11px] text-gray-400 hidden md:inline">
+              Saved {lastSaved.toLocaleTimeString()}
+            </span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={status === "saving"}
+            className="flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-red-900/40 transition-all disabled:opacity-50"
+          >
+            {status === "saving" ? (
+              <>
+                <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <span>Saving…</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Save Changes</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
+
+      {errorMsg && (
+        <div className="rounded-2xl border border-red-500/20 bg-red-950/50 p-4 text-sm text-red-300">
+          {errorMsg}
+        </div>
+      )}
 
       {/* Section editors */}
       {activeTab === "hero" && (
@@ -1349,6 +1664,47 @@ function PagesEditor() {
         <FooterEditor data={content.footer} onChange={update("footer")} />
       )}
       {activeTab === "legal" && <PostsEditor />}
+
+      {/* ── Sticky Bottom Action Bar ── */}
+      <div className="fixed bottom-4 left-4 right-4 md:left-72 md:right-8 z-40 bg-gray-900/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className={`w-3 h-3 rounded-full ${status === "saved" ? "bg-green-500 animate-pulse" : status === "saving" ? "bg-amber-500 animate-spin" : "bg-gray-500"}`} />
+          <div className="text-xs text-gray-300">
+            {status === "saving"
+              ? "Saving landing content to server…"
+              : status === "saved"
+              ? "All changes saved and live!"
+              : "Unsaved changes pending"}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <a
+            href="/"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-bold text-gray-300 hover:text-white transition-colors"
+          >
+            View Live Landing ↗
+          </a>
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={status === "saving"}
+            className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
+          >
+            Reset Defaults
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={status === "saving"}
+            className="flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 px-6 py-2.5 text-xs font-black text-white shadow-xl shadow-red-900/40 transition-all disabled:opacity-50"
+          >
+            {status === "saving" ? "Saving…" : "Save All Changes"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

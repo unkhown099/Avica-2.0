@@ -828,6 +828,7 @@ class LandingContent(models.Model):
 class MediaAsset(models.Model):
     class MediaType(models.TextChoices):
         IMAGE = "image", "Image"
+        VIDEO = "video", "Video"
         DOCUMENT = "document", "Document"
         OTHER = "other", "Other"
 

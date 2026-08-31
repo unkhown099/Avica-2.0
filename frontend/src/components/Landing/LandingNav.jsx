@@ -96,14 +96,10 @@ const Navbar = () => {
     <>
       {/* ── Main nav bar ── */}
       <nav
-        className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-          scrolled || menuOpen
-            ? "bg-black/90 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
-            : "bg-transparent"
-        }`}
+        className="fixed top-0 w-full z-50 bg-black border-b border-white/10 shadow-lg transition-colors duration-300"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20 md:h-24 transition-all duration-500">
+          <div className="flex items-center justify-between h-16 sm:h-20 transition-all duration-300">
 
             {/* Logo */}
             <div className="flex items-center transform hover:scale-105 transition-transform duration-300 flex-shrink-0">
@@ -111,7 +107,7 @@ const Navbar = () => {
                 <img
                   src={logo}
                   alt="Otokwikk logo"
-                  className="h-9 sm:h-12 md:h-14 lg:h-16 object-contain filter drop-shadow-2xl"
+                  className="h-9 sm:h-12 md:h-14 object-contain filter drop-shadow-2xl"
                 />
               </Link>
             </div>

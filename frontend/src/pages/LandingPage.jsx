@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Navbar from "../components/Landing/LandingNav.jsx";
 import BorderGlow from "../components/Landing/BorderGlow.jsx";
 import logo from "../assets/otokwikklogo.png";
@@ -50,8 +50,10 @@ const EMPTY_LANDING_CONTENT = {
     ctaGuest: "BOOK YOUR EXPERIENCE",
     signInPrompt: "",
     signInLabel: "SIGN IN HERE",
+    bgMode: "slideshow",
     imageUrl: "",
     images: [],
+    videoUrl: "",
   },
   services: {
     sectionTitle: "",
@@ -79,6 +81,7 @@ function normalizeLandingContent(content) {
   };
 
   const heroImageUrl = normalizeImage(data.hero?.imageUrl ?? "");
+  const heroVideoUrl = data.hero?.videoUrl ? toAbsoluteUrl(data.hero.videoUrl) : "";
   const heroImages = Array.isArray(data.hero?.images)
     ? data.hero.images
       .filter((img) => img && img.trim() !== "")
@@ -89,6 +92,8 @@ function normalizeLandingContent(content) {
     hero: {
       ...EMPTY_LANDING_CONTENT.hero,
       ...data.hero,
+      bgMode: data.hero?.bgMode || "slideshow",
+      videoUrl: heroVideoUrl,
       imageUrl: heroImageUrl,
       images:
         heroImages.length > 0
@@ -101,7 +106,13 @@ function normalizeLandingContent(content) {
       ...EMPTY_LANDING_CONTENT.services,
       ...data.services,
       items: Array.isArray(data.services?.items)
-        ? data.services.items
+        ? data.services.items.map((item) => {
+            if (typeof item === "string") return { url: item };
+            return {
+              ...item,
+              url: item?.url || item?.link || item?.image || "",
+            };
+          })
         : EMPTY_LANDING_CONTENT.services.items,
     },
     branches: Array.isArray(data.branches)
@@ -126,7 +137,105 @@ function normalizeLandingContent(content) {
   };
 }
 
-// Icon paths for each service position (index-matched, cycles if more services added)
+// ─── Load Facebook JS SDK once globally ───────────────────────────────────────
+function loadFBSDK() {
+  if (document.getElementById("facebook-jssdk")) return;
+  // Set up the async init callback BEFORE inserting the script
+  const existingInit = window.fbAsyncInit;
+  window.fbAsyncInit = function () {
+    window.FB.init({ xfbml: true, version: "v20.0" });
+    if (existingInit) existingInit();
+  };
+  const js = document.createElement("script");
+  js.id = "facebook-jssdk";
+  js.src = "https://connect.facebook.net/en_US/sdk.js";
+  js.async = true;
+  js.defer = true;
+  document.head.appendChild(js);
+}
+
+// ─── FBVideoEmbed — autoplay + loop via FB SDK ────────────────────────────────
+function FBVideoEmbed({ url, index }) {
+  const containerRef = useRef(null);
+  const playerRef = useRef(null);
+
+  const initPlayer = useCallback(() => {
+    if (!containerRef.current || !url) return;
+    const FB = window.FB;
+    if (!FB) return;
+
+    // Parse + subscribe after SDK renders the embed
+    FB.XFBML.parse(containerRef.current, () => {
+      const videoEl = containerRef.current.querySelector(".fb-video");
+      if (!videoEl) return;
+
+      FB.Event.subscribe("xfbml.ready", (msg) => {
+        if (msg.type === "video" && videoEl.contains(msg.instance._element)) {
+          playerRef.current = msg.instance;
+          msg.instance.mute();
+          msg.instance.play();
+          msg.instance.subscribe("finishedPlaying", () => {
+            msg.instance.seek(0);
+            msg.instance.play();
+          });
+        }
+      });
+    });
+  }, [url]);
+
+  useEffect(() => {
+    loadFBSDK();
+    // If SDK already loaded, init immediately; otherwise wait for fbAsyncInit
+    if (window.FB) {
+      initPlayer();
+    } else {
+      const prev = window.fbAsyncInit;
+      window.fbAsyncInit = () => {
+        window.FB.init({ xfbml: true, version: "v20.0" });
+        if (prev) prev();
+        initPlayer();
+      };
+    }
+  }, [initPlayer]);
+
+  if (!url) {
+    return (
+      <div className="group relative rounded-[28px] sm:rounded-[32px] overflow-hidden border border-white/10 shadow-2xl bg-gray-950 flex flex-col h-[560px] sm:h-[620px] w-full items-center justify-center text-gray-500">
+        <div className="w-16 h-16 rounded-full bg-red-600/10 border border-red-600/20 flex items-center justify-center mb-3 text-red-500">
+          <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+          </svg>
+        </div>
+        <span className="text-xs font-black uppercase tracking-widest text-gray-300">
+          Facebook Reel Slot #{index + 1}
+        </span>
+        <span className="text-[11px] text-gray-600 mt-1">
+          Paste Facebook Reel URL in Super Admin
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="group relative rounded-[28px] sm:rounded-[32px] overflow-hidden border border-white/10 shadow-2xl bg-gray-950 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(220,38,38,0.25)] flex flex-col h-[560px] sm:h-[620px] w-full"
+    >
+      {/* fb-video div — rendered & controlled by FB JS SDK */}
+      <div
+        className="fb-video w-full h-full"
+        data-href={url}
+        data-width="auto"
+        data-show-text="false"
+        data-autoplay="true"
+        data-allowfullscreen="true"
+        style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}
+      />
+    </div>
+  );
+}
+
+
 const SERVICE_ICONS = [
   "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
   "M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z",
@@ -503,28 +612,44 @@ function LandingPage() {
         </div>
       )}
 
-      {/* ── Hero Section with Slideshow ── */}
-      <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background slides */}
-        <div className="absolute inset-0">
-          {heroBgs.map((bg, index) => (
-            <div
-              key={index}
-              className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-[2000ms] ease-in-out ${index === bgIndex
-                ? "opacity-100 scale-110"
-                : "opacity-0 scale-100"
-                }`}
-              style={{
-                backgroundImage: `url(${bg})`,
-                filter: "brightness(0.35)",
-              }}
+      {/* ── Hero Section with Background (Video or Slideshow) ── */}
+      <div className="landing-hero relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Background container */}
+        <div className="absolute inset-0 overflow-hidden">
+          {hero.bgMode === "video" && hero.videoUrl ? (
+            <video
+              key={hero.videoUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none scale-105"
+              style={{ filter: "brightness(0.35)" }}
+              src={toAbsoluteUrl(hero.videoUrl)}
             />
-          ))}
-          {/* Fallback gradient if no images */}
-          {heroBgs.length === 0 && (
+          ) : (
+            heroBgs.map((bg, index) => (
+              <div
+                key={index}
+                className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-[2000ms] ease-in-out ${index === bgIndex
+                  ? "opacity-100 scale-110"
+                  : "opacity-0 scale-100"
+                  }`}
+                style={{
+                  backgroundImage: `url(${bg})`,
+                  filter: "brightness(0.35)",
+                }}
+              />
+            ))
+          )}
+
+          {/* Fallback gradient if no images and no video */}
+          {(!hero.bgMode || hero.bgMode === "slideshow") && heroBgs.length === 0 && (
             <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/99" />
+
+          {/* Overlay gradient for high contrast and readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/99 pointer-events-none" />
         </div>
 
         {/* Glow orbs */}
@@ -537,20 +662,9 @@ function LandingPage() {
         </div>
 
         <div className="relative text-center">
-          {/* Logo card */}
-          <div className="mb-6 sm:mb-8 inline-block animate-[fadeIn_1s_ease-out]">
-            <div className="bg-white/5 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-              <img
-                src={logo}
-                alt="Otokwikk logo"
-                className="h-10 sm:h-14 md:h-16 object-contain filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-              />
-            </div>
-          </div>
-
           {/* Headline */}
           <h1
-            className="font-black text-white mb-4 sm:mb-6 leading-[0.85] tracking-tighter text-[clamp(3rem,14vw,8rem)]"
+            className="font-black text-white mb-4 sm:mb-6 leading-[0.85] tracking-tighter text-[clamp(2.2rem,9vw,5.5rem)]"
             style={{
               animation: "slideUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) both",
             }}
@@ -637,48 +751,13 @@ function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {filteredServices.map((svc, i) => (
-              <BorderGlow
-                key={i}
-                className="group relative overflow-hidden"
-                borderRadius={32}
-                glowRadius={36}
-                glowIntensity={0.8}
-                colors={["#f97316", "#f43f5e", "#8b5cf6"]}
-                backgroundColor="rgba(15, 23, 42, 0.85)"
-              >
-                <div className="relative z-10 p-8 sm:p-10">
-                  <div className="absolute -right-10 -top-10 w-40 h-40 bg-red-600/5 rounded-full blur-[60px] group-hover:bg-red-600/15 transition-all duration-700" />
-                  <div className="relative z-10">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-red-600/20 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 border border-red-600/30 group-hover:rotate-[15deg] transition-all duration-500">
-                      <svg
-                        className="w-7 h-7 sm:w-9 sm:h-9 text-red-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d={svc.icon || SERVICE_ICONS[i % SERVICE_ICONS.length]}
-                        />
-                      </svg>
-                    </div>
-                    <h3 className="text-2xl sm:text-3xl font-black text-white mb-2 sm:mb-3 tracking-tighter">
-                      {svc.title}
-                      <span className="block text-red-600 text-base sm:text-lg font-bold mt-1">
-                        {svc.sub}
-                      </span>
-                    </h3>
-                    <p className="text-gray-400 text-base sm:text-lg leading-relaxed font-medium">
-                      {svc.desc}
-                    </p>
-                  </div>
-                </div>
-              </BorderGlow>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
+            {filteredServices.slice(0, 3).map((svc, i) => {
+              const reelUrl = typeof svc === "string" ? svc : (svc?.url || svc?.link || svc?.image || "");
+              return (
+                <FBVideoEmbed key={i} url={reelUrl} index={i} />
+              );
+            })}
           </div>
         </div>
       </section>

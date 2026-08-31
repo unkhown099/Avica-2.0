@@ -6,50 +6,89 @@
   --sidebar-width: 15rem;
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    LIGHT MODE SYSTEM (data-theme="light")
-   ════════════════════════════════════════════════════════════════════════════ */
+   NOTE: .landing-hero is intentionally excluded from most overrides
+   so its dark hero/sections keep their designed look.
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-/* Smooth transitions */
-html[data-theme="light"] * {
+/* Smooth transitions (exclude landing page for performance) */
+html[data-theme="light"] *:not(.landing-hero):not(.landing-hero *) {
   transition-property: background-color, border-color, color, box-shadow;
   transition-duration: 0.15s;
   transition-timing-function: ease-out;
 }
 
-/* ── 1. Page Backgrounds (Eliminate ALL Navy Blue / Dark backgrounds) ───── */
+/* ── 1. Page Backgrounds ─────────────────────────────────────────────────── */
 html[data-theme="light"],
 html[data-theme="light"] body,
-html[data-theme="light"] #root,
-html[data-theme="light"] .min-h-screen,
-html[data-theme="light"] main,
-html[data-theme="light"] .bg-gray-950,
-html[data-theme="light"] .bg-slate-950,
-html[data-theme="light"] .bg-zinc-950,
-html[data-theme="light"] .bg-black,
-html[data-theme="light"] .from-gray-950,
-html[data-theme="light"] .via-gray-900,
-html[data-theme="light"] .to-red-950\/30,
-html[data-theme="light"] .to-gray-950,
-html[data-theme="light"] .to-black,
-html[data-theme="light"] .bg-gradient-to-br,
-html[data-theme="light"] .bg-gradient-to-b {
+html[data-theme="light"] #root {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+/* Dark bg classes — only override when NOT inside landing-hero */
+html[data-theme="light"] .bg-gray-950:not(.landing-hero *),
+html[data-theme="light"] .bg-slate-950:not(.landing-hero *),
+html[data-theme="light"] .bg-zinc-950:not(.landing-hero *),
+html[data-theme="light"] .bg-black:not(.landing-hero *),
+html[data-theme="light"] .bg-neutral-900:not(.landing-hero *),
+html[data-theme="light"] .bg-neutral-950:not(.landing-hero *),
+html[data-theme="light"] .from-gray-950:not(.landing-hero *),
+html[data-theme="light"] .via-gray-900:not(.landing-hero *),
+html[data-theme="light"] .to-red-950\/30:not(.landing-hero *),
+html[data-theme="light"] .to-gray-950:not(.landing-hero *),
+html[data-theme="light"] .to-black:not(.landing-hero *),
+html[data-theme="light"] .bg-gradient-to-br:not(.landing-hero *),
+html[data-theme="light"] .bg-gradient-to-b:not(.landing-hero *),
+html[data-theme="light"] .min-h-screen:not(.landing-hero):not(.landing-hero *),
+html[data-theme="light"] main:not(.landing-hero *) {
   background-color: #f1f5f9 !important;
   background-image: none !important;
   color: #1e293b !important;
 }
 
-/* ── 2. Top Header & Navigation Bars ────────────────────────────────────── */
-html[data-theme="light"] header,
-html[data-theme="light"] .bg-gray-900.sticky,
-html[data-theme="light"] div.sticky.top-0 {
+/* â”€â”€ 2. Top Navigation Bars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Landing nav is a <nav> so give it white bg in light mode */
+html[data-theme="light"] nav {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+html[data-theme="light"] nav .text-white,
+html[data-theme="light"] nav .text-white\/80,
+html[data-theme="light"] nav .text-white\/70 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] nav .border-white\/10 {
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] nav .bg-white\/5 {
+  background-color: #f1f5f9 !important;
+}
+
+/* Mobile drawer */
+html[data-theme="light"] .bg-\[\#0a0a0a\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Dashboard sticky headers */
+html[data-theme="light"] header:not(.landing-hero *),
+html[data-theme="light"] footer:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-900.sticky:not(.landing-hero *),
+html[data-theme="light"] div.sticky.top-0:not(.landing-hero *) {
   background-color: #ffffff !important;
   background-image: none !important;
   border-color: #e2e8f0 !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* ── 3. Unified Sidebar ─────────────────────────────────────────────────── */
+/* â”€â”€ 3. Unified Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 html[data-theme="light"] aside {
   background-color: #ffffff !important;
   background: #ffffff !important;
@@ -95,34 +134,33 @@ html[data-theme="light"] aside span[class*="text-gray"] {
   color: #94a3b8 !important;
 }
 
-/* ── 4. Dashboard Cards, Branch Cards, Panels & Modals ──────────────────── */
-html[data-theme="light"] .bg-gray-900:not(header):not(aside),
-html[data-theme="light"] .bg-gray-850,
-html[data-theme="light"] .bg-gray-800,
-html[data-theme="light"] .bg-slate-900,
-html[data-theme="light"] .bg-zinc-900,
-html[data-theme="light"] .bg-\[\#111827\],
-html[data-theme="light"] .bg-\[\#0a0a0a\],
-html[data-theme="light"] .bg-\[\#0f0f15\],
-html[data-theme="light"] .bg-\[\#111\],
-html[data-theme="light"] .bg-\[\#161616\],
-html[data-theme="light"] .bg-\[\#1f1f1f\],
-html[data-theme="light"] .bg-\[\#0d0d0d\]\/80,
-html[data-theme="light"] .bg-gray-900\/60,
-html[data-theme="light"] .bg-gray-900\/50,
-html[data-theme="light"] .bg-gray-900\/80,
-html[data-theme="light"] .bg-gray-800\/60,
-html[data-theme="light"] .bg-gray-800\/50,
-html[data-theme="light"] .bg-gray-800\/80,
-html[data-theme="light"] .bg-black\/20,
-html[data-theme="light"] .bg-black\/30,
-html[data-theme="light"] .bg-black\/40,
-html[data-theme="light"] .bg-white\/5,
-html[data-theme="light"] .bg-white\/10,
-html[data-theme="light"] .bg-white\/3,
-html[data-theme="light"] .backdrop-blur-sm,
-html[data-theme="light"] .backdrop-blur-md,
-html[data-theme="light"] .backdrop-blur-xl {
+/* â”€â”€ 4. Dashboard Cards, Branch Cards, Panels & Modals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+html[data-theme="light"] .bg-gray-900:not(header):not(aside):not(.landing-hero *),
+html[data-theme="light"] .bg-gray-850:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-800:not(.landing-hero *),
+html[data-theme="light"] .bg-slate-900:not(.landing-hero *),
+html[data-theme="light"] .bg-zinc-900:not(.landing-hero *),
+html[data-theme="light"] .bg-\[\#111827\]:not(.landing-hero *),
+html[data-theme="light"] .bg-\[\#0f0f15\]:not(.landing-hero *),
+html[data-theme="light"] .bg-\[\#111\]:not(.landing-hero *),
+html[data-theme="light"] .bg-\[\#161616\]:not(.landing-hero *),
+html[data-theme="light"] .bg-\[\#1f1f1f\]:not(.landing-hero *),
+html[data-theme="light"] .bg-\[\#0d0d0d\]\/80:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-900\/60:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-900\/50:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-900\/80:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-800\/60:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-800\/50:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-800\/80:not(.landing-hero *),
+html[data-theme="light"] .bg-black\/20:not(.landing-hero *),
+html[data-theme="light"] .bg-black\/30:not(.landing-hero *),
+html[data-theme="light"] .bg-black\/40:not(.landing-hero *),
+html[data-theme="light"] .bg-white\/5:not(.landing-hero *):not(nav *),
+html[data-theme="light"] .bg-white\/10:not(.landing-hero *):not(nav *),
+html[data-theme="light"] .bg-white\/3:not(.landing-hero *),
+html[data-theme="light"] .backdrop-blur-sm:not(.landing-hero *),
+html[data-theme="light"] .backdrop-blur-md:not(.landing-hero *),
+html[data-theme="light"] .backdrop-blur-xl:not(.landing-hero *) {
   background-color: #ffffff !important;
   background-image: none !important;
   border-color: #e2e8f0 !important;
@@ -130,191 +168,191 @@ html[data-theme="light"] .backdrop-blur-xl {
 }
 
 /* Sub-containers & nested items inside branch cards / stat cards */
-html[data-theme="light"] .bg-white\/\[0\.04\],
-html[data-theme="light"] .bg-white\/\[0\.06\],
-html[data-theme="light"] .bg-gray-900\/40,
-html[data-theme="light"] .bg-emerald-950\/20,
-html[data-theme="light"] .bg-red-950\/30,
-html[data-theme="light"] .border-white\/\[0\.06\],
-html[data-theme="light"] .border-white\/5,
-html[data-theme="light"] .border-white\/10 {
+html[data-theme="light"] .bg-white\/\[0\.04\]:not(.landing-hero *),
+html[data-theme="light"] .bg-white\/\[0\.06\]:not(.landing-hero *),
+html[data-theme="light"] .bg-gray-900\/40:not(.landing-hero *),
+html[data-theme="light"] .bg-emerald-950\/20:not(.landing-hero *),
+html[data-theme="light"] .bg-red-950\/30:not(.landing-hero *),
+html[data-theme="light"] .border-white\/\[0\.06\]:not(.landing-hero *),
+html[data-theme="light"] .border-white\/5:not(.landing-hero *):not(nav *),
+html[data-theme="light"] .border-white\/10:not(.landing-hero *):not(nav *) {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
 }
 
-/* ── 5. Text & Headings ─────────────────────────────────────────────────── */
-html[data-theme="light"] h1,
-html[data-theme="light"] h2,
-html[data-theme="light"] h3,
-html[data-theme="light"] h4,
-html[data-theme="light"] h5,
-html[data-theme="light"] h6 {
+/* â”€â”€ 5. Text & Headings (app pages only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+html[data-theme="light"] h1:not(.landing-hero *),
+html[data-theme="light"] h2:not(.landing-hero *),
+html[data-theme="light"] h3:not(.landing-hero *),
+html[data-theme="light"] h4:not(.landing-hero *),
+html[data-theme="light"] h5:not(.landing-hero *),
+html[data-theme="light"] h6:not(.landing-hero *) {
   color: #0f172a !important;
 }
 
-html[data-theme="light"] .text-white:not(button *):not(a *):not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-green"] *):not([class*="bg-blue"] *) {
+html[data-theme="light"] .text-white:not(button *):not(a *):not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-green"] *):not([class*="bg-blue"] *):not(.landing-hero *) {
   color: #0f172a !important;
 }
 
-html[data-theme="light"] .text-gray-100,
-html[data-theme="light"] .text-gray-200 {
+html[data-theme="light"] .text-gray-100:not(.landing-hero *),
+html[data-theme="light"] .text-gray-200:not(.landing-hero *) {
   color: #1e293b !important;
 }
 
-html[data-theme="light"] .text-gray-300,
-html[data-theme="light"] .text-gray-400 {
+html[data-theme="light"] .text-gray-300:not(.landing-hero *),
+html[data-theme="light"] .text-gray-400:not(.landing-hero *) {
   color: #475569 !important;
 }
 
-html[data-theme="light"] .text-gray-500 {
+html[data-theme="light"] .text-gray-500:not(.landing-hero *) {
   color: #64748b !important;
 }
 
-html[data-theme="light"] .text-gray-600 {
+html[data-theme="light"] .text-gray-600:not(.landing-hero *) {
   color: #94a3b8 !important;
 }
 
-/* ── 6. Borders & Dividers ───────────────────────────────────────────────── */
-html[data-theme="light"] .border-gray-800,
-html[data-theme="light"] .border-gray-700,
-html[data-theme="light"] .border-gray-900,
-html[data-theme="light"] .border-white\/5,
-html[data-theme="light"] .border-white\/10,
-html[data-theme="light"] .border-white\/20,
-html[data-theme="light"] .border-gray-800\/50 {
+/* â”€â”€ 6. Borders & Dividers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+html[data-theme="light"] .border-gray-800:not(.landing-hero *),
+html[data-theme="light"] .border-gray-700:not(.landing-hero *),
+html[data-theme="light"] .border-gray-900:not(.landing-hero *),
+html[data-theme="light"] .border-white\/5:not(.landing-hero *):not(nav *),
+html[data-theme="light"] .border-white\/10:not(.landing-hero *):not(nav *),
+html[data-theme="light"] .border-white\/20:not(.landing-hero *),
+html[data-theme="light"] .border-gray-800\/50:not(.landing-hero *) {
   border-color: #e2e8f0 !important;
 }
 
-html[data-theme="light"] hr,
-html[data-theme="light"] .divide-gray-800 > * + * {
+html[data-theme="light"] hr:not(.landing-hero *),
+html[data-theme="light"] .divide-gray-800:not(.landing-hero *) > * + * {
   border-color: #e2e8f0 !important;
 }
 
-/* ── 7. Form Controls (Inputs, Selects, Dropdowns) ───────────────────────── */
-html[data-theme="light"] input,
-html[data-theme="light"] select,
-html[data-theme="light"] textarea {
+/* â”€â”€ 7. Form Controls (Inputs, Selects, Dropdowns) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+html[data-theme="light"] input:not(.landing-hero *),
+html[data-theme="light"] select:not(.landing-hero *),
+html[data-theme="light"] textarea:not(.landing-hero *) {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border: 1px solid #cbd5e1 !important;
 }
 
-html[data-theme="light"] select option {
+html[data-theme="light"] select option:not(.landing-hero *) {
   background-color: #ffffff !important;
   color: #0f172a !important;
 }
 
-html[data-theme="light"] input::placeholder,
-html[data-theme="light"] textarea::placeholder {
+html[data-theme="light"] input::placeholder:not(.landing-hero *),
+html[data-theme="light"] textarea::placeholder:not(.landing-hero *) {
   color: #94a3b8 !important;
 }
 
-html[data-theme="light"] input:focus,
-html[data-theme="light"] select:focus,
-html[data-theme="light"] textarea:focus {
+html[data-theme="light"] input:focus:not(.landing-hero *),
+html[data-theme="light"] select:focus:not(.landing-hero *),
+html[data-theme="light"] textarea:focus:not(.landing-hero *) {
   border-color: #dc2626 !important;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
 }
 
-/* ── 8. Tables ──────────────────────────────────────────────────────────── */
-html[data-theme="light"] table {
+/* â”€â”€ 8. Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+html[data-theme="light"] table:not(.landing-hero *) {
   color: #1e293b !important;
 }
 
-html[data-theme="light"] thead tr,
-html[data-theme="light"] th {
+html[data-theme="light"] thead tr:not(.landing-hero *),
+html[data-theme="light"] th:not(.landing-hero *) {
   background-color: #f8fafc !important;
   color: #475569 !important;
   border-color: #e2e8f0 !important;
 }
 
-html[data-theme="light"] tbody tr {
+html[data-theme="light"] tbody tr:not(.landing-hero *) {
   border-color: #f1f5f9 !important;
 }
 
-html[data-theme="light"] tbody tr:hover {
+html[data-theme="light"] tbody tr:hover:not(.landing-hero *) {
   background-color: #f8fafc !important;
 }
 
-html[data-theme="light"] td {
+html[data-theme="light"] td:not(.landing-hero *) {
   border-color: #f1f5f9 !important;
   color: #334155 !important;
 }
 
-/* ── 9. Status Badges & Accents ─────────────────────────────────────────── */
-html[data-theme="light"] .bg-emerald-500\/20 {
+/* â”€â”€ 9. Status Badges & Accents â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+html[data-theme="light"] .bg-emerald-500\/20:not(.landing-hero *) {
   background-color: #d1fae5 !important;
   color: #065f46 !important;
   border-color: #a7f3d0 !important;
 }
 
-html[data-theme="light"] .bg-blue-500\/20 {
+html[data-theme="light"] .bg-blue-500\/20:not(.landing-hero *) {
   background-color: #dbeafe !important;
   color: #1e40af !important;
   border-color: #bfdbfe !important;
 }
 
-html[data-theme="light"] .bg-yellow-500\/20 {
+html[data-theme="light"] .bg-yellow-500\/20:not(.landing-hero *) {
   background-color: #fef3c7 !important;
   color: #92400e !important;
   border-color: #fde68a !important;
 }
 
-html[data-theme="light"] .bg-red-500\/20 {
+html[data-theme="light"] .bg-red-500\/20:not(.landing-hero *) {
   background-color: #fee2e2 !important;
   color: #991b1b !important;
   border-color: #fecaca !important;
 }
 
-html[data-theme="light"] .bg-indigo-500\/20 {
+html[data-theme="light"] .bg-indigo-500\/20:not(.landing-hero *) {
   background-color: #e0e7ff !important;
   color: #3730a3 !important;
   border-color: #c7d2fe !important;
 }
 
-html[data-theme="light"] .bg-gray-500\/20 {
+html[data-theme="light"] .bg-gray-500\/20:not(.landing-hero *) {
   background-color: #f1f5f9 !important;
   color: #64748b !important;
   border-color: #cbd5e1 !important;
 }
 
-/* ── 10. Primary Buttons & Brand Elements ────────────────────────────────── */
-html[data-theme="light"] button.bg-red-600,
-html[data-theme="light"] button.hover\:bg-red-700:hover,
-html[data-theme="light"] a.bg-red-600,
-html[data-theme="light"] .bg-red-600 {
+/* â”€â”€ 10. Primary Buttons & Brand Elements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+html[data-theme="light"] button.bg-red-600:not(.landing-hero *),
+html[data-theme="light"] button.hover\:bg-red-700:hover:not(.landing-hero *),
+html[data-theme="light"] a.bg-red-600:not(.landing-hero *),
+html[data-theme="light"] .bg-red-600:not(.landing-hero *) {
   background-color: #dc2626 !important;
   color: #ffffff !important;
 }
 
-html[data-theme="light"] button.bg-red-600 *,
-html[data-theme="light"] a.bg-red-600 * {
+html[data-theme="light"] button.bg-red-600 *:not(.landing-hero *),
+html[data-theme="light"] a.bg-red-600 *:not(.landing-hero *) {
   color: #ffffff !important;
 }
 
 /* Delete / Action buttons on branch cards */
-html[data-theme="light"] button.hover\:bg-white\/10:hover,
-html[data-theme="light"] button.bg-white\/5 {
+html[data-theme="light"] button.hover\:bg-white\/10:hover:not(.landing-hero *),
+html[data-theme="light"] button.bg-white\/5:not(.landing-hero *) {
   background-color: #f1f5f9 !important;
   color: #334155 !important;
   border-color: #cbd5e1 !important;
 }
 
 /* Print / Export buttons on dashboard */
-html[data-theme="light"] button.bg-gray-800 {
+html[data-theme="light"] button.bg-gray-800:not(.landing-hero *) {
   background-color: #ffffff !important;
   color: #334155 !important;
   border-color: #cbd5e1 !important;
 }
 
-html[data-theme="light"] button.bg-gray-800:hover {
+html[data-theme="light"] button.bg-gray-800:hover:not(.landing-hero *) {
   background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
-/* ── 11. Modal, Dialogs & SweetAlert2 ───────────────────────────────────── */
-html[data-theme="light"] .fixed.inset-0.bg-black\/60,
-html[data-theme="light"] .fixed.inset-0.bg-black\/75 {
+/* â”€â”€ 11. Modal, Dialogs & SweetAlert2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+html[data-theme="light"] .fixed.inset-0.bg-black\/60:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0.bg-black\/75:not(.landing-hero *) {
   background-color: rgba(15, 23, 42, 0.4) !important;
 }
 
@@ -332,7 +370,7 @@ html[data-theme="light"] .swal2-html-container {
   color: #475569 !important;
 }
 
-/* ── 12. Scrollbars (Light Mode) ────────────────────────────────────────── */
+/* â”€â”€ 12. Scrollbars (Light Mode) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 html[data-theme="light"] ::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.5);
 }
@@ -341,9 +379,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.8);
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    DEFAULT SCROLLBAR & MAP TILES
-   ════════════════════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -375,4 +413,15 @@ html {
 
 .leaflet-tile.leaflet-dark-tiles {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75) !important;
+}
+
+/* ── Facebook JS SDK Video Embed ─────────────────────────────────────────── */
+.fb-video,
+.fb-video > span,
+.fb-video > span > iframe {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: inherit !important;
+  display: block !important;
+  border: none !important;
 }

@@ -19,28 +19,24 @@ DEFAULT_CONTENT = {
         "ctaGuest": "BOOK YOUR EXPERIENCE",
         "signInPrompt": "Part of the elite?",
         "signInLabel": "SIGN IN HERE",
+        "bgMode": "slideshow",
         "imageUrl": "",
         "images": [],
+        "videoUrl": "",
     },
     "services": {
-        "sectionTitle": "OUR",
-        "sectionTitleAccent": "SERVICES",
-        "sectionSubtitle": "Precision-driven solutions for every automotive need. We bring out the best in every vehicle.",
+        "sectionTitle": "FEATURED",
+        "sectionTitleAccent": "REELS & HIGHLIGHTS",
+        "sectionSubtitle": "Watch our latest car detailing transformations, ceramic coats, and viral Facebook reels.",
         "items": [
             {
-                "title": "EXTERIOR",
-                "sub": "Showroom Shine",
-                "desc": "Multi-stage washing process, clay bar treatment, and machine polishing for a mirror-like finish.",
+                "url": "https://www.facebook.com/reel/100090897126761",
             },
             {
-                "title": "INTERIOR",
-                "sub": "Pure Luxury",
-                "desc": "Steam cleaning, leather conditioning, and deep extraction for a sterile, fresh-from-factory interior.",
+                "url": "https://www.facebook.com/reel/61572528405228",
             },
             {
-                "title": "PROTECTION",
-                "sub": "Ultima Guard",
-                "desc": "Grade-A Ceramic coatings and PPF applications providing 9H hardness and hydrophobic properties.",
+                "url": "https://www.facebook.com/reel/61586571534281",
             },
         ],
     },
@@ -153,6 +149,7 @@ def _get_or_create_row():
 
 
 # ── Public GET — no auth required ─────────────────────────────────────────────
+# ── Public GET — no auth required ─────────────────────────────────────────────
 class LandingContentPublicView(APIView):
     permission_classes = [AllowAny]
 
@@ -170,6 +167,22 @@ class LandingContentPublicView(APIView):
             if images:
                 hero = {**hero, "images": images}
                 content["hero"] = hero
+
+        if "hero" in content:
+            # Resolve relative media URLs to absolute URLs
+            if content["hero"].get("videoUrl") and str(content["hero"]["videoUrl"]).startswith("/media/"):
+                content["hero"]["videoUrl"] = request.build_absolute_uri(content["hero"]["videoUrl"])
+            if content["hero"].get("imageUrl") and str(content["hero"]["imageUrl"]).startswith("/media/"):
+                content["hero"]["imageUrl"] = request.build_absolute_uri(content["hero"]["imageUrl"])
+
+        if "services" in content and isinstance(content["services"], dict):
+            items = content["services"].get("items", [])
+            for item in items:
+                if isinstance(item, dict):
+                    img = item.get("image") or item.get("imageUrl")
+                    if img and str(img).startswith("/media/"):
+                        item["image"] = request.build_absolute_uri(img)
+                        item["imageUrl"] = request.build_absolute_uri(img)
 
         return Response(content)
 
@@ -203,7 +216,7 @@ class PublicSignInStatsView(APIView):
         })
 
 
-# ── Super-admin GET + PUT ──────────────────────────────────────────────────────
+# ── Super-admin GET + PUT / POST ──────────────────────────────────────────────
 class LandingContentAdminView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
@@ -216,28 +229,32 @@ class LandingContentAdminView(APIView):
         })
 
     def put(self, request):
+        return self._save(request)
+
+    def post(self, request):
+        return self._save(request)
+
+    def _save(self, request):
         content = request.data.get("content")
         if not isinstance(content, dict):
-            return Response(
-                {"error": "`content` must be a JSON object."},
-                status=400,
-            )
+            # Fallback if raw JSON content was posted directly
+            content = request.data if isinstance(request.data, dict) else {}
 
-        required_keys = {"hero", "services", "branches", "reviews", "fbPages", "posts", "footer"}
-        missing = required_keys - set(content.keys())
-        if missing:
-            return Response(
-                {"error": f"Missing required sections: {', '.join(missing)}"},
-                status=400,
-            )
+        obj, _ = _get_or_create_row()
+        existing_content = obj.content if isinstance(obj.content, dict) else DEFAULT_CONTENT
 
-        # ── Merge with defaults so no fields ever go missing ─────────────────
+        # ── Merge with existing / defaults so no fields ever go missing ─────────────────
         merged = {}
-        for key in required_keys:
-            if isinstance(DEFAULT_CONTENT.get(key), dict):
-                merged[key] = {**DEFAULT_CONTENT[key], **content.get(key, {})}
+        for key in {"hero", "services", "branches", "reviews", "fbPages", "posts", "footer"}:
+            def_val = existing_content.get(key, DEFAULT_CONTENT.get(key))
+            incoming_val = content.get(key)
+            if incoming_val is not None:
+                if isinstance(def_val, dict) and isinstance(incoming_val, dict):
+                    merged[key] = {**def_val, **incoming_val}
+                else:
+                    merged[key] = incoming_val
             else:
-                merged[key] = content.get(key, DEFAULT_CONTENT.get(key))
+                merged[key] = def_val
         
         def _strip_local_url(url):
             if not isinstance(url, str):
@@ -252,6 +269,7 @@ class LandingContentAdminView(APIView):
                 "http://localhost:8000",
                 "https://127.0.0.1:8000",
                 "https://localhost:8000",
+                "http://localhost:5173",
             ]
             for prefix in fallbacks:
                 if url.startswith(prefix):
@@ -259,8 +277,12 @@ class LandingContentAdminView(APIView):
             return url
 
         if "hero" in merged:
+            merged["hero"]["bgMode"] = merged["hero"].get("bgMode", "slideshow") or "slideshow"
             merged["hero"]["imageUrl"] = _strip_local_url(
                 merged["hero"].get("imageUrl", "") or ""
+            )
+            merged["hero"]["videoUrl"] = _strip_local_url(
+                merged["hero"].get("videoUrl", "") or ""
             )
             images = []
             for img in merged["hero"].get("images") or []:
@@ -268,7 +290,6 @@ class LandingContentAdminView(APIView):
                     images.append(_strip_local_url(img.strip()))
             merged["hero"]["images"] = images
 
-        obj, _ = _get_or_create_row()
         obj.content    = merged
         obj.updated_by = request.user
         obj.save()
@@ -277,6 +298,7 @@ class LandingContentAdminView(APIView):
             "message":    "Landing content saved successfully.",
             "updated_at": obj.updated_at,
             "updated_by": request.user.email,
+            "content":    obj.content,
         })
 
     def delete(self, request):
@@ -317,9 +339,12 @@ class MediaAssetListView(APIView):
 
         name = request.data.get("name") or file_obj.name
         content_type = file_obj.content_type or ""
+        lower_name = file_obj.name.lower()
         if content_type.startswith("image/"):
             media_type = MediaAsset.MediaType.IMAGE
-        elif file_obj.name.lower().endswith((".pdf", ".doc", ".docx", ".txt")):
+        elif content_type.startswith("video/") or lower_name.endswith((".mp4", ".webm", ".mov", ".ogg", ".mkv", ".avi")):
+            media_type = MediaAsset.MediaType.VIDEO
+        elif lower_name.endswith((".pdf", ".doc", ".docx", ".txt")):
             media_type = MediaAsset.MediaType.DOCUMENT
         else:
             media_type = MediaAsset.MediaType.OTHER
