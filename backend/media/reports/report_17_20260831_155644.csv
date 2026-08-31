@@ -1,0 +1,46 @@
+Business Intelligence Report
+Report Type,dashboard_summary
+Period,monthly
+Scope,branch
+Generated At,2026-08-31T15:56:44.889092+00:00
+
+KPI Summary
+Total Revenue,0.0
+Services Completed,0
+Customers,0
+Conversion Rate (%),0.0
+Payment Rate (%),0.0
+Total Transactions,0
+
+Period-over-Period Comparison
+Revenue Current,0.0
+Revenue Previous,0.0
+Revenue Change (%),0.0
+Conversion Rate Current (%),0.0
+Conversion Rate Previous (%),0.0
+Payment Rate Current (%),0.0
+Payment Rate Previous (%),0.0
+
+Peak Periods
+Peak Hour,N/A,0.0
+Peak Day,N/A,0.0
+Peak Month,N/A,0.0
+
+Revenue Split
+Appointments,0.0
+Walk-ins,0.0
+Services,0.0
+Products,0.0
+
+Reconciliation
+Payment Total,0.0
+Dashboard Total,0.0
+Mismatch Amount,0.0
+Mismatch Threshold,1.0
+Data Mismatch,False
+
+Top Services
+Service,Revenue,Count
+
+Top Customers
+Customer,Revenue,Transactions

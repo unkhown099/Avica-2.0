@@ -360,11 +360,12 @@ class AdminDashboardView(APIView):
 
     def get(self, request):
         requester_staff = getattr(request.user, "staff_profile", None)
-        if not requester_staff:
-            return Response({"detail": "Staff access required."}, status=403)
+        is_superuser = getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)
+        staff_role = requester_staff.role if requester_staff else ""
+        normalized_role = staff_role.lower().replace(" ", "_")
 
-        allowed_roles = {"Admin", "Business Owner", "super_admin", "Branch Manager"}
-        if requester_staff.role not in allowed_roles:
+        allowed_roles = {"admin", "business_owner", "super_admin", "branch_manager"}
+        if not is_superuser and normalized_role not in allowed_roles:
             return Response({"detail": "Permission denied."}, status=403)
 
         now = timezone.now()
@@ -373,8 +374,8 @@ class AdminDashboardView(APIView):
         selected_branch = None
         branch_scope = "all"
 
-        if requester_staff.role == "Branch Manager":
-            if not requester_staff.branch_id:
+        if normalized_role == "branch_manager":
+            if not requester_staff or not requester_staff.branch_id:
                 return Response({"detail": "No branch assigned to this manager profile."}, status=400)
             selected_branch = requester_staff.branch
             branch_scope = "single_branch"

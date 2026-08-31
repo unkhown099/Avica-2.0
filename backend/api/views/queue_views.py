@@ -12,7 +12,8 @@ from django.utils.html import strip_tags
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+from better_profanity import profanity
+profanity.load_censor_words()
 
 from api.models import (
     QueueEntry,
@@ -1266,6 +1267,9 @@ def queue_messages(request, pk):
         message_text = request.data.get("message", "").strip()
         if not message_text:
             return Response({"error": "Message content is required"}, status=400)
+
+        if profanity.contains_profanity(message_text):
+            return Response({"error": "Please maintain professional language. Your message contains profanity."}, status=400)
 
         sender_type = "employee" if is_staff_handling else "customer"
 

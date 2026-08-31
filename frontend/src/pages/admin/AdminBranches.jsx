@@ -276,8 +276,9 @@ function BranchModal({ onClose, onSaved, editBranch }) {
                       zoomControl: false
                     });
 
-                    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png', {
-                      attribution: '&copy; CARTO'
+                    window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                      attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+                      maxZoom: 16
                     }).addTo(mmap);
 
                     let marker = null;
@@ -347,7 +348,7 @@ function BranchModal({ onClose, onSaved, editBranch }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-[#111827] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 animate-pulse">
+    <div className="bg-gray-900 border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 animate-pulse">
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <div className="h-5 w-36 bg-gray-800 rounded" />
@@ -377,7 +378,7 @@ function BranchCard({ branch, onEdit, onDelete }) {
     branch.satisfaction !== null && branch.satisfaction !== undefined;
 
   return (
-    <div className="bg-[#111827] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
+    <div className="bg-gray-900 border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
       {/* Name + badge */}
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0 pr-3">
@@ -626,7 +627,7 @@ function AdminBranches() {
         />
       )}
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
+      <div className="min-h-screen bg-gray-950 -m-4 sm:-m-8 p-4 sm:p-8">
         {/* ── Header: title + button stacked on the left ── */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">

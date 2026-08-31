@@ -6,7 +6,344 @@
   --sidebar-width: 15rem;
 }
 
-/* --- Premium Slick Scrollbar (Facebook Style) --- */
+/* ════════════════════════════════════════════════════════════════════════════
+   LIGHT MODE SYSTEM (data-theme="light")
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Smooth transitions */
+html[data-theme="light"] * {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.15s;
+  transition-timing-function: ease-out;
+}
+
+/* ── 1. Page Backgrounds (Eliminate ALL Navy Blue / Dark backgrounds) ───── */
+html[data-theme="light"],
+html[data-theme="light"] body,
+html[data-theme="light"] #root,
+html[data-theme="light"] .min-h-screen,
+html[data-theme="light"] main,
+html[data-theme="light"] .bg-gray-950,
+html[data-theme="light"] .bg-slate-950,
+html[data-theme="light"] .bg-zinc-950,
+html[data-theme="light"] .bg-black,
+html[data-theme="light"] .from-gray-950,
+html[data-theme="light"] .via-gray-900,
+html[data-theme="light"] .to-red-950\/30,
+html[data-theme="light"] .to-gray-950,
+html[data-theme="light"] .to-black,
+html[data-theme="light"] .bg-gradient-to-br,
+html[data-theme="light"] .bg-gradient-to-b {
+  background-color: #f1f5f9 !important;
+  background-image: none !important;
+  color: #1e293b !important;
+}
+
+/* ── 2. Top Header & Navigation Bars ────────────────────────────────────── */
+html[data-theme="light"] header,
+html[data-theme="light"] .bg-gray-900.sticky,
+html[data-theme="light"] div.sticky.top-0 {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ── 3. Unified Sidebar ─────────────────────────────────────────────────── */
+html[data-theme="light"] aside {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  background-image: none !important;
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.04) !important;
+}
+
+html[data-theme="light"] aside div[class*="border"],
+html[data-theme="light"] aside .border-b,
+html[data-theme="light"] aside .border-t {
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] aside a,
+html[data-theme="light"] aside button {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] aside a:hover,
+html[data-theme="light"] aside button:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] aside a.border-red-600,
+html[data-theme="light"] aside button.border-red-600,
+html[data-theme="light"] aside a[class*="border-red-600"],
+html[data-theme="light"] aside button[class*="border-red-600"],
+html[data-theme="light"] aside a[class*="text-red-400"],
+html[data-theme="light"] aside a[class*="text-red-500"] {
+  background: linear-gradient(to right, rgba(220, 38, 38, 0.08), transparent) !important;
+  color: #dc2626 !important;
+}
+
+html[data-theme="light"] aside button.bg-gray-800\/50,
+html[data-theme="light"] aside button[class*="bg-gray-800"] {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+}
+
+html[data-theme="light"] aside span[class*="text-gray"] {
+  color: #94a3b8 !important;
+}
+
+/* ── 4. Dashboard Cards, Branch Cards, Panels & Modals ──────────────────── */
+html[data-theme="light"] .bg-gray-900:not(header):not(aside),
+html[data-theme="light"] .bg-gray-850,
+html[data-theme="light"] .bg-gray-800,
+html[data-theme="light"] .bg-slate-900,
+html[data-theme="light"] .bg-zinc-900,
+html[data-theme="light"] .bg-\[\#111827\],
+html[data-theme="light"] .bg-\[\#0a0a0a\],
+html[data-theme="light"] .bg-\[\#0f0f15\],
+html[data-theme="light"] .bg-\[\#111\],
+html[data-theme="light"] .bg-\[\#161616\],
+html[data-theme="light"] .bg-\[\#1f1f1f\],
+html[data-theme="light"] .bg-\[\#0d0d0d\]\/80,
+html[data-theme="light"] .bg-gray-900\/60,
+html[data-theme="light"] .bg-gray-900\/50,
+html[data-theme="light"] .bg-gray-900\/80,
+html[data-theme="light"] .bg-gray-800\/60,
+html[data-theme="light"] .bg-gray-800\/50,
+html[data-theme="light"] .bg-gray-800\/80,
+html[data-theme="light"] .bg-black\/20,
+html[data-theme="light"] .bg-black\/30,
+html[data-theme="light"] .bg-black\/40,
+html[data-theme="light"] .bg-white\/5,
+html[data-theme="light"] .bg-white\/10,
+html[data-theme="light"] .bg-white\/3,
+html[data-theme="light"] .backdrop-blur-sm,
+html[data-theme="light"] .backdrop-blur-md,
+html[data-theme="light"] .backdrop-blur-xl {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Sub-containers & nested items inside branch cards / stat cards */
+html[data-theme="light"] .bg-white\/\[0\.04\],
+html[data-theme="light"] .bg-white\/\[0\.06\],
+html[data-theme="light"] .bg-gray-900\/40,
+html[data-theme="light"] .bg-emerald-950\/20,
+html[data-theme="light"] .bg-red-950\/30,
+html[data-theme="light"] .border-white\/\[0\.06\],
+html[data-theme="light"] .border-white\/5,
+html[data-theme="light"] .border-white\/10 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* ── 5. Text & Headings ─────────────────────────────────────────────────── */
+html[data-theme="light"] h1,
+html[data-theme="light"] h2,
+html[data-theme="light"] h3,
+html[data-theme="light"] h4,
+html[data-theme="light"] h5,
+html[data-theme="light"] h6 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .text-white:not(button *):not(a *):not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-green"] *):not([class*="bg-blue"] *) {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .text-gray-100,
+html[data-theme="light"] .text-gray-200 {
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] .text-gray-300,
+html[data-theme="light"] .text-gray-400 {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .text-gray-500 {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .text-gray-600 {
+  color: #94a3b8 !important;
+}
+
+/* ── 6. Borders & Dividers ───────────────────────────────────────────────── */
+html[data-theme="light"] .border-gray-800,
+html[data-theme="light"] .border-gray-700,
+html[data-theme="light"] .border-gray-900,
+html[data-theme="light"] .border-white\/5,
+html[data-theme="light"] .border-white\/10,
+html[data-theme="light"] .border-white\/20,
+html[data-theme="light"] .border-gray-800\/50 {
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] hr,
+html[data-theme="light"] .divide-gray-800 > * + * {
+  border-color: #e2e8f0 !important;
+}
+
+/* ── 7. Form Controls (Inputs, Selects, Dropdowns) ───────────────────────── */
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+html[data-theme="light"] select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="light"] input:focus,
+html[data-theme="light"] select:focus,
+html[data-theme="light"] textarea:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+}
+
+/* ── 8. Tables ──────────────────────────────────────────────────────────── */
+html[data-theme="light"] table {
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] thead tr,
+html[data-theme="light"] th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] tbody tr {
+  border-color: #f1f5f9 !important;
+}
+
+html[data-theme="light"] tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+html[data-theme="light"] td {
+  border-color: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+/* ── 9. Status Badges & Accents ─────────────────────────────────────────── */
+html[data-theme="light"] .bg-emerald-500\/20 {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+  border-color: #a7f3d0 !important;
+}
+
+html[data-theme="light"] .bg-blue-500\/20 {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  border-color: #bfdbfe !important;
+}
+
+html[data-theme="light"] .bg-yellow-500\/20 {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #fde68a !important;
+}
+
+html[data-theme="light"] .bg-red-500\/20 {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: #fecaca !important;
+}
+
+html[data-theme="light"] .bg-indigo-500\/20 {
+  background-color: #e0e7ff !important;
+  color: #3730a3 !important;
+  border-color: #c7d2fe !important;
+}
+
+html[data-theme="light"] .bg-gray-500\/20 {
+  background-color: #f1f5f9 !important;
+  color: #64748b !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* ── 10. Primary Buttons & Brand Elements ────────────────────────────────── */
+html[data-theme="light"] button.bg-red-600,
+html[data-theme="light"] button.hover\:bg-red-700:hover,
+html[data-theme="light"] a.bg-red-600,
+html[data-theme="light"] .bg-red-600 {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] button.bg-red-600 *,
+html[data-theme="light"] a.bg-red-600 * {
+  color: #ffffff !important;
+}
+
+/* Delete / Action buttons on branch cards */
+html[data-theme="light"] button.hover\:bg-white\/10:hover,
+html[data-theme="light"] button.bg-white\/5 {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Print / Export buttons on dashboard */
+html[data-theme="light"] button.bg-gray-800 {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] button.bg-gray-800:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* ── 11. Modal, Dialogs & SweetAlert2 ───────────────────────────────────── */
+html[data-theme="light"] .fixed.inset-0.bg-black\/60,
+html[data-theme="light"] .fixed.inset-0.bg-black\/75 {
+  background-color: rgba(15, 23, 42, 0.4) !important;
+}
+
+html[data-theme="light"] .swal2-popup {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+html[data-theme="light"] .swal2-title {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .swal2-html-container {
+  color: #475569 !important;
+}
+
+/* ── 12. Scrollbars (Light Mode) ────────────────────────────────────────── */
+html[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   DEFAULT SCROLLBAR & MAP TILES
+   ════════════════════════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -17,23 +354,25 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(107, 114, 128, 0.2); /* Subtle gray */
+  background: rgba(107, 114, 128, 0.2);
   border-radius: 20px;
-  border: 1px solid transparent; /* Padding effect */
+  border: 1px solid transparent;
   background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(107, 114, 128, 0.5); /* Darker on hover */
+  background: rgba(107, 114, 128, 0.5);
 }
 
-/* Firefox Support */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(107, 114, 128, 0.3) transparent;
 }
 
-/* Enable smooth scrolling app-wide */
 html {
   scroll-behavior: smooth;
+}
+
+.leaflet-tile.leaflet-dark-tiles {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75) !important;
 }

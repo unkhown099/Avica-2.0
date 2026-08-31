@@ -29,11 +29,15 @@ class AdminCustomerListView(APIView):
 
     def get(self, request):
         requester_staff = getattr(request.user, "staff_profile", None)
+        is_superuser = getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)
+        staff_role = requester_staff.role if requester_staff else ""
+        normalized_role = staff_role.lower().replace(" ", "_")
+
         customers = Customer.objects.select_related("user").all()
 
         # Non-admin/global staff only see customers in their branch.
-        if requester_staff and requester_staff.role not in ("Admin", "Business Owner", "super_admin"):
-            if requester_staff.branch_id:
+        if not is_superuser and normalized_role not in ("admin", "business_owner", "super_admin"):
+            if requester_staff and requester_staff.branch_id:
                 customer_user_ids = Booking.objects.filter(
                     branch_id=requester_staff.branch_id
                 ).values_list("user_id", flat=True).distinct()

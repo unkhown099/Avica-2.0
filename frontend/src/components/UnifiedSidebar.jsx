@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/otokwikklogo.png";
 import Swal from "sweetalert2";
 import { useAuth, API_BASE } from "../hooks/useAuth.js";
+import { useTheme } from "../context/ThemeContext.jsx";
 
 // ─── Menu configs per role ────────────────────────────────────────────────────
 // Items with `type: "divider"` render as a section label, not a nav link.
@@ -375,6 +376,7 @@ function UnifiedSidebar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, role, user, headers } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
   const [alertCount, setAlertCount] = useState(null);
   const [expandedItems, setExpandedItems] = useState({});
   const [collapsed, setCollapsed] = useState(() => {
@@ -708,7 +710,39 @@ function UnifiedSidebar({ isOpen, onClose }) {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-800/50">
+        <div className="p-4 border-t border-gray-800/50 space-y-1">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center justify-between gap-3 p-3 rounded-xl transition-all duration-200 text-gray-400 hover:text-white hover:bg-white/5 group"
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 group-hover:scale-110 transition-transform">
+                {isDark ? (
+                  <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+              </div>
+              {!collapsed && (
+                <span className="font-semibold text-sm">
+                  {isDark ? "Light Mode" : "Dark Mode"}
+                </span>
+              )}
+            </div>
+            {!collapsed && (
+              <div className={`relative w-8 h-4 rounded-full transition-colors duration-300 ${isDark ? "bg-gray-700" : "bg-red-500"}`}>
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all duration-300 ${isDark ? "left-0.5" : "left-[18px]"}`} />
+              </div>
+            )}
+          </button>
+
+          {/* Logout */}
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 text-gray-400 hover:text-red-500 hover:bg-red-500/5 group"

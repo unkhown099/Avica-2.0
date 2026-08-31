@@ -445,15 +445,18 @@ const handleSave = async () => {
     }
 
     const data = await res.json();
+    const updatedSettings = data.settings || formState;
     if (data.settings) setFormState(data.settings);
 
-    const isMaintenanceActive = formState.general.siteMode === "maintenance";
+    const isMaintenanceActive = updatedSettings?.general?.siteMode === "maintenance";
+    const maintenanceMessageText = updatedSettings?.general?.maintenanceMessage || "We're currently performing scheduled maintenance. We'll be back shortly!";
     
     // Broadcast maintenance mode change with CORRECT data structure
     if (typeof window !== "undefined") {
       const maintenanceData = {
         isActive: isMaintenanceActive,
-        message: formState.general.maintenanceMessage || "We're currently performing scheduled maintenance. We'll be back shortly!",
+        message: maintenanceMessageText,
+        canBypass: true, // Super admin saving settings can always bypass
         updatedAt: new Date().toISOString(),
       };
       
@@ -472,7 +475,7 @@ const handleSave = async () => {
 
     // Show different success message based on mode change
     let successMessage = data.message || "Settings saved successfully.";
-    if (previousMode !== formState.general.siteMode) {
+    if (previousMode !== updatedSettings?.general?.siteMode) {
       if (isMaintenanceActive) {
         successMessage = "✓ Maintenance mode activated. Only admins can now access the site.";
       } else {

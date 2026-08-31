@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { API_BASE } from "../../hooks/useAuth.js";
+import { useTheme } from "../../context/ThemeContext.jsx";
 import Swal from "sweetalert2";
 import logo from "../../assets/otokwikklogo.png";
 
@@ -8,6 +9,7 @@ const Navbar = () => {
   const [user, setUser] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { toggleTheme, isDark } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -114,88 +116,108 @@ const Navbar = () => {
               </Link>
             </div>
 
-            {/* ── Desktop: Logged OUT ── */}
-            {!user && (
-              <div className="hidden sm:flex items-center gap-4 md:gap-6">
-                <Link to="/signin">
-                  <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
-                    Sign In
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
-                  </button>
-                </Link>
-                <Link to="/signup">
-                  <button className="relative inline-flex items-center justify-center px-6 md:px-8 py-2.5 md:py-3 overflow-hidden font-bold text-white transition duration-300 ease-out border-2 border-red-600 rounded-full shadow-md group text-sm md:text-base">
-                    <span className="absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-x-full bg-red-600 group-hover:translate-x-0 ease">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </span>
-                    <span className="absolute flex items-center justify-center w-full h-full text-red-600 transition-all duration-300 transform group-hover:translate-x-full ease">
-                      Sign Up
-                    </span>
-                    <span className="relative invisible">Sign Up</span>
-                  </button>
-                </Link>
-              </div>
-            )}
-
-            {/* ── Desktop: Logged IN ── */}
-            {user && (
-              <div className="hidden sm:flex items-center gap-3 md:gap-5">
-                {user.role === "customer" && (
-                  <>
-                    <Link to="/dashboard">
-                      <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
-                        Dashboard
-                        <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
-                      </button>
-                    </Link>
-                    <Link to="/profile">
-                      <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
-                        Profile
-                        <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
-                      </button>
-                    </Link>
-                  </>
+            {/* ── Desktop: Theme Toggle + Auth ── */}
+            <div className="hidden sm:flex items-center gap-3 md:gap-4">
+              {/* Theme Toggle Button */}
+              <button
+                onClick={toggleTheme}
+                className="w-10 h-10 rounded-full flex items-center justify-center border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all duration-300"
+                title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {isDark ? (
+                  <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
                 )}
+              </button>
 
-                {user.role === "admin" && (
-                  <Link to="/admin/dashboard">
+              {/* ── Logged OUT ── */}
+              {!user && (
+                <div className="flex items-center gap-3 md:gap-5">
+                  <Link to="/signin">
                     <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
-                      Admin Panel
+                      Sign In
                       <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
                     </button>
                   </Link>
-                )}
-
-                {/* Welcome badge */}
-                <div className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-full border border-red-600/40 bg-red-600/10 backdrop-blur-sm">
-                  <span className="relative flex h-2 w-2 flex-shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600" />
-                  </span>
-                  <span className="text-xs md:text-sm font-medium text-white/70 whitespace-nowrap">
-                    Hey, <span className="font-black text-white">{displayName}</span>!
-                  </span>
+                  <Link to="/signup">
+                    <button className="relative inline-flex items-center justify-center px-6 md:px-8 py-2.5 md:py-3 overflow-hidden font-bold text-white transition duration-300 ease-out border-2 border-red-600 rounded-full shadow-md group text-sm md:text-base">
+                      <span className="absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-x-full bg-red-600 group-hover:translate-x-0 ease">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                      </span>
+                      <span className="absolute flex items-center justify-center w-full h-full text-red-600 transition-all duration-300 transform group-hover:translate-x-full ease">
+                        Sign Up
+                      </span>
+                      <span className="relative invisible">Sign Up</span>
+                    </button>
+                  </Link>
                 </div>
+              )}
 
-                {/* Logout */}
-                <button
-                  onClick={handleLogout}
-                  className="relative inline-flex items-center justify-center px-6 md:px-8 py-2.5 md:py-3 overflow-hidden font-bold text-white transition duration-300 ease-out border-2 border-red-600 rounded-full shadow-md group text-sm md:text-base"
-                >
-                  <span className="absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-x-full bg-red-600 group-hover:translate-x-0 ease">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                  </span>
-                  <span className="absolute flex items-center justify-center w-full h-full text-red-600 transition-all duration-300 transform group-hover:translate-x-full ease">
-                    Logout
-                  </span>
-                  <span className="relative invisible">Logout</span>
-                </button>
-              </div>
-            )}
+              {/* ── Logged IN ── */}
+              {user && (
+                <div className="flex items-center gap-3 md:gap-5">
+                  {user.role === "customer" && (
+                    <>
+                      <Link to="/dashboard">
+                        <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
+                          Dashboard
+                          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
+                        </button>
+                      </Link>
+                      <Link to="/profile">
+                        <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
+                          Profile
+                          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
+                        </button>
+                      </Link>
+                    </>
+                  )}
+
+                  {user.role === "admin" && (
+                    <Link to="/admin/dashboard">
+                      <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
+                        Admin Panel
+                        <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
+                      </button>
+                    </Link>
+                  )}
+
+                  {/* Welcome badge */}
+                  <div className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-full border border-red-600/40 bg-red-600/10 backdrop-blur-sm">
+                    <span className="relative flex h-2 w-2 flex-shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600" />
+                    </span>
+                    <span className="text-xs md:text-sm font-medium text-white/70 whitespace-nowrap">
+                      Hey, <span className="font-black text-white">{displayName}</span>!
+                    </span>
+                  </div>
+
+                  {/* Logout */}
+                  <button
+                    onClick={handleLogout}
+                    className="relative inline-flex items-center justify-center px-6 md:px-8 py-2.5 md:py-3 overflow-hidden font-bold text-white transition duration-300 ease-out border-2 border-red-600 rounded-full shadow-md group text-sm md:text-base"
+                  >
+                    <span className="absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-x-full bg-red-600 group-hover:translate-x-0 ease">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </span>
+                    <span className="absolute flex items-center justify-center w-full h-full text-red-600 transition-all duration-300 transform group-hover:translate-x-full ease">
+                      Logout
+                    </span>
+                    <span className="relative invisible">Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* ── Mobile: Hamburger button ── */}
             <button
@@ -292,6 +314,28 @@ const Navbar = () => {
             {user?.role === "admin" && (
               <MobileNavLink to="/admin/dashboard" onClick={() => setMenuOpen(false)}>Admin Panel</MobileNavLink>
             )}
+
+            {/* Mobile Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="w-full px-4 py-3.5 rounded-2xl font-bold text-base transition-all duration-200 flex items-center justify-between text-white/70 hover:text-white hover:bg-white/5 border border-white/10 mt-2"
+            >
+              <div className="flex items-center gap-3">
+                {isDark ? (
+                  <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+                <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
+              </div>
+              <div className={`relative w-8 h-4 rounded-full transition-colors duration-300 ${isDark ? "bg-gray-700" : "bg-red-500"}`}>
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all duration-300 ${isDark ? "left-0.5" : "left-[18px]"}`} />
+              </div>
+            </button>
           </div>
 
           {/* Logout at bottom */}

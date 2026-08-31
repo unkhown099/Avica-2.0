@@ -206,10 +206,21 @@ function LandingPage() {
     const map = mapInstanceRef.current;
 
     const mapOptions = {
-      dark: { url: "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
-      voyager: { url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
-      light: { url: "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
-      osm: { url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "&copy; OpenStreetMap" }
+      dark: { 
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", 
+        attr: "&copy; Esri &mdash; Esri, DeLorme, NAVTEQ",
+        maxZoom: 16
+      },
+      satellite: { 
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", 
+        attr: "&copy; Esri &mdash; Source: Esri, Maxar",
+        maxZoom: 19
+      },
+      streets: { 
+        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", 
+        attr: "&copy; OpenStreetMap contributors",
+        maxZoom: 19
+      }
     };
 
     const currentSkin = mapOptions[mapSkin] || mapOptions.dark;
@@ -217,7 +228,7 @@ function LandingPage() {
     if (tileLayerRef.current) tileLayerRef.current.remove();
     tileLayerRef.current = window.L.tileLayer(currentSkin.url, {
       attribution: currentSkin.attr,
-      maxZoom: 20
+      maxZoom: currentSkin.maxZoom || 19
     }).addTo(map);
 
     markersRef.current.forEach((m) => m.remove());
@@ -774,7 +785,7 @@ function LandingPage() {
 
                 {/* Skin Selector */}
                 <div className="flex flex-col gap-1.5 p-1.5 bg-black/70 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl">
-                  {["dark", "voyager", "osm"].map((skin) => (
+                  {["dark", "satellite", "streets"].map((skin) => (
                     <button
                       key={skin}
                       onClick={() => setMapSkin(skin)}

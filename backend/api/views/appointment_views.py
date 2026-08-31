@@ -11,7 +11,12 @@ class AdminAppointmentListView(APIView):
 
     def get(self, request):
         requester_staff = getattr(request.user, "staff_profile", None)
-        if not requester_staff or requester_staff.role not in ("Admin", "Business Owner", "super_admin", "Branch Manager"):
+        is_superuser = getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)
+        staff_role = requester_staff.role if requester_staff else ""
+        normalized_role = staff_role.lower().replace(" ", "_")
+
+        allowed_roles = {"admin", "business_owner", "super_admin", "branch_manager"}
+        if not is_superuser and normalized_role not in allowed_roles:
             return Response({"detail": "Permission denied."}, status=403)
 
         year   = request.query_params.get("year")
@@ -24,8 +29,8 @@ class AdminAppointmentListView(APIView):
 
         if year and month:
             qs = qs.filter(date__year=year, date__month=month)
-        if requester_staff.role == "Branch Manager":
-            if requester_staff.branch_id:
+        if normalized_role == "branch_manager":
+            if requester_staff and requester_staff.branch_id:
                 qs = qs.filter(branch_id=requester_staff.branch_id)
             else:
                 qs = qs.none()

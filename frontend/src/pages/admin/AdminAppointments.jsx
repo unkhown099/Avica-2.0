@@ -117,13 +117,17 @@ function AdminAppointments() {
         axios.get(`${API}/appointments/`, {
           headers: authHeaders(),
           params: { year: currentYear, month: currentMonth + 1 },
-        }),
-        axios.get(`${API}/branches/`, { headers: authHeaders() }),
+        }).catch((e) => ({ data: [] })),
+        axios.get(`${API}/branches/`, { headers: authHeaders() }).catch((e) => ({ data: [] })),
       ]);
-      setAppointments(aptRes.data);
-      setBranches(branchRes.data);
+      const aptList = Array.isArray(aptRes.data) ? aptRes.data : (aptRes.data?.results ?? []);
+      const branchList = Array.isArray(branchRes.data) ? branchRes.data : (branchRes.data?.results ?? []);
+      setAppointments(aptList);
+      setBranches(branchList);
     } catch {
       setError("Failed to load appointments.");
+      setAppointments([]);
+      setBranches([]);
     } finally {
       setLoading(false);
     }

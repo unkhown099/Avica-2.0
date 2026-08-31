@@ -116,9 +116,9 @@ class VerifyPasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        password = request.data.get("password", "")
+        password = request.data.get("password", "") or request.data.get("passcode", "")
         if not password:
-            return Response({"detail": "Password is required."}, status=400)
+            return Response({"detail": "Password or passcode is required."}, status=400)
         if not request.user.check_password(password):
-            return Response({"detail": "Invalid password."}, status=400)
-        return Response({"verified": True}, status=200)
+            return Response({"detail": "Invalid password or passcode."}, status=400)
+        return Response({"verified": True, "success": True}, status=200)

@@ -112,14 +112,23 @@ class MaintenanceStatusView(APIView):
             user = request.user
             
             if user and user.is_authenticated:
-                # Check for superuser
-                if getattr(user, "is_superuser", False):
+                if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
                     can_bypass = True
-                # Check staff profile role
-                elif hasattr(user, 'staff_profile'):
-                    role = user.staff_profile.role.lower()
-                    allowed_roles = ["super_admin", "admin", "business_owner"]
-                    can_bypass = role in allowed_roles
+                else:
+                    staff = getattr(user, "staff_profile", None)
+                    if staff and getattr(staff, "role", None):
+                        role_normalized = staff.role.lower().replace(" ", "_")
+                        allowed_roles = [
+                            "super_admin",
+                            "admin",
+                            "business_owner",
+                            "branch_manager",
+                            "staff",
+                            "employee",
+                            "inventory",
+                            "inventory_manager",
+                        ]
+                        can_bypass = role_normalized in allowed_roles
             
             return Response({
                 "is_maintenance_mode": is_maintenance,

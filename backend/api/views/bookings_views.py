@@ -452,8 +452,10 @@ class BookingListCreateView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
+        today = timezone.now().date()
         has_active_booking = Booking.objects.filter(
             user=self.request.user,
+            date__gte=today,
             status__in=["pending", "confirmed", "rescheduled"],
         ).exists()
 

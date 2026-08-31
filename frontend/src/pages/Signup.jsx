@@ -107,6 +107,7 @@ function SignUpPage() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [isGoogleSignup, setIsGoogleSignup] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [passwordStrength, setPasswordStrength] = useState({
     score: 0,
@@ -432,7 +433,7 @@ function SignUpPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateStep(3)) return;
+    if (!validateStep(3) || isLoading) return;
     const cleanedPhone = formData.phone ? normalizeLocalPhone(formData.phone) : "";
     const userData = {
       email: formData.email,
@@ -444,6 +445,7 @@ function SignUpPage() {
       phone: cleanedPhone ? `+63${cleanedPhone}` : null,
       role: formData.role,
     };
+    setIsLoading(true);
     try {
       const response = await fetch(
         `${API_BASE}/signup/`,
@@ -501,6 +503,8 @@ function SignUpPage() {
         confirmButtonColor: "#dc2626",
         confirmButtonText: "Ok",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1146,9 +1150,40 @@ function SignUpPage() {
                   ) : (
                     <button
                       type="submit"
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 sm:py-4 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-red-600/50 text-base sm:text-lg"
+                      disabled={isLoading}
+                      className={`flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 sm:py-4 rounded-xl transition-all duration-300 transform text-base sm:text-lg flex items-center justify-center gap-3 shadow-lg shadow-red-600/30 ${
+                        isLoading
+                          ? "opacity-80 cursor-not-allowed"
+                          : "hover:scale-105 hover:shadow-2xl hover:shadow-red-600/50"
+                      }`}
                     >
-                      Create Account
+                      {isLoading ? (
+                        <>
+                          <svg
+                            className="animate-spin h-5 w-5 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          <span>Creating Account...</span>
+                        </>
+                      ) : (
+                        <span>Create Account</span>
+                      )}
                     </button>
                   )}
                 </div>

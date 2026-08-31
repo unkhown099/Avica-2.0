@@ -1,7 +1,6 @@
 // components/MaintenanceBanner.jsx
 import React, { useEffect, useRef, useState } from "react";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+import { API_BASE, getAuthHeadersAsync } from "../hooks/useAuth.js";
 
 export function MaintenanceBanner() {
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
@@ -12,10 +11,10 @@ export function MaintenanceBanner() {
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
-        const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
+        const authHeaders = await getAuthHeadersAsync();
         const res = await fetch(`${API_BASE}/system/maintenance-status/`, {
           headers: {
-            "Authorization": token ? `Bearer ${token}` : "",
+            ...authHeaders,
           }
         });
         
