@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ManagerLayout from "./ManagerLayout";
-import { API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
 
 function getCookie(name) {
@@ -136,47 +136,46 @@ function ManagerAppointments() {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDayOfWeek = new Date(year, month, 1).getDay();
 
-  const fetchBookings = useCallback(() => {
+  const fetchBookings = useCallback(async () => {
     setLoading(true);
-    fetch(`${API_BASE}/api/staff/bookings/`, { headers: authHeaders() })
-      .then((r) => {
-        if (!r.ok) throw new Error(`Error ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        const rows = Array.isArray(data) ? data : (data.results ?? []);
-        setBookings(rows);
-        setAssignedByBooking(
-          rows.reduce((acc, row) => {
-            acc[row.id] = row.assigned_employee_id
-              ? String(row.assigned_employee_id)
-              : "";
-            return acc;
-          }, {}),
-        );
-      })
-      .catch((err) =>
-        notify("error", err.message || "Failed to load appointments."),
-      )
-      .finally(() => setLoading(false));
+    try {
+      const headers = await getAuthHeadersAsync();
+      const r = await fetch(`${API_BASE}/api/staff/bookings/`, { headers });
+      if (!r.ok) throw new Error(`Error ${r.status}`);
+      const data = await r.json();
+      const rows = Array.isArray(data) ? data : (data.results ?? []);
+      setBookings(rows);
+      setAssignedByBooking(
+        rows.reduce((acc, row) => {
+          acc[row.id] = row.assigned_employee_id
+            ? String(row.assigned_employee_id)
+            : "";
+          return acc;
+        }, {}),
+      );
+    } catch (err) {
+      notify("error", err.message || "Failed to load appointments.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
 
-  const fetchEmployees = useCallback(() => {
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/queue/employees/`, {
-      headers: authHeaders(),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
-      .then((data) =>
-        setEmployees(Array.isArray(data) ? data : (data.results ?? [])),
-      )
-      .catch(() => setEmployees([]));
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const headers = await getAuthHeadersAsync();
+      const r = await fetch(`${API_BASE}/api/queue/employees/`, {
+        headers,
+      });
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      setEmployees(Array.isArray(data) ? data : (data.results ?? []));
+    } catch {
+      setEmployees([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -222,9 +221,10 @@ function ManagerAppointments() {
   const handleAction = async (id, newStatus, assignedEmployeeId = null) => {
     setActionLoading(id);
     try {
+      const headers = await getAuthHeadersAsync();
       const res = await fetch(`${API_BASE}/api/staff/bookings/${id}/action/`, {
         method: "PATCH",
-        headers: authHeaders(),
+        headers,
         body: JSON.stringify({
           status: newStatus,
           assigned_employee_id: assignedEmployeeId || null,

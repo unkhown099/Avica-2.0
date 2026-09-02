@@ -142,9 +142,11 @@ export function useAuth() {
       full_name: stored?.full_name ?? stored?.name ?? null,
       branch_id: stored?.branch_id ?? stored?.branch?.id ?? null,
       branch_name: stored?.branch_name ?? stored?.branch?.name ?? null,
+      role,
       ...stored,
       id: payload.user_id ?? payload.id ?? null,
       email: payload.email ?? stored?.email ?? null,
+      role,
     };
 
     return {

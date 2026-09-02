@@ -115,12 +115,13 @@ function SwalRouteCleanup() {
 // ── Layout ────────────────────────────────────────────────────────────────────
 function Layout() {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   
   // Show navbar only on landing page
   const showNavbar = location.pathname === "/";
   
   // Show chat for specific roles
+  const activeRole = (role || user?.role || "").toLowerCase();
   const isMessagingRole = [
     "customer",
     "employee",
@@ -128,7 +129,7 @@ function Layout() {
     "admin",
     "branch_manager",
     "super_admin",
-  ].includes(user?.role);
+  ].includes(activeRole);
 
   // Public routes that should show the maintenance banner
   const publicRoutes = ["/", "/signup", "/signin", "/verify-email", "/reset-password"];

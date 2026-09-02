@@ -86,7 +86,7 @@ const FALLBACK_CATEGORIES = [
 
 const CategoryBadge = ({ category }) => (
   <span
-    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${CATEGORY_COLORS[category]?.badge ?? "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+    className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-black/60 text-white border-white/20 backdrop-blur-md shadow-sm inline-flex items-center"
   >
     {category}
   </span>
@@ -128,18 +128,21 @@ function ServicesPage() {
         const res = await fetch(`${API_BASE}/services/categories/`, {
           headers: {
             Authorization: `Bearer ${authHeaderValue}`,
-            "Content-Type": "application/json",
           },
         });
-        if (!res.ok)
-          throw new Error(`Failed to fetch categories (${res.status})`);
-        const data = await res.json();
-        const rows = Array.isArray(data) ? data : data.results || [];
-        const dbCatNames = rows.map((c) => c.name).filter(Boolean);
-        const merged = Array.from(new Set([...FALLBACK_CATEGORIES, ...dbCatNames]));
-        setCategories(merged);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setCategories(data.map((c) => c.name || c));
+          } else {
+            setCategories([]);
+          }
+        } else {
+          setCategories([]);
+        }
       } catch (err) {
-        setCategoriesError(err.message || "Failed to load categories.");
+        console.error("Failed to fetch categories:", err);
+        setCategories([]);
       } finally {
         setCategoriesLoading(false);
       }
@@ -155,44 +158,56 @@ function ServicesPage() {
         const params = new URLSearchParams();
         if (activeCategory !== "All") params.append("category", activeCategory);
         if (search.trim()) params.append("search", search.trim());
+
         const res = await fetch(`${API_BASE}/services/?${params.toString()}`, {
           headers: {
             Authorization: `Bearer ${authHeaderValue}`,
-            "Content-Type": "application/json",
           },
         });
-        if (!res.ok)
-          throw new Error(`Failed to fetch services (${res.status})`);
-        const data = await res.json();
-        setServices(
-          (Array.isArray(data) ? data : data.results || []).filter(
-            (s) => s.is_active !== false,
-          ),
-        );
+        if (res.ok) {
+          const data = await res.json();
+          setServices(Array.isArray(data) ? data : data.results || []);
+        } else {
+          setError("Failed to load services");
+        }
       } catch (err) {
-        setError(err.message || "Something went wrong.");
+        console.error("Failed to fetch services:", err);
+        setError("Failed to connect to server");
       } finally {
         setLoading(false);
       }
     };
-    const debounce = setTimeout(fetchServices, 300);
-    return () => clearTimeout(debounce);
+
+    const timer = setTimeout(fetchServices, 300);
+    return () => clearTimeout(timer);
   }, [activeCategory, search, authHeaderValue]);
 
-  const categoryOptions = [
-    "All",
-    ...new Set([
-      ...categories,
-      ...services.map((s) => s.category).filter(Boolean),
-    ]),
-  ];
+  const categoryOptions = React.useMemo(() => {
+    const options = ["All"];
+    if (categories.length > 0) {
+      categories.forEach((c) => {
+        if (!options.includes(c)) options.push(c);
+      });
+    } else if (services.length > 0) {
+      services.forEach((s) => {
+        if (s.category && !options.includes(s.category)) {
+          options.push(s.category);
+        }
+      });
+    } else {
+      FALLBACK_CATEGORIES.forEach((c) => {
+        if (!options.includes(c)) options.push(c);
+      });
+    }
+    return options;
+  }, [categories, services]);
 
   return (
     <CustomerLayout>
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/30">
         {/* ── Hero ── */}
         <div className="px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-1">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-1 tracking-tight">
             Our <span className="text-red-600">Services</span>
           </h1>
           <p className="text-sm sm:text-base text-gray-400">
@@ -202,10 +217,10 @@ function ServicesPage() {
         </div>
 
         {/* ── Search ── */}
-        <div className="px-4 sm:px-6 lg:px-8 mb-3 sm:mb-4">
-          <div className="relative">
+        <div className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+          <div className="relative max-w-2xl">
             <svg
-              className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-500"
+              className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400 pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -219,29 +234,33 @@ function ServicesPage() {
             </svg>
             <input
               type="text"
-              placeholder="Search services…"
+              placeholder="Search services by name or description…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-gray-900 border border-white/10 rounded-xl pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:border-red-600 transition-colors"
+              className="w-full bg-gray-900/90 border border-white/10 rounded-2xl pl-11 sm:pl-12 pr-4 py-3 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:border-red-600 transition-colors shadow-inner"
             />
           </div>
         </div>
 
         {/* ── Category Pills — horizontal scroll on mobile ── */}
-        <div className="mb-5 sm:mb-6 md:mb-8">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 sm:px-6 lg:px-8 pb-1">
-            {categoryOptions.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 ${activeCategory === cat
-                  ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                  : "bg-gray-900 text-gray-400 border border-white/10 hover:border-red-600/40 hover:text-white"
+        <div className="mb-6 sm:mb-8">
+          <div className="flex gap-2.5 overflow-x-auto no-scrollbar px-4 sm:px-6 lg:px-8 pb-2">
+            {categoryOptions.map((cat) => {
+              const isActive = activeCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`category-pill flex-shrink-0 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
+                    isActive
+                      ? "active bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-600"
+                      : "bg-gray-900/80 text-gray-400 border border-white/10 hover:border-red-600/40 hover:text-white"
                   }`}
-              >
-                {cat}
-              </button>
-            ))}
+                >
+                  {cat}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -377,7 +396,7 @@ function ServicesPage() {
                     {service.image ? (
                       <img
                         src={service.image.startsWith('http') ? service.image : `${API_BASE}${service.image}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         alt={service.name}
                       />
                     ) : (
@@ -389,8 +408,7 @@ function ServicesPage() {
                         </div>
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/20 to-transparent opacity-80" />
-                    <div className="absolute top-4 left-4">
+                    <div className="absolute top-3.5 left-3.5 z-10">
                       <CategoryBadge category={service.category} />
                     </div>
                   </div>

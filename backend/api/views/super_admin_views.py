@@ -55,7 +55,11 @@ class SuperAdminDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def get(self, request):
-        import random, psutil
+        import random
+        try:
+            import psutil
+        except ImportError:
+            psutil = None
         from datetime import timedelta
 
         today = timezone.now().date()

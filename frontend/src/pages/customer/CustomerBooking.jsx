@@ -1193,7 +1193,10 @@ function NewBookingModal({
   onSuccess,
   initialDamageData,
   initialServiceId = null,
+  initialServiceName = null,
   initialVehicleSize = "small",
+  initialVehicle = "",
+  initialPlateNumber = "",
 }) {
   const [step, setStep] = useState(0);
   const damageServicesSynced = useRef(false);
@@ -1202,9 +1205,9 @@ function NewBookingModal({
     branch: null,
     date: "",
     time: "",
-    vehicle: "",
+    vehicle: initialVehicle || "",
     vehicleSize: initialVehicleSize || "small",
-    plateNumber: "",
+    plateNumber: initialPlateNumber || "",
     notes: initialDamageData
       ? `Damage detected: ${initialDamageData.damages.map((d) => d.type).join(", ")}. Recommendations: ${initialDamageData.recommendations.join(", ")}`
       : "",
@@ -1342,14 +1345,26 @@ function NewBookingModal({
   }, []);
 
   useEffect(() => {
-    if (!initialServiceId || services.length === 0) return;
-    const matched = services.find(
-      (s) => String(s.id) === String(initialServiceId),
-    );
+    if ((!initialServiceId && !initialServiceName) || services.length === 0) return;
+    const matched = services.find((s) => {
+      if (initialServiceId && String(s.id) === String(initialServiceId)) return true;
+      if (initialServiceName) {
+        const sName = String(s.name || "").trim().toLowerCase();
+        const initName = String(initialServiceName || "").trim().toLowerCase();
+        return sName === initName || sName.includes(initName) || initName.includes(sName);
+      }
+      return false;
+    });
     if (!matched) return;
-    setForm((prev) => ({ ...prev, services: [matched] }));
+    setForm((prev) => ({
+      ...prev,
+      services: [matched],
+      vehicle: prev.vehicle || initialVehicle || "",
+      vehicleSize: initialVehicleSize || prev.vehicleSize || "small",
+      plateNumber: prev.plateNumber || initialPlateNumber || "",
+    }));
     setStep((prev) => (prev < 1 ? 1 : prev));
-  }, [initialServiceId, services]);
+  }, [initialServiceId, initialServiceName, initialVehicle, initialVehicleSize, initialPlateNumber, services]);
 
   useEffect(() => {
     if (!initialDamageData?.matchedServices?.length) return;
@@ -3340,7 +3355,10 @@ function BookingsPage() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [prefillServiceId, setPrefillServiceId] = useState(null);
+  const [prefillServiceName, setPrefillServiceName] = useState(null);
   const [prefillVehicleSize, setPrefillVehicleSize] = useState(null);
+  const [prefillVehicle, setPrefillVehicle] = useState("");
+  const [prefillPlateNumber, setPrefillPlateNumber] = useState("");
   const [damageData, setDamageData] = useState(null);
   const [cancelBooking, setCancelBooking] = useState(null);
   const [rescheduleBooking, setRescheduleBooking] = useState(null);
@@ -3386,13 +3404,19 @@ function BookingsPage() {
   useEffect(() => {
     const openBooking = location.state?.openBooking;
     const serviceId = location.state?.prefillServiceId;
+    const serviceName = location.state?.prefillServiceName;
     const vehicleSize = location.state?.prefillVehicleSize;
+    const vehicle = location.state?.prefillVehicle;
+    const plateNumber = location.state?.plateNumber || location.state?.prefillPlateNumber;
     if (!openBooking) return;
     setShowOptionModal(false);
     setShowDamageModal(false);
     setDamageData(null);
     setPrefillServiceId(serviceId ?? null);
+    setPrefillServiceName(serviceName ?? null);
     setPrefillVehicleSize(vehicleSize ?? null);
+    setPrefillVehicle(vehicle ?? "");
+    setPrefillPlateNumber(plateNumber ?? "");
     setShowBookingModal(true);
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);
@@ -3983,12 +4007,18 @@ function BookingsPage() {
             setShowBookingModal(false);
             setDamageData(null);
             setPrefillServiceId(null);
+            setPrefillServiceName(null);
             setPrefillVehicleSize(null);
+            setPrefillVehicle("");
+            setPrefillPlateNumber("");
           }}
           onSuccess={handleBookingSuccess}
           initialDamageData={damageData}
           initialServiceId={prefillServiceId}
+          initialServiceName={prefillServiceName}
           initialVehicleSize={prefillVehicleSize}
+          initialVehicle={prefillVehicle}
+          initialPlateNumber={prefillPlateNumber}
         />
       )}
       {showDamageModal && (

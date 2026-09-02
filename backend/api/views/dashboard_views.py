@@ -848,12 +848,29 @@ class ManagerDashboardView(APIView):
     def get(self, request):
         try:
             staff = getattr(request.user, "staff_profile", None)
-            if not staff or staff.role not in ["Admin", "Branch Manager"]:
+            if not staff or staff.role not in ["Admin", "Branch Manager", "Super Admin", "super_admin", "Business Owner"]:
                 return Response({"detail": "Permission denied."}, status=403)
             
             branch = staff.branch
             if not branch:
-                return Response({"detail": "No branch assigned to this manager profile."}, status=400)
+                branch_id_param = request.query_params.get("branch_id")
+                if branch_id_param:
+                    branch = Branch.objects.filter(pk=branch_id_param).first()
+                if not branch:
+                    branch = Branch.objects.filter(is_active=True).first() or Branch.objects.first()
+            
+            if not branch:
+                return Response({
+                    "branch_name": "No Branch Available",
+                    "stats": [
+                        {"title": "Branch Revenue", "value": "₱0", "change": "0% from last month"},
+                        {"title": "Services Completed", "value": "0", "change": "0% from last month"},
+                        {"title": "Active Customers", "value": "0", "change": "0% from last month"},
+                        {"title": "Customer Satisfaction", "value": "0%", "change": "0% from last month"},
+                    ],
+                    "trend": [],
+                    "distribution": []
+                })
 
             now = timezone.now()
             this_month = now.month

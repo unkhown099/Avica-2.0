@@ -247,15 +247,40 @@ function ReceiptLine({ title, meta, qty = 1, unitPrice = 0, amount = 0, tone = "
   );
 }
 
+// ── Helper to generate invoice / receipt number based on date ─────────────────
+const generateInvoiceNo = () => {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const hh = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  return `INV-${yyyy}${mm}${dd}-${hh}${min}${ss}`;
+};
+
 // ── Printable Receipt ─────────────────────────────────────────────────────────
-function PrintableReceipt({ customerName, items, total, paymentMethod, amountGiven, change, receiptNo, date }) {
+function PrintableReceipt({
+  customerName,
+  items,
+  total,
+  paymentMethod,
+  amountGiven,
+  change,
+  receiptNo,
+  date,
+  branchName,
+  branchAddress,
+  branchPhone,
+  staffName,
+}) {
   const numberedItems = buildReceiptLines(items);
   return (
     <div id="printable-receipt" style={{ display: "none" }}>
       <style>{`
         @media print {
           @page {
-            size: 80mm 200mm;
+            size: 80mm auto;
             margin: 0;
           }
           html, body {
@@ -265,71 +290,116 @@ function PrintableReceipt({ customerName, items, total, paymentMethod, amountGiv
             margin: 0 !important;
             padding: 0 !important;
             background: #fff !important;
-            overflow: hidden !important;
+            overflow: visible !important;
           }
           body * { visibility: hidden !important; }
           #printable-receipt, #printable-receipt * { visibility: visible !important; }
           #printable-receipt {
             display: block !important;
-            position: fixed !important;
+            position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             z-index: 999999 !important;
             width: 80mm;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.4;
             color: #000;
             background: #fff;
-            padding: 4mm;
+            padding: 4mm 5mm;
             box-sizing: border-box;
-            page-break-after: avoid;
-            page-break-inside: avoid;
           }
         }
       `}</style>
-      <div style={{ fontFamily: "'Courier New', monospace", fontSize: "12px", color: "#000" }}>
-        <div style={{ textAlign: "center", marginBottom: "12px" }}>
-          <div style={{ fontSize: "18px", fontWeight: "bold", letterSpacing: "2px" }}>Otokwikk</div>
-          <div style={{ fontSize: "10px", marginTop: "2px" }}>Point of Sale Receipt</div>
-          <div style={{ borderBottom: "1px dashed #000", margin: "8px 0" }} />
-          <div style={{ fontSize: "10px" }}>Receipt #: {receiptNo}</div>
-          <div style={{ fontSize: "10px" }}>{date}</div>
+      <div style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: "11px", color: "#000" }}>
+        {/* Company Header */}
+        <div style={{ textAlign: "center", marginBottom: "8px" }}>
+          <div style={{ fontSize: "16px", fontWeight: "900", letterSpacing: "1px" }}>OTOKWIKK</div>
+          <div style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase" }}>Car Care & Detailing Services</div>
+          <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "4px" }}>{branchName || "Main Branch"}</div>
+          {branchAddress && (
+            <div style={{ fontSize: "9px", color: "#333", marginTop: "1px", wordBreak: "break-word" }}>{branchAddress}</div>
+          )}
+          {branchPhone && (
+            <div style={{ fontSize: "9px", color: "#333" }}>Tel: {branchPhone}</div>
+          )}
         </div>
-        <div style={{ marginBottom: "8px" }}>
-          <div><strong>Customer:</strong> {customerName || "Walk-in"}</div>
+
+        <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+
+        {/* Invoice Meta */}
+        <div style={{ fontSize: "10px", lineHeight: "1.5", marginBottom: "6px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span><strong>INVOICE #:</strong></span>
+            <span style={{ fontWeight: "bold" }}>{receiptNo}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span><strong>DATE:</strong></span>
+            <span>{date}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span><strong>STAFF / CASHIER:</strong></span>
+            <span style={{ fontWeight: "bold" }}>{staffName || "Staff"}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span><strong>CUSTOMER:</strong></span>
+            <span>{customerName || "Walk-in Customer"}</span>
+          </div>
         </div>
-        <div style={{ borderBottom: "1px dashed #000", margin: "8px 0" }} />
-        <div style={{ marginBottom: "8px" }}>
+
+        <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+
+        {/* Items Table Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "10px", marginBottom: "4px" }}>
+          <span>DESCRIPTION</span>
+          <span>AMOUNT</span>
+        </div>
+        <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
+
+        {/* Item Rows */}
+        <div style={{ marginBottom: "6px" }}>
           {numberedItems.map((item, i) => (
-            <div key={`line-${i}`} style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-              <div style={{ flex: 1 }}>
+            <div key={`line-${i}`} style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "11px" }}>
+              <div style={{ flex: 1, paddingRight: "6px", wordBreak: "break-word" }}>
                 <div>{`${i + 1}. ${item.label}`}</div>
               </div>
-              <div style={{ textAlign: "right", minWidth: "70px" }}>P{fmt(item.amount)}</div>
+              <div style={{ textAlign: "right", minWidth: "60px", fontWeight: "bold" }}>
+                P{fmt(item.amount)}
+              </div>
             </div>
           ))}
         </div>
-        <div style={{ borderBottom: "1px dashed #000", margin: "8px 0" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "14px", marginBottom: "6px" }}>
-          <span>TOTAL</span><span>P{fmt(total)}</span>
+
+        <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+
+        {/* Totals */}
+        <div style={{ fontSize: "11px", lineHeight: "1.6" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "13px" }}>
+            <span>TOTAL AMOUNT</span>
+            <span>P{fmt(total)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+            <span>Payment Method</span>
+            <span style={{ textTransform: "uppercase", fontWeight: "bold" }}>{paymentMethod}</span>
+          </div>
+          {paymentMethod === "cash" && amountGiven > 0 && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Amount Tendered</span>
+                <span>P{fmt(amountGiven)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+                <span>Change</span>
+                <span>P{fmt(change >= 0 ? change : 0)}</span>
+              </div>
+            </>
+          )}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-          <span>Payment</span>
-          <span style={{ textTransform: "uppercase", fontWeight: "bold" }}>{paymentMethod}</span>
-        </div>
-        {paymentMethod === "cash" && amountGiven > 0 && (
-          <>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-              <span>Amount Given</span><span>P{fmt(amountGiven)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontWeight: "bold" }}>
-              <span>Change</span><span>P{fmt(change >= 0 ? change : 0)}</span>
-            </div>
-          </>
-        )}
-        <div style={{ borderTop: "1px dashed #000", marginTop: "12px", paddingTop: "8px", textAlign: "center", fontSize: "10px" }}>
-          <div>Thank you for your business!</div>
-          <div style={{ marginTop: "4px" }}>Please come again</div>
+
+        <div style={{ borderTop: "1px dashed #000", marginTop: "10px", paddingTop: "8px", textAlign: "center", fontSize: "9px" }}>
+          <div style={{ fontWeight: "bold", textTransform: "uppercase" }}>Thank you for trusting Otokwikk!</div>
+          <div style={{ marginTop: "2px" }}>Please keep this official receipt for your records.</div>
+          <div style={{ marginTop: "2px" }}>Drive safely!</div>
         </div>
       </div>
     </div>
@@ -337,10 +407,29 @@ function PrintableReceipt({ customerName, items, total, paymentMethod, amountGiv
 }
 
 // ── Receipt Modal ─────────────────────────────────────────────────────────────
-function ReceiptModal({ customerName, items, subtotal, total, paymentMethod, amountGiven, onClose }) {
-  const receiptNo = `RCP-${Date.now().toString().slice(-6)}`;
-  const date = new Date().toLocaleString("en-PH", {
-    year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+function ReceiptModal({
+  customerName,
+  items,
+  subtotal,
+  total,
+  paymentMethod,
+  amountGiven,
+  receiptNo: initialReceiptNo,
+  date: initialDate,
+  branchName,
+  branchAddress,
+  branchPhone,
+  staffName,
+  onClose,
+}) {
+  const receiptNo = initialReceiptNo || generateInvoiceNo();
+  const date = initialDate || new Date().toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
   const change = parseFloat(amountGiven || 0) - total;
 
@@ -360,71 +449,115 @@ function ReceiptModal({ customerName, items, subtotal, total, paymentMethod, amo
   return (
     <>
       <PrintableReceipt
-        customerName={customerName} items={items} subtotal={subtotal} total={total}
-        paymentMethod={paymentMethod} amountGiven={parseFloat(amountGiven || 0)}
-        change={change} receiptNo={receiptNo} date={date}
+        customerName={customerName}
+        items={items}
+        subtotal={subtotal}
+        total={total}
+        paymentMethod={paymentMethod}
+        amountGiven={parseFloat(amountGiven || 0)}
+        change={change}
+        receiptNo={receiptNo}
+        date={date}
+        branchName={branchName}
+        branchAddress={branchAddress}
+        branchPhone={branchPhone}
+        staffName={staffName}
       />
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
-          <div className="bg-emerald-600/20 border-b border-emerald-500/20 px-6 py-6 rounded-t-2xl text-center">
-            <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div className="bg-gray-900 border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-emerald-600/30 to-teal-600/30 border-b border-emerald-500/20 px-6 py-5 text-center shrink-0">
+            <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-400">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-black text-white">Payment Successful</h2>
-            <p className="text-emerald-400 text-lg mt-2 font-bold">P{fmt(total)} collected</p>
+            <h2 className="text-xl sm:text-2xl font-black text-white">Payment Successful</h2>
+            <p className="text-emerald-400 text-base sm:text-lg font-black mt-1">P{fmt(total)} collected</p>
           </div>
-          <div className="px-6 py-5 space-y-3 text-base max-h-72 overflow-y-auto">
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Receipt #</span><span className="text-gray-400 font-mono">{receiptNo}</span>
+
+          {/* Details Scrollable Area */}
+          <div className="px-6 py-4 space-y-3 overflow-y-auto flex-1 font-sans text-sm">
+            {/* Meta Box */}
+            <div className="bg-white/5 rounded-2xl p-3.5 space-y-2 border border-white/5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-400 font-semibold uppercase tracking-wider">Invoice #</span>
+                <span className="text-white font-mono font-bold">{receiptNo}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-400 font-semibold uppercase tracking-wider">Date & Time</span>
+                <span className="text-gray-300 font-medium">{date}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-400 font-semibold uppercase tracking-wider">Branch</span>
+                <span className="text-amber-400 font-bold">{branchName || "Main Branch"}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-400 font-semibold uppercase tracking-wider">Staff / Cashier</span>
+                <span className="text-gray-300 font-bold">{staffName || "Staff"}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs border-t border-white/5 pt-2">
+                <span className="text-gray-400 font-semibold uppercase tracking-wider">Customer</span>
+                <span className="text-white font-bold">{customerName || "Walk-in Customer"}</span>
+              </div>
             </div>
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Date</span><span className="text-gray-400">{date}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Customer</span>
-              <span className="text-white font-semibold text-base">{customerName || "—"}</span>
-            </div>
-            <div className="border-t border-white/5 pt-3 space-y-3">
+
+            {/* Line Items */}
+            <div className="border border-white/5 rounded-2xl p-3.5 space-y-2.5 bg-black/20">
+              <div className="text-[11px] font-black uppercase tracking-wider text-gray-400 border-b border-white/5 pb-1 flex justify-between">
+                <span>Items Purchased</span>
+                <span>Amount</span>
+              </div>
               {numberedItems.map((item, i) => (
-                <div key={`line-${i}`} className="flex justify-between text-base">
-                  <span className="text-gray-300">{i + 1}. {item.label}</span>
-                  <span className="text-gray-200">P{fmt(item.amount)}</span>
+                <div key={`line-${i}`} className="flex justify-between text-xs sm:text-sm">
+                  <span className="text-gray-300 font-medium">{i + 1}. {item.label}</span>
+                  <span className="text-white font-bold">P{fmt(item.amount)}</span>
                 </div>
               ))}
             </div>
-            <div className="border-t border-white/5 pt-3 space-y-2">
-              <div className="flex justify-between pt-1">
-                <span className="text-white font-black text-xl">Total</span>
+
+            {/* Payment Summary */}
+            <div className="bg-white/5 rounded-2xl p-3.5 space-y-2 border border-white/5">
+              <div className="flex justify-between items-center pt-0.5">
+                <span className="text-white font-bold text-base">Total Amount</span>
                 <span className="text-emerald-400 font-black text-xl">P{fmt(total)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Payment</span>
-                <span className="text-white font-semibold uppercase">{paymentMethod}</span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-400 font-semibold">Payment Method</span>
+                <span className="text-white font-bold uppercase">{paymentMethod}</span>
               </div>
               {paymentMethod === "cash" && amountGiven > 0 && (
                 <>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Amount Given</span>
-                    <span className="text-white">P{fmt(amountGiven)}</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-400 font-semibold">Amount Tendered</span>
+                    <span className="text-white font-semibold">P{fmt(amountGiven)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Change</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-400 font-semibold">Change</span>
                     <span className="text-emerald-400 font-bold">P{fmt(change >= 0 ? change : 0)}</span>
                   </div>
                 </>
               )}
             </div>
           </div>
-          <div className="px-6 pb-6 space-y-3">
-            <button onClick={handlePrint} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-black py-4 rounded-xl transition-all flex items-center justify-center gap-2 border border-white/10 text-base">
+
+          {/* Action Buttons */}
+          <div className="px-6 pb-6 pt-2 space-y-2 shrink-0 bg-gray-900 border-t border-white/5">
+            <button
+              onClick={handlePrint}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/30 text-sm cursor-pointer"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
-              Print Receipt
+              Print Official Receipt
             </button>
-            <button onClick={onClose} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl transition-all text-base">Done</button>
+            <button
+              onClick={onClose}
+              className="w-full bg-white/10 hover:bg-white/15 text-gray-300 font-bold py-3 rounded-xl transition-all text-sm cursor-pointer"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
@@ -486,6 +619,7 @@ function ValidatedInput({ value, onChange, placeholder, type = "text", hasError,
 export default function StaffPOS() {
   const { user } = useAuth();
   const staffBranchId = Number(user?.branch_id);
+  const [branchInfo, setBranchInfo] = useState(null);
   const [services, setServices] = useState([]);
   const [products, setProducts] = useState([]);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -510,6 +644,27 @@ export default function StaffPOS() {
     if (!phone.trim()) return true; // phone is optional
     return /^\+63\d{10}$/.test(String(phone).trim());
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/branches/`, { headers: authHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : data.results || [];
+          if (staffBranchId) {
+            const found = list.find((b) => Number(b.id) === staffBranchId);
+            if (found) setBranchInfo(found);
+            else if (list.length > 0) setBranchInfo(list[0]);
+          } else if (list.length > 0) {
+            setBranchInfo(list[0]);
+          }
+        }
+      } catch {
+        // Fallback
+      }
+    })();
+  }, [staffBranchId]);
 
   useEffect(() => {
     (async () => {
@@ -619,9 +774,19 @@ const filteredServices = services.filter((s) => {
   const removeFromCart = (id, type) => setCart((prev) => prev.filter((c) => !(c.id === id && c.type === type)));
 
   const updateQuantity = (id, type, qty) => {
-    if (qty < 1 || type === "queue") return;
-    if (type === "product") { const p = products.find((p) => p.id === id); if (p && qty > p.quantity) return; }
-    setCart((prev) => prev.map((c) => c.id === id && c.type === type ? { ...c, quantity: qty } : c));
+    if (type === "queue") return;
+    if (qty <= 0) {
+      removeFromCart(id, type);
+      return;
+    }
+    if (type === "product") {
+      const p = products.find((p) => p.id === id);
+      if (p && qty > p.quantity) {
+        pushSnack(`Only ${p.quantity} items available in stock.`, "error");
+        return;
+      }
+    }
+    setCart((prev) => prev.map((c) => (c.id === id && c.type === type ? { ...c, quantity: qty } : c)));
   };
 
   const updatePrice = (id, type, newPrice) => {
@@ -783,7 +948,35 @@ const filteredServices = services.filter((s) => {
           warnings.forEach((w) => pushSnack(w, "info", 5000));
         }
         pushSnack(`Payment of P${fmt(effectiveTotal)} collected successfully!`, "success", 5000);
-        setReceipt({ customerName: customerInfo.name, items: cart, subtotal: effectiveTotal, total: effectiveTotal, paymentMethod, amountGiven: parseFloat(amountGiven || 0) });
+        
+        const activeBranchName = branchInfo?.name || user?.branch_name || user?.branch?.name || "Otokwikk Main Branch";
+        const activeBranchAddress = branchInfo?.address || branchInfo?.location || "";
+        const activeBranchPhone = branchInfo?.phone || branchInfo?.contact_number || "";
+        const activeStaffName = user?.full_name || (user?.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : "") || user?.email || "Staff Attendant";
+        const newInvoiceNo = generateInvoiceNo();
+        const newDate = new Date().toLocaleString("en-PH", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+
+        setReceipt({
+          customerName: customerInfo.name,
+          items: cart,
+          subtotal: effectiveTotal,
+          total: effectiveTotal,
+          paymentMethod,
+          amountGiven: parseFloat(amountGiven || 0),
+          receiptNo: newInvoiceNo,
+          date: newDate,
+          branchName: activeBranchName,
+          branchAddress: activeBranchAddress,
+          branchPhone: activeBranchPhone,
+          staffName: activeStaffName,
+        });
         setCart([]);
         setCustomerInfo({ name: "", phone: "" });
         setAmountGiven("");
@@ -875,38 +1068,38 @@ const filteredServices = services.filter((s) => {
 
   return (
     <StaffLayout title="" subtitle="">
-      <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-6 overflow-hidden">
+      <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 p-4 sm:p-6 rounded-3xl overflow-hidden shadow-sm">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-black text-white tracking-tight">Point of Sale</h1>
-          <p className="text-gray-500 text-base mt-1">Process transactions for products and services</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Point of Sale</h1>
+          <p className="text-gray-400 text-sm sm:text-base mt-1">Process transactions for products and services</p>
         </div>
 
         {/* 3-column layout */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px_340px] gap-5">
 
           {/* ══ COL 1: Services / Products ══ */}
-          <div className={`bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
-            <div className="flex border-b border-white/5 shrink-0">
+          <div className={`bg-gray-900/60 border border-white/10 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
+            <div className="flex border-b border-white/10 shrink-0">
               {["services", "products"].map((tab) => (
                 <button key={tab} onClick={() => { setActiveTab(tab); setSearchQuery(""); }}
-                  className={`flex-1 py-4 text-sm font-black uppercase tracking-wider transition-all ${activeTab === tab ? "text-white border-b-2 border-red-500" : "text-gray-500 hover:text-gray-300"}`}>
+                  className={`flex-1 py-4 text-sm font-black uppercase tracking-wider transition-all ${activeTab === tab ? "text-white border-b-2 border-red-500 bg-white/5" : "text-gray-400 hover:text-gray-200"}`}>
                   {tab}
-                  <span className={`ml-2 text-xs px-2 py-0.5 rounded-full font-bold ${activeTab === tab ? "bg-red-500/20 text-red-400" : "bg-white/5 text-gray-600"}`}>
+                  <span className={`ml-2 text-xs px-2 py-0.5 rounded-full font-bold ${activeTab === tab ? "bg-red-500/20 text-red-400" : "bg-white/10 text-gray-400"}`}>
                     {tab === "services" ? filteredServices.length : filteredProducts.length}
                   </span>
                 </button>
               ))}
             </div>
 
-            <div className="p-4 border-b border-white/5 shrink-0">
+            <div className="p-4 border-b border-white/10 shrink-0">
               <div className="relative">
-                <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input type="text" placeholder={`Search ${activeTab}...`} value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-10 pr-4 py-3 text-base focus:outline-none focus:border-red-500/50 transition-all" />
+                  className="w-full bg-gray-800/80 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-10 pr-4 py-3 text-sm sm:text-base focus:outline-none focus:border-red-500/50 transition-all" />
               </div>
             </div>
 
@@ -920,11 +1113,11 @@ const filteredServices = services.filter((s) => {
                         const inCart = cart.find((c) => c.id === service.id && c.type === "service");
                         return (
                           <button key={service.id} onClick={() => addToCart(service, "service")}
-                            className="bg-gray-800/60 border border-white/5 rounded-xl p-4 hover:border-red-500/40 hover:bg-gray-800 transition-all text-left group relative">
-                            {inCart && <span className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full text-white text-sm font-black flex items-center justify-center">{inCart.quantity}</span>}
-                            <h3 className="font-black text-white text-base group-hover:text-red-400 transition-colors mb-2 pr-6 leading-tight">{service.name}</h3>
-                            <p className="text-xs text-gray-500 mb-2">{service.category}</p>
-                            <div className="text-lg font-black text-red-400">P{price.toLocaleString()}</div>
+                            className="bg-gray-800/80 border border-white/10 rounded-xl p-4 hover:border-red-500/50 hover:bg-gray-800 transition-all text-left group relative cursor-pointer shadow-sm">
+                            {inCart && <span className="absolute top-2.5 right-2.5 w-6 h-6 bg-red-600 rounded-full text-white text-xs font-black flex items-center justify-center shadow-md">{inCart.quantity}</span>}
+                            <h3 className="font-black text-white text-base group-hover:text-red-400 transition-colors mb-1 pr-6 leading-tight">{service.name}</h3>
+                            <p className="text-xs text-gray-400 mb-2 font-medium">{service.category}</p>
+                            <div className="text-base sm:text-lg font-black text-red-500">P{price.toLocaleString()}</div>
                           </button>
                         );
                       })
@@ -937,13 +1130,13 @@ const filteredServices = services.filter((s) => {
                         const isLow = product.quantity <= (product.minimum_qty ?? 5);
                         return (
                           <button key={product.id} onClick={() => addToCart(product, "product")}
-                            className="bg-gray-800/60 border border-white/5 rounded-xl p-4 hover:border-emerald-500/40 hover:bg-gray-800 transition-all text-left group relative">
-                            {inCart && <span className="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full text-white text-sm font-black flex items-center justify-center">{inCart.quantity}</span>}
-                            <h3 className="font-black text-white text-base group-hover:text-emerald-400 transition-colors mb-2 pr-6 leading-tight">{product.name}</h3>
-                            <p className="text-xs text-gray-500 mb-2">{product.category}</p>
+                            className="bg-gray-800/80 border border-white/10 rounded-xl p-4 hover:border-emerald-500/50 hover:bg-gray-800 transition-all text-left group relative cursor-pointer shadow-sm">
+                            {inCart && <span className="absolute top-2.5 right-2.5 w-6 h-6 bg-emerald-600 rounded-full text-white text-xs font-black flex items-center justify-center shadow-md">{inCart.quantity}</span>}
+                            <h3 className="font-black text-white text-base group-hover:text-emerald-400 transition-colors mb-1 pr-6 leading-tight">{product.name}</h3>
+                            <p className="text-xs text-gray-400 mb-2 font-medium">{product.category}</p>
                             <div className="flex items-center justify-between">
-                              <div className="text-lg font-black text-emerald-400">P{parseFloat(product.price).toLocaleString()}</div>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isLow ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>{product.quantity}</span>
+                              <div className="text-base sm:text-lg font-black text-emerald-400">P{parseFloat(product.price).toLocaleString()}</div>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${isLow ? "bg-amber-500/20 text-amber-300" : "bg-emerald-500/20 text-emerald-300"}`}>{product.quantity} left</span>
                             </div>
                           </button>
                         );
@@ -954,9 +1147,9 @@ const filteredServices = services.filter((s) => {
           </div>
 
           {/* ══ COL 2: Customer + Cart ══ */}
-          <div className={`bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
-            <div className="px-5 pt-5 pb-4 border-b border-white/8 shrink-0">
-              <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">
+          <div className={`bg-gray-900/60 border border-white/10 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
+            <div className="px-5 pt-5 pb-4 border-b border-white/10 shrink-0">
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">
                 Customer {hasOnlyProducts ? "(Optional)" : ""}
               </p>
               <div className="space-y-3">
@@ -990,118 +1183,148 @@ const filteredServices = services.filter((s) => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/8 shrink-0">
-              <span className="text-xs font-black text-gray-500 uppercase tracking-widest">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 shrink-0 bg-white/[0.02]">
+              <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
                 Cart · {cart.length} item{cart.length !== 1 ? "s" : ""}
               </span>
               {cart.length > 0 && (
-                <button onClick={() => { if (window.confirm("Clear cart?")) setCart([]); }}
-                  className="text-xs text-gray-600 hover:text-red-400 transition-colors font-semibold uppercase">Clear all</button>
+                <button
+                  onClick={() => {
+                    Swal.fire({
+                      title: "Clear cart?",
+                      text: "All items in the cart will be removed.",
+                      icon: "warning",
+                      showCancelButton: true,
+                      confirmButtonColor: "#dc2626",
+                      cancelButtonColor: "#6b7280",
+                      confirmButtonText: "Yes, clear it",
+                    }).then((result) => {
+                      if (result.isConfirmed) setCart([]);
+                    });
+                  }}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors font-bold uppercase tracking-wider cursor-pointer"
+                >
+                  Clear all
+                </button>
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cart.length === 0 ? (
                 <div className="py-16 text-center">
-                  <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-3 text-gray-500">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
-                  <p className="text-gray-600 text-sm">Cart is empty</p>
-                  <p className="text-gray-700 text-xs mt-1">Add items from the left or pull from queue</p>
+                  <p className="text-gray-400 text-sm font-semibold">Cart is empty</p>
+                  <p className="text-gray-500 text-xs mt-1">Add items from the catalog or queue</p>
                 </div>
               ) : (
-                <div className="rounded-xl border border-white/8 bg-gray-950/60 px-3">
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-[10px] uppercase tracking-widest text-gray-500 px-1 py-2 border-b border-dashed border-white/10">
-                    <span>List to Pay</span>
-                    <span className="text-right">Qty/Unit</span>
-                    <span className="text-right">Amount</span>
-                  </div>
-                  {cart.map((item, idx) => (
-                    <div key={`${item.type}-${item.id}`} className="group">
-                      {item.type === "queue" ? (
-                        <>
-                          <ReceiptLine
-                            title={`${idx + 1}.1 Service - ${item._serviceName || "Service"}`}
-                            meta={item.name}
-                            qty={1}
-                            unitPrice={item._servicePrice ?? item._price}
-                            amount={item._servicePrice ?? item._price}
-                            tone="queue"
-                          />
-                          {Number(item._productsPrice ?? 0) > 0 && (
-                            <ReceiptLine
-                              title={`${idx + 1}.2 Products - ${item._requiredProducts || "Used Products"}`}
-                              meta="Required products from service details"
-                              qty={1}
-                              unitPrice={item._productsPrice}
-                              amount={item._productsPrice}
-                              tone="product"
-                              rightSlot={
-                                <button
-                                  onClick={() => removeFromCart(item.id, item.type)}
-                                  className="text-[10px] text-gray-500 hover:text-red-400 transition-colors mt-0.5"
-                                >
-                                  Remove
-                                </button>
-                              }
-                            />
-                          )}
-                        </>
-                      ) : (
-                        <ReceiptLine
-                          title={`${idx + 1}. ${item.type === "product" ? "Product" : "Service"} - ${item.name}`}
-                          meta={item.type === "product" ? "Product line item" : "Service line item"}
-                          qty={item.quantity}
-                          unitPrice={item._price}
-                          amount={item._price * item.quantity}
-                          tone={item.type === "product" ? "product" : "default"}
-                          rightSlot={
-                            <button
-                              onClick={() => removeFromCart(item.id, item.type)}
-                              className="text-[10px] text-gray-500 hover:text-red-400 transition-colors mt-0.5"
-                            >
-                              Remove
-                            </button>
-                          }
-                        />
-                      )}
-                      <div className="flex items-center gap-2">
-                        {item.type !== "queue" ? (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)} className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center text-white text-sm">-</button>
-                            <span className="text-sm font-bold text-white w-5 text-center">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)} className="w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded flex items-center justify-center text-white text-sm">+</button>
+                cart.map((item, idx) => {
+                  const itemTotal = (parseFloat(item._price || 0) * (item.quantity || 1));
+                  return (
+                    <div
+                      key={`${item.type}-${item.id}`}
+                      className="bg-gray-800/80 border border-white/10 rounded-2xl p-3.5 space-y-2.5 transition-all shadow-sm"
+                    >
+                      {/* Row Top: Badge, Title & Remove Button */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                              item.type === "queue"
+                                ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                : item.type === "product"
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                : "bg-red-500/20 text-red-400 border border-red-500/30"
+                            }`}>
+                              {item.type === "queue" ? "Queue" : item.type === "product" ? "Product" : "Service"}
+                            </span>
                           </div>
-                        ) : <span className="text-xs text-amber-400/60 shrink-0">Qty fixed: 1</span>}
-                        <div className="flex items-center gap-1 flex-1 min-w-0">
-                          <span className="text-gray-500 text-sm shrink-0">{item.type === "queue" ? "Adjusted Total P" : "Unit P"}</span>
-                          <input type="number" min="0" step="0.01" value={item._price || ""}
-                            onChange={(e) => updatePrice(item.id, item.type, e.target.value)}
-                            readOnly={item.type !== "queue"}
-                            placeholder={item.type === "queue" ? "Enter queue price" : ""}
-                            className={`flex-1 min-w-0 bg-gray-800/80 border rounded px-2 py-1.5 text-sm text-white font-bold focus:outline-none transition-all ${item.type === "queue" && item._price === 0 ? "border-amber-500/60" : "border-white/10 focus:border-red-500/50"}`} />
+                          <h4 className="text-sm font-bold text-white truncate leading-tight">
+                            {item.name}
+                          </h4>
+                        </div>
+                        {/* Clear/Delete Button */}
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.id, item.type)}
+                          className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 flex items-center justify-center transition-all shrink-0 cursor-pointer"
+                          title="Remove item from cart"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Row Middle: Price Breakdown & Controls */}
+                      <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/5">
+                        {item.type !== "queue" ? (
+                          <div className="flex items-center gap-1 bg-gray-900/80 border border-white/10 rounded-lg p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)}
+                              className="w-6 h-6 rounded bg-white/5 hover:bg-red-600 hover:text-white text-gray-300 text-xs font-bold flex items-center justify-center transition-all cursor-pointer"
+                              title="Decrease quantity or remove"
+                            >
+                              -
+                            </button>
+                            <span className="text-xs font-bold text-white w-6 text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)}
+                              className="w-6 h-6 rounded bg-white/5 hover:bg-emerald-600 hover:text-white text-gray-300 text-xs font-bold flex items-center justify-center transition-all cursor-pointer"
+                              title="Increase quantity"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md">
+                            Qty: 1 (Fixed)
+                          </span>
+                        )}
+
+                        <div className="text-right">
+                          <div className="text-xs text-gray-400">
+                            @ P{fmt(item._price)}
+                          </div>
+                          <div className="text-sm font-black text-white">
+                            P{fmt(itemTotal)}
+                          </div>
                         </div>
                       </div>
-                      {item.type === "queue" && item._price === 0 && (
-                        <div className="mt-2 pb-2 text-amber-400 text-xs flex items-center gap-1">
-                          <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                          </svg>
-                          Queue service needs a manual unit price
+
+                      {/* Queue manual price adjustment input if needed */}
+                      {item.type === "queue" && (
+                        <div className="pt-1 border-t border-white/5 flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-gray-400 shrink-0">Adjust Price (P):</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item._price || ""}
+                            onChange={(e) => updatePrice(item.id, item.type, e.target.value)}
+                            placeholder="Enter amount"
+                            className="flex-1 bg-gray-900/90 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-bold focus:outline-none focus:border-red-500 transition-all"
+                          />
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })
               )}
             </div>
 
-            <div className="px-5 py-4 border-t border-white/8 bg-gray-950/60 shrink-0">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Cart Total</span>
-                <span className="text-2xl font-black text-white">P{fmt(total)}</span>
+            {/* Cart Total Footer */}
+            <div className="px-5 py-4 border-t border-white/10 bg-gray-900/90 shrink-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Amount</span>
+                <span className="text-xl sm:text-2xl font-black text-white tracking-tight">P{fmt(total)}</span>
               </div>
             </div>
           </div>

@@ -528,6 +528,19 @@ function LandingPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // ─── Smooth scroll to any section by ID ──────────────────────────────────
+  const scrollToSection = (e, href) => {
+    if (!href || href === "#") { e.preventDefault(); return; }
+    if (href.startsWith("#")) {
+      e.preventDefault();
+      const el = document.getElementById(href.slice(1));
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+    // External / path links fall through naturally
+  };
+
   // ── Loading skeleton ───────────────────────────────────────────────────────
   if (!contentLoaded || !pageContent) {
     return (
@@ -613,7 +626,7 @@ function LandingPage() {
       )}
 
       {/* ── Hero Section with Background (Video or Slideshow) ── */}
-      <div className="landing-hero relative min-h-screen flex items-center justify-center overflow-hidden">
+      <div id="hero" className="landing-hero relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background container */}
         <div className="absolute inset-0 overflow-hidden">
           {hero.bgMode === "video" && hero.videoUrl ? (
@@ -738,7 +751,7 @@ function LandingPage() {
       </div>
 
       {/* ── Services Section ── */}
-      <section className="py-20 sm:py-28 md:py-32 bg-black relative">
+      <section id="services" className="py-20 sm:py-28 md:py-32 bg-black relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 reveal">
           <div className="text-center mb-12 sm:mb-16 md:mb-20">
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 uppercase tracking-tighter">
@@ -763,7 +776,7 @@ function LandingPage() {
       </section>
 
       {/* ── Branches / Map Section ── */}
-      <section className="py-20 sm:py-24 bg-neutral-900 relative">
+      <section id="branches" className="py-20 sm:py-24 bg-neutral-900 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 reveal">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter leading-tight">
@@ -958,7 +971,7 @@ function LandingPage() {
       </section>
 
       {/* ── Reviews Marquee ── */}
-      <section className="py-20 sm:py-24 bg-red-600 overflow-hidden relative">
+      <section id="reviews" className="py-20 sm:py-24 bg-red-600 overflow-hidden relative">
         <div
           className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none"
           style={{
@@ -1020,10 +1033,10 @@ function LandingPage() {
       </section>
 
       {/* ── All Branches Facebook Links ── */}
-      <section className="py-20 sm:py-24 bg-black border-t border-white/5 reveal">
+      <section id="facebook-pages" className="fb-pages-section py-20 sm:py-24 bg-gray-100 border-t border-gray-200 reveal">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tighter uppercase">
+            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tighter uppercase">
               OFFICIAL <span className="text-red-600">FACEBOOK PAGES</span>
             </h2>
             <div className="w-14 sm:w-16 h-1 bg-red-600 mx-auto mt-5 sm:mt-6 rounded-full" />
@@ -1036,7 +1049,7 @@ function LandingPage() {
                 href={branch.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white/5 hover:bg-white/10 p-5 sm:p-6 rounded-2xl border border-white/5 hover:border-red-600/30 transition-all duration-300 flex items-center justify-between group"
+                className="fb-page-card bg-white hover:bg-red-50 p-5 sm:p-6 rounded-2xl border border-gray-200 hover:border-red-500/50 transition-all duration-300 flex items-center justify-between group shadow-sm hover:shadow-md"
               >
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#1877F2]/10 rounded-lg flex items-center justify-center text-[#1877F2] group-hover:bg-[#1877F2] group-hover:text-white transition-all flex-shrink-0">
@@ -1049,16 +1062,16 @@ function LandingPage() {
                     </svg>
                   </div>
                   <div className="min-w-0">
-                    <span className="text-white font-bold tracking-tight block text-sm sm:text-base truncate">
+                    <span className="fb-branch-name text-gray-900 font-bold tracking-tight block text-sm sm:text-base truncate">
                       {branch.name}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] text-gray-500 font-black uppercase tracking-widest group-hover:text-red-500 transition-colors">
+                    <span className="fb-visit-label text-[9px] sm:text-[10px] text-gray-500 font-black uppercase tracking-widest group-hover:text-red-500 transition-colors">
                       Visit Page
                     </span>
                   </div>
                 </div>
                 <svg
-                  className="w-4 h-4 text-gray-600 group-hover:text-white transform group-hover:translate-x-1 transition-all flex-shrink-0 ml-2"
+                  className="fb-arrow-icon w-4 h-4 text-gray-400 group-hover:text-red-500 transform group-hover:translate-x-1 transition-all flex-shrink-0 ml-2"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1077,7 +1090,7 @@ function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="relative overflow-hidden bg-black text-white border-t border-white/10">
+      <footer className="landing-footer relative overflow-hidden bg-[#0a0a0a] text-white border-t border-white/10">
         <div className="pointer-events-none absolute inset-0 hidden sm:block">
           <div className="absolute -right-16 -top-28 h-[420px] w-[420px] rotate-[24deg] border border-red-500/20" />
           <div className="absolute right-40 top-32 h-[420px] w-[420px] rotate-[24deg] border border-white/10" />
@@ -1093,7 +1106,7 @@ function LandingPage() {
                 className="h-10 sm:h-12 w-auto object-contain drop-shadow-[0_0_22px_rgba(220,38,38,0.25)]"
               />
             </div>
-            <p className="max-w-sm text-lg sm:text-2xl leading-relaxed text-gray-200">
+            <p className="max-w-sm text-lg sm:text-2xl leading-relaxed text-gray-300">
               {footer.tagline || "Your trusted automotive companion"}
             </p>
             <button
@@ -1120,16 +1133,17 @@ function LandingPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-8 sm:gap-12 lg:gap-20">
-            <div>
+            <div className="footer-col">
               <h3 className="mb-5 sm:mb-6 text-base sm:text-lg font-semibold text-white">
                 Site Map
               </h3>
-              <ul className="space-y-3 sm:space-y-4 text-base sm:text-lg text-gray-300">
+              <ul className="space-y-3 sm:space-y-4 text-base sm:text-lg text-gray-400">
                 {footer.siteMapLinks && footer.siteMapLinks.length > 0 ? (
                   footer.siteMapLinks.map((item, index) => (
                     <li key={index}>
                       <a
                         href={item.href}
+                        onClick={(e) => scrollToSection(e, item.href)}
                         className="underline-offset-4 transition hover:text-red-400 hover:underline"
                       >
                         {item.label}
@@ -1141,11 +1155,11 @@ function LandingPage() {
                 )}
               </ul>
             </div>
-            <div>
+            <div className="footer-col">
               <h3 className="mb-5 sm:mb-6 text-base sm:text-lg font-semibold text-white">
                 Legal
               </h3>
-              <ul className="space-y-3 sm:space-y-4 text-base sm:text-lg text-gray-300">
+              <ul className="space-y-3 sm:space-y-4 text-base sm:text-lg text-gray-400">
                 {footer.legalLinks && footer.legalLinks.length > 0 ? (
                   footer.legalLinks.map((item, index) => {
                     // Map the label to the post key
@@ -1179,7 +1193,7 @@ function LandingPage() {
           </div>
         </div>
 
-        <div className="border-t border-white/10 bg-[#7f1d1d] px-4 sm:px-6 py-2.5 text-center text-xs font-semibold tracking-wide text-white/90">
+        <div className="footer-bottom border-t border-white/10 bg-[#7f1d1d] px-4 sm:px-6 py-2.5 text-center text-xs font-semibold tracking-wide text-white/90">
           {footer.copyright || "© 2024 Otokwikk. All rights reserved."}
         </div>
       </footer>

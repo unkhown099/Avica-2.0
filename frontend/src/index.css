@@ -6,11 +6,127 @@
   --sidebar-width: 15rem;
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ── Dark mode overrides for fb-pages-section (Landing page) ─────────────────
+   The section's base classes were set to light values (bg-gray-100, text-gray-900)
+   so they look correct in light mode. In dark mode we restore the dark look.    */
+html[data-theme="dark"] section.fb-pages-section,
+html:not([data-theme="light"]) section.fb-pages-section {
+  background-color: #000000 !important;
+  border-color: rgba(255,255,255,0.05) !important;
+}
+
+html[data-theme="dark"] section.fb-pages-section h2,
+html:not([data-theme="light"]) section.fb-pages-section h2 {
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] section.fb-pages-section a.fb-page-card,
+html:not([data-theme="light"]) section.fb-pages-section a.fb-page-card {
+  background-color: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.05) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] section.fb-pages-section a.fb-page-card:hover,
+html:not([data-theme="light"]) section.fb-pages-section a.fb-page-card:hover {
+  background-color: rgba(255,255,255,0.08) !important;
+  border-color: rgba(220,38,38,0.3) !important;
+}
+
+html[data-theme="dark"] section.fb-pages-section .fb-branch-name,
+html:not([data-theme="light"]) section.fb-pages-section .fb-branch-name {
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] section.fb-pages-section .fb-arrow-icon,
+html:not([data-theme="light"]) section.fb-pages-section .fb-arrow-icon {
+  color: #4b5563 !important;
+}
+
+html[data-theme="dark"] section.fb-pages-section a.fb-page-card:hover .fb-arrow-icon,
+html:not([data-theme="light"]) section.fb-pages-section a.fb-page-card:hover .fb-arrow-icon {
+  color: #ffffff !important;
+}
+
+/* ── Landing Footer — always dark in both modes ─────────────────────────────
+   The footer is designed to be dark regardless of the user's theme preference.
+   We override ALL light-mode rewrites so text/links remain readable.            */
+html[data-theme="light"] footer.landing-footer,
+html[data-theme="light"] footer.landing-footer * {
+  transition: color 0.15s ease, background-color 0.15s ease !important;
+}
+
+html[data-theme="light"] footer.landing-footer {
+  background-color: #0a0a0a !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+/* Heading columns: "Site Map", "Legal" */
+html[data-theme="light"] footer.landing-footer h3 {
+  color: #ffffff !important;
+}
+
+/* Link / list items */
+html[data-theme="light"] footer.landing-footer ul li a,
+html[data-theme="light"] footer.landing-footer ul li button {
+  color: #9ca3af !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] footer.landing-footer ul li a:hover,
+html[data-theme="light"] footer.landing-footer ul li button:hover {
+  color: #f87171 !important;
+}
+
+/* Tagline paragraph */
+html[data-theme="light"] footer.landing-footer p {
+  color: #9ca3af !important;
+}
+
+/* "No links available" fallback */
+html[data-theme="light"] footer.landing-footer .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+/* BACK TO TOP button */
+html[data-theme="light"] footer.landing-footer button.border-red-500\/60 {
+  background-color: rgba(220,38,38,0.1) !important;
+  border-color: rgba(239,68,68,0.6) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] footer.landing-footer button.border-red-500\/60:hover {
+  background-color: rgba(220,38,38,0.2) !important;
+}
+
+/* Red copyright strip */
+html[data-theme="light"] footer.landing-footer .footer-bottom {
+  background-color: #7f1d1d !important;
+  color: rgba(255,255,255,0.9) !important;
+}
+
+/* Decorative border lines in the footer */
+html[data-theme="light"] footer.landing-footer .border-white\/10 {
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+html[data-theme="light"] footer.landing-footer .border-red-500\/20 {
+  border-color: rgba(239,68,68,0.2) !important;
+}
+
+html[data-theme="light"] footer.landing-footer .border-red-500\/15 {
+  border-color: rgba(239,68,68,0.15) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    LIGHT MODE SYSTEM (data-theme="light")
    NOTE: .landing-hero is intentionally excluded from most overrides
    so its dark hero/sections keep their designed look.
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Smooth transitions (exclude landing page for performance) */
 html[data-theme="light"] *:not(.landing-hero):not(.landing-hero *) {
@@ -79,7 +195,7 @@ html[data-theme="light"] .bg-\[\#0a0a0a\] {
 
 /* Dashboard sticky headers */
 html[data-theme="light"] header:not(.landing-hero *),
-html[data-theme="light"] footer:not(.landing-hero *),
+html[data-theme="light"] footer:not(.landing-hero *):not(.landing-footer):not(.landing-footer *),
 html[data-theme="light"] .bg-gray-900.sticky:not(.landing-hero *),
 html[data-theme="light"] div.sticky.top-0:not(.landing-hero *) {
   background-color: #ffffff !important;
@@ -87,6 +203,7 @@ html[data-theme="light"] div.sticky.top-0:not(.landing-hero *) {
   border-color: #e2e8f0 !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
 }
+
 
 /* â”€â”€ 3. Unified Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 html[data-theme="light"] aside {
@@ -181,16 +298,16 @@ html[data-theme="light"] .border-white\/10:not(.landing-hero *):not(nav *) {
 }
 
 /* â”€â”€ 5. Text & Headings (app pages only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-html[data-theme="light"] h1:not(.landing-hero *),
-html[data-theme="light"] h2:not(.landing-hero *),
-html[data-theme="light"] h3:not(.landing-hero *),
-html[data-theme="light"] h4:not(.landing-hero *),
-html[data-theme="light"] h5:not(.landing-hero *),
-html[data-theme="light"] h6:not(.landing-hero *) {
+html[data-theme="light"] h1:not(.landing-hero *):not(.landing-footer *),
+html[data-theme="light"] h2:not(.landing-hero *):not(.landing-footer *),
+html[data-theme="light"] h3:not(.landing-hero *):not(.landing-footer *),
+html[data-theme="light"] h4:not(.landing-hero *):not(.landing-footer *),
+html[data-theme="light"] h5:not(.landing-hero *):not(.landing-footer *),
+html[data-theme="light"] h6:not(.landing-hero *):not(.landing-footer *) {
   color: #0f172a !important;
 }
 
-html[data-theme="light"] .text-white:not(button *):not(a *):not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-green"] *):not([class*="bg-blue"] *):not(.landing-hero *) {
+html[data-theme="light"] .text-white:not(button *):not(a *):not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-green"] *):not([class*="bg-blue"] *):not(.landing-hero *):not(.landing-footer):not(.landing-footer *) {
   color: #0f172a !important;
 }
 
@@ -377,6 +494,273 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb {
 
 html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.8);
+}
+
+/* ── 13. Landing Page — Facebook Pages section (light mode) ──────────────────
+   This section sits outside .landing-hero so bg-black / text-white would get
+   overridden to light colors, making branch names invisible. We forcibly keep
+   the dark-card treatment for those branch link cards.                         */
+html[data-theme="light"] section.fb-pages-section {
+  background-color: #f1f5f9 !important;
+}
+
+html[data-theme="light"] section.fb-pages-section h2,
+html[data-theme="light"] section.fb-pages-section h2 span {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] section.fb-pages-section span.text-red-600,
+html[data-theme="light"] section.fb-pages-section .text-red-600 {
+  color: #dc2626 !important;
+}
+
+/* The individual branch cards */
+html[data-theme="light"] section.fb-pages-section a.fb-page-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+}
+
+html[data-theme="light"] section.fb-pages-section a.fb-page-card:hover {
+  border-color: #dc2626 !important;
+  background-color: #fef2f2 !important;
+}
+
+/* Branch name text */
+html[data-theme="light"] section.fb-pages-section .fb-branch-name {
+  color: #0f172a !important;
+}
+
+/* VISIT PAGE label */
+html[data-theme="light"] section.fb-pages-section .fb-visit-label {
+  color: #64748b !important;
+}
+html[data-theme="light"] section.fb-pages-section a.fb-page-card:hover .fb-visit-label {
+  color: #dc2626 !important;
+}
+
+/* Arrow icon */
+html[data-theme="light"] section.fb-pages-section .fb-arrow-icon {
+  color: #94a3b8 !important;
+}
+html[data-theme="light"] section.fb-pages-section a.fb-page-card:hover .fb-arrow-icon {
+  color: #dc2626 !important;
+}
+
+/* Red divider under heading */
+html[data-theme="light"] section.fb-pages-section .bg-red-600 {
+  background-color: #dc2626 !important;
+}
+
+/* ── 14. Notification Dropdown (portal-dropdown) — light mode ────────────────
+   Render a clean, modern white card with high-contrast dark text in light mode. */
+html[data-theme="light"] .portal-dropdown {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Header row of the dropdown */
+html[data-theme="light"] .portal-dropdown > div:first-child {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .portal-dropdown h3 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .portal-dropdown button {
+  color: #dc2626 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+html[data-theme="light"] .portal-dropdown button:hover {
+  color: #b91c1c !important;
+}
+
+/* Notification rows */
+html[data-theme="light"] .portal-dropdown > div > div {
+  border-color: #f1f5f9 !important;
+}
+
+html[data-theme="light"] .portal-dropdown > div > div:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Unread notification row */
+html[data-theme="light"] .portal-dropdown .bg-red-500\/5 {
+  background-color: rgba(220, 38, 38, 0.04) !important;
+}
+
+/* Notification message text — Crisp and readable */
+html[data-theme="light"] .portal-dropdown p.text-white,
+html[data-theme="light"] .portal-dropdown .text-white {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+html[data-theme="light"] .portal-dropdown p.text-gray-400,
+html[data-theme="light"] .portal-dropdown .text-gray-400 {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .portal-dropdown .text-gray-500 {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .portal-dropdown p.text-\[10px\],
+html[data-theme="light"] .portal-dropdown .text-\[10px\] {
+  color: #94a3b8 !important;
+}
+
+/* "No notifications yet" empty state */
+html[data-theme="light"] .portal-dropdown > div > div.p-8 {
+  color: #64748b !important;
+}
+
+/* ── 15. Customer Navbar — Notification & Profile Dropdowns (light mode) ───────
+   These panels use bg-gradient-to-br from-gray-900 and are inside the nav,
+   which gets overridden to white. We force dark appearance for readability.     */
+html[data-theme="light"] .notif-dropdown {
+  background: #1e293b !important;
+  background-image: none !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.35) !important;
+}
+
+html[data-theme="light"] .notif-dropdown * {
+  border-color: rgba(255,255,255,0.07) !important;
+}
+
+html[data-theme="light"] .notif-dropdown span.text-white,
+html[data-theme="light"] .notif-dropdown p.text-white {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .notif-dropdown .text-gray-300,
+html[data-theme="light"] .notif-dropdown p.text-gray-300 {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] .notif-dropdown .text-gray-400,
+html[data-theme="light"] .notif-dropdown p.text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="light"] .notif-dropdown .text-gray-500,
+html[data-theme="light"] .notif-dropdown span.text-gray-500 {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .notif-dropdown .text-red-400 {
+  color: #f87171 !important;
+}
+
+html[data-theme="light"] .notif-dropdown button:not(.bg-red-600) {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Tab strip background */
+html[data-theme="light"] .notif-dropdown .bg-gray-800\/70 {
+  background-color: rgba(255,255,255,0.08) !important;
+}
+
+/* Notification item rows */
+html[data-theme="light"] .notif-dropdown button.w-full:hover {
+  background-color: rgba(255,255,255,0.05) !important;
+}
+
+html[data-theme="light"] .notif-dropdown .bg-white\/\[0\.03\] {
+  background-color: rgba(220,38,38,0.07) !important;
+}
+
+/* Profile dropdown */
+html[data-theme="light"] .profile-dropdown {
+  background: #1e293b !important;
+  background-image: none !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.35) !important;
+}
+
+html[data-theme="light"] .profile-dropdown * {
+  border-color: rgba(255,255,255,0.07) !important;
+}
+
+html[data-theme="light"] .profile-dropdown p.text-white,
+html[data-theme="light"] .profile-dropdown span.text-white {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .profile-dropdown .text-gray-300,
+html[data-theme="light"] .profile-dropdown .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="light"] .profile-dropdown a {
+  color: #94a3b8 !important;
+  background: transparent !important;
+}
+
+html[data-theme="light"] .profile-dropdown a:hover {
+  background-color: rgba(255,255,255,0.06) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .profile-dropdown .text-red-400,
+html[data-theme="light"] .profile-dropdown .text-red-500 {
+  color: #f87171 !important;
+}
+
+/* ── 16. Customer Services — Category Pills (Light Mode) ─────────────────────── */
+html[data-theme="light"] .category-pill:not(.active) {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+html[data-theme="light"] .category-pill:not(.active):hover {
+  border-color: #dc2626 !important;
+  color: #dc2626 !important;
+  background-color: #fef2f2 !important;
+}
+
+html[data-theme="light"] .category-pill.active {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+}
+
+/* ── 17. Staff POS — Light Mode Enhancements ─────────────────────────────────── */
+html[data-theme="light"] .bg-gray-800\/80,
+html[data-theme="light"] .bg-gray-800\/60 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+html[data-theme="light"] .bg-gray-900\/90,
+html[data-theme="light"] .bg-gray-900\/80,
+html[data-theme="light"] .bg-gray-900\/60 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Cart total bar in light mode */
+html[data-theme="light"] .border-t.bg-gray-900\/90,
+html[data-theme="light"] .border-t.bg-gray-950\/60 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .border-t.bg-gray-900\/90 span.text-white,
+html[data-theme="light"] .border-t.bg-gray-950\/60 span.text-white {
+  color: #0f172a !important;
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

@@ -96,13 +96,13 @@ DEFAULT_CONTENT = {
         "tagline": "Empowering car owners with precision care and premium detailing that protects every drive.",
         "copyright": "Copyright © 2026, otokwikk. All Rights Reserved.",
         "siteMapLinks": [
-            {"label": "Homepage", "href": "#"},
-            {"label": "Services",  "href": "#"},
-            {"label": "Branches",  "href": "#"},
-            {"label": "Client Reviews", "href": "#"},
-            {"label": "Facebook Pages", "href": "#"},
-            {"label": "Sign In",   "href": "/signin"},
-            {"label": "Sign Up",   "href": "/signup"},
+            {"label": "Homepage",      "href": "#hero"},
+            {"label": "Services",      "href": "#services"},
+            {"label": "Branches",      "href": "#branches"},
+            {"label": "Client Reviews","href": "#reviews"},
+            {"label": "Facebook Pages","href": "#facebook-pages"},
+            {"label": "Sign In",       "href": "/signin"},
+            {"label": "Sign Up",       "href": "/signup"},
         ],
         "legalLinks": [
             {"label": "Privacy Policy",  "href": "#"},
@@ -144,6 +144,26 @@ def _get_or_create_row():
                         changed = True
         if changed:
             obj.save()
+
+    # ── One-time patch: fix stale siteMapLinks that still use bare "#" hrefs ──
+    ANCHOR_MAP = {
+        "Homepage":      "#hero",
+        "Services":      "#services",
+        "Branches":      "#branches",
+        "Client Reviews":"#reviews",
+        "Facebook Pages":"#facebook-pages",
+    }
+    footer = obj.content.get("footer", {})
+    site_map = footer.get("siteMapLinks", [])
+    patched = False
+    for link in site_map:
+        label = link.get("label", "")
+        if label in ANCHOR_MAP and link.get("href", "#") == "#":
+            link["href"] = ANCHOR_MAP[label]
+            patched = True
+    if patched:
+        obj.content["footer"]["siteMapLinks"] = site_map
+        obj.save()
 
     return obj, created
 

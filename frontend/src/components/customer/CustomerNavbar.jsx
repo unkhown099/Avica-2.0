@@ -415,11 +415,11 @@ function Navbar({ user: userProp, setUser }) {
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* ── Logo ── */}
           <div className="flex items-center shrink-0">
-            <Link to="/dashboard">
+            <Link to="/dashboard" className="flex items-center">
               <img
                 src={logo}
                 alt="Otokwikk logo"
-                className="h-10 sm:h-14 md:h-20 object-contain"
+                className="h-8 sm:h-10 md:h-12 w-auto object-contain transition-transform duration-300 hover:scale-105"
               />
             </Link>
           </div>
@@ -464,7 +464,7 @@ function Navbar({ user: userProp, setUser }) {
               {/* Notification Dropdown — full width on mobile */}
               {isNotifOpen && (
                 isMobile ? createPortal(
-                  <div className="fixed top-[70px] left-4 right-4 bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden z-[10000] animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="notif-dropdown fixed top-[70px] left-4 right-4 bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden z-[10000] animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/60 font-sans">
                       <div className="flex items-center gap-2">
@@ -515,7 +515,7 @@ function Navbar({ user: userProp, setUser }) {
                   </div>,
                   document.body
                 ) : (
-                  <div className="absolute right-0 mt-2 w-80 md:w-96 max-w-sm bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden">
+                  <div className="notif-dropdown absolute right-0 mt-2 w-80 md:w-96 max-w-sm bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl shadow-2xl border border-gray-700/60 overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/60">
                       <div className="flex items-center gap-2">
@@ -599,7 +599,7 @@ function Navbar({ user: userProp, setUser }) {
 
               {/* Profile Dropdown */}
               {isProfileOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
+                <div className="profile-dropdown absolute right-0 mt-2 w-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
                   <div className="p-4 border-b border-gray-700">
                     <p className="text-white font-bold">{fullName}</p>
                     {email && (

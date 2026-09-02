@@ -1,4 +1,5 @@
 import logging
+import traceback
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -10,6 +11,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 from django.utils.html import strip_tags
 from rest_framework import status
+from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from better_profanity import profanity
@@ -19,6 +21,7 @@ from api.models import (
     QueueEntry,
     Booking,
     Staff,
+    Branch,
     InventoryItem,
     Service,
     Notification,
@@ -49,7 +52,19 @@ def _scope_to_requester_branch(queryset, requester_staff):
     if not requester_staff or requester_staff.role in ("Admin", "Business Owner", "super_admin"):
         return queryset
     if requester_staff.branch_id:
+        branch_name = requester_staff.branch.name if requester_staff.branch else requester_staff.branch_name
+        if branch_name:
+            return queryset.filter(
+                Q(branch_id=requester_staff.branch_id) | Q(branch_name__iexact=branch_name)
+            )
         return queryset.filter(branch_id=requester_staff.branch_id)
+    if requester_staff.branch_name:
+        branch_match = Branch.objects.filter(name__iexact=requester_staff.branch_name).first()
+        if branch_match:
+            return queryset.filter(
+                Q(branch_id=branch_match.id) | Q(branch_name__iexact=requester_staff.branch_name)
+            )
+        return queryset.filter(branch_name__iexact=requester_staff.branch_name)
     return queryset.none()
 
 
@@ -742,7 +757,11 @@ def queue_assign(request, pk):
         entry.assigned_employee = None
     else:
         try:
-            employee = Staff.objects.get(pk=employee_id, role="Employee")
+            employee = Staff.objects.select_related("branch").get(
+                pk=employee_id,
+                role__iexact="Employee",
+                status__iexact="Active",
+            )
         except Staff.DoesNotExist:
             return Response({"detail": "Employee not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -757,11 +776,22 @@ def queue_assign(request, pk):
             )
 
         # Keep assignment branch-consistent.
-        if entry.branch_id and employee.branch_id != entry.branch_id:
-            return Response({"detail": "Employee must belong to the same branch as the queue entry."}, status=status.HTTP_400_BAD_REQUEST)
+        if entry.branch_id:
+            assigned_branch_id = employee.branch_id
+            if not assigned_branch_id and employee.branch_name:
+                branch_match = Branch.objects.filter(name__iexact=employee.branch_name).first()
+                if branch_match:
+                    assigned_branch_id = branch_match.id
+            if assigned_branch_id and assigned_branch_id != entry.branch_id:
+                return Response({"detail": "Employee must belong to the same branch as the queue entry."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if requester_staff and requester_staff.role != "Admin":
-            if employee.branch_id != requester_staff.branch_id:
+        if requester_staff and requester_staff.role not in ("Admin", "Business Owner", "super_admin"):
+            assigned_branch_id = employee.branch_id
+            if not assigned_branch_id and employee.branch_name:
+                branch_match = Branch.objects.filter(name__iexact=employee.branch_name).first()
+                if branch_match:
+                    assigned_branch_id = branch_match.id
+            if requester_staff.branch_id and assigned_branch_id and assigned_branch_id != requester_staff.branch_id:
                 return Response({"detail": "You can only assign employees from your branch."}, status=status.HTTP_403_FORBIDDEN)
 
         entry.assigned_employee = employee
@@ -783,7 +813,7 @@ def queue_employees(request):
     branch_id = request.query_params.get("branch_id")
 
     employees = Staff.objects.filter(
-        role="Employee", status="Active"
+        role__iexact="Employee", status__iexact="Active"
     ).select_related("branch").order_by("first_name", "last_name")
 
     employees = _scope_to_requester_branch(employees, requester_staff)
@@ -791,7 +821,14 @@ def queue_employees(request):
     if branch_id:
         if not str(branch_id).isdigit():
             return Response({"detail": "branch_id must be a valid integer."}, status=status.HTTP_400_BAD_REQUEST)
-        employees = employees.filter(branch_id=int(branch_id))
+        branch_id_int = int(branch_id)
+        branch_obj = Branch.objects.filter(id=branch_id_int).first()
+        if branch_obj:
+            employees = employees.filter(
+                Q(branch_id=branch_id_int) | Q(branch_name__iexact=branch_obj.name)
+            )
+        else:
+            employees = employees.filter(branch_id=branch_id_int)
 
     data = [
         {

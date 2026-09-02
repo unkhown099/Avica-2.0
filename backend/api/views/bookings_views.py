@@ -1045,8 +1045,8 @@ class StaffBookingActionView(APIView):
                 try:
                     assigned_employee = Staff.objects.select_related("branch").get(
                         pk=assigned_employee_id,
-                        role="Employee",
-                        status="Active",
+                        role__iexact="Employee",
+                        status__iexact="Active",
                     )
                 except Staff.DoesNotExist:
                     return Response(
@@ -1054,11 +1054,17 @@ class StaffBookingActionView(APIView):
                         status=status.HTTP_404_NOT_FOUND,
                     )
 
-                if booking.branch_id and assigned_employee.branch_id != booking.branch_id:
-                    return Response(
-                        {"detail": "Assigned employee must belong to the same branch as this booking."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                if booking.branch_id:
+                    assigned_branch_id = assigned_employee.branch_id
+                    if not assigned_branch_id and assigned_employee.branch_name:
+                        branch_match = Branch.objects.filter(name__iexact=assigned_employee.branch_name).first()
+                        if branch_match:
+                            assigned_branch_id = branch_match.id
+                    if assigned_branch_id and assigned_branch_id != booking.branch_id:
+                        return Response(
+                            {"detail": "Assigned employee must belong to the same branch as this booking."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
                 employee_full_name = (
                     f"{assigned_employee.first_name} {assigned_employee.last_name}".strip()

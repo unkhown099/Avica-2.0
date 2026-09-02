@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import CustomerLayout from "./CustomerLayout.jsx";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
@@ -16,9 +16,18 @@ function CustomerDashboard() {
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
   const [chatQueueId, setChatQueueId] = useState(null);
+  const [cancelBooking, setCancelBooking] = useState(null);
+  const [customerRescheduleBooking, setCustomerRescheduleBooking] = useState(null);
+  const [rescheduleBooking, setRescheduleBooking] = useState(null);
+  const [toast, setToast] = useState(null);
   const [serviceHistory, setServiceHistory] = useState([]);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4500);
+  };
 
   const getAuthHeaders = () => {
     const token =
@@ -120,6 +129,92 @@ function CustomerDashboard() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleCancelConfirm = async (reason) => {
+    const booking = cancelBooking;
+    if (!booking) return;
+    try {
+      const headers = { "Content-Type": "application/json", ...getAuthHeaders() };
+      const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          status: "cancelled",
+          cancellation_reason: reason,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to cancel");
+      setUpcomingBookings((prev) => prev.filter((b) => b.id !== booking.id));
+      setStats((prev) => ({ ...prev, upcoming: Math.max(0, (prev.upcoming || 1) - 1) }));
+      showToast("Booking cancelled successfully.", "success");
+      setCancelBooking(null);
+    } catch {
+      showToast("Failed to cancel booking. Please try again.", "error");
+      setCancelBooking(null);
+    }
+  };
+
+  const handleCustomerRescheduleRequest = async (payload) => {
+    const booking = customerRescheduleBooking;
+    if (!booking) return;
+    try {
+      const headers = { "Content-Type": "application/json", ...getAuthHeaders() };
+      const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/request-reschedule/`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          reason: payload.reason,
+          preferred_date: payload.preferredDate || "",
+          preferred_time: payload.preferredTime || "",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Failed to submit request.");
+      setUpcomingBookings((prev) => prev.map((b) => (b.id === booking.id ? { ...b, ...data, status: "pending" } : b)));
+      showToast("Reschedule request sent! Staff will follow up.", "success");
+      setCustomerRescheduleBooking(null);
+    } catch (e) {
+      showToast(e.message || "Failed to send request.", "error");
+    }
+  };
+
+  const handleRescheduleDecision = async (booking, decision, selectedOption = null) => {
+    try {
+      const headers = { "Content-Type": "application/json", ...getAuthHeaders() };
+      const res = await fetch(`${API_BASE}/api/bookings/${booking.id}/reschedule-response/`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ decision, selected_option: selectedOption }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Failed to submit response.");
+      setUpcomingBookings((prev) => prev.map((b) => (b.id === data.id ? { ...b, ...data } : b)));
+      showToast(
+        decision === "accept"
+          ? "Reschedule accepted successfully."
+          : "Reschedule declined. Our team will follow up.",
+        "success"
+      );
+      setRescheduleBooking(null);
+    } catch (e) {
+      showToast(e.message || "Failed to submit response.", "error");
+    }
+  };
+
+  const handleBookRecommended = (svc = null) => {
+    const targetService = svc || analysisResult?.recommendedServices?.[0] || null;
+    const vehicleStr = `${analysisResult?.make || ""} ${analysisResult?.model || ""}`.trim();
+    navigate("/bookings", {
+      state: {
+        openBooking: true,
+        prefillServiceId: targetService?.id || null,
+        prefillServiceName: targetService?.name || null,
+        prefillVehicleSize: analysisResult?.vehicleSize || "small",
+        prefillVehicle: vehicleStr,
+        prefillPlateNumber: analysisResult?.plateNumber || "",
+      },
+    });
   };
 
   const formatDate = (dateStr) => {
@@ -390,22 +485,49 @@ function CustomerDashboard() {
                         <div className="text-white font-bold text-sm">{field.value || "Not detected"}</div>
                       </div>
                     ))}
+                    {/* Color with hex swatch */}
                     <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
                       <div className="text-xs text-gray-500 mb-1">Color</div>
                       <div className="flex items-center gap-2">
-                        {analysisResult.color && (
-                          <div className="w-4 h-4 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: analysisResult.color.toLowerCase() }} />
+                        {(analysisResult.colorHex || analysisResult.color) && (
+                          <div className="w-4 h-4 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: analysisResult.colorHex || analysisResult.color.toLowerCase() }} />
                         )}
                         <span className="text-white font-bold text-sm">{analysisResult.color || "Not detected"}</span>
                       </div>
                     </div>
+                    {/* Plate Number */}
+                    {analysisResult.plateNumber ? (
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+                        <div className="text-xs text-gray-500 mb-1">Plate Number</div>
+                        <div className="text-white font-bold text-sm font-mono tracking-wider">{analysisResult.plateNumber}</div>
+                      </div>
+                    ) : null}
+                    {/* Vehicle Size */}
+                    {(analysisResult.vehicleSizeLabel || analysisResult.vehicleSize) && (
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
+                        <div className="text-xs text-gray-500 mb-1">Vehicle Size Class</div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-semibold">
+                            {(analysisResult.vehicleSize || "SMALL").toUpperCase()}
+                          </span>
+                          <span className="text-white font-bold text-sm">{analysisResult.vehicleSizeLabel || analysisResult.vehicleSize}</span>
+                        </div>
+                      </div>
+                    )}
+                    {/* Condition with details */}
                     <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
                       <div className="text-xs text-gray-500 mb-1">Estimated Condition</div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: conditionColor(analysisResult.condition) }} />
-                        <span className="text-white font-bold text-sm">{analysisResult.condition || "Not detected"}</span>
+                      <div className="flex items-start gap-2">
+                        <div className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: conditionColor(analysisResult.condition) }} />
+                        <div>
+                          <span className="text-white font-bold text-sm">{analysisResult.condition || "Not detected"}</span>
+                          {analysisResult.conditionDetails && (
+                            <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{analysisResult.conditionDetails}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    {/* Features */}
                     {analysisResult.features?.length > 0 && (
                       <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
                         <div className="text-xs text-gray-500 mb-2">Notable Features</div>
@@ -416,13 +538,59 @@ function CustomerDashboard() {
                         </div>
                       </div>
                     )}
+                    {/* AI Notes */}
                     {analysisResult.additionalNotes && (
                       <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                        <div className="text-xs text-gray-500 mb-1">Additional Notes</div>
-                        <p className="text-gray-300 text-sm">{analysisResult.additionalNotes}</p>
+                        <div className="text-xs text-gray-500 mb-1">AI Notes</div>
+                        <p className="text-gray-300 text-sm leading-relaxed">{analysisResult.additionalNotes}</p>
+                      </div>
+                    )}
+                    {/* Recommended Services */}
+                    {analysisResult.recommendedServices?.length > 0 && (
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3.5 col-span-2 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-bold text-gray-400">
+                          <span>AI Recommended Services</span>
+                          <span className="text-[10px] text-red-400 font-semibold uppercase tracking-wider">Click to book</span>
+                        </div>
+                        <div className="space-y-2">
+                          {analysisResult.recommendedServices.slice(0, 3).map((svc, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between p-2.5 bg-black/20 hover:bg-white/5 border border-white/5 rounded-xl transition-all gap-3"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="text-white text-xs sm:text-sm font-bold truncate">{svc.name}</div>
+                                {svc.category && <div className="text-gray-400 text-[10px]">{svc.category}</div>}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {svc.price && (
+                                  <span className="text-emerald-400 font-black text-xs sm:text-sm">₱{Number(svc.price).toLocaleString()}</span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleBookRecommended(svc)}
+                                  className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer"
+                                >
+                                  Book
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
+                  {/* Book This Service CTA */}
+                  <button
+                    type="button"
+                    onClick={() => handleBookRecommended(analysisResult.recommendedServices?.[0] || null)}
+                    className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-black px-4 py-3.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm mt-3 cursor-pointer"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z" />
+                    </svg>
+                    Book {analysisResult.recommendedServices?.[0]?.name ? `"${analysisResult.recommendedServices[0].name}"` : "Recommended Service"}
+                  </button>
                   <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
                     <div className="flex items-start gap-2">
                       <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -515,10 +683,22 @@ function CustomerDashboard() {
                               Message
                             </button>
                           )}
-                          <button className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs sm:text-sm font-semibold transition-colors duration-200 border border-white/5">
-                            Reschedule
+                          <button
+                            onClick={() => {
+                              if (booking.status === "rescheduled") {
+                                setRescheduleBooking(booking);
+                              } else {
+                                setCustomerRescheduleBooking(booking);
+                              }
+                            }}
+                            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
+                          >
+                            {booking.status === "rescheduled" ? "Review Reschedule" : "Reschedule"}
                           </button>
-                          <button className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200">
+                          <button
+                            onClick={() => setCancelBooking(booking)}
+                            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
+                          >
                             Cancel
                           </button>
                         </div>
@@ -543,25 +723,25 @@ function CustomerDashboard() {
             <div className="space-y-3 sm:space-y-4">
               {[1, 2].map((i) => (
                 <div key={i} className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 animate-pulse">
-                  <div className="h-5 w-48 bg-white/10 rounded mb-3" />
-                  <div className="h-4 w-32 bg-white/5 rounded" />
+                  <div className="h-4 bg-gray-800 rounded w-1/3 mb-2"></div>
+                  <div className="h-3 bg-gray-800 rounded w-1/4"></div>
                 </div>
               ))}
             </div>
           ) : serviceHistory.length === 0 ? (
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-8 sm:p-10 text-center">
-              <p className="text-gray-500 italic text-sm">No service history yet.</p>
+            <div className="bg-gray-900/40 border border-white/5 rounded-2xl p-8 sm:p-12 text-center">
+              <p className="text-gray-500 text-sm italic">No service history yet.</p>
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-4">
-              {serviceHistory.map((service) => (
+              {serviceHistory.map((service, index) => (
                 <div
-                  key={service.id}
-                  className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm hover:border-white/10 transition-all duration-200"
+                  key={index}
+                  className="bg-gray-900/60 hover:bg-gray-900/80 border border-white/5 rounded-2xl p-4 sm:p-6 transition-all duration-200"
                 >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
                         <h3 className="text-base sm:text-lg font-bold text-white">{service.service}</h3>
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                           Completed
@@ -609,7 +789,370 @@ function CustomerDashboard() {
           onClose={() => setChatQueueId(null)}
         />
       )}
+      {cancelBooking && (
+        <CancelBookingModal
+          booking={cancelBooking}
+          onClose={() => setCancelBooking(null)}
+          onConfirm={handleCancelConfirm}
+        />
+      )}
+      {customerRescheduleBooking && (
+        <CustomerRescheduleModal
+          booking={customerRescheduleBooking}
+          onClose={() => setCustomerRescheduleBooking(null)}
+          onSubmit={handleCustomerRescheduleRequest}
+        />
+      )}
+      {rescheduleBooking && (
+        <RescheduleResponseModal
+          booking={rescheduleBooking}
+          onClose={() => setRescheduleBooking(null)}
+          onDecide={handleRescheduleDecision}
+        />
+      )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </CustomerLayout>
+  );
+}
+
+// ─── Center Modal Wrapper ───────────────────────────────────────────────────
+function CenterModal({ onClose, children }) {
+  return (
+    <>
+      <div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+        onClick={onClose}
+      />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-2rem)] sm:w-full max-w-lg bg-[#0f172a] border border-white/10 shadow-2xl rounded-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+        {children}
+      </div>
+    </>
+  );
+}
+
+// ─── Toast ──────────────────────────────────────────────────────────────────
+function Toast({ message, type = "success", onDismiss }) {
+  const isSuccess = type === "success";
+  return (
+    <div
+      className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[70] flex items-center gap-3 ${
+        isSuccess ? "bg-emerald-600 shadow-emerald-600/30" : "bg-red-600 shadow-red-600/30"
+      } text-white px-4 py-3 rounded-2xl shadow-2xl max-w-sm animate-in fade-in slide-in-from-bottom-3 duration-300`}
+    >
+      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+        {isSuccess ? (
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        )}
+      </div>
+      <span className="font-semibold text-xs sm:text-sm">{message}</span>
+      <button onClick={onDismiss} className="ml-auto opacity-70 hover:opacity-100 p-1">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+// ─── Cancel Booking Modal ───────────────────────────────────────────────────
+function CancelBookingModal({ booking, onClose, onConfirm }) {
+  const [reason, setReason] = useState("");
+  const [otherReason, setOtherReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const cancelReasons = [
+    "Change of plans",
+    "Schedule conflict",
+    "Vehicle not available",
+    "Emergency",
+    "Other",
+  ];
+
+  const handleSubmit = async () => {
+    const finalReason = reason === "Other" ? otherReason : reason;
+    if (!finalReason.trim()) return;
+    setLoading(true);
+    await onConfirm(finalReason);
+    setLoading(false);
+  };
+
+  const serviceName = booking.service_name || booking.service || "Appointment";
+
+  return (
+    <CenterModal onClose={onClose}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-gray-900/60">
+        <div>
+          <h2 className="text-lg font-black text-white">
+            Cancel <span className="text-red-500">Appointment</span>
+          </h2>
+          <p className="text-gray-400 text-xs mt-0.5 truncate">{serviceName}</p>
+        </div>
+        <button onClick={onClose} className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="p-5 space-y-4 overflow-y-auto">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-3">
+          <svg className="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p className="text-red-400 text-xs font-bold">This action cannot be undone</p>
+            <p className="text-gray-400 text-xs mt-0.5">Please let us know why you are cancelling your appointment.</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-gray-300">Select Reason</label>
+          <div className="space-y-2">
+            {cancelReasons.map((r) => (
+              <label key={r} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors text-xs text-gray-200">
+                <input
+                  type="radio"
+                  name="cancel_reason"
+                  value={r}
+                  checked={reason === r}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="accent-red-600"
+                />
+                <span>{r}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {reason === "Other" && (
+          <textarea
+            rows={3}
+            value={otherReason}
+            onChange={(e) => setOtherReason(e.target.value)}
+            placeholder="Please specify reason..."
+            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
+          />
+        )}
+      </div>
+
+      <div className="p-4 border-t border-white/10 bg-gray-900/60 flex gap-3">
+        <button
+          onClick={onClose}
+          className="flex-1 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white font-bold text-xs transition-colors"
+        >
+          Keep Booking
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={loading || !reason || (reason === "Other" && !otherReason.trim())}
+          className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold text-xs shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-1.5"
+        >
+          {loading ? "Cancelling..." : "Cancel Appointment"}
+        </button>
+      </div>
+    </CenterModal>
+  );
+}
+
+// ─── Customer Reschedule Modal ──────────────────────────────────────────────
+function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
+  const [reason, setReason] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredTime, setPreferredTime] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const serviceName = booking.service_name || booking.service || "Appointment";
+
+  const timeSlots = [
+    "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
+    "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"
+  ];
+
+  const handleSubmit = async () => {
+    if (!reason.trim() || reason.trim().length < 5) {
+      setError("Please provide a reason for rescheduling (at least 5 characters).");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    await onSubmit({
+      reason: reason.trim(),
+      preferredDate: preferredDate || null,
+      preferredTime: preferredTime || null,
+    });
+    setLoading(false);
+  };
+
+  return (
+    <CenterModal onClose={onClose}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-gray-900/60">
+        <div>
+          <h2 className="text-lg font-black text-white">
+            Request <span className="text-indigo-400">Reschedule</span>
+          </h2>
+          <p className="text-gray-400 text-xs mt-0.5 truncate">{serviceName}</p>
+        </div>
+        <button onClick={onClose} className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="p-5 space-y-4 overflow-y-auto text-xs">
+        {error && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 font-medium">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <label className="font-bold text-gray-300">Reason for Rescheduling *</label>
+          <textarea
+            rows={3}
+            value={reason}
+            onChange={(e) => { setReason(e.target.value); setError(""); }}
+            placeholder="e.g. Schedule conflict, need to move to another time..."
+            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="font-bold text-gray-300">Preferred Date (Optional)</label>
+            <input
+              type="date"
+              min={new Date().toISOString().split("T")[0]}
+              value={preferredDate}
+              onChange={(e) => setPreferredDate(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500 [color-scheme:dark]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="font-bold text-gray-300">Preferred Time (Optional)</label>
+            <select
+              value={preferredTime}
+              onChange={(e) => setPreferredTime(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">Select slot (optional)</option>
+              {timeSlots.map((slot) => (
+                <option key={slot} value={slot}>{slot}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 border-t border-white/10 bg-gray-900/60 flex gap-3">
+        <button
+          onClick={onClose}
+          className="flex-1 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white font-bold text-xs transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={loading || !reason.trim()}
+          className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-1.5"
+        >
+          {loading ? "Submitting..." : "Send Request"}
+        </button>
+      </div>
+    </CenterModal>
+  );
+}
+
+// ─── Reschedule Proposal Review Modal ───────────────────────────────────────
+function RescheduleResponseModal({ booking, onClose, onDecide }) {
+  const [loading, setLoading] = useState(false);
+  const options = booking?.reschedule_options ?? [];
+  const [selectedOption, setSelectedOption] = useState(options[0] || null);
+  const serviceName = booking?.service_name || booking?.service || "Appointment";
+
+  const handleDecision = async (decision) => {
+    setLoading(true);
+    await onDecide(booking, decision, selectedOption);
+    setLoading(false);
+  };
+
+  return (
+    <CenterModal onClose={onClose}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-gray-900/60">
+        <div>
+          <h2 className="text-lg font-black text-white">
+            Reschedule <span className="text-indigo-400">Proposal</span>
+          </h2>
+          <p className="text-gray-400 text-xs mt-0.5 truncate">{serviceName}</p>
+        </div>
+        <button onClick={onClose} className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="p-5 space-y-4 overflow-y-auto text-xs">
+        <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-xl p-3.5 text-indigo-300">
+          <p className="font-bold">Staff proposed a new schedule</p>
+          <p className="text-gray-400 text-[11px] mt-1">Please review the proposed time slot below and choose to accept or decline.</p>
+        </div>
+
+        {options.length > 0 ? (
+          <div className="space-y-2">
+            <label className="font-bold text-gray-300">Proposed Options</label>
+            {options.map((opt, i) => (
+              <div
+                key={i}
+                onClick={() => setSelectedOption(opt)}
+                className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                  selectedOption === opt
+                    ? "border-indigo-500 bg-indigo-600/20 text-white"
+                    : "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10"
+                }`}
+              >
+                <p className="font-bold">{opt.date} @ {opt.time}</p>
+                {opt.note && <p className="text-gray-400 text-[11px] mt-0.5">{opt.note}</p>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-4 bg-white/5 rounded-xl text-center text-gray-400">
+            {booking?.reschedule_note ? `Note: ${booking.reschedule_note}` : "A new schedule has been suggested by the branch staff."}
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 border-t border-white/10 bg-gray-900/60 flex gap-3">
+        <button
+          onClick={() => handleDecision("decline")}
+          disabled={loading}
+          className="flex-1 py-2.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white font-bold text-xs transition-colors"
+        >
+          {loading ? "..." : "Decline"}
+        </button>
+        <button
+          onClick={() => handleDecision("accept")}
+          disabled={loading}
+          className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all"
+        >
+          {loading ? "..." : "Accept Reschedule"}
+        </button>
+      </div>
+    </CenterModal>
   );
 }
 

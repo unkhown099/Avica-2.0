@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import StaffLayout from "./StaffLayout";
-import { API_BASE, getAuthHeaders } from "../../hooks/useAuth.js";
+import { API_BASE, getAuthHeaders, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
 import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
@@ -118,50 +118,51 @@ function StaffAppointments() {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDayOfWeek = new Date(year, month, 1).getDay();
 
-  const fetchBookings = useCallback(() => {
+  const fetchBookings = useCallback(async () => {
     setLoading(true);
     setError("");
-    fetch(`${API_BASE}/api/staff/bookings/`, {
-      headers: getAuthHeaders(),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`Error ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        const rows = (Array.isArray(data) ? data : (data.results ?? [])).map(
-          normalizeReschedulePendingStatus,
-        );
-        setBookings(rows);
-        setAssignedByBooking(
-          rows.reduce((acc, row) => {
-            acc[row.id] = row.assigned_employee_id
-              ? String(row.assigned_employee_id)
-              : "";
-            return acc;
-          }, {}),
-        );
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+    try {
+      const headers = await getAuthHeadersAsync();
+      const r = await fetch(`${API_BASE}/api/staff/bookings/`, {
+        headers,
+      });
+      if (!r.ok) throw new Error(`Error ${r.status}`);
+      const data = await r.json();
+      const rows = (Array.isArray(data) ? data : (data.results ?? [])).map(
+        normalizeReschedulePendingStatus,
+      );
+      setBookings(rows);
+      setAssignedByBooking(
+        rows.reduce((acc, row) => {
+          acc[row.id] = row.assigned_employee_id
+            ? String(row.assigned_employee_id)
+            : "";
+          return acc;
+        }, {}),
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
 
-  const fetchEmployees = useCallback(() => {
-    fetch(`${API_BASE}/api/queue/employees/`, {
-      headers: getAuthHeaders(),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
-      .then((data) =>
-        setEmployees(Array.isArray(data) ? data : (data.results ?? [])),
-      )
-      .catch(() => setEmployees([]));
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const headers = await getAuthHeadersAsync();
+      const r = await fetch(`${API_BASE}/api/queue/employees/`, {
+        headers,
+      });
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      setEmployees(Array.isArray(data) ? data : (data.results ?? []));
+    } catch {
+      setEmployees([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -239,9 +240,10 @@ function StaffAppointments() {
   const handleAction = async (id, newStatus, assignedEmployeeId = null) => {
     setActionLoading(id);
     try {
+      const headers = await getAuthHeadersAsync();
       const res = await fetch(`${API_BASE}/api/staff/bookings/${id}/action/`, {
         method: "PATCH",
-        headers: getAuthHeaders(),
+        headers,
         body: JSON.stringify({
           status: newStatus,
           assigned_employee_id: assignedEmployeeId || null,
