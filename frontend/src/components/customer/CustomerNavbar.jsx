@@ -571,7 +571,10 @@ function Navbar({ user: userProp, setUser }) {
                 }}
                 className="flex items-center gap-2 lg:gap-3 px-2 lg:px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300"
               >
-                <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-br from-red-600 to-red-700">
+                <div
+                  className="user-profile-avatar w-9 h-9 lg:w-10 lg:h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 shadow-md"
+                  style={{ backgroundColor: "#dc2626", backgroundImage: "linear-gradient(135deg, #dc2626, #991b1b)", color: "#ffffff" }}
+                >
                   {user?.profilePicture ? (
                     <img
                       src={user.profilePicture}
@@ -579,7 +582,7 @@ function Navbar({ user: userProp, setUser }) {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-white font-bold text-sm">
+                    <span className="text-white font-bold text-sm" style={{ color: "#ffffff" }}>
                       {initials}
                     </span>
                   )}

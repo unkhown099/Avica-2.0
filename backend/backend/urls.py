@@ -20,7 +20,7 @@ from api.views.forecast_views import (
 )
 
 from api.views.staff_views import StaffView, StaffDetailView, VerifyPasswordView
-from api.views.vehicle_views import AnalyzeVehicleView
+from api.views.vehicle_views import AnalyzeVehicleView, PreventiveMaintenanceView
 from api.views.chatbot_views import chat_with_groq
 from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
@@ -86,6 +86,8 @@ from api.views.super_admin_views import (
     SuperAdminDashboardView,
     SuperAdminUserListView,
     SuperAdminUserDetailView,
+    SuperAdminUserArchiveView,
+    SuperAdminUserRestoreView,
     SuperAdminRoleListView,
     SuperAdminReportsView,
     SuperAdminActivityLogView,
@@ -121,6 +123,8 @@ urlpatterns = [
     path("super-admin/dashboard/",           SuperAdminDashboardView.as_view()),
     path("super-admin/users/",               SuperAdminUserListView.as_view()),
     path("super-admin/users/<int:pk>/",      SuperAdminUserDetailView.as_view()),
+    path("super-admin/users/<int:pk>/archive/", SuperAdminUserArchiveView.as_view()),
+    path("super-admin/users/<int:pk>/restore/", SuperAdminUserRestoreView.as_view()),
     path("super-admin/roles/",               SuperAdminRoleListView.as_view()),
     path("super-admin/reports/",             SuperAdminReportsView.as_view()),
     path("super-admin/activity-log/",        SuperAdminActivityLogView.as_view()),
@@ -159,9 +163,10 @@ urlpatterns = [
     path('staff/<int:pk>/', StaffDetailView.as_view(), name='staff-detail'),
     path('staff/verify-password/', VerifyPasswordView.as_view(), name='staff-verify-password'),
 
-    # ── Vehicle AI ────────────────────────────────────────────────────────────
+    # ── Vehicle AI & PMS ──────────────────────────────────────────────────────
     path('api/analyze-vehicle/', AnalyzeVehicleView.as_view(), name='analyze_vehicle'),
     path('api/analyze-damage/', AnalyzeDamageView.as_view(), name='analyze_damage'),
+    path('api/vehicle/pms/', PreventiveMaintenanceView.as_view(), name='vehicle_pms'),
 
     # ── Chatbot ───────────────────────────────────────────────────────────────
     path('api/chat/', chat_with_groq, name='chat_with_groq'),

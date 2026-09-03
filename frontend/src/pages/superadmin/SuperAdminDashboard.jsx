@@ -169,7 +169,6 @@ function StaffTable({ staffByRole, loading }) {
 // ── Tab config ────────────────────────────────────────────────────────────────
 const TABS = [
   { key: "overview", label: "Overview" },
-  { key: "performance", label: "Performance" },
   { key: "users", label: "Users" },
   { key: "system", label: "System Health" },
 ];
@@ -220,7 +219,7 @@ function OverviewPanel({ data, loading }) {
 
   return (
     <div>
-      <SectionLabel>System Performance at a glance</SectionLabel>
+      <SectionLabel>System Overview</SectionLabel>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {loading ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />) : (
           <>
@@ -284,123 +283,6 @@ function OverviewPanel({ data, loading }) {
 
       <SectionLabel>Staff by role</SectionLabel>
       <StaffTable staffByRole={data?.staff_by_role} loading={loading} />
-    </div>
-  );
-}
-
-function PerformancePanel({ data, loading }) {
-  const labels = data?.chart_labels ?? [];
-
-  const cpuData = {
-    labels,
-    datasets: [{
-      label: "CPU Usage (%)",
-      data: data?.cpu_usage ?? [],
-      borderColor: "#ef4444",
-      backgroundColor: "rgba(239,68,68,0.08)",
-      fill: true, 
-      tension: 0.4, 
-      pointRadius: 3,
-      pointBackgroundColor: "#ef4444", 
-      borderWidth: 2,
-    }],
-  };
-
-  const memoryData = {
-    labels,
-    datasets: [{
-      label: "Memory Usage (%)",
-      data: data?.memory_usage ?? [],
-      borderColor: "#8b5cf6",
-      backgroundColor: "rgba(139,92,246,0.08)",
-      fill: true, 
-      tension: 0.4, 
-      pointRadius: 3,
-      pointBackgroundColor: "#8b5cf6", 
-      borderWidth: 2,
-    }],
-  };
-
-  const requestData = {
-    labels: data?.request_labels ?? labels,
-    datasets: [{
-      label: "Requests per minute",
-      data: data?.requests_per_minute ?? [],
-      borderColor: "#f59e0b",
-      backgroundColor: "rgba(245,158,11,0.08)",
-      fill: true, 
-      tension: 0.4, 
-      pointRadius: 3,
-      pointBackgroundColor: "#f59e0b", 
-      borderWidth: 2,
-    }],
-  };
-
-  return (
-    <div>
-      <SectionLabel>System Performance Metrics</SectionLabel>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        {loading ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />) : (
-          <>
-            <StatCard
-              title="CPU Usage"
-              value={data ? `${Number(data.current_cpu).toFixed(1)}%` : null}
-              sub={data?.cpu_status || "Normal"}
-              accentBg="bg-red-500/10" 
-              accentText="text-red-400" 
-              border="border-red-500/20"
-              icon={<Icon d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />}
-            />
-            <StatCard
-              title="Memory Usage"
-              value={data ? `${Number(data.current_memory).toFixed(1)}%` : null}
-              sub={`${data ? (data.current_memory_used_gb || 0).toFixed(1) : 0} GB / ${data?.total_memory_gb || 8} GB`}
-              accentBg="bg-purple-500/10" 
-              accentText="text-purple-400" 
-              border="border-purple-500/20"
-              icon={<Icon d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />}
-            />
-            <StatCard
-              title="Requests/sec"
-              value={data ? Number(data.requests_per_second).toFixed(1) : null}
-              sub={`Peak: ${data?.peak_requests_per_second || 0}`}
-              accentBg="bg-orange-500/10" 
-              accentText="text-orange-400" 
-              border="border-orange-500/20"
-              icon={<Icon d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />}
-            />
-            <StatCard
-              title="Uptime"
-              value={data?.uptime_days ? `${data.uptime_days}d` : "—"}
-              sub={data?.uptime_percentage ? `${data.uptime_percentage}%` : "99.9%"}
-              accentBg="bg-green-500/10" 
-              accentText="text-green-400" 
-              border="border-green-500/20"
-              icon={<Icon d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />}
-            />
-          </>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-1 gap-4">
-          <SkeletonChart height={220} />
-          <SkeletonChart height={220} />
-          <SkeletonChart height={220} />
-        </div>
-      ) : (
-        <>
-          <ChartCard title="CPU Usage Trend" badge={{ label: "Last 24 hours", className: "text-red-400 bg-red-500/10" }} height={200} className="mb-4">
-            <Line data={cpuData} options={baseChartOptions} />
-          </ChartCard>
-          <ChartCard title="Memory Usage Trend" badge={{ label: "Last 24 hours", className: "text-purple-400 bg-purple-500/10" }} height={200} className="mb-4">
-            <Line data={memoryData} options={baseChartOptions} />
-          </ChartCard>
-          <ChartCard title="Request Volume" badge={{ label: "Requests per minute", className: "text-orange-400 bg-orange-500/10" }} height={200}>
-            <Line data={requestData} options={baseChartOptions} />
-          </ChartCard>
-        </>
-      )}
     </div>
   );
 }
@@ -604,10 +486,10 @@ export default function SuperAdminDashboard() {
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight">
-              System Performance Dashboard
+              Super Admin Dashboard
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-              Monitor system health, performance metrics, and user analytics.
+              Monitor system health, user analytics, and platform activity.
             </p>
           </div>
           <button
@@ -653,7 +535,6 @@ export default function SuperAdminDashboard() {
 
         {/* Panels */}
         {activeTab === "overview" && <OverviewPanel data={data} loading={loading} />}
-        {activeTab === "performance" && <PerformancePanel data={data} loading={loading} />}
         {activeTab === "users" && <UsersPanel data={data} loading={loading} />}
         {activeTab === "system" && <SystemHealthPanel data={data} loading={loading} />}
       </div>

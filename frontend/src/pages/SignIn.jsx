@@ -504,7 +504,7 @@ function SignIn() {
                     value={formData.email}
                     onChange={handleChange}
                     autoComplete="off"
-                    placeholder="john.doe@example.com"
+                    placeholder="juan.delacruz@example.com"
                     className={`w-full px-5 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"
                       } rounded-xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
                   />

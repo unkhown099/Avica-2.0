@@ -28,6 +28,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     email          = models.EmailField(unique=True)
     is_active      = models.BooleanField(default=True)
+    is_archived    = models.BooleanField(default=False)
     is_staff       = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
     last_login     = models.DateTimeField(null=True, blank=True)
@@ -1144,3 +1145,26 @@ class SystemSettings(models.Model):
     @property
     def is_maintenance(self):
         return self.general.get("siteMode") == "maintenance"
+
+
+class VehiclePMSLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pms_logs", null=True, blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="pms_logs", null=True, blank=True)
+    mileage = models.FloatField(default=0.0)
+    vehicle_name = models.CharField(max_length=150, default="My Vehicle")
+    vehicle_size = models.CharField(max_length=50, default="small")
+    plate_number = models.CharField(max_length=20, blank=True, null=True)
+    health_score = models.IntegerField(default=100)
+    status_label = models.CharField(max_length=50, default="Good Condition")
+    target_milestone_km = models.IntegerField(default=5000)
+    target_milestone_title = models.CharField(max_length=150, default="5,000 KM Minor PMS Checkup")
+    km_remaining = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "vehicle_pms_logs"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} - {self.mileage:,.0f} KM ({self.health_score}%) at {self.created_at}"
+

@@ -376,6 +376,7 @@ class SuperAdminUserListView(APIView):
                 "id":             u.id,
                 "email":          u.email,
                 "is_active":      u.is_active,
+                "is_archived":    getattr(u, "is_archived", False),
                 "is_staff":       u.is_staff,
                 "email_verified": u.email_verified,
                 "created_at":     u.created_at,
@@ -426,6 +427,7 @@ class SuperAdminUserDetailView(APIView):
             "id":             user.id,
             "email":          user.email,
             "is_active":      user.is_active,
+            "is_archived":    getattr(user, "is_archived", False),
             "is_staff":       user.is_staff,
             "is_superuser":   user.is_superuser,
             "email_verified": user.email_verified,
@@ -522,6 +524,49 @@ class SuperAdminUserDetailView(APIView):
             return Response({"error": "You cannot delete your own account."}, status=400)
         user.delete()
         return Response({"message": "User permanently deleted."}, status=204)
+
+
+class SuperAdminUserArchiveView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def post(self, request, pk):
+        try:
+            user = User.objects.select_related("staff_profile").get(pk=pk)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=404)
+
+        if user == request.user:
+            return Response({"error": "You cannot archive your own account."}, status=400)
+
+        user.is_archived = True
+        user.is_active = False
+        user.save()
+
+        if hasattr(user, "staff_profile"):
+            user.staff_profile.status = "Archived"
+            user.staff_profile.save()
+
+        return Response({"message": f"User {user.email} has been archived."})
+
+
+class SuperAdminUserRestoreView(APIView):
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def post(self, request, pk):
+        try:
+            user = User.objects.select_related("staff_profile").get(pk=pk)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=404)
+
+        user.is_archived = False
+        user.is_active = True
+        user.save()
+
+        if hasattr(user, "staff_profile"):
+            user.staff_profile.status = "Active"
+            user.staff_profile.save()
+
+        return Response({"message": f"User {user.email} has been restored."})
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

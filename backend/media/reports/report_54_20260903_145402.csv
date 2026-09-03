@@ -1,0 +1,49 @@
+Business Intelligence Report
+Report Type,dashboard_summary
+Period,monthly
+Scope,global
+Generated At,2026-09-03T14:54:02.600868+00:00
+
+KPI Summary
+Total Revenue,1150.0
+Services Completed,0
+Customers,1
+Conversion Rate (%),0.0
+Payment Rate (%),0.0
+Total Transactions,3
+
+Period-over-Period Comparison
+Revenue Current,1150.0
+Revenue Previous,0.0
+Revenue Change (%),0.0
+Conversion Rate Current (%),0.0
+Conversion Rate Previous (%),0.0
+Payment Rate Current (%),0.0
+Payment Rate Previous (%),0.0
+
+Peak Periods
+Peak Hour,01:00,650.0
+Peak Day,Thursday,1150.0
+Peak Month,Sep,1150.0
+
+Revenue Split
+Appointments,0.0
+Walk-ins,0.0
+Services,1150.0
+Products,0.0
+
+Reconciliation
+Payment Total,1150.0
+Dashboard Total,0.0
+Mismatch Amount,1150.0
+Mismatch Threshold,1.0
+Data Mismatch,True
+
+Top Services
+Service,Revenue,Count
+POS service sale - Engine Steamed Wash,1000.0,2
+POS service sale - Premium Carwash,150.0,1
+
+Top Customers
+Customer,Revenue,Transactions
+Walk-in Customer,1150.0,3

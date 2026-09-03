@@ -1,0 +1,48 @@
+Business Intelligence Report
+Report Type,dashboard_summary
+Period,monthly
+Scope,branch
+Generated At,2026-09-03T19:07:34.621411+00:00
+
+KPI Summary
+Total Revenue,8500.0
+Services Completed,1
+Customers,1
+Conversion Rate (%),100.0
+Payment Rate (%),100.0
+Total Transactions,1
+
+Period-over-Period Comparison
+Revenue Current,8500.0
+Revenue Previous,62800.0
+Revenue Change (%),-86.46
+Conversion Rate Current (%),100.0
+Conversion Rate Previous (%),100.0
+Payment Rate Current (%),100.0
+Payment Rate Previous (%),100.0
+
+Peak Periods
+Peak Hour,00:00,8500.0
+Peak Day,Thursday,8500.0
+Peak Month,Sep,8500.0
+
+Revenue Split
+Appointments,0.0
+Walk-ins,0.0
+Services,8500.0
+Products,0.0
+
+Reconciliation
+Payment Total,8500.0
+Dashboard Total,8500.0
+Mismatch Amount,0.0
+Mismatch Threshold,1.0
+Data Mismatch,False
+
+Top Services
+Service,Revenue,Count
+Ceramic Coating,8500.0,1
+
+Top Customers
+Customer,Revenue,Transactions
+Maria Clara Santos,8500.0,1

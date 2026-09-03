@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import { apiFetch } from "../../hooks/api";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 
@@ -20,51 +21,6 @@ const sanitizePhoneInput = (value) => {
   if (digits.startsWith("0")) digits = digits.slice(1);
   return digits.slice(0, 10);
 };
-
-// ── Toast Component ──────────────────────────────────────────────────────────
-function Toast({ message, type, onClose }) {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const bgColor =
-    type === "success"
-      ? "bg-green-500/20 border-green-500/50"
-      : "bg-red-500/20 border-red-500/50";
-  const textColor = type === "success" ? "text-green-400" : "text-red-400";
-  const icon = type === "success" ? "✓" : "✕";
-
-  return (
-    <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
-      <div
-        className={`${bgColor} border rounded-xl px-4 py-3 shadow-xl backdrop-blur-sm min-w-[280px]`}
-      >
-        <div className="flex items-center gap-3">
-          <div className={`${textColor} font-bold text-lg`}>{icon}</div>
-          <p className={`${textColor} text-sm flex-1`}>{message}</p>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Small components ──────────────────────────────────────────────────────────
 function StatCard({ title, value, icon, accentBg, accentText, border, sub }) {
@@ -116,7 +72,7 @@ const Icon = ({ d }) => (
 );
 
 // ── User Table Component (Mobile Responsive) ──────────────────────────────────
-function UsersTable({ users, loading, onArchive, onDelete, onRestore }) {
+function UsersTable({ users, loading, onArchive, onRestore }) {
   if (loading) {
     return (
       <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden">
@@ -332,25 +288,6 @@ function UsersTable({ users, loading, onArchive, onDelete, onRestore }) {
                           </svg>
                         </button>
                       )}
-                      <button
-                        onClick={() => onDelete(user)}
-                        title="Permanently delete"
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -388,24 +325,6 @@ function UsersTable({ users, loading, onArchive, onDelete, onRestore }) {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => onDelete(user)}
-                  className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all ml-2"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -975,11 +894,6 @@ export default function SuperAdminUsers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [toast, setToast] = useState(null);
-
-  const showToast = (message, type) => {
-    setToast({ message, type });
-  };
 
   const fetchData = async () => {
     try {
@@ -997,7 +911,12 @@ export default function SuperAdminUsers() {
       setRoles(rolesData?.roles || []);
     } catch (err) {
       setError(err.message || "Failed to fetch data");
-      showToast(err.message || "Failed to fetch data", "error");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.message || "Failed to fetch data",
+        confirmButtonColor: "#dc2626",
+      });
     } finally {
       setLoading(false);
     }
@@ -1008,59 +927,74 @@ export default function SuperAdminUsers() {
   }, []);
 
   const handleArchiveUser = async (user) => {
-    if (
-      !confirm(
-        `Archive ${user.email}? Archived users will be restricted from logging in and can be restored later.`,
-      )
-    )
-      return;
+    const result = await Swal.fire({
+      title: "Archive User Account?",
+      text: `Are you sure you want to archive ${user.email}? Archived users will be restricted from logging in and can be restored later.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#eab308",
+      cancelButtonColor: "#4b5563",
+      confirmButtonText: "Yes, archive user",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       await apiFetch(`/super-admin/users/${user.id}/archive/`, {
         method: "POST",
       });
       fetchData();
-      showToast(`User ${user.email} has been archived.`, "success");
+      await Swal.fire({
+        icon: "success",
+        title: "Archived",
+        text: `User ${user.email} has been successfully archived.`,
+        confirmButtonColor: "#dc2626",
+        timer: 2500,
+      });
     } catch (err) {
-      showToast(err.message || "Failed to archive user.", "error");
+      await Swal.fire({
+        icon: "error",
+        title: "Failed to archive",
+        text: err.message || "Failed to archive user.",
+        confirmButtonColor: "#dc2626",
+      });
     }
   };
 
   const handleRestoreUser = async (user) => {
-    if (
-      !confirm(
-        `Restore ${user.email}? This will allow the user to access the system again.`,
-      )
-    )
-      return;
+    const result = await Swal.fire({
+      title: "Restore User Account?",
+      text: `Restore ${user.email}? This will allow the user to access the system again.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#22c55e",
+      cancelButtonColor: "#4b5563",
+      confirmButtonText: "Yes, restore user",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       await apiFetch(`/super-admin/users/${user.id}/restore/`, {
         method: "POST",
       });
       fetchData();
-      showToast(`User ${user.email} has been restored.`, "success");
-    } catch (err) {
-      showToast(err.message || "Failed to restore user.", "error");
-    }
-  };
-
-  const handleDeleteUser = async (user) => {
-    if (
-      !confirm(
-        `⚠️ PERMANENT DELETION ⚠️\n\nAre you ABSOLUTELY SURE you want to permanently delete ${user.email}?\n\nThis action is IRREVERSIBLE and will:\n- Permanently remove all user data\n- Delete all associated records\n- Remove all activity history\n\nThis cannot be undone!`,
-      )
-    )
-      return;
-
-    try {
-      await apiFetch(`/super-admin/users/${user.id}/permanent-delete/`, {
-        method: "DELETE",
+      await Swal.fire({
+        icon: "success",
+        title: "Restored",
+        text: `User ${user.email} has been successfully restored.`,
+        confirmButtonColor: "#dc2626",
+        timer: 2500,
       });
-      setUsers((prevUsers) => prevUsers.filter((u) => u.id !== user.id));
-      showToast(`User ${user.email} has been PERMANENTLY DELETED.`, "success");
     } catch (err) {
-      showToast(err.message || "Failed to delete user.", "error");
+      await Swal.fire({
+        icon: "error",
+        title: "Failed to restore",
+        text: err.message || "Failed to restore user.",
+        confirmButtonColor: "#dc2626",
+      });
     }
   };
 
@@ -1102,15 +1036,6 @@ export default function SuperAdminUsers() {
   return (
     <SuperAdminLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-3 sm:p-8">
-        {/* Toast Notifications */}
-        {toast && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        )}
-
         {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -1118,7 +1043,7 @@ export default function SuperAdminUsers() {
               User Management
             </h1>
             <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-              Manage system users - Archive, Restore, or Permanently Delete
+              Manage system users - Archive and Restore accounts
             </p>
           </div>
           <button
@@ -1267,7 +1192,6 @@ export default function SuperAdminUsers() {
           users={filteredUsers}
           loading={loading}
           onArchive={handleArchiveUser}
-          onDelete={handleDeleteUser}
           onRestore={handleRestoreUser}
         />
       </div>

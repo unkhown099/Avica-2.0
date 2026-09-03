@@ -59,10 +59,18 @@ class BranchSummarySerializer(serializers.ModelSerializer):
         ).count()
 
     def get_monthly_revenue(self, obj):
+        from ..models import PaymentTransaction
+        m_start_dt = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        pt_res = PaymentTransaction.objects.filter(
+            branch=obj,
+            paid_at__gte=m_start_dt,
+        ).aggregate(total=Sum("amount"))["total"]
+        if pt_res is not None and pt_res > 0:
+            return float(pt_res)
         result = QueueEntry.objects.filter(
             branch=obj,
             payment_status="paid",
-            completed_at__date__gte=self._month_start(),
+            completed_at__gte=m_start_dt,
         ).aggregate(total=Sum("price"))
         return float(result["total"] or 0)
 

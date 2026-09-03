@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
+import { useTheme } from "../../context/ThemeContext.jsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -419,16 +420,26 @@ export default function SuperAdminReports() {
   };
 
   // ── Status helpers ────────────────────────────────────────────────────────
+  const { isDark } = useTheme();
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case "success":
-        return "text-green-400 bg-green-400/10";
+        return isDark
+          ? "text-green-400 bg-green-400/10 border border-green-400/20"
+          : "text-green-700 bg-green-100 border border-green-200";
       case "warning":
-        return "text-yellow-400 bg-yellow-400/10";
+        return isDark
+          ? "text-yellow-400 bg-yellow-400/10 border border-yellow-400/20"
+          : "text-amber-700 bg-amber-100 border border-amber-200";
       case "error":
-        return "text-red-400 bg-red-400/10";
+        return isDark
+          ? "text-red-400 bg-red-400/10 border border-red-400/20"
+          : "text-red-700 bg-red-100 border border-red-200";
       default:
-        return "text-gray-400 bg-gray-400/10";
+        return isDark
+          ? "text-gray-400 bg-gray-400/10 border border-gray-400/20"
+          : "text-gray-600 bg-gray-100 border border-gray-200";
     }
   };
 
@@ -747,7 +758,13 @@ export default function SuperAdminReports() {
                         {log.user}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex rounded-full px-2 py-1 text-xs font-semibold bg-gray-700 text-gray-300">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold border ${
+                            isDark
+                              ? "bg-gray-700 text-gray-300 border-gray-600"
+                              : "bg-gray-100 text-gray-600 border-gray-200"
+                          }`}
+                        >
                           {log.type}
                         </span>
                       </td>

@@ -156,9 +156,12 @@ const ProfileDropdown = () => {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-3 p-1 rounded-full hover:bg-white/5 transition-all duration-200 group"
+                className="flex items-center gap-3 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-200 group"
             >
-                <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform overflow-hidden">
+                <div
+                    className="user-profile-avatar w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center shadow-md group-hover:scale-105 transition-transform overflow-hidden shrink-0"
+                    style={{ backgroundColor: "#dc2626", backgroundImage: "linear-gradient(135deg, #dc2626, #991b1b)", color: "#ffffff" }}
+                >
                     {displayPic ? (
                         <img
                             src={displayPic}
@@ -166,11 +169,11 @@ const ProfileDropdown = () => {
                             className="w-full h-full object-cover"
                             onError={(e) => {
                                 e.target.style.display = 'none';
-                                e.target.parentElement.innerHTML = `<span class="text-white font-black text-xs">${initials}</span>`;
+                                e.target.parentElement.innerHTML = `<span class="text-white font-black text-xs" style="color:#ffffff !important;">${initials}</span>`;
                             }}
                         />
                     ) : (
-                        <span className="text-white font-black text-xs">{initials}</span>
+                        <span className="text-white font-black text-xs" style={{ color: "#ffffff" }}>{initials}</span>
                     )}
                 </div>
                 <div className="hidden sm:block text-left mr-2">

@@ -604,11 +604,13 @@ function SignUpPage() {
   const renderPostBody = (post) => {
     if (!post) return null;
     return (
-      <section key={post.key}>
-        <h4 className="text-white font-bold mb-2 uppercase tracking-wide">
+      <section key={post.key} className="space-y-3">
+        <h4 className="text-white font-bold text-base uppercase tracking-wider border-b border-gray-800 pb-2">
           {post.title}
         </h4>
-        <p>{post.body}</p>
+        <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-line space-y-2">
+          {post.body}
+        </div>
       </section>
     );
   };
@@ -824,7 +826,7 @@ function SignUpPage() {
                         autoCapitalize="none"
                         spellCheck="false"
                         className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.firstName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
-                        placeholder="John"
+                        placeholder="Juan"
                       />
                       {errors.firstName && (
                         <p className="text-red-500 text-sm mt-1">
@@ -849,7 +851,7 @@ function SignUpPage() {
                         autoCapitalize="none"
                         spellCheck="false"
                         className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.lastName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
-                        placeholder="Doe"
+                        placeholder="Dela Cruz"
                       />
                       {errors.lastName && (
                         <p className="text-red-500 text-sm mt-1">
@@ -899,12 +901,79 @@ function SignUpPage() {
                         }}
                         maxDate={new Date(new Date().setFullYear(new Date().getFullYear() - 17))}
                         minDate={new Date(new Date().setFullYear(new Date().getFullYear() - 100))}
-                        showYearDropdown
-                        showMonthDropdown
-                        dropdownMode="select"
                         dateFormat="MM/dd/yyyy"
                         placeholderText="Select your birth date (mm/dd/yyyy)"
-                        customInput={<BirthdayInput hasError={!!errors.birthDate} />} />
+                        calendarClassName="otokwikk-calendar"
+                        renderCustomHeader={({
+                          date,
+                          changeYear,
+                          changeMonth,
+                          decreaseMonth,
+                          increaseMonth,
+                          prevMonthButtonDisabled,
+                          nextMonthButtonDisabled,
+                        }) => {
+                          const currentYear = new Date().getFullYear();
+                          const years = Array.from({ length: 85 }, (_, i) => currentYear - 17 - i);
+                          const months = [
+                            "January", "February", "March", "April", "May", "June",
+                            "July", "August", "September", "October", "November", "December"
+                          ];
+
+                          return (
+                            <div className="otokwikk-datepicker-header flex items-center justify-between px-3 py-2.5 rounded-t-2xl">
+                              <button
+                                type="button"
+                                onClick={decreaseMonth}
+                                disabled={prevMonthButtonDisabled}
+                                className="otokwikk-datepicker-btn w-8 h-8 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                                </svg>
+                              </button>
+
+                              <div className="flex items-center gap-1.5">
+                                <select
+                                  value={months[date.getMonth()]}
+                                  onChange={({ target: { value } }) => changeMonth(months.indexOf(value))}
+                                  className="otokwikk-datepicker-select font-bold text-xs px-2.5 py-1.5 rounded-xl outline-none transition-colors cursor-pointer"
+                                >
+                                  {months.map((option) => (
+                                    <option key={option} value={option} className="otokwikk-option">
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                <select
+                                  value={date.getFullYear()}
+                                  onChange={({ target: { value } }) => changeYear(Number(value))}
+                                  className="otokwikk-datepicker-select font-bold text-xs px-2.5 py-1.5 rounded-xl outline-none transition-colors cursor-pointer"
+                                >
+                                  {years.map((option) => (
+                                    <option key={option} value={option} className="otokwikk-option">
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={increaseMonth}
+                                disabled={nextMonthButtonDisabled}
+                                className="otokwikk-datepicker-btn w-8 h-8 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        }}
+                        customInput={<BirthdayInput hasError={!!errors.birthDate} />}
+                      />
                       {errors.birthDate && (
                         <p className="text-red-500 text-sm mt-1">
                           {errors.birthDate}
@@ -935,7 +1004,7 @@ function SignUpPage() {
                         spellCheck="false"
                         disabled={isGoogleSignup}
                         className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 ${isGoogleSignup ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        placeholder="john.doe@example.com"
+                        placeholder="juan.delacruz@example.com"
                       />
                       {errors.email && (
                         <p className="text-red-500 text-sm mt-1">
@@ -1251,75 +1320,245 @@ function SignUpPage() {
         .react-datepicker-wrapper {
           width: 100%;
         }
+
+        /* ── Base Dark Mode Calendar ───────────────────────────────────── */
+        .otokwikk-calendar,
         .react-datepicker {
-          font-family: inherit;
-          background-color: #111827;
-          border: 1px solid #374151;
-          border-radius: 1rem;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-          color: #fff;
-          padding: 10px;
+          font-family: inherit !important;
+          background-color: #111118 !important;
+          border: 1px solid rgba(255, 255, 255, 0.15) !important;
+          border-radius: 1.25rem !important;
+          box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+          color: #ffffff !important;
+          padding: 8px !important;
+          overflow: hidden !important;
         }
-        .react-datepicker__header {
-          background-color: transparent;
-          border-bottom: 1px solid #374151;
-          padding-top: 10px;
+
+        .otokwikk-datepicker-header {
+          background-color: #181824 !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
-        .react-datepicker__current-month, .react-datepicker-time__header, .react-datepicker-year-header {
-          color: #fff;
-          font-weight: 700;
-          font-size: 1.1rem;
+
+        .otokwikk-datepicker-btn {
+          background-color: rgba(255, 255, 255, 0.05) !important;
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+          color: #d1d5db !important;
         }
-        .react-datepicker__day-name, .react-datepicker__day, .react-datepicker__time-name {
-          color: #d1d5db;
-          width: 2.5rem;
-          line-height: 2.5rem;
-          margin: 0.2rem;
-          border-radius: 0.5rem;
-          transition: all 0.2s;
-        }
-        .react-datepicker__day:hover, .react-datepicker__month-text:hover, .react-datepicker__quarter-text:hover, .react-datepicker__year-text:hover {
-          background-color: #374151;
-          color: #fff;
-        }
-        .react-datepicker__day--selected, .react-datepicker__day--in-selecting-range, .react-datepicker__day--in-range {
+        .otokwikk-datepicker-btn:hover {
           background-color: #dc2626 !important;
-          color: #fff !important;
-          font-weight: bold;
+          color: #ffffff !important;
+          border-color: #dc2626 !important;
+        }
+
+        .otokwikk-datepicker-select {
+          background-color: #1c1c28 !important;
+          border: 1px solid rgba(255, 255, 255, 0.15) !important;
+          color: #ffffff !important;
+        }
+        .otokwikk-datepicker-select:hover,
+        .otokwikk-datepicker-select:focus {
+          border-color: #dc2626 !important;
+        }
+        .otokwikk-option {
+          background-color: #14141e !important;
+          color: #ffffff !important;
+        }
+
+        .react-datepicker__header {
+          background-color: transparent !important;
+          border-bottom: none !important;
+          padding: 0 !important;
+        }
+        .react-datepicker__month {
+          margin: 0.5rem 0.25rem !important;
+        }
+        .react-datepicker__day-names {
+          display: flex !important;
+          justify-content: space-around !important;
+          margin-top: 8px !important;
+          padding: 0 4px !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+          padding-bottom: 6px !important;
+        }
+        .react-datepicker__day-name {
+          color: #ef4444 !important;
+          font-weight: 800 !important;
+          font-size: 0.75rem !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.05em !important;
+          width: 2.3rem !important;
+          line-height: 1.5rem !important;
+          margin: 0 !important;
+          text-align: center !important;
+        }
+        .react-datepicker__week {
+          display: flex !important;
+          justify-content: space-around !important;
+        }
+        .react-datepicker__day {
+          color: #f1f5f9 !important;
+          font-weight: 600 !important;
+          font-size: 0.875rem !important;
+          width: 2.3rem !important;
+          height: 2.3rem !important;
+          line-height: 2.3rem !important;
+          margin: 2px 0 !important;
+          border-radius: 0.75rem !important;
+          transition: all 0.15s ease-in-out !important;
+          text-align: center !important;
+        }
+        .react-datepicker__day:hover {
+          background-color: rgba(220, 38, 38, 0.25) !important;
+          color: #ffffff !important;
+          transform: scale(1.08) !important;
+        }
+        .react-datepicker__day--selected,
+        .react-datepicker__day--in-selecting-range,
+        .react-datepicker__day--in-range {
+          background: linear-gradient(135deg, #dc2626, #991b1b) !important;
+          color: #ffffff !important;
+          font-weight: 800 !important;
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.5) !important;
+          transform: scale(1.08) !important;
         }
         .react-datepicker__day--keyboard-selected {
-          background-color: #b91c1c;
+          background-color: rgba(220, 38, 38, 0.3) !important;
+          color: #ffffff !important;
+        }
+        .react-datepicker__day--outside-month {
+          color: #475569 !important;
+          font-weight: 400 !important;
         }
         .react-datepicker__triangle {
-          display: none;
-        }
-        .react-datepicker__navigation-icon::before {
-          border-color: #9ca3af;
-        }
-        .react-datepicker__navigation:hover *::before {
-          border-color: #fff;
-        }
-        .react-datepicker__month-select, .react-datepicker__year-select {
-          background-color: #1f2937;
-          color: #fff;
-          border: 1px solid #4b5563;
-          border-radius: 0.5rem;
-          padding: 4px 8px;
-          outline: none;
-          cursor: pointer;
-        }
-        .react-datepicker__month-select:focus, .react-datepicker__year-select:focus {
-          border-color: #dc2626;
+          display: none !important;
         }
         .react-datepicker-popper {
-          z-index: 60;
+          z-index: 70 !important;
         }
         .react-datepicker__day--disabled {
-          color: #4b5563 !important;
+          color: #334155 !important;
+          cursor: not-allowed !important;
         }
         .react-datepicker__day--disabled:hover {
           background-color: transparent !important;
-          color: #4b5563 !important;
+          color: #334155 !important;
+          transform: none !important;
+        }
+
+        /* ── Light Mode Adaptive Styling ───────────────────────────────── */
+        html[data-theme="light"] .otokwikk-calendar,
+        html[data-theme="light"] .react-datepicker,
+        html.light .otokwikk-calendar,
+        html.light .react-datepicker {
+          background-color: #ffffff !important;
+          border: 1px solid #e2e8f0 !important;
+          box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+          color: #0f172a !important;
+        }
+
+        html[data-theme="light"] .otokwikk-datepicker-header,
+        html.light .otokwikk-datepicker-header {
+          background-color: #f8fafc !important;
+          border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        html[data-theme="light"] .otokwikk-datepicker-btn,
+        html.light .otokwikk-datepicker-btn {
+          background-color: #ffffff !important;
+          border: 1px solid #cbd5e1 !important;
+          color: #475569 !important;
+        }
+        html[data-theme="light"] .otokwikk-datepicker-btn:hover,
+        html.light .otokwikk-datepicker-btn:hover {
+          background-color: #fee2e2 !important;
+          color: #dc2626 !important;
+          border-color: #fca5a5 !important;
+        }
+
+        html[data-theme="light"] .otokwikk-datepicker-select,
+        html.light .otokwikk-datepicker-select {
+          background-color: #ffffff !important;
+          border: 1px solid #cbd5e1 !important;
+          color: #0f172a !important;
+        }
+        html[data-theme="light"] .otokwikk-datepicker-select:hover,
+        html[data-theme="light"] .otokwikk-datepicker-select:focus,
+        html.light .otokwikk-datepicker-select:hover,
+        html.light .otokwikk-datepicker-select:focus {
+          border-color: #dc2626 !important;
+        }
+        html[data-theme="light"] .otokwikk-option,
+        html.light .otokwikk-option {
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+        }
+
+        html[data-theme="light"] .react-datepicker__day-names,
+        html.light .react-datepicker__day-names {
+          border-bottom: 1px solid #f1f5f9 !important;
+        }
+
+        html[data-theme="light"] .react-datepicker__day-name,
+        html.light .react-datepicker__day-name {
+          color: #dc2626 !important;
+        }
+
+        html[data-theme="light"] .react-datepicker__day,
+        html.light .react-datepicker__day {
+          color: #1e293b !important;
+        }
+        html[data-theme="light"] .react-datepicker__day:hover,
+        html.light .react-datepicker__day:hover {
+          background-color: #fee2e2 !important;
+          color: #dc2626 !important;
+        }
+
+        html[data-theme="light"] .react-datepicker__day--selected,
+        html[data-theme="light"] .react-datepicker__day--in-selecting-range,
+        html[data-theme="light"] .react-datepicker__day--in-range,
+        html.light .react-datepicker__day--selected,
+        html.light .react-datepicker__day--in-selecting-range,
+        html.light .react-datepicker__day--in-range {
+          background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+          color: #ffffff !important;
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4) !important;
+        }
+
+        html[data-theme="light"] .react-datepicker__day--outside-month,
+        html.light .react-datepicker__day--outside-month {
+          color: #94a3b8 !important;
+        }
+
+        html[data-theme="light"] .react-datepicker__day--disabled,
+        html.light .react-datepicker__day--disabled {
+          color: #cbd5e1 !important;
+        }
+
+        /* ── Form Inputs & Selects (Theme-aware) ────────────────────────── */
+        html[data-theme="light"] input.bg-gray-900,
+        html[data-theme="light"] select.bg-gray-900,
+        html.light input.bg-gray-900,
+        html.light select.bg-gray-900 {
+          background-color: #ffffff !important;
+          border-color: #d1d5db !important;
+          color: #0f172a !important;
+        }
+        html[data-theme="light"] input.bg-gray-900::placeholder,
+        html.light input.bg-gray-900::placeholder {
+          color: #9ca3af !important;
+        }
+
+        html[data-theme="dark"] input.bg-gray-900,
+        html[data-theme="dark"] select.bg-gray-900,
+        html.dark input.bg-gray-900,
+        html.dark select.bg-gray-900 {
+          background-color: #111827 !important;
+          border-color: #374151 !important;
+          color: #ffffff !important;
+        }
+        html[data-theme="dark"] input.bg-gray-900::placeholder,
+        html.dark input.bg-gray-900::placeholder {
+          color: #6b7280 !important;
         }
 
         .custom-scrollbar::-webkit-scrollbar {

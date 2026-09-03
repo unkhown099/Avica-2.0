@@ -79,17 +79,36 @@ DEFAULT_CONTENT = {
         {
             "key": "terms",
             "title": "Terms & Conditions",
-            "body": "Use of the Otokwikk platform constitutes acceptance of our terms and conditions. Customers must agree to our policies before booking services.",
+            "body": (
+                "Welcome to Otokwikk Auto Care and Detailing Services. By creating an account, booking appointments, or utilizing our services across any of our branches, you agree to comply with and be bound by the following Terms and Conditions:\n\n"
+                "1. ACCEPTANCE OF TERMS: By accessing the Otokwikk platform and using our online appointment scheduling, vehicle recognition, and point-of-sale systems, you acknowledge that you have read, understood, and agreed to these Terms and Conditions.\n\n"
+                "2. SERVICE BOOKINGS & APPOINTMENTS: All bookings made through our platform are subject to slot availability and branch confirmation. Customers are encouraged to arrive 10-15 minutes prior to their reserved schedule. Delays exceeding 20 minutes without prior notice may result in queue rescheduling.\n\n"
+                "3. RESCHEDULING & CANCELLATIONS: Customers may reschedule or cancel their appointments via the Customer Dashboard at least 2 hours before the scheduled time. In cases where emergency rescheduling is initiated by the branch due to unforeseen maintenance or inclement weather, alternative slots will be provided for customer confirmation.\n\n"
+                "4. VEHICLE CARE & VALUABLES: While our trained technicians exercise the utmost care in handling your vehicle, customers are strongly advised to remove all personal valuables, cash, and sensitive belongings prior to turning over the vehicle for service. Otokwikk is not liable for loss or damage to unremoved personal items.\n\n"
+                "5. PRICING & PAYMENT: Service rates are calculated based on vehicle classification (Sedan, SUV, Van/Pickup, etc.) and selected packages. Payments can be settled via Cash, GCash, Bank Transfer, or Maya upon completion of service at the branch.\n\n"
+                "6. QUALITY WARRANTY & SATISFACTION: We stand behind the quality of our auto care and detailing craftsmanship. Any concerns regarding service execution must be brought to the branch manager's attention before vehicle pull-out for immediate inspection and remediation."
+            ),
         },
         {
             "key": "privacy",
             "title": "Privacy Policy",
-            "body": "We collect information to improve your experience, process bookings, and maintain secure operations. Personal data is never sold to third parties.",
+            "body": (
+                "Otokwikk is committed to protecting the privacy and confidentiality of your personal information in accordance with Republic Act No. 10173 (Data Privacy Act of 2012):\n\n"
+                "1. DATA COLLECTION: We collect personal information including your full name, contact number, email address, vehicle details (make, model, plate number), and service transaction history solely for account management, service fulfillment, and appointment reminders.\n\n"
+                "2. USE OF INFORMATION: Your data is utilized to facilitate accurate service bookings, vehicle preventive maintenance schedules, warranty tracking, and customer support communications.\n\n"
+                "3. DATA PROTECTION: All customer credentials, vehicle photos, and service records are protected with industry-standard encryption, strict access controls, and secure session management. We never sell, rent, or lease your personal information to third-party marketers.\n\n"
+                "4. YOUR RIGHTS: You have the right to access, update, or request the deletion of your personal account data at any time through your Profile Settings or by contacting our Data Protection Officer."
+            ),
         },
         {
             "key": "cookie",
             "title": "Cookie Policy",
-            "body": "We use cookies to keep you signed in, remember your preferences, and optimize performance across the Otokwikk platform.",
+            "body": (
+                "The Otokwikk web application uses essential cookies and local storage tokens to deliver a seamless, secure user experience:\n\n"
+                "1. ESSENTIAL COOKIES: Required for user authentication, maintaining secure login sessions, and theme preferences (Dark Mode / Light Mode).\n\n"
+                "2. FUNCTIONAL STORAGE: Used to remember your selected branch, active queue entries, and offline form drafts to prevent data loss.\n\n"
+                "3. CONTROL: You can configure your browser to reject non-essential cookies; however, authentication tokens are required to access member dashboards."
+            ),
         },
     ],
     "footer": {

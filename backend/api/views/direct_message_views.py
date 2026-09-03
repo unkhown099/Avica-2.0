@@ -15,10 +15,13 @@ def direct_messages_view(request, partner_id=None):
     user = request.user
     
     is_customer = hasattr(user, 'customer_profile')
-    is_employee = hasattr(user, 'staff_profile') and user.staff_profile.role == 'Employee'
+    is_staff_user = hasattr(user, 'staff_profile') and (
+        user.staff_profile.role in ['Employee', 'Staff', 'Branch Manager', 'Admin', 'super_admin', 'Business Owner']
+        or user.is_staff or user.is_superuser
+    )
     
-    if not (is_customer or is_employee):
-        return Response({"error": "Only customers and employees can use full messenger."}, status=status.HTTP_403_FORBIDDEN)
+    if not (is_customer or is_staff_user):
+        return Response({"error": "Only authenticated customers and staff members can use messenger."}, status=status.HTTP_403_FORBIDDEN)
         
     if request.method == "GET":
         if is_customer:
@@ -26,7 +29,7 @@ def direct_messages_view(request, partner_id=None):
                 customer=user.customer_profile,
                 employee_id=partner_id
             ).order_by("created_at")
-        else: # is_employee
+        else:
             messages = DirectMessage.objects.filter(
                 employee=user.staff_profile,
                 customer_id=partner_id
@@ -53,9 +56,9 @@ def direct_messages_view(request, partner_id=None):
             
         if is_customer:
             try:
-                employee = Staff.objects.get(id=partner_id, role="Employee")
+                employee = Staff.objects.get(id=partner_id)
             except Staff.DoesNotExist:
-                return Response({"error": "Employee not found."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "Staff member not found."}, status=status.HTTP_404_NOT_FOUND)
                 
             msg = DirectMessage.objects.create(
                 customer=user.customer_profile,
@@ -84,9 +87,12 @@ def direct_messages_view(request, partner_id=None):
 def direct_message_contacts_view(request):
     user = request.user
     is_customer = hasattr(user, 'customer_profile')
-    is_employee = hasattr(user, 'staff_profile') and user.staff_profile.role == 'Employee'
+    is_staff_user = hasattr(user, 'staff_profile') and (
+        user.staff_profile.role in ['Employee', 'Staff', 'Branch Manager', 'Admin', 'super_admin', 'Business Owner']
+        or user.is_staff or user.is_superuser
+    )
     
-    if not (is_customer or is_employee):
+    if not (is_customer or is_staff_user):
         return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
         
     contacts = []
@@ -103,7 +109,11 @@ def direct_message_contacts_view(request):
         ).values_list('assigned_employee_id', flat=True)
         messaged_emp_ids.update(handled_emps)
         
-        employees = Staff.objects.filter(id__in=[e for e in messaged_emp_ids if e], role="Employee")
+        # Also include all active branch staff so customer can message them
+        all_active_staff = Staff.objects.filter(status="Active").values_list('id', flat=True)
+        messaged_emp_ids.update(all_active_staff)
+        
+        employees = Staff.objects.filter(id__in=[e for e in messaged_emp_ids if e])
         
         for emp in employees:
             contacts.append({
@@ -113,7 +123,7 @@ def direct_message_contacts_view(request):
                 "type": "employee"
             })
             
-    elif is_employee:
+    elif is_staff_user:
         emp_prof = user.staff_profile
         # 1. Customers they have message history with
         messaged_cust_ids = set(DirectMessage.objects.filter(employee=emp_prof).values_list('customer_id', flat=True))
@@ -125,6 +135,18 @@ def direct_message_contacts_view(request):
         ).values_list('customer_user__customer_profile__id', flat=True)
         messaged_cust_ids.update(handled_custs)
         
+        # Also include customers with active bookings at their branch
+        if emp_prof.branch_id:
+            branch_custs = Booking.objects.filter(
+                branch_id=emp_prof.branch_id,
+                user__customer_profile__isnull=False
+            ).values_list('user__customer_profile__id', flat=True)
+            messaged_cust_ids.update(branch_custs)
+            
+        # Fallback to all customers if empty
+        if not messaged_cust_ids:
+            messaged_cust_ids = set(Customer.objects.values_list('id', flat=True)[:20])
+            
         customers = Customer.objects.filter(id__in=[c for c in messaged_cust_ids if c])
         
         for cust in customers:

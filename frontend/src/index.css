@@ -791,6 +791,112 @@ html[data-theme="light"] .border-t.bg-gray-950\/60 span.text-white {
   scrollbar-color: rgba(107, 114, 128, 0.3) transparent;
 }
 
+/* ── 18. Booking Modal & Interactive Option Cards (Light Mode) ─────────── */
+html[data-theme="light"] .fixed.top-20,
+html[data-theme="light"] .fixed.inset-y-0.right-0,
+html[data-theme="light"] div[class*="bg-\[\#0a0a0a\]"],
+html[data-theme="light"] div[class*="bg-\[\#0f172a\]"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Modal header & footer containers */
+html[data-theme="light"] .fixed.top-20 .bg-\[\#0a0a0a\],
+html[data-theme="light"] .fixed.top-20 .border-b,
+html[data-theme="light"] .fixed.top-20 .border-t {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Modal Titles & text */
+html[data-theme="light"] .fixed.top-20 h2,
+html[data-theme="light"] .fixed.top-20 h3,
+html[data-theme="light"] .fixed.top-20 h4,
+html[data-theme="light"] .fixed.inset-y-0.right-0 h2,
+html[data-theme="light"] .fixed.inset-y-0.right-0 h3 {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .fixed.top-20 .text-gray-400,
+html[data-theme="light"] .fixed.top-20 .text-gray-500,
+html[data-theme="light"] .fixed.inset-y-0.right-0 .text-gray-400,
+html[data-theme="light"] .fixed.inset-y-0.right-0 .text-gray-500 {
+  color: #64748b !important;
+}
+
+/* Interactive option cards in Step 0, Step 1, Step 2, Step 3, Step 4 */
+html[data-theme="light"] button.border-white\/8,
+html[data-theme="light"] button.border-white\/10,
+html[data-theme="light"] button.border-white\/5,
+html[data-theme="light"] .fixed.top-20 button.border,
+html[data-theme="light"] .fixed.inset-y-0.right-0 button.border {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] button.border-white\/8:hover,
+html[data-theme="light"] button.border-white\/10:hover,
+html[data-theme="light"] .fixed.top-20 button.border:hover {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+}
+
+html[data-theme="light"] button.border-white\/8 div,
+html[data-theme="light"] button.border-white\/10 div,
+html[data-theme="light"] .fixed.top-20 button.border div,
+html[data-theme="light"] .fixed.inset-y-0.right-0 button.border div {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] button.border-white\/8 div.text-gray-400,
+html[data-theme="light"] button.border-white\/8 div.text-gray-500,
+html[data-theme="light"] button.border-white\/10 div.text-gray-400,
+html[data-theme="light"] button.border-white\/10 div.text-gray-500,
+html[data-theme="light"] .fixed.top-20 button.border div.text-gray-400,
+html[data-theme="light"] .fixed.top-20 button.border div.text-gray-500 {
+  color: #64748b !important;
+}
+
+/* Active / selected option card in light mode */
+html[data-theme="light"] button.border-red-500,
+html[data-theme="light"] button.border-red-600,
+html[data-theme="light"] .fixed.top-20 button.border-red-500,
+html[data-theme="light"] .fixed.top-20 button.border-red-600 {
+  background-color: #fff1f2 !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 1px #dc2626 !important;
+}
+
+html[data-theme="light"] button.border-red-500 div,
+html[data-theme="light"] button.border-red-600 div {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] button.border-red-500 div.text-red-400,
+html[data-theme="light"] button.border-red-600 div.text-red-400 {
+  color: #dc2626 !important;
+}
+
+/* Modal footer Back button in light mode */
+html[data-theme="light"] .fixed.top-20 button.border-white\/10 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+html[data-theme="light"] .fixed.top-20 button.border-white\/10:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Step indicator dots */
+html[data-theme="light"] .fixed.top-20 .bg-white\/10 {
+  background-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -799,13 +905,230 @@ html {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75) !important;
 }
 
-/* ── Facebook JS SDK Video Embed ─────────────────────────────────────────── */
-.fb-video,
-.fb-video > span,
-.fb-video > span > iframe {
-  width: 100% !important;
-  height: 100% !important;
-  min-height: inherit !important;
-  display: block !important;
-  border: none !important;
+/* ── 19. User Profile Avatar & Navbar Icon Contrast ─────────────────────── */
+.user-profile-avatar,
+html[data-theme="light"] .user-profile-avatar,
+html[data-theme="dark"] .user-profile-avatar {
+  background-color: #dc2626 !important;
+  background-image: linear-gradient(135deg, #dc2626, #991b1b) !important;
+  color: #ffffff !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3) !important;
 }
+
+.user-profile-avatar span,
+.user-profile-avatar p,
+html[data-theme="light"] .user-profile-avatar span,
+html[data-theme="light"] .user-profile-avatar p,
+html[data-theme="dark"] .user-profile-avatar span,
+html[data-theme="dark"] .user-profile-avatar p {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Light mode header text and notification bell */
+html[data-theme="light"] header button.text-gray-400 svg,
+html[data-theme="light"] nav button.text-gray-400 svg {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] header button.text-gray-400:hover svg,
+html[data-theme="light"] nav button.text-gray-400:hover svg {
+  color: #dc2626 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ── 20. Hardcoded Hex Dark Backgrounds — Light Mode Overrides ────────────────
+   These target arbitrary-value Tailwind classes (bg-[#0a0a0a] etc.) that the
+   generic rules above cannot catch with class-prefix selectors.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── CustomerServices: Service Detail Modal ─────────────────────────────── */
+html[data-theme="light"] .bg-\[\#0a0a0a\],
+html[data-theme="light"] .bg-\[\#0f172a\],
+html[data-theme="light"] .bg-\[\#0f0f15\],
+html[data-theme="light"] .bg-\[\#111116\],
+html[data-theme="light"] .bg-\[\#16161f\],
+html[data-theme="light"] .bg-\[\#1f1f1f\],
+html[data-theme="light"] .bg-\[\#161616\] {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Dark-on-dark modal footer bars */
+html[data-theme="light"] .bg-\[\#0d0d0d\]\/80 {
+  background-color: #f8fafc !important;
+  background-image: none !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Fix text inside hex-bg containers */
+html[data-theme="light"] .bg-\[\#0a0a0a\] .text-white,
+html[data-theme="light"] .bg-\[\#0f172a\] .text-white,
+html[data-theme="light"] .bg-\[\#0f0f15\] .text-white {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .bg-\[\#0a0a0a\] .text-gray-400,
+html[data-theme="light"] .bg-\[\#0f172a\] .text-gray-400,
+html[data-theme="light"] .bg-\[\#0f0f15\] .text-gray-400 {
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .bg-\[\#0a0a0a\] .text-gray-500,
+html[data-theme="light"] .bg-\[\#0f172a\] .text-gray-500,
+html[data-theme="light"] .bg-\[\#0f0f15\] .text-gray-500 {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .bg-\[\#0a0a0a\] .border-white\/5,
+html[data-theme="light"] .bg-\[\#0a0a0a\] .border-white\/8,
+html[data-theme="light"] .bg-\[\#0a0a0a\] .border-white\/10 {
+  border-color: #e2e8f0 !important;
+}
+
+/* ── MessengerWidget dark panels ────────────────────────────────────────── */
+html[data-theme="light"] .bg-\[\#111\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Received message bubble in Messenger */
+html[data-theme="light"] .bg-\[\#1f1f1f\] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* ── CustomerFooter red strip — always dark regardless of theme ─────────── */
+html[data-theme="light"] .bg-\[\#7f1d1d\] {
+  background-color: #7f1d1d !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ── ManagerReviews dark conditional cards ───────────────────────────────── */
+html[data-theme="light"] .bg-\[\#111116\] *,
+html[data-theme="light"] .bg-\[\#16161f\] * {
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .bg-\[\#111116\] input,
+html[data-theme="light"] .bg-\[\#111116\] textarea,
+html[data-theme="light"] .bg-\[\#16161f\] input,
+html[data-theme="light"] .bg-\[\#16161f\] textarea,
+html[data-theme="light"] .bg-\[\#16161f\] select {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* ── 21. Semi-transparent dark overlays — lighter in light mode ────────────── */
+html[data-theme="light"] .bg-black\/95:not(.landing-hero *) {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+}
+
+html[data-theme="light"] .bg-black\/80:not(.landing-hero *),
+html[data-theme="light"] .bg-black\/75:not(.landing-hero *),
+html[data-theme="light"] .bg-black\/70:not(.landing-hero *) {
+  background-color: rgba(15, 23, 42, 0.35) !important;
+}
+
+/* ── 22. Booking step progress / white opacity text ───────────────────────── */
+html[data-theme="light"] .text-white\/30:not(.landing-hero *),
+html[data-theme="light"] .text-white\/40:not(.landing-hero *),
+html[data-theme="light"] .text-white\/50:not(.landing-hero *),
+html[data-theme="light"] .text-white\/60:not(.landing-hero *) {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="light"] .text-white\/70:not(.landing-hero *):not(button *):not(a *) {
+  color: #64748b !important;
+}
+
+/* ── 23. Status badge color variants not yet covered ──────────────────────── */
+html[data-theme="light"] .bg-amber-500\/20:not(.landing-hero *) {
+  background-color: #fef3c7 !important;
+  color: #78350f !important;
+  border-color: #fde68a !important;
+}
+
+html[data-theme="light"] .bg-orange-500\/20:not(.landing-hero *) {
+  background-color: #ffedd5 !important;
+  color: #7c2d12 !important;
+  border-color: #fed7aa !important;
+}
+
+html[data-theme="light"] .bg-cyan-500\/20:not(.landing-hero *),
+html[data-theme="light"] .bg-sky-500\/20:not(.landing-hero *) {
+  background-color: #e0f2fe !important;
+  color: #075985 !important;
+  border-color: #bae6fd !important;
+}
+
+html[data-theme="light"] .bg-violet-500\/20:not(.landing-hero *),
+html[data-theme="light"] .bg-purple-500\/20:not(.landing-hero *) {
+  background-color: #ede9fe !important;
+  color: #4c1d95 !important;
+  border-color: #ddd6fe !important;
+}
+
+html[data-theme="light"] .bg-rose-500\/20:not(.landing-hero *) {
+  background-color: #fff1f2 !important;
+  color: #9f1239 !important;
+  border-color: #fecdd3 !important;
+}
+
+html[data-theme="light"] .bg-teal-500\/20:not(.landing-hero *),
+html[data-theme="light"] .bg-lime-500\/20:not(.landing-hero *) {
+  background-color: #f0fdf4 !important;
+  color: #14532d !important;
+  border-color: #bbf7d0 !important;
+}
+
+html[data-theme="light"] .bg-fuchsia-500\/20:not(.landing-hero *) {
+  background-color: #fdf4ff !important;
+  color: #701a75 !important;
+  border-color: #f5d0fe !important;
+}
+
+/* ── 24. Ring/outline utilities ───────────────────────────────────────────── */
+html[data-theme="light"] .ring-white\/10,
+html[data-theme="light"] .ring-white\/5 {
+  --tw-ring-color: rgba(203, 213, 225, 0.5) !important;
+}
+
+/* ── 25. Gray-on-gray text corrections ────────────────────────────────────── */
+html[data-theme="light"] .text-gray-700:not(.landing-hero *) {
+  color: #374151 !important;
+}
+
+html[data-theme="light"] .text-gray-800:not(.landing-hero *) {
+  color: #1f2937 !important;
+}
+
+/* ── 26. Divider and inner borders not yet covered ────────────────────────── */
+html[data-theme="light"] .border-white\/8:not(.landing-hero *) {
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .border-white\/15:not(.landing-hero *) {
+  border-color: #e2e8f0 !important;
+}
+
+/* ── 27. Hover states for ghost buttons in modals ─────────────────────────── */
+html[data-theme="light"] button.hover\:bg-white\/5:hover:not(.landing-hero *):not(.bg-red-600),
+html[data-theme="light"] button.hover\:bg-white\/8:hover:not(.landing-hero *):not(.bg-red-600) {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* ── 28. Category badges inside service cards (pill on dark image overlay) ── */
+html[data-theme="light"] .bg-black\/60.backdrop-blur-md {
+  background-color: rgba(15, 23, 42, 0.75) !important;
+  color: #ffffff !important;
+}
+

@@ -1156,4 +1156,4 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
   );
 }
 
-export default CustomerDashboard;
+export default CustomerDashboard;

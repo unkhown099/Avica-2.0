@@ -68,6 +68,11 @@ const CATEGORY_ICON = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
+  "Preventive Maintenance (PMS)": (
+    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  ),
   Repair: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 11-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
@@ -1491,9 +1496,10 @@ function NewBookingModal({
   const availableBranchesForSelectedServices = useMemo(() => {
     if (!form.services || form.services.length === 0) return branches;
     return branches.filter((b) =>
-      form.services.every((service) =>
-        service.branches?.some((sb) => sb.id === b.id),
-      ),
+      form.services.every((service) => {
+        if (!service.branches || service.branches.length === 0) return true;
+        return service.branches.some((sb) => sb.id === b.id);
+      }),
     );
   }, [branches, form.services]);
 
@@ -1802,8 +1808,16 @@ function NewBookingModal({
                           }}
                           className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
                         >
-                          <div className="text-lg shrink-0">
-                            {CATEGORY_ICON[s.category] ?? "🔧"}
+                          <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-white/5 flex items-center justify-center border border-white/10">
+                            {s.image ? (
+                              <img
+                                src={s.image.startsWith('http') ? s.image : `${API_BASE}${s.image}`}
+                                alt={s.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-base">{CATEGORY_ICON[s.category] ?? "🔧"}</span>
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div
@@ -1852,29 +1866,43 @@ function NewBookingModal({
                                 : [...(form.services || []), s],
                             );
                           }}
-                          className={`p-4 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                          className={`p-3.5 rounded-2xl border text-left transition-all duration-200 relative ${active ? "border-red-500 bg-red-600/12 shadow-lg shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
                         >
-                          <div className="text-2xl mb-2">
-                            {CATEGORY_ICON[s.category] ?? "🔧"}
-                          </div>
-                          <div
-                            className={`font-bold text-sm mb-1 ${active ? "text-white" : "text-gray-300"}`}
-                          >
-                            {s.name}
-                          </div>
-                          <div className="text-red-400 font-black text-base">
-                            ₱{parseFloat(s.price || 0).toLocaleString()}
-                          </div>
-                          {s.duration && (
-                            <div className="text-gray-600 text-[10px] mt-1">
-                              ⏱ {s.duration}
+                          <div className="flex items-center gap-3 mb-2.5">
+                            {s.image ? (
+                              <img
+                                src={s.image.startsWith('http') ? s.image : `${API_BASE}${s.image}`}
+                                alt={s.name}
+                                className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-red-600/10 border border-white/10 flex items-center justify-center text-xl shrink-0">
+                                {CATEGORY_ICON[s.category] ?? "🔧"}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1 pr-6">
+                              <div
+                                className={`font-bold text-sm truncate ${active ? "text-red-400" : "text-white"}`}
+                              >
+                                {s.name}
+                              </div>
+                              {s.category && (
+                                <div className="text-gray-400 text-[10px] truncate">
+                                  {s.category}
+                                </div>
+                              )}
                             </div>
-                          )}
-                          {s.category && (
-                            <div className="text-gray-600 text-[10px]">
-                              {s.category}
+                          </div>
+                          <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                            <div className="text-red-400 font-black text-sm">
+                              ₱{parseFloat(s.price || 0).toLocaleString()}
                             </div>
-                          )}
+                            {s.duration && (
+                              <div className="text-gray-400 text-[10px] font-medium">
+                                ⏱ {s.duration}
+                              </div>
+                            )}
+                          </div>
                           {active && (
                             <div className="absolute top-3 right-3">
                               <SelectedBadge />
@@ -1944,13 +1972,19 @@ function NewBookingModal({
                               if (bookingMode === "specific")
                                 set("preferredEmployee", null);
                             }}
-                            className={`w-full p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-3 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                            className={`w-full p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-3 cursor-pointer ${
+                              active
+                                ? "border-red-500 bg-red-600/20 shadow-md shadow-red-600/20 ring-1 ring-red-500/30"
+                                : "border-white/10 bg-white/[0.04] hover:border-red-500/40 hover:bg-white/[0.08]"
+                            }`}
                           >
                             <div
-                              className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 ${active ? "bg-red-600 shadow-md shadow-red-600/40" : "bg-white/8"}`}
+                              className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 ${
+                                active ? "bg-red-600 shadow-md shadow-red-600/40" : "bg-white/10"
+                              }`}
                             >
                               <svg
-                                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${active ? "text-white" : "text-gray-500"}`}
+                                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${active ? "text-white" : "text-gray-400"}`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -1965,18 +1999,18 @@ function NewBookingModal({
                             </div>
                             <div className="flex-1 min-w-0">
                               <div
-                                className={`font-bold text-xs sm:text-sm mb-0.5 ${active ? "text-white" : "text-gray-200"}`}
+                                className={`font-bold text-xs sm:text-sm mb-0.5 ${active ? "text-red-400" : "text-white"}`}
                               >
                                 {b.name}
                               </div>
-                              <div className="text-gray-500 text-[9px] sm:text-[10px] truncate">
+                              <div className="text-gray-400 text-[9px] sm:text-[10px] truncate">
                                 {b.address}
                               </div>
                               <div className="flex items-center gap-2 flex-wrap mt-1">
-                                <span className="text-gray-600 text-[9px] sm:text-[10px]">
+                                <span className="text-gray-500 text-[9px] sm:text-[10px]">
                                   {b.hours}
                                 </span>
-                                <span className="text-green-400 text-[9px] sm:text-[10px] font-semibold">
+                                <span className="text-emerald-400 text-[9px] sm:text-[10px] font-bold">
                                   {b.slots} slots open
                                 </span>
                               </div>
@@ -2046,9 +2080,13 @@ function NewBookingModal({
                         setBookingMode(key);
                         if (key === "general") set("preferredEmployee", null);
                       }}
-                      className={`relative p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 shadow-md shadow-red-600/15 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                      className={`relative p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
+                        active
+                          ? "border-red-500 bg-red-600/20 shadow-md shadow-red-600/20 ring-1 ring-red-500/30"
+                          : "border-white/10 bg-white/[0.04] hover:border-red-500/40 hover:bg-white/[0.08]"
+                      }`}
                     >
-                      <div className="text-white font-bold text-sm sm:text-base pr-6">
+                      <div className={`font-bold text-sm sm:text-base pr-6 ${active ? "text-red-400" : "text-white"}`}>
                         {label}
                       </div>
                       <div className="text-gray-400 text-[10px] sm:text-xs mt-1">
@@ -2079,7 +2117,7 @@ function NewBookingModal({
                       No active employees for this branch.
                     </p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                       {employees.map((emp) => {
                         const active = form.preferredEmployee?.id === emp.id;
                         return (
@@ -2087,14 +2125,18 @@ function NewBookingModal({
                             key={emp.id}
                             type="button"
                             onClick={() => set("preferredEmployee", emp)}
-                            className={`relative w-full p-3 rounded-xl border text-left transition-all duration-200 ${active ? "border-red-500 bg-red-600/12 ring-1 ring-red-500/30" : "border-white/8 bg-white/3 hover:border-red-500/40 hover:bg-red-600/8"}`}
+                            className={`relative w-full p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                              active
+                                ? "border-red-500 bg-red-600/20 ring-1 ring-red-500/30"
+                                : "border-white/10 bg-white/[0.04] hover:border-red-500/40 hover:bg-white/[0.08]"
+                            }`}
                           >
                             <div
-                              className={`font-semibold text-xs sm:text-sm pr-6 ${active ? "text-white" : "text-gray-200"}`}
+                              className={`font-semibold text-xs sm:text-sm pr-6 ${active ? "text-red-400 font-bold" : "text-white"}`}
                             >
                               {emp.full_name}
                             </div>
-                            <div className="text-gray-500 text-[10px]">
+                            <div className="text-gray-400 text-[10px]">
                               Branch:{" "}
                               {emp.branch || form.branch?.name || "Unassigned"}
                             </div>
@@ -2128,7 +2170,7 @@ function NewBookingModal({
                   min={tomorrowISO()}
                   value={form.date}
                   onChange={(e) => set("date", e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 [color-scheme:dark]"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-red-500 transition-colors [color-scheme:dark]"
                 />
                 {form.date && form.date < tomorrowISO() && (
                   <p className="text-yellow-500 text-[8px] sm:text-[10px] mt-1">
@@ -2151,31 +2193,13 @@ function NewBookingModal({
               <div>
                 <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   Pick a Time Slot
-                  {checkingAvailability && (
-                    <span className="ml-2 text-gray-500 font-normal normal-case text-[9px]">
-                      (Checking…)
-                    </span>
-                  )}
                 </p>
-                {form.date &&
-                  availableSlots === null &&
-                  !checkingAvailability && (
-                    <p className="text-gray-500 text-[10px] sm:text-xs mb-2">
-                      Select a date and branch to see slots.
-                    </p>
-                  )}
-                {availableSlots !== null && visibleTimeSlots.length === 0 && (
-                  <p className="text-gray-500 text-[10px] sm:text-xs mb-2">
-                    No available slots for this date.
-                  </p>
-                )}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {visibleTimeSlots.map((t) => {
                     const active = form.time === t;
-                    const slotsLoaded = availableSlots !== null;
-                    const slotAvailable =
-                      slotsLoaded && availableSlots[t] === true;
                     const dateValid = form.date && form.date >= todayISO();
+                    const slotAvailable = isSlotAvailable(t);
+                    const slotsLoaded = availableSlots !== null;
                     const isDisabled =
                       !slotsLoaded ||
                       !slotAvailable ||
@@ -2201,7 +2225,13 @@ function NewBookingModal({
                                   ? "This slot is fully booked"
                                   : ""
                         }
-                        className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${active && !isDisabled ? "border-red-500 bg-red-600/20 text-white shadow-md shadow-red-600/20 ring-1 ring-red-500/40" : isDisabled ? "border-white/5 bg-white/3 text-gray-600 cursor-not-allowed opacity-40" : "border-white/8 bg-white/3 text-gray-400 hover:border-red-500/40 hover:bg-red-600/8 hover:text-white cursor-pointer"}`}
+                        className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 ${
+                          active && !isDisabled
+                            ? "border-red-500 bg-red-600/25 text-white shadow-md shadow-red-600/30 ring-1 ring-red-500/40"
+                            : isDisabled
+                              ? "border-white/5 bg-white/[0.02] text-gray-600 cursor-not-allowed opacity-40"
+                              : "border-white/10 bg-white/[0.04] text-gray-300 hover:border-red-500/40 hover:bg-white/[0.08] hover:text-white cursor-pointer"
+                        }`}
                       >
                         {t}
                         {isDisabled &&
@@ -2222,21 +2252,10 @@ function NewBookingModal({
                     );
                   })}
                 </div>
-                {form.date &&
-                  form.date >= todayISO() &&
-                  !checkingAvailability &&
-                  availableSlots !== null &&
-                  !hasActiveBooking && (
-                    <p className="text-gray-500 text-[8px] sm:text-[10px] mt-2">
-                      {availableCount > 0
-                        ? `${availableCount} slot${availableCount !== 1 ? "s" : ""} available`
-                        : "No slots available. Please choose another day."}
-                    </p>
-                  )}
               </div>
 
               {form.date && form.time && (
-                <div className="flex items-center gap-2 bg-white/4 rounded-xl px-3 py-2.5 border border-white/8">
+                <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2.5 border border-white/10">
                   <svg
                     className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 shrink-0"
                     fill="none"
@@ -2264,54 +2283,55 @@ function NewBookingModal({
           {/* ── Step 4: Details ── */}
           {step === 4 && (
             <div className="space-y-4">
-              {form.damageData && (
-                <div className="bg-blue-600/10 border border-blue-600/20 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <svg
-                      className="w-4 h-4 text-blue-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span className="text-blue-400 font-semibold text-[10px] sm:text-xs">
-                      Damage Detection Data Included
-                    </span>
-                  </div>
-                  <p className="text-gray-400 text-[9px] sm:text-[10px]">
-                    AI analysis results will be attached to your booking
-                  </p>
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                  Vehicle Size Class <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { key: "small", label: "Small / Sedan" },
+                    { key: "medium", label: "Medium / CUV" },
+                    { key: "large", label: "Large / SUV" },
+                    { key: "extra_large", label: "XL / Van / Truck" },
+                  ].map(({ key, label }) => {
+                    const active = (form.vehicleSize || "small") === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => set("vehicleSize", key)}
+                        className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                          active
+                            ? "border-red-500 bg-red-600/20 text-red-400 font-bold shadow-md shadow-red-600/20 ring-1 ring-red-500/30"
+                            : "border-white/10 bg-white/[0.04] text-gray-300 hover:border-red-500/40 hover:bg-white/[0.08]"
+                        }`}
+                      >
+                        <div className="text-[11px] sm:text-xs font-semibold">
+                          {label}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
 
               {[
                 {
-                  label: "Vehicle Type",
+                  label: "Vehicle (Make & Model)",
                   key: "vehicle",
-                  placeholder: "e.g. Toyota Vios, Honda Civic...",
+                  placeholder: "e.g., Toyota Vios 2020",
                   apiKey: "vehicle",
                 },
                 {
                   label: "Plate Number",
                   key: "plateNumber",
-                  placeholder: "e.g. ABC1234 (max 8 chars)",
+                  placeholder: "e.g., ABC1234",
                   apiKey: "plate_number",
                 },
               ].map(({ label, key, placeholder, apiKey }) => (
                 <div key={key}>
                   <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
                     {label} <span className="text-red-500">*</span>
-                    {key === "plateNumber" && (
-                      <span className="ml-2 text-gray-600 font-normal normal-case text-[9px]">
-                        Letters & numbers only · max 8 chars
-                      </span>
-                    )}
                   </label>
                   <input
                     type="text"
@@ -2323,12 +2343,12 @@ function NewBookingModal({
                         set("plateNumber", sanitizePlate(e.target.value));
                       else set(key, e.target.value);
                     }}
-                    className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 ${fieldErrors[apiKey] ? "border-red-500" : "border-white/10"}`}
+                    className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-500 focus:outline-none focus:border-red-500 transition-all duration-200 ${fieldErrors[apiKey] ? "border-red-500" : "border-white/10"}`}
                   />
                   {key === "plateNumber" && (
                     <div className="flex items-center justify-between mt-1">
                       <p
-                        className={`text-[9px] sm:text-[10px] transition-colors ${form.plateNumber.length === 8 ? "text-yellow-500" : "text-gray-600"}`}
+                        className={`text-[9px] sm:text-[10px] transition-colors ${form.plateNumber.length === 8 ? "text-yellow-500" : "text-gray-500"}`}
                       >
                         {form.plateNumber.length}/8
                       </p>
@@ -2351,7 +2371,7 @@ function NewBookingModal({
                 <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
                   Employee Assignment
                 </label>
-                <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm">
+                <div className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm font-semibold">
                   {bookingMode === "specific"
                     ? form.preferredEmployee?.full_name ||
                       "Specific employee selected"
@@ -2362,7 +2382,7 @@ function NewBookingModal({
               <div>
                 <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
                   Special Requests{" "}
-                  <span className="text-gray-600 font-normal normal-case">
+                  <span className="text-gray-500 font-normal normal-case">
                     (optional)
                   </span>
                 </label>
@@ -2371,13 +2391,13 @@ function NewBookingModal({
                   placeholder="Specific areas of concern, access instructions..."
                   value={form.notes}
                   onChange={(e) => set("notes", e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-600 focus:outline-none focus:border-red-500 hover:border-white/20 transition-all duration-200 resize-none"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm placeholder-gray-500 focus:outline-none focus:border-red-500 resize-none transition-all duration-200"
                 />
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/3 overflow-hidden">
-                <div className="px-3 sm:px-4 py-2.5 border-b border-white/8">
-                  <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                <div className="px-3 sm:px-4 py-2.5 border-b border-white/10 bg-white/[0.02]">
+                  <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-widest">
                     Booking Summary
                   </p>
                 </div>
@@ -2423,7 +2443,7 @@ function NewBookingModal({
                       key={label}
                       className="flex items-center justify-between px-3 sm:px-4 py-2"
                     >
-                      <span className="text-gray-500 text-[10px] sm:text-xs">
+                      <span className="text-gray-400 text-[10px] sm:text-xs font-medium">
                         {label}
                       </span>
                       <span
@@ -2441,7 +2461,7 @@ function NewBookingModal({
           {/* Remove the error display here since we'll use toast instead */}
         </div>
 
-        <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
+        <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-white/8 flex-shrink-0 bg-white dark:bg-[#0a0a0a]">
           <button
             type="button"
             onClick={
@@ -2542,6 +2562,78 @@ function NewBookingModal({
         </div>
       )}
     </>
+  );
+}
+
+// ─── Booking Success Confirmation Modal ──────────────────────────────────────
+function BookingSuccessModal({ booking, onClose }) {
+  if (!booking) return null;
+  const serviceName = booking.service_name || booking.service || "Auto Care Service";
+  const branchName = booking.branch?.name || booking.branch_name || "Otokwikk Branch";
+
+  return (
+    <CenterModal onClose={onClose}>
+      <div className="p-6 sm:p-8 text-center space-y-5">
+        {/* Animated Check Icon */}
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-500/20 border-2 border-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20 animate-in zoom-in duration-300">
+          <svg className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        <div>
+          <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-black uppercase tracking-wider">
+            Booking Placed
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-white mt-2">
+            Appointment Submitted!
+          </h2>
+          <p className="text-gray-400 text-xs sm:text-sm mt-1">
+            Your appointment has been queued and is pending branch confirmation.
+          </p>
+        </div>
+
+        {/* Appointment Details Box */}
+        <div className="bg-black/40 border border-white/10 rounded-2xl p-4 text-left space-y-2.5 text-xs">
+          <div className="flex justify-between items-center pb-2 border-b border-white/5">
+            <span className="text-gray-400">Booking ID</span>
+            <span className="text-white font-mono font-bold">#{booking.id || "NEW"}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-400">Service</span>
+            <span className="text-white font-bold text-right truncate max-w-[200px]">{serviceName}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-400">Branch</span>
+            <span className="text-white font-semibold">{branchName}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-400">Date & Time</span>
+            <span className="text-red-400 font-bold">{booking.date} at {booking.time}</span>
+          </div>
+          {booking.vehicle && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Vehicle</span>
+              <span className="text-white font-semibold">{booking.vehicle} ({booking.plate_number || "—"})</span>
+            </div>
+          )}
+          {booking.price && (
+            <div className="flex justify-between items-center pt-2 border-t border-white/5">
+              <span className="text-gray-400 font-bold">Estimated Total</span>
+              <span className="text-emerald-400 font-black text-sm">₱{Number(booking.price).toLocaleString()}</span>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-red-600/30 transition-all cursor-pointer"
+        >
+          View in My Bookings
+        </button>
+      </div>
+    </CenterModal>
   );
 }
 
@@ -3365,6 +3457,7 @@ function BookingsPage() {
   const [customerRescheduleBooking, setCustomerRescheduleBooking] =
     useState(null);
   const [receiptBooking, setReceiptBooking] = useState(null);
+  const [confirmedBookingData, setConfirmedBookingData] = useState(null);
   const [toast, setToast] = useState(null);
   const [chatQueueId, setChatQueueId] = useState(null);
 
@@ -3533,7 +3626,12 @@ function BookingsPage() {
     setShowDamageModal(false);
     setDamageData(null);
     setPrefillServiceId(null);
+    setPrefillServiceName(null);
+    setPrefillVehicleSize(null);
+    setPrefillVehicle("");
+    setPrefillPlateNumber("");
     setPage(1);
+    setConfirmedBookingData(newBooking);
     showToast("Your booking was submitted successfully!");
   };
 
@@ -4052,6 +4150,12 @@ function BookingsPage() {
         <ReceiptModal
           booking={receiptBooking}
           onClose={() => setReceiptBooking(null)}
+        />
+      )}
+      {confirmedBookingData && (
+        <BookingSuccessModal
+          booking={confirmedBookingData}
+          onClose={() => setConfirmedBookingData(null)}
         />
       )}
       {toast && (
