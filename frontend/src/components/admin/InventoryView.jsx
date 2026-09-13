@@ -8,7 +8,7 @@ import {
 import { useInventory } from "../../hooks/useDashboard";
 
 export default function InventoryView() {
-  const { data: inventory, loading, error } = useInventory();
+  const { data: inventory, loading } = useInventory();
 
   const items = inventory ?? [];
 

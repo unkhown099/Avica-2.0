@@ -268,7 +268,7 @@ def _write_csv_report(report, summary, sections):
     filename = f"report_{report.id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
     file_path = reports_dir / filename
 
-    with file_path.open("w", newline="", encoding="utf-8") as csvfile:
+    with file_path.open("w", newline="", encoding="utf-8-sig") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Business Intelligence Report"])
         writer.writerow(["Report Type", report.report_type])

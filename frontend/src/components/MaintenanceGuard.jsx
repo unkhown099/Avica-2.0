@@ -1,6 +1,6 @@
 // components/MaintenanceGuard.jsx
 import React, { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useMaintenanceGuard } from "../hooks/useMaintenanceGuard";
 import MaintenancePage from "../pages/MaintenancePage";
 
@@ -22,7 +22,6 @@ function MaintenanceCheckingScreen() {
 
 function MaintenanceGuard({ children }) {
   const location = useLocation();
-  const navigate = useNavigate();
   const { 
     shouldShowMaintenance, 
     maintenanceMessage, 

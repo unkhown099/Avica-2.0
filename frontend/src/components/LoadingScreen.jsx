@@ -190,7 +190,7 @@ const LoadingScreen = ({ onLoadingComplete }) => {
             [1030, 44, 55, 120],
             [1080, 36, 70, 140],
             [1145, 52, 55, 115],
-          ].map(([x, gap, w, h], i) => (
+          ].map(([x, _gap, w, h], i) => (
             <rect
               key={i}
               x={x}

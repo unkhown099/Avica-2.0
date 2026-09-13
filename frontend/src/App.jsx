@@ -20,6 +20,8 @@ import ResetPassword from "./pages/ResetPassword.jsx";
 import { ChatProvider } from "./context/ChatContext.jsx";
 import ChatContainer from "./components/ChatContainer.jsx";
 import { useAuth } from "./hooks/useAuth.js";
+import { AnimatePresence } from "framer-motion";
+import PageTransition from "./components/PageTransition.jsx";
 
 // ── Maintenance components ─────────────────────────────────────────────────────
 import MaintenanceGuard from "./components/MaintenanceGuard.jsx";
@@ -153,13 +155,14 @@ function Layout() {
              customer / guest → sees the MaintenancePage wall
       */}
       <MaintenanceGuard>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/maintenance" element={<MaintenancePage />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
+            <Route path="/maintenance" element={<MaintenancePage />} />
+            <Route path="/signup" element={<PageTransition><Signup /></PageTransition>} />
+            <Route path="/signin" element={<PageTransition><SignIn /></PageTransition>} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* ── Super Admin ───────────────────────────────────────────────── */}
           <Route
@@ -663,7 +666,8 @@ function Layout() {
           />
 
           <Route path="*" element={<ErrorPage />} />
-        </Routes>
+          </Routes>
+        </AnimatePresence>
       </MaintenanceGuard>
     </>
   );
@@ -671,7 +675,6 @@ function Layout() {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
   const [contentReady, setContentReady] = useState(false);
   const [contentVisible, setContentVisible] = useState(false);
 
@@ -701,14 +704,12 @@ function App() {
   const handleLoadingComplete = () => {
     if (contentReady) {
       setContentVisible(true);
-      setIsLoading(false);
     } else {
       const check = setInterval(() => {
         setContentReady((ready) => {
           if (ready) {
             clearInterval(check);
             setContentVisible(true);
-            setIsLoading(false);
           }
           return ready;
         });

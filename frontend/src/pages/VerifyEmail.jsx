@@ -38,7 +38,7 @@ function VerifyEmail() {
                 } else {
                     setStatus("error");
                 }
-            } catch (err) {
+            } catch {
                 setStatus("error");
             }
         };

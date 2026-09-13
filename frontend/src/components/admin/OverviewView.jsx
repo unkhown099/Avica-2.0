@@ -11,7 +11,7 @@ import {
 
 const SERVICE_COLORS = ["#ef4444", "#a855f7", "#3b82f6", "#10b981", "#f59e0b"];
 
-export default function OverviewView({ data, loading, error }) {
+export default function OverviewView({ data, loading, _error }) {
   const stats = data?.stats ?? null;
   const transactions = data?.recent_transactions ?? [];
   const chart = data?.chart ?? null;

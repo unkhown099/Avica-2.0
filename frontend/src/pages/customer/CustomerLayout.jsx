@@ -15,7 +15,7 @@ const PAGE_TITLES = {
   "/help": "Help",
 };
 
-function CustomerLayout({ children, title = "", subtitle = "" }) {
+function CustomerLayout({ children, _title = "", _subtitle = "" }) {
   const [user, setUser] = useState(() => getUserFromSession());
   const location = useLocation();
 

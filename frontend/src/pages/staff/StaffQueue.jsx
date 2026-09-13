@@ -138,13 +138,6 @@ function formatTime(date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDate(date) {
-  return date.toLocaleDateString([], {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  });
-}
 
 function getEntryScheduleDisplay(entry) {
   if (entry?.source === "booking") {
@@ -541,7 +534,7 @@ function QueueDetailModal({
   employees,
   onAction,
   onAssign,
-  onMessageCustomer,
+  onMessageCustomer: _onMessageCustomer,
   actionLoading,
   assignLoading,
 }) {
@@ -1149,7 +1142,6 @@ function StaffQueue() {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(null);
   const [assignLoading, setAssignLoading] = useState(null);
-  const [chatQueueId, setChatQueueId] = useState(null);
   const [showWalkIn, setShowWalkIn] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [draggingEntry, setDraggingEntry] = useState(null);
@@ -1189,7 +1181,7 @@ function StaffQueue() {
       if (!res.ok) return;
       const data = await res.json();
       setEmployees(Array.isArray(data) ? data : []);
-    } catch { }
+    } catch { /* fail silently */ }
   }, []);
 
   useEffect(() => {

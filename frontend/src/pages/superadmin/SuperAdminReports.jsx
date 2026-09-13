@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 import { useTheme } from "../../context/ThemeContext.jsx";
+import { exportToCSV } from "../../components/admin/DashboardUI.jsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -468,6 +469,40 @@ export default function SuperAdminReports() {
       .length,
   };
 
+  const handleExportCSV = () => {
+    if (activeTab === "audit-logs") {
+      const headers = ["ID", "Timestamp", "User", "Action", "Module", "IP Address", "Status", "Details"];
+      const rows = filteredData.map((log) => [
+        log.id ?? "",
+        log.timestamp ? new Date(log.timestamp).toLocaleString("en-PH") : "",
+        log.user || log.username || "System",
+        log.action || "",
+        log.module || "",
+        log.ip_address || "",
+        log.status || "",
+        typeof log.details === "object" ? JSON.stringify(log.details) : (log.details || ""),
+      ]);
+      exportToCSV(rows, headers, `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`);
+    } else {
+      const headers = ["ID", "Timestamp", "User", "Action Type", "Target", "IP Address", "Status", "Details"];
+      const rows = filteredData.map((action) => [
+        action.id ?? "",
+        action.timestamp ? new Date(action.timestamp).toLocaleString("en-PH") : "",
+        action.user || action.username || "System",
+        action.action_type || action.type || "",
+        action.target || "",
+        action.ip_address || "",
+        action.status || "",
+        typeof action.details === "object" ? JSON.stringify(action.details) : (action.details || ""),
+      ]);
+      exportToCSV(rows, headers, `user-actions-${new Date().toISOString().slice(0, 10)}.csv`);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <SuperAdminLayout>
@@ -488,10 +523,28 @@ export default function SuperAdminReports() {
                 platform.
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleExportCSV}
+                className="rounded-xl bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-all flex items-center gap-2 border border-white/5"
+              >
+                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export CSV
+              </button>
+              <button
+                onClick={handlePrint}
+                className="rounded-xl bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-all flex items-center gap-2 border border-white/5"
+              >
+                <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print
+              </button>
               <button
                 onClick={handleRefresh}
-                className="rounded-xl bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 transition-all flex items-center gap-2"
+                className="rounded-xl bg-red-600 hover:bg-red-700 px-4 py-2 text-sm font-medium text-white transition-all flex items-center gap-2"
               >
                 <IconRefresh className="w-4 h-4" />
                 Refresh

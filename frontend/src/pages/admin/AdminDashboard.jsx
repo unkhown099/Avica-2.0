@@ -19,6 +19,7 @@ import html2canvas from "html2canvas";
 import AdminLayout from "./AdminLayout.jsx";
 import { useOverview } from "../../hooks/useDashboard";
 import { ErrorBanner, exportToCSV } from "../../components/admin/DashboardUI";
+import KpiDetailModal from "../../components/admin/KpiDetailModal";
 
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
@@ -145,15 +146,65 @@ const STATUS_LABEL = {
 };
 
 // ── Small reusable components ─────────────────────────────────────────────────
-function StatCard({ title, value, icon, accentBg, accentText, border, sub }) {
+function StatCard({ title, value, icon, accentBg, accentText, border, sub, onClick }) {
+  const isClickable = typeof onClick === "function";
   return (
-    <div className={`bg-gray-900/60 border ${border} rounded-xl sm:rounded-2xl p-3 sm:p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}>
+    <div
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        isClickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`group relative text-left bg-white dark:bg-gray-900/60 border border-gray-200/90 dark:${border} shadow-sm dark:shadow-none rounded-xl sm:rounded-2xl p-3 sm:p-5 backdrop-blur-sm transition-all duration-200 select-none ${
+        isClickable
+          ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80 hover:border-gray-300 dark:hover:border-white/30 hover:-translate-y-1 hover:shadow-xl hover:shadow-gray-300/30 dark:hover:shadow-black/50 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-red-500/50"
+          : "hover:border-opacity-60"
+      }`}
+    >
       <div className="flex items-start justify-between mb-2 sm:mb-4">
-        <div className={`${accentBg} ${accentText} p-1.5 sm:p-3 rounded-lg sm:rounded-xl`}>{icon}</div>
+        <div
+          className={`${accentBg} ${accentText} p-1.5 sm:p-3 rounded-lg sm:rounded-xl transition-transform duration-200 group-hover:scale-110`}
+        >
+          {icon}
+        </div>
+        {isClickable && (
+          <div className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white bg-gray-100 dark:bg-white/5 group-hover:bg-gray-200 dark:group-hover:bg-white/10 px-2 py-0.5 rounded-full transition-all">
+            <span>View Data</span>
+            <svg
+              className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </div>
+        )}
       </div>
-      <div className="text-lg sm:text-2xl font-black text-white mb-0.5 sm:mb-1 truncate">{value ?? "—"}</div>
-      <div className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1 truncate">{title}</div>
-      {sub && <div className={`text-[10px] sm:text-xs font-semibold ${accentText} truncate`}>{sub}</div>}
+      <div className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white mb-0.5 sm:mb-1 truncate transition-colors">
+        {value ?? "—"}
+      </div>
+      <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-0.5 sm:mb-1 truncate group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+        {title}
+      </div>
+      {sub && (
+        <div className={`text-[10px] sm:text-xs font-semibold ${accentText} truncate`}>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
@@ -343,7 +394,7 @@ function dateMatchesFilters(date, { period, weekFilter, monthFilter, quarterFilt
 export default function AdminDashboard({ dataScope = "admin" }) {
   const location = useLocation();
   const [activeView, setActiveView] = useState("overview");
-  const [activeExportSection, setActiveExportSection] = useState("overview");
+  const [_activeExportSection, setActiveExportSection] = useState("overview");
   const [stats, setStats] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [chart, setChart] = useState(null);
@@ -369,9 +420,15 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState("All Branches");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [reportRun, setReportRun] = useState(null);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [reportError, setReportError] = useState(null);
+  const [_reportRun, setReportRun] = useState(null);
+  const [_reportLoading, setReportLoading] = useState(false);
+  const [_reportError, setReportError] = useState(null);
+  const [selectedKpiModal, setSelectedKpiModal] = useState(null);
+
+  const handleOpenKpi = (card) => {
+    if (!card) return;
+    setSelectedKpiModal(card);
+  };
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -606,12 +663,11 @@ export default function AdminDashboard({ dataScope = "admin" }) {
 
 
   // Overview hook (used for error banner / refetch)
-  const { data, loading: overviewLoading, error: overviewError, refetch } = useOverview();
+  const { refetch } = useOverview();
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const serviceDistribution = analytics?.service_distribution ?? [];
   const topServicesData = analytics?.top_services ?? [];
-  const revenueByBranch = analytics?.revenue_by_branch ?? [];
   const highestDemandBranch = analytics?.highest_demand_branch;
   const branchForecastRows = Array.isArray(analytics?.branch_forecasts) ? analytics.branch_forecasts : [];
   const branchDemandSeriesRows = Array.isArray(analytics?.branch_demand_time_series) ? analytics.branch_demand_time_series : [];
@@ -714,6 +770,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     }));
   }, [queueHistory, selectedFilterOptions]);
 
+  const filteredAssignedTasks = useMemo(() => {
+    return Array.isArray(queueHistory)
+      ? queueHistory.filter((entry) => {
+          const date = parseDateInput(entry?.completed_at ?? entry?.queued_at ?? entry?.created_at);
+          if (!date) return true;
+          return dateMatchesFilters(date, selectedFilterOptions);
+        })
+      : [];
+  }, [queueHistory, selectedFilterOptions]);
+
   const topCustomer =
     filteredCustomers.length > 0
       ? [...filteredCustomers].sort((a, b) => Number(b.total_spent ?? 0) - Number(a.total_spent ?? 0))[0]
@@ -805,56 +871,6 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     pageSize: 5,
     resetDeps: [topServiceCards.length],
   });
-
-  const employeeWorkloadRows = useMemo(() => {
-    const backendRows = analytics?.employee_workload;
-    if (Array.isArray(backendRows) && backendRows.length) {
-      const grandTotal = backendRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
-      return backendRows.map((row) => ({
-        employee: row.employee_name ?? "Unassigned",
-        branch: row.branch ?? "Unknown Branch",
-        total: Number(row.total ?? 0),
-        completed: Number(row.completed ?? 0),
-        skipped: Number(row.skipped ?? 0),
-        share: grandTotal > 0 ? (Number(row.total ?? 0) / grandTotal) * 100 : 0,
-      }));
-    }
-
-    const grouped = queueHistory.reduce((acc, entry) => {
-      const assignedName =
-        entry?.assigned_employee?.full_name ||
-        entry?.assigned_employee_name ||
-        "Unassigned";
-
-      if (!acc[assignedName]) {
-        acc[assignedName] = {
-          employee: assignedName,
-          branch: entry?.branch || entry?.branch_name || "Unknown Branch",
-          total: 0,
-          completed: 0,
-          skipped: 0,
-        };
-      }
-
-      const status = normalizeStatus(entry?.status);
-      acc[assignedName].total += 1;
-      if (status === "done" || status === "completed") acc[assignedName].completed += 1;
-      if (status === "skipped") acc[assignedName].skipped += 1;
-      return acc;
-    }, {});
-
-    const rows = Object.values(grouped).sort((a, b) => {
-      const totalDiff = Number(b.total) - Number(a.total);
-      if (totalDiff !== 0) return totalDiff;
-      return Number(b.completed) - Number(a.completed);
-    });
-
-    const grandTotal = rows.reduce((sum, row) => sum + Number(row.total), 0);
-    return rows.map((row) => ({
-      ...row,
-      share: grandTotal > 0 ? (Number(row.total) / grandTotal) * 100 : 0,
-    }));
-  }, [queueHistory, analytics?.employee_workload]);
 
   const highestDemandEmployee = analytics?.highest_demand_employee;
   const highestRatedEmployee = analytics?.highest_rated_employee;
@@ -1022,7 +1038,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [filteredAppointmentEvents]);
 
-  const peakHoursRows = useMemo(() => {
+  const _peakHoursRows = useMemo(() => {
     const grouped = filteredAppointmentEvents.reduce((acc, row) => {
       const hour = Number(row.hour ?? 0);
       const safeHour = Number.isNaN(hour) ? 0 : Math.min(23, Math.max(0, hour));
@@ -1035,7 +1051,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       .sort((a, b) => a.hour.localeCompare(b.hour));
   }, [filteredAppointmentEvents]);
 
-  const appointmentForecast = useMemo(() => {
+  const _appointmentForecast = useMemo(() => {
     const historical = appointmentTimelineRows.map((row) => Number(row.count ?? 0));
     if (!historical.length) {
       return { next7Total: 0, next30Total: 0, dailyAverage: 0, slope: 0, next14Series: [] };
@@ -1220,13 +1236,6 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const recommendedRetentionActions = Array.isArray(retention?.recommended_actions) ? retention.recommended_actions : [];
   const campaignOutcomes = retention?.campaign_outcomes ?? {};
   const campaignRows = Array.isArray(campaignOutcomes?.campaigns) ? campaignOutcomes.campaigns : [];
-  const reportSummary = reportRun?.summary ?? {};
-  const reportKpi = reportSummary?.kpi ?? {};
-  const reportPoP = reportSummary?.period_over_period ?? {};
-  const reportPeaks = reportSummary?.peak_periods ?? {};
-  const reportRevenueSplit = reportSummary?.revenue_split ?? {};
-  const reportReconciliation = reportSummary?.reconciliation ?? {};
-  const reportMismatch = Boolean(reportReconciliation?.data_mismatch);
 
   // ── Stat cards config ────────────────────────────────────────────────────
   const statCards = [
@@ -1617,54 +1626,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     ],
   };
 
-  const appointmentForecastLineData = {
-    labels: [
-      ...appointmentTimelineRows.map((row) => row.label),
-      ...appointmentForecast.next14Series.map((row) => row.label),
-    ],
-    datasets: [
-      {
-        label: "Actual Appointments",
-        data: [
-          ...appointmentTimelineRows.map((row) => Number(row.count ?? 0)),
-          ...Array.from({ length: appointmentForecast.next14Series.length }, () => null),
-        ],
-        borderColor: "#a855f7",
-        backgroundColor: "rgba(168,85,247,0.12)",
-        fill: false,
-        tension: 0.35,
-        pointRadius: 2,
-      },
-      {
-        label: "Forecasted Bookings",
-        data: [
-          ...Array.from({ length: appointmentTimelineRows.length }, () => null),
-          ...appointmentForecast.next14Series.map((row) => Number(row.count ?? 0)),
-        ],
-        borderColor: "#22c55e",
-        backgroundColor: "rgba(34,197,94,0.12)",
-        fill: false,
-        tension: 0.35,
-        pointRadius: 2,
-        borderDash: [6, 4],
-      },
-    ],
-  };
-
-  const peakHourData = {
-    labels: peakHoursRows.map((row) => row.hour),
-    datasets: [
-      {
-        label: "Appointments",
-        data: peakHoursRows.map((row) => row.count),
-        backgroundColor: "rgba(14,165,233,0.7)",
-        borderRadius: 6,
-      },
-    ],
-  };
-
   const topPeakDay = [...peakDaysRows].sort((a, b) => b.count - a.count)[0];
-  const topPeakHour = [...peakHoursRows].sort((a, b) => b.count - a.count)[0];
   const peakMonthRow = Object.entries(
     filteredAppointmentEvents.reduce((acc, row) => {
       acc[row.monthLabel] = (acc[row.monthLabel] ?? 0) + 1;
@@ -1686,11 +1648,6 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     { tier: "At Risk", color: "#ea580c" },
     { tier: "New", color: "#9ca3af" },
   ].map((row) => ({ ...row, count: tierDistribution[row.tier] ?? 0 }));
-
-  const avgRevenuePerAppointment =
-    Number(stats?.total_revenue ?? 0) / Math.max(1, appointments.length);
-  const forecastRevenue7 = Number((avgRevenuePerAppointment * appointmentForecast.next7Total).toFixed(2));
-  const forecastRevenue30 = Number((avgRevenuePerAppointment * appointmentForecast.next30Total).toFixed(2));
 
   // ── Export handler ───────────────────────────────────────────────────────
   const handleExportCSV = () => {
@@ -1970,98 +1927,54 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         </button>
       </div>
     </div>
-    <AnalyticsFiltersBar
-      title="Overview Analytics Filters"
-      subtitle="Analyze overview metrics by period"
-      period={appointmentPeriod}
-      onPeriodChange={setAppointmentPeriod}
-      weekFilter={appointmentWeekFilter}
-      onWeekChange={setAppointmentWeekFilter}
-      monthFilter={appointmentMonthFilter}
-      onMonthChange={setAppointmentMonthFilter}
-      quarterFilter={appointmentQuarterFilter}
-      onQuarterChange={setAppointmentQuarterFilter}
-      yearFilter={appointmentYearFilter}
-      onYearChange={setAppointmentYearFilter}
-      years={appointmentYears}
-    />
-            <section className="mb-4 sm:mb-6">
-              <div className={`rounded-xl sm:rounded-2xl border p-3 sm:p-4 ${reportMismatch ? "bg-red-950/30 border-red-500/30" : "bg-emerald-950/20 border-emerald-500/20"}`}>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm sm:text-base font-black text-white">Decision Report Snapshot</h3>
-                    <p className="text-[10px] sm:text-xs text-gray-400">
-                      KPI summary, period comparison, peak periods, revenue split, and reconciliation status.
-                    </p>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-[10px] sm:text-xs font-bold border ${reportMismatch ? "bg-red-500/20 text-red-200 border-red-500/40" : "bg-emerald-500/20 text-emerald-200 border-emerald-500/40"}`}>
-                    {reportLoading ? "Checking..." : reportMismatch ? "DATA MISMATCH" : "RECONCILED"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mt-3">
-                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
-                    <div className="text-[10px] text-gray-400">Revenue</div>
-                    <div className="text-sm font-bold text-white">₱{Number(reportKpi?.total_revenue ?? 0).toLocaleString()}</div>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
-                    <div className="text-[10px] text-gray-400">Conversion / Payment</div>
-                    <div className="text-sm font-bold text-white">{Number(reportKpi?.conversion_rate ?? 0).toFixed(1)}% / {Number(reportKpi?.payment_rate ?? 0).toFixed(1)}%</div>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
-                    <div className="text-[10px] text-gray-400">PoP Revenue Change</div>
-                    <div className={`text-sm font-bold ${Number(reportPoP?.revenue_change_pct ?? 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>
-                      {Number(reportPoP?.revenue_change_pct ?? 0).toFixed(2)}%
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
-                    <div className="text-[10px] text-gray-400">Mismatch Amount</div>
-                    <div className={`text-sm font-bold ${reportMismatch ? "text-red-300" : "text-emerald-300"}`}>
-                      ₱{Number(reportReconciliation?.mismatch_amount ?? 0).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mt-3">
-                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
-                    <div className="text-[10px] text-gray-400">Peak Periods</div>
-                    <div className="text-xs text-gray-200">
-                      {reportPeaks?.hour?.label ?? "N/A"} · {reportPeaks?.day?.label ?? "N/A"} · {reportPeaks?.month?.label ?? "N/A"}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
-                    <div className="text-[10px] text-gray-400">Revenue Split</div>
-                    <div className="text-xs text-gray-200">
-                      A: ₱{Number(reportRevenueSplit?.appointments ?? 0).toLocaleString()} | W: ₱{Number(reportRevenueSplit?.walk_ins ?? 0).toLocaleString()} | P: ₱{Number(reportRevenueSplit?.products ?? 0).toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-gray-900/40 px-3 py-2">
-                    <div className="text-[10px] text-gray-400">Reconciliation Totals</div>
-                    <div className="text-xs text-gray-200">
-                      Pay: ₱{Number(reportReconciliation?.payment_total ?? 0).toLocaleString()} · Dash: ₱{Number(reportReconciliation?.dashboard_total ?? 0).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+
             {(() => {
+              const branchCard = {
+                title: "Highest Demand Branch",
+                value: highestDemandBranch ? highestDemandBranch.branch : "No data",
+                sub: highestDemandBranch
+                  ? `${Number(highestDemandBranch.total_demand ?? 0).toLocaleString()} total demand`
+                  : "Branch forecast summary",
+                accentBg: "bg-indigo-500/10",
+                accentText: "text-indigo-400",
+                border: "border-indigo-500/20",
+                icon: (
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                ),
+              };
+
+              const employeeCard = {
+                title: "Top Rated Employee",
+                value: highestRatedEmployee ? highestRatedEmployee.employee_name : "No ratings yet",
+                sub: highestRatedEmployee
+                  ? `${Number(highestRatedEmployee.avg_rating ?? 0).toFixed(2)} avg rating`
+                  : "Employee performance signal",
+                accentBg: "bg-amber-500/10",
+                accentText: "text-amber-400",
+                border: "border-amber-500/20",
+                icon: (
+                  <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                ),
+              };
+
               const overviewKpiCards = [
-                ...statCards,
+                ...statCards.map((card) => ({
+                  ...card,
+                  onClick: () => handleOpenKpi(card),
+                })),
                 ...(dataScope === "manager"
                   ? []
                   : [{
-                      title: "Highest Demand Branch",
-                      value: highestDemandBranch ? highestDemandBranch.branch : "No data",
-                      sub: highestDemandBranch ? `${Number(highestDemandBranch.total_demand ?? 0).toLocaleString()} total demand` : "Branch forecast summary",
-                      accentBg: "bg-indigo-500/10",
-                      accentText: "text-indigo-400",
-                      border: "border-indigo-500/20",
+                      ...branchCard,
+                      onClick: () => handleOpenKpi(branchCard),
                     }]),
                 {
-                  title: "Top Rated Employee",
-                  value: highestRatedEmployee ? highestRatedEmployee.employee_name : "No ratings yet",
-                  sub: highestRatedEmployee ? `${Number(highestRatedEmployee.avg_rating ?? 0).toFixed(2)} avg rating` : "Employee performance signal",
-                  accentBg: "bg-amber-500/10",
-                  accentText: "text-amber-400",
-                  border: "border-amber-500/20",
+                  ...employeeCard,
+                  onClick: () => handleOpenKpi(employeeCard),
                 },
               ];
               return (
@@ -2413,7 +2326,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               return (
                 <div className={`grid grid-cols-1 ${dataScope === "manager" ? "sm:grid-cols-3" : "sm:grid-cols-4"} gap-2 sm:gap-4 mb-4 sm:mb-8`}>
                   {revenueKpiCards.map((c, i) => (
-                    <StatCard key={i} {...c} />
+                    <StatCard key={i} {...c} onClick={() => handleOpenKpi(c)} />
                   ))}
                 </div>
               );
@@ -2606,7 +2519,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 ),
               },
             ].map((c, i) => (
-              <StatCard key={i} {...c} />
+              <StatCard key={i} {...c} onClick={() => handleOpenKpi(c)} />
             ))}
           </div>
 
@@ -2836,7 +2749,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   ),
                 },
               ].map((c, i) => (
-                <StatCard key={i} {...c} />
+                <StatCard key={i} {...c} onClick={() => handleOpenKpi(c)} />
               ))}
             </div>
 
@@ -2848,6 +2761,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 accentBg="bg-amber-500/10"
                 accentText="text-amber-400"
                 border="border-amber-500/20"
+                onClick={() =>
+                  handleOpenKpi({
+                    title: "At Risk Customers",
+                    value: Number(churnRisk.at_risk ?? 0).toLocaleString(),
+                    sub: "Needs retention follow-up",
+                    accentBg: "bg-amber-500/10",
+                    accentText: "text-amber-400",
+                    border: "border-amber-500/20",
+                  })
+                }
               />
               <StatCard
                 title="Churned"
@@ -2856,6 +2779,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 accentBg="bg-red-500/10"
                 accentText="text-red-400"
                 border="border-red-500/20"
+                onClick={() =>
+                  handleOpenKpi({
+                    title: "Churned Customers",
+                    value: Number(churnRisk.churned ?? 0).toLocaleString(),
+                    sub: "No recent paid activity",
+                    accentBg: "bg-red-500/10",
+                    accentText: "text-red-400",
+                    border: "border-red-500/20",
+                  })
+                }
               />
               <StatCard
                 title="Reactivated (30d)"
@@ -2864,6 +2797,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 accentBg="bg-emerald-500/10"
                 accentText="text-emerald-400"
                 border="border-emerald-500/20"
+                onClick={() =>
+                  handleOpenKpi({
+                    title: "Reactivated Customers",
+                    value: Number(reactivationCohorts.reactivated_customers_30d ?? 0).toLocaleString(),
+                    sub: "Returned after long inactivity",
+                    accentBg: "bg-emerald-500/10",
+                    accentText: "text-emerald-400",
+                    border: "border-emerald-500/20",
+                  })
+                }
               />
               <StatCard
                 title="Campaign Conversion"
@@ -2872,6 +2815,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 accentBg="bg-cyan-500/10"
                 accentText="text-cyan-400"
                 border="border-cyan-500/20"
+                onClick={() =>
+                  handleOpenKpi({
+                    title: "Campaign Conversion",
+                    value: `${Number(campaignOutcomes.overall_conversion_rate ?? 0).toFixed(1)}%`,
+                    sub: `${Number(campaignOutcomes.converted_users ?? 0)} converted / ${Number(campaignOutcomes.sent_users ?? 0)} targeted`,
+                    accentBg: "bg-cyan-500/10",
+                    accentText: "text-cyan-400",
+                    border: "border-cyan-500/20",
+                  })
+                }
               />
             </div>
 
@@ -3211,7 +3164,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   ),
                 },
               ].map((c, i) => (
-                <StatCard key={i} {...c} />
+                <StatCard key={i} {...c} onClick={() => handleOpenKpi(c)} />
               ))}
             </div>
 
@@ -3241,6 +3194,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   accentBg="bg-emerald-500/10"
                   accentText="text-emerald-400"
                   border="border-emerald-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Next Period Usage",
+                      value: Number(inventoryForecast.linear_regression?.next_period_prediction ?? 0).toLocaleString(),
+                      sub: "Linear regression estimate",
+                      accentBg: "bg-emerald-500/10",
+                      accentText: "text-emerald-400",
+                      border: "border-emerald-500/20",
+                    })
+                  }
                 />
                 <StatCard
                   title="Usage Trend"
@@ -3249,6 +3212,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   accentBg="bg-blue-500/10"
                   accentText="text-blue-400"
                   border="border-blue-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Usage Trend",
+                      value: inventoryTrendLabel,
+                      sub: `Slope: ${Number(inventoryForecast.linear_regression?.slope ?? 0).toFixed(2)}`,
+                      accentBg: "bg-blue-500/10",
+                      accentText: "text-blue-400",
+                      border: "border-blue-500/20",
+                    })
+                  }
                 />
                 <StatCard
                   title="Stockout Risk"
@@ -3257,6 +3230,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   accentBg="bg-red-500/10"
                   accentText="text-red-400"
                   border="border-red-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Stockout Risk",
+                      value: String(Number(inventoryForecast.risk_summary?.stockout_risk_count ?? 0)),
+                      sub: "Items at/under reorder level",
+                      accentBg: "bg-red-500/10",
+                      accentText: "text-red-400",
+                      border: "border-red-500/20",
+                    })
+                  }
                 />
                 <StatCard
                   title="Overstock Risk"
@@ -3265,6 +3248,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   accentBg="bg-amber-500/10"
                   accentText="text-amber-400"
                   border="border-amber-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Overstock Risk",
+                      value: String(Number(inventoryForecast.risk_summary?.overstock_risk_count ?? 0)),
+                      sub: "Potential excess stock",
+                      accentBg: "bg-amber-500/10",
+                      accentText: "text-amber-400",
+                      border: "border-amber-500/20",
+                    })
+                  }
                 />
               </div>
             </div>
@@ -3501,7 +3494,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   ),
                 },
               ].map((c, i) => (
-                <StatCard key={i} {...c} />
+                <StatCard key={i} {...c} onClick={() => handleOpenKpi(c)} />
               ))}
             </div>
 
@@ -3512,10 +3505,78 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               </div>
 
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-4 mt-4">
-                <StatCard title="Selected Period" value={selectedServicePeriodLabel} sub={`Year ${forecastYearFilter}`} accentBg="bg-indigo-500/10" accentText="text-indigo-400" border="border-indigo-500/20" />
-                <StatCard title="Demand Records" value={forecastSummary.totalDemand} sub="Records in selected slice" accentBg="bg-green-500/10" accentText="text-green-400" border="border-green-500/20" />
-                <StatCard title="Forecast Revenue" value={`₱${forecastSummary.forecastRevenue.toLocaleString()}`} sub="Service-level prediction total" accentBg="bg-emerald-500/10" accentText="text-emerald-400" border="border-emerald-500/20" />
-                <StatCard title="Category Rows" value={categoryForecastRows.length.toLocaleString()} sub="Active forecast categories" accentBg="bg-sky-500/10" accentText="text-sky-400" border="border-sky-500/20" />
+                <StatCard
+                  title="Selected Period"
+                  value={selectedServicePeriodLabel}
+                  sub={`Year ${forecastYearFilter}`}
+                  accentBg="bg-indigo-500/10"
+                  accentText="text-indigo-400"
+                  border="border-indigo-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Selected Period",
+                      value: selectedServicePeriodLabel,
+                      sub: `Year ${forecastYearFilter}`,
+                      accentBg: "bg-indigo-500/10",
+                      accentText: "text-indigo-400",
+                      border: "border-indigo-500/20",
+                    })
+                  }
+                />
+                <StatCard
+                  title="Demand Records"
+                  value={forecastSummary.totalDemand}
+                  sub="Records in selected slice"
+                  accentBg="bg-green-500/10"
+                  accentText="text-green-400"
+                  border="border-green-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Demand Records",
+                      value: forecastSummary.totalDemand,
+                      sub: "Records in selected slice",
+                      accentBg: "bg-green-500/10",
+                      accentText: "text-green-400",
+                      border: "border-green-500/20",
+                    })
+                  }
+                />
+                <StatCard
+                  title="Forecast Revenue"
+                  value={`₱${forecastSummary.forecastRevenue.toLocaleString()}`}
+                  sub="Service-level prediction total"
+                  accentBg="bg-emerald-500/10"
+                  accentText="text-emerald-400"
+                  border="border-emerald-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Forecast Revenue",
+                      value: `₱${forecastSummary.forecastRevenue.toLocaleString()}`,
+                      sub: "Service-level prediction total",
+                      accentBg: "bg-emerald-500/10",
+                      accentText: "text-emerald-400",
+                      border: "border-emerald-500/20",
+                    })
+                  }
+                />
+                <StatCard
+                  title="Category Rows"
+                  value={categoryForecastRows.length.toLocaleString()}
+                  sub="Active forecast categories"
+                  accentBg="bg-sky-500/10"
+                  accentText="text-sky-400"
+                  border="border-sky-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Category Rows",
+                      value: categoryForecastRows.length.toLocaleString(),
+                      sub: "Active forecast categories",
+                      accentBg: "bg-sky-500/10",
+                      accentText: "text-sky-400",
+                      border: "border-sky-500/20",
+                    })
+                  }
+                />
               </div>
             </div>
 
@@ -3529,6 +3590,15 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   accentBg="bg-sky-500/10"
                   accentText="text-sky-400"
                   border="border-sky-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Total Category Demand",
+                      value: categoryForecastSummary.totalPredictedDemand.toLocaleString(),
+                      accentBg: "bg-sky-500/10",
+                      accentText: "text-sky-400",
+                      border: "border-sky-500/20",
+                    })
+                  }
                 />
                 <StatCard
                   title="Predicted Category Revenue"
@@ -3536,6 +3606,15 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   accentBg="bg-emerald-500/10"
                   accentText="text-emerald-400"
                   border="border-emerald-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Predicted Category Revenue",
+                      value: `₱${categoryForecastSummary.totalPredictedRevenue.toLocaleString()}`,
+                      accentBg: "bg-emerald-500/10",
+                      accentText: "text-emerald-400",
+                      border: "border-emerald-500/20",
+                    })
+                  }
                 />
                 <StatCard
                   title="Top Category"
@@ -3544,6 +3623,16 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                   accentBg="bg-indigo-500/10"
                   accentText="text-indigo-400"
                   border="border-indigo-500/20"
+                  onClick={() =>
+                    handleOpenKpi({
+                      title: "Top Category",
+                      value: categoryForecastSummary.topCategory,
+                      sub: `₱${categoryForecastSummary.topCategoryRevenue.toLocaleString()}`,
+                      accentBg: "bg-indigo-500/10",
+                      accentText: "text-indigo-400",
+                      border: "border-indigo-500/20",
+                    })
+                  }
                 />
               </div>
 
@@ -3853,7 +3942,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 ),
               },
             ].map((c, i) => (
-              <StatCard key={i} {...c} />
+              <StatCard key={i} {...c} onClick={() => handleOpenKpi(c)} />
             ))}
           </div>
 
@@ -3965,6 +4054,38 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         )}
         </div>
       </div>
+
+      <KpiDetailModal
+        kpi={selectedKpiModal}
+        onClose={() => setSelectedKpiModal(null)}
+        onNavigate={(targetView) => {
+          setActiveView(targetView);
+          window.location.hash = targetView;
+        }}
+        data={{
+          stats,
+          transactions,
+          filteredRevenueByBranch,
+          filteredCustomers,
+          tierRows,
+          serviceDistribution,
+          topServiceCards,
+          highestDemandBranch,
+          branchForecastRows,
+          highestRatedEmployee,
+          employeeRatingsRows,
+          filteredEmployeeWorkloadRows,
+          appointments,
+          queueHistory,
+          assignedTasks: filteredAssignedTasks.length > 0 ? filteredAssignedTasks : queueHistory,
+          inventoryItems: filteredInventoryItems.length ? filteredInventoryItems : inventoryItems,
+          inventoryForecast,
+          lowStockCount,
+          criticalStockCount,
+          inventoryTrendLabel,
+          analytics,
+        }}
+      />
     </AdminLayout>
   );
 }

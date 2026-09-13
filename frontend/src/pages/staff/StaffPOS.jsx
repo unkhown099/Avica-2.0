@@ -364,7 +364,7 @@ function PrintableReceipt({
                 <div>{`${i + 1}. ${item.label}`}</div>
               </div>
               <div style={{ textAlign: "right", minWidth: "60px", fontWeight: "bold" }}>
-                P{fmt(item.amount)}
+                ₱{fmt(item.amount)}
               </div>
             </div>
           ))}
@@ -376,7 +376,7 @@ function PrintableReceipt({
         <div style={{ fontSize: "11px", lineHeight: "1.6" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "13px" }}>
             <span>TOTAL AMOUNT</span>
-            <span>P{fmt(total)}</span>
+            <span>₱{fmt(total)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
             <span>Payment Method</span>
@@ -386,11 +386,11 @@ function PrintableReceipt({
             <>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Amount Tendered</span>
-                <span>P{fmt(amountGiven)}</span>
+                <span>₱{fmt(amountGiven)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
                 <span>Change</span>
-                <span>P{fmt(change >= 0 ? change : 0)}</span>
+                <span>₱{fmt(change >= 0 ? change : 0)}</span>
               </div>
             </>
           )}
@@ -473,7 +473,7 @@ function ReceiptModal({
               </svg>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white">Payment Successful</h2>
-            <p className="text-emerald-400 text-base sm:text-lg font-black mt-1">P{fmt(total)} collected</p>
+            <p className="text-emerald-400 text-base sm:text-lg font-black mt-1">₱{fmt(total)} collected</p>
           </div>
 
           {/* Details Scrollable Area */}
@@ -511,7 +511,7 @@ function ReceiptModal({
               {numberedItems.map((item, i) => (
                 <div key={`line-${i}`} className="flex justify-between text-xs sm:text-sm">
                   <span className="text-gray-300 font-medium">{i + 1}. {item.label}</span>
-                  <span className="text-white font-bold">P{fmt(item.amount)}</span>
+                  <span className="text-white font-bold">₱{fmt(item.amount)}</span>
                 </div>
               ))}
             </div>
@@ -520,7 +520,7 @@ function ReceiptModal({
             <div className="bg-white/5 rounded-2xl p-3.5 space-y-2 border border-white/5">
               <div className="flex justify-between items-center pt-0.5">
                 <span className="text-white font-bold text-base">Total Amount</span>
-                <span className="text-emerald-400 font-black text-xl">P{fmt(total)}</span>
+                <span className="text-emerald-400 font-black text-xl">₱{fmt(total)}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-400 font-semibold">Payment Method</span>
@@ -530,11 +530,11 @@ function ReceiptModal({
                 <>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-gray-400 font-semibold">Amount Tendered</span>
-                    <span className="text-white font-semibold">P{fmt(amountGiven)}</span>
+                    <span className="text-white font-semibold">₱{fmt(amountGiven)}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-gray-400 font-semibold">Change</span>
-                    <span className="text-emerald-400 font-bold">P{fmt(change >= 0 ? change : 0)}</span>
+                    <span className="text-emerald-400 font-bold">₱{fmt(change >= 0 ? change : 0)}</span>
                   </div>
                 </>
               )}
@@ -819,7 +819,6 @@ const filteredServices = services.filter((s) => {
   const bills = [100, 200, 500, 1000, 2000];
   const presets = bills.filter((b) => b >= effectiveTotal).slice(0, 4);
   const hasMissingPrice = cart.some((c) => c.type === "queue" && c._price === 0);
-  const getInitial = (name = "") => name.charAt(0).toUpperCase();
 
   // ── Validate inputs ─────────────────────────────────────────────────────────
   const validateInputs = () => {
@@ -1221,7 +1220,7 @@ const filteredServices = services.filter((s) => {
                   <p className="text-gray-500 text-xs mt-1">Add items from the catalog or queue</p>
                 </div>
               ) : (
-                cart.map((item, idx) => {
+                cart.map((item, _idx) => {
                   const itemTotal = (parseFloat(item._price || 0) * (item.quantity || 1));
                   return (
                     <div

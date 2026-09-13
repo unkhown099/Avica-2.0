@@ -37,20 +37,26 @@ function loadMessages(user) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch (_) { }
+  } catch {
+    // Ignore storage parse errors
+  }
   return INITIAL_MESSAGES;
 }
 
 function saveMessages(user, messages) {
   try {
     getStorage().setItem(getChatKey(user), JSON.stringify(messages));
-  } catch (_) { }
+  } catch {
+    // Ignore storage save errors
+  }
 }
 
 function clearMessages(user) {
   try {
     getStorage().removeItem(getChatKey(user));
-  } catch (_) { }
+  } catch {
+    // Ignore storage clear errors
+  }
 }
 
 export default function ChatbotWidget() {
@@ -99,10 +105,10 @@ export default function ChatbotWidget() {
     });
   }, []);
 
-  const onMouseUp = useCallback(() => {
+  const onMouseUp = useCallback(function handleMouseUp() {
     dragging.current = false;
     document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
+    document.removeEventListener("mouseup", handleMouseUp);
   }, [onMouseMove]);
 
   const onMouseDown = useCallback((e) => {

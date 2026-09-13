@@ -211,39 +211,136 @@ function ReceiptModal({ item, onClose }) {
   const receiptNo = `HST-${String(item?.id || "").padStart(6, "0")}`;
   const amount = Number(item?.price || 0);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-2xl p-6 border border-white/10 max-w-md w-full">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h2 className="text-2xl font-black text-white">Service Receipt</h2>
-            <p className="text-gray-500 text-sm mt-0.5">{receiptNo}</p>
+    <>
+      <div id="customer-history-print" style={{ display: "none" }}>
+        <style>{`
+          @media print {
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            html, body {
+              width: 80mm !important;
+              min-height: 0 !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #fff !important;
+              overflow: visible !important;
+            }
+            body * { visibility: hidden !important; }
+            #customer-history-print, #customer-history-print * { visibility: visible !important; }
+            #customer-history-print {
+              display: block !important;
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              z-index: 999999 !important;
+              width: 80mm;
+              font-family: 'Courier New', Courier, monospace;
+              font-size: 11px;
+              line-height: 1.4;
+              color: #000;
+              background: #fff;
+              padding: 4mm 5mm;
+              box-sizing: border-box;
+            }
+          }
+        `}</style>
+        <div style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: "11px", color: "#000" }}>
+          <div style={{ textAlign: "center", marginBottom: "8px" }}>
+            <div style={{ fontSize: "16px", fontWeight: "900", letterSpacing: "1px" }}>OTOKWIKK</div>
+            <div style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase" }}>Car Care & Detailing Services</div>
+            <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "4px" }}>{item?.branch || "Main Branch"}</div>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+          <div style={{ fontSize: "10px", lineHeight: "1.5", marginBottom: "6px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>RECEIPT #:</strong></span>
+              <span style={{ fontWeight: "bold" }}>{receiptNo}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>DATE:</strong></span>
+              <span>{formatDate(item?.date)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>STAFF:</strong></span>
+              <span>{item?.staff || "Staff"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>PAYMENT:</strong></span>
+              <span style={{ textTransform: "uppercase" }}>{item?.payment_method || "—"}</span>
+            </div>
+          </div>
+          <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+            <span style={{ flex: 1, paddingRight: "6px" }}>1. {item?.service || "Service"}</span>
+            <span style={{ fontWeight: "bold" }}>₱{amount.toLocaleString("en-PH")}</span>
+          </div>
+          <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "13px" }}>
+            <span>TOTAL PAID</span>
+            <span>₱{amount.toLocaleString("en-PH")}</span>
+          </div>
+          <div style={{ borderTop: "1px dashed #000", marginTop: "10px", paddingTop: "8px", textAlign: "center", fontSize: "9px" }}>
+            <div style={{ fontWeight: "bold", textTransform: "uppercase" }}>Thank you for trusting Otokwikk!</div>
+            <div style={{ marginTop: "2px" }}>Please keep this official receipt for your records.</div>
+          </div>
         </div>
-
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-gray-500">Service</span><span className="text-white font-semibold">{item?.service || "—"}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Date</span><span className="text-white">{formatDate(item?.date)}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Branch</span><span className="text-white">{item?.branch || "—"}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Staff</span><span className="text-white">{item?.staff || "—"}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Payment</span><span className="text-white uppercase">{item?.payment_method || "—"}</span></div>
-        </div>
-
-        <div className="border-t border-white/10 mt-4 pt-4 flex items-center justify-between">
-          <span className="text-gray-400 font-semibold">Total Paid</span>
-          <span className="text-2xl font-black text-emerald-400">₱{amount.toLocaleString("en-PH")}</span>
-        </div>
-
-        <button onClick={onClose} className="mt-5 w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all">
-          Close
-        </button>
       </div>
-    </div>
+
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-900 rounded-3xl p-6 border border-white/10 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="flex items-start justify-between mb-4 pb-3 border-b border-white/10">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-white">Official <span className="text-red-500">Receipt</span></h2>
+              <p className="text-gray-400 font-mono text-xs mt-0.5">{receiptNo}</p>
+            </div>
+            <button onClick={onClose} className="text-gray-500 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-all">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="bg-white/5 rounded-2xl p-4 space-y-2.5 text-sm border border-white/5">
+            <div className="flex justify-between items-center"><span className="text-gray-400">Service</span><span className="text-white font-semibold">{item?.service || "—"}</span></div>
+            <div className="flex justify-between items-center"><span className="text-gray-400">Date</span><span className="text-white">{formatDate(item?.date)}</span></div>
+            <div className="flex justify-between items-center"><span className="text-gray-400">Branch</span><span className="text-amber-400 font-bold">{item?.branch || "—"}</span></div>
+            <div className="flex justify-between items-center"><span className="text-gray-400">Staff</span><span className="text-white">{item?.staff || "—"}</span></div>
+            <div className="flex justify-between items-center"><span className="text-gray-400">Payment</span><span className="text-white uppercase font-bold">{item?.payment_method || "—"}</span></div>
+          </div>
+
+          <div className="border-t border-white/10 mt-4 pt-4 flex items-center justify-between">
+            <span className="text-gray-400 font-semibold">Total Paid</span>
+            <span className="text-2xl font-black text-emerald-400">₱{amount.toLocaleString("en-PH")}</span>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              onClick={handlePrint}
+              className="py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/20 text-sm cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Print
+            </button>
+            <button
+              onClick={onClose}
+              className="py-3 bg-white/10 hover:bg-white/15 text-gray-300 font-bold rounded-xl transition-all text-sm cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 

@@ -3,12 +3,6 @@ import ManagerLayout from "./ManagerLayout";
 import { API_BASE, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 import Swal from "sweetalert2";
 
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-}
 
 function authHeaders() {
   const token =

@@ -18,6 +18,9 @@ function ManagerInventory() {
   const [requestingRestockId, setRequestingRestockId] = useState(null);
   const [disablingInventoryId, setDisablingInventoryId] = useState(null);
 
+  // Derive unique categories from loaded services for the filter dropdown
+  const serviceCategories = [...new Set(services.map((s) => s.category).filter(Boolean))];
+
   const notify = (icon, title) => {
     Swal.fire({
       toast: true,
@@ -72,7 +75,7 @@ function ManagerInventory() {
           if (user[p]) return user[p];
         }
       }
-    } catch (e) {}
+    } catch (_e) { /* ignore parse error */ }
     try {
       const authStr =
         localStorage.getItem("auth") || sessionStorage.getItem("auth");
@@ -88,7 +91,9 @@ function ManagerInventory() {
           if (auth[p]) return auth[p];
         }
       }
-    } catch (e) {}
+    } catch {
+      // Ignore token retrieval errors
+    }
     return null;
   };
 

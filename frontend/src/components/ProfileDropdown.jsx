@@ -200,14 +200,6 @@ const ProfileDropdown = () => {
                             <IconUser />
                             My Profile
                         </Link>
-                        <Link
-                            to={settingsPath}
-                            onClick={() => setIsOpen(false)}
-                            className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${itemText} ${itemHover}`}
-                        >
-                            <IconSettings />
-                            Settings
-                        </Link>
 
                         {/* ── Light / Dark Mode Toggle ── */}
                         <button

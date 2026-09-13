@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 export function StatCard({
   title,
@@ -7,16 +8,61 @@ export function StatCard({
   accentText,
   border,
   sub,
+  onClick,
 }) {
+  const isClickable = typeof onClick === "function";
   return (
     <div
-      className={`bg-gray-900/60 border ${border} rounded-2xl p-5 backdrop-blur-sm hover:border-opacity-60 transition-all`}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        isClickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={`group relative text-left bg-white dark:bg-gray-900/60 border border-gray-200/90 dark:${border} shadow-sm dark:shadow-none rounded-2xl p-5 backdrop-blur-sm transition-all duration-200 select-none ${
+        isClickable
+          ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80 hover:border-gray-300 dark:hover:border-white/30 hover:-translate-y-1 hover:shadow-xl hover:shadow-gray-300/30 dark:hover:shadow-black/50 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-red-500/50"
+          : "hover:border-opacity-60"
+      }`}
     >
       <div className="flex items-start justify-between mb-4">
-        <div className={`${accentBg} ${accentText} p-3 rounded-xl`}>{icon}</div>
+        <div
+          className={`${accentBg} ${accentText} p-3 rounded-xl transition-transform duration-200 group-hover:scale-110`}
+        >
+          {icon}
+        </div>
+        {isClickable && (
+          <div className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white bg-gray-100 dark:bg-white/5 group-hover:bg-gray-200 dark:group-hover:bg-white/10 px-2 py-0.5 rounded-full transition-all">
+            <span>View Data</span>
+            <svg
+              className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </div>
+        )}
       </div>
-      <div className="text-2xl font-black text-white mb-1">{value ?? "—"}</div>
-      <div className="text-sm text-gray-500 mb-1">{title}</div>
+      <div className="text-2xl font-black text-gray-900 dark:text-white mb-1 transition-colors">
+        {value ?? "—"}
+      </div>
+      <div className="text-sm text-gray-500 dark:text-gray-400 mb-1 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+        {title}
+      </div>
       {sub && (
         <div className={`text-xs font-semibold ${accentText}`}>{sub}</div>
       )}
@@ -186,18 +232,26 @@ export function AvatarInitial({
   );
 }
 
-// ── CSV Export ────────────────────────────────────────────────────────────────
+// ── CSV Export (RFC 4180 Compliant with UTF-8 BOM) ───────────────────────────
+function formatCSVCell(value) {
+  if (value === null || value === undefined) return '""';
+  const str = String(value);
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
 export function exportToCSV(rows, headers, filename) {
-  const csv = [
-    headers.join(","),
-    ...rows.map((r) => r.map((c) => `"${c}"`).join(",")),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
+  const headerLine = headers.map(formatCSVCell).join(",");
+  const rowLines = rows.map((r) => r.map(formatCSVCell).join(","));
+  const csvContent = "\uFEFF" + [headerLine, ...rowLines].join("\r\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  a.download = filename || `export-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 

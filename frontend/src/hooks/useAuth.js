@@ -110,6 +110,7 @@ function resolveStoredUser() {
 }
 
 export function useAuth() {
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   return useMemo(() => {
     const empty = {
       token: null,
@@ -135,17 +136,14 @@ export function useAuth() {
     const stored = resolveStoredUser();
 
     const user = {
+      branch_id: stored?.branch_id ?? stored?.branch?.id ?? null,
+      branch_name: stored?.branch_name ?? stored?.branch?.name ?? null,
+      full_name: stored?.full_name ?? stored?.name ?? null,
+      ...stored,
       id: payload.user_id ?? payload.id ?? null,
       email: payload.email ?? stored?.email ?? null,
       first_name: stored?.first_name ?? null,
       last_name: stored?.last_name ?? null,
-      full_name: stored?.full_name ?? stored?.name ?? null,
-      branch_id: stored?.branch_id ?? stored?.branch?.id ?? null,
-      branch_name: stored?.branch_name ?? stored?.branch?.name ?? null,
-      role,
-      ...stored,
-      id: payload.user_id ?? payload.id ?? null,
-      email: payload.email ?? stored?.email ?? null,
       role,
     };
 

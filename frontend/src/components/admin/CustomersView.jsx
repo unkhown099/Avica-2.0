@@ -27,7 +27,7 @@ const TIER_COLORS = {
 };
 
 export default function CustomersView() {
-  const { data: customers, loading, error } = useCustomers();
+  const { data: customers, loading } = useCustomers();
   const { data: overview } = useOverview();
 
   const enriched = useMemo(

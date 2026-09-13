@@ -117,8 +117,8 @@ function AdminAppointments() {
         axios.get(`${API}/appointments/`, {
           headers: authHeaders(),
           params: { year: currentYear, month: currentMonth + 1 },
-        }).catch((e) => ({ data: [] })),
-        axios.get(`${API}/branches/`, { headers: authHeaders() }).catch((e) => ({ data: [] })),
+        }).catch(() => ({ data: [] })),
+        axios.get(`${API}/branches/`, { headers: authHeaders() }).catch(() => ({ data: [] })),
       ]);
       const aptList = Array.isArray(aptRes.data) ? aptRes.data : (aptRes.data?.results ?? []);
       const branchList = Array.isArray(branchRes.data) ? branchRes.data : (branchRes.data?.results ?? []);
@@ -140,15 +140,20 @@ function AdminAppointments() {
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
 
+  const branchAppointments = useMemo(() => {
+    if (!branchFilter || branchFilter === "All Branches") return appointments;
+    return appointments.filter((a) => a.branch_name === branchFilter);
+  }, [appointments, branchFilter]);
+
   const dayStatusMap = useMemo(() => {
     const map = {};
-    appointments.forEach((a) => {
+    branchAppointments.forEach((a) => {
       const d = new Date(a.date).getDate();
       if (!map[d]) map[d] = [];
       if (!map[d].includes(a.status)) map[d].push(a.status);
     });
     return map;
-  }, [appointments]);
+  }, [branchAppointments]);
 
   const prevMonth = () => {
     if (currentMonth === 0) {
@@ -170,22 +175,19 @@ function AdminAppointments() {
   const dayAppointments = useMemo(
     () =>
       sortAppointmentsByPriority(
-        appointments.filter((a) => {
-          const matchDate = a.date === selectedDateStr;
-          const matchBranch =
-            branchFilter === "All Branches" || a.branch_name === branchFilter;
-          return matchDate && matchBranch;
-        }),
+        branchAppointments.filter((a) => a.date === selectedDateStr),
       ),
-    [appointments, selectedDateStr, branchFilter],
+    [branchAppointments, selectedDateStr],
   );
 
-  const confirmedCount = appointments.filter(
-    (a) => a.status === "confirmed",
-  ).length;
-  const pendingCount = appointments.filter(
-    (a) => a.status === "pending",
-  ).length;
+  const confirmedCount = useMemo(
+    () => branchAppointments.filter((a) => a.status === "confirmed").length,
+    [branchAppointments],
+  );
+  const pendingCount = useMemo(
+    () => branchAppointments.filter((a) => a.status === "pending").length,
+    [branchAppointments],
+  );
 
   const CalendarPanel = () => (
     <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm">
@@ -300,10 +302,10 @@ function AdminAppointments() {
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
             Appointments
           </h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm sm:text-base">
             Manage service appointments and schedules
           </p>
         </div>
@@ -335,51 +337,102 @@ function AdminAppointments() {
 
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
-            <div className="text-xl sm:text-2xl font-black text-white mb-1">
+          <div className="bg-white dark:bg-gray-900/60 border border-gray-200 dark:border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center">
+            <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-1">
               {loading ? (
-                <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
+                <div className="h-7 w-8 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
               ) : (
-                appointments.length
+                branchAppointments.length
               )}
             </div>
-            <div className="text-xs text-gray-400">Total This Month</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Total This Month</div>
           </div>
-          <div className="bg-gray-900/60 border border-emerald-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
-            <div className="text-xl sm:text-2xl font-black text-emerald-400 mb-1">
+          <div className="bg-white dark:bg-gray-900/60 border border-emerald-500/30 dark:border-emerald-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center">
+            <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mb-1">
               {loading ? (
-                <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
+                <div className="h-7 w-8 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
               ) : (
                 confirmedCount
               )}
             </div>
-            <div className="text-xs text-gray-400">Confirmed</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Confirmed</div>
           </div>
-          <div className="bg-gray-900/60 border border-amber-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
-            <div className="text-xl sm:text-2xl font-black text-amber-400 mb-1">
+          <div className="bg-white dark:bg-gray-900/60 border border-amber-500/30 dark:border-amber-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center">
+            <div className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 mb-1">
               {loading ? (
-                <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
+                <div className="h-7 w-8 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
               ) : (
                 pendingCount
               )}
             </div>
-            <div className="text-xs text-gray-400">Pending</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Pending</div>
           </div>
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm flex items-center">
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              className="w-full bg-transparent text-white text-xs sm:text-sm focus:outline-none cursor-pointer"
-            >
-              <option className="bg-gray-900" value="All Branches">
-                All Branches
-              </option>
-              {branches.map((b) => (
-                <option key={b.id} className="bg-gray-900">
-                  {b.name}
+          <div className="bg-white dark:bg-gray-900/60 border border-gray-200 dark:border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center gap-1.5 transition-all">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                <svg
+                  className="w-3.5 h-3.5 text-red-500 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                Branch
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                {branchFilter === "All Branches" ? "All" : "Filtered"}
+              </span>
+            </div>
+            <div className="relative">
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="w-full appearance-none bg-gray-50 dark:bg-gray-800/90 border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white rounded-xl pl-3 pr-8 py-2 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 cursor-pointer transition-all hover:bg-gray-100 dark:hover:bg-gray-800 shadow-sm"
+              >
+                <option
+                  value="All Branches"
+                  className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium"
+                >
+                  All Branches
                 </option>
-              ))}
-            </select>
+                {branches.map((b) => (
+                  <option
+                    key={b.id}
+                    value={b.name}
+                    className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium"
+                  >
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
 

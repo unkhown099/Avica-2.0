@@ -311,15 +311,15 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
           {kpiRoles.map((role) => (
             <div
               key={role}
-              className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-white/10 transition-all"
+              className="bg-white dark:bg-gray-900/60 border border-gray-200 dark:border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm hover:border-gray-300 dark:hover:border-white/10 transition-all shadow-sm dark:shadow-none"
             >
-              <div className="text-xl sm:text-2xl font-black text-white mb-1">
+              <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-1">
                 {roleCounts[role] || 0}
               </div>
-              <div className="text-xs text-gray-400 font-medium whitespace-nowrap">
+              <div className="text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
                 {role}
               </div>
-              <div className="mt-2 h-1 rounded-full bg-gray-800">
+              <div className="mt-2 h-1 rounded-full bg-gray-100 dark:bg-gray-800">
                 <div
                   className="h-1 rounded-full transition-all duration-500"
                   style={{
@@ -582,7 +582,6 @@ function CreateStaffModal({
   const validatePhone = (value) => {
     const trimmed = String(value || "").trim();
     if (!/^\+63\d+$/.test(trimmed)) return false;
-    const totalLength = trimmed.length;
     return trimmed.length <= 13;
   };
   const sanitizeNameInput = (value) =>
@@ -593,8 +592,7 @@ function CreateStaffModal({
     const raw = String(value || "");
     let digits = raw.replace(/[^\d]/g, "");
     if (digits.startsWith("63")) digits = digits.slice(2);
-    if (digits.startsWith("0")) digits = digits.slice(1);
-    return digits.slice(0, 10);
+    return `+63${digits.slice(0, 10)}`;
   };
   const createDraftRef = useRef({
     firstName: "",
@@ -633,8 +631,20 @@ function CreateStaffModal({
     };
   };
 
+  const getInitialDraft = () => ({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    role: roles[0] || "",
+    branch: "",
+    status: "Active",
+    password: "",
+    confirmPassword: "",
+  });
+
   const [form, setForm] = useState(() =>
-    isEdit ? buildEditForm(initialStaff) : createDraftRef.current,
+    isEdit ? buildEditForm(initialStaff) : getInitialDraft(),
   );
 
   useEffect(() => {

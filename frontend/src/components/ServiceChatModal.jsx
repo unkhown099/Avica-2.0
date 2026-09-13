@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { API_BASE } from "../hooks/useAuth.js";
 
-export default function ServiceChatModal({ queueId, isEmployee, onClose, currentUserStr }) {
+export default function ServiceChatModal({ queueId, isEmployee, onClose, _currentUserStr }) {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(true);

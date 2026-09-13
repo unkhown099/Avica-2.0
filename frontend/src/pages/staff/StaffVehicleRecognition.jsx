@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from "react";
 import EmployeeLayout from "../employee/EmployeeLayout";
-import { API_BASE, getAuthHeaders } from "../../hooks/useAuth.js";
+import { API_BASE } from "../../hooks/useAuth.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const conditionColor = (c = "") => {
@@ -304,7 +304,8 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
       <head>
         <title>Vehicle Inspection Sheet</title>
         <style>
-          body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 32px; }
+          @page { size: A4 portrait; margin: 10mm; }
+          body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 10px; margin: 0; }
           h1 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
           h2 { font-size: 14px; color: #555; font-weight: 400; margin-bottom: 24px; }
           .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }

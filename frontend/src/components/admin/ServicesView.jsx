@@ -12,7 +12,7 @@ const SERVICE_COLORS = [
 ];
 
 export default function ServicesView() {
-  const { data: services, loading, error } = useServices();
+  const { data: services, loading } = useServices();
 
   const items = services ?? [];
 

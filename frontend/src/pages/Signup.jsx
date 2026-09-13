@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import swal from "sweetalert2";
 import logo from "../assets/otokwikklogo.png";
 import { API_BASE } from "../hooks/useAuth.js";
@@ -154,7 +154,6 @@ function SignUpPage() {
     loadLandingContent();
   }, []);
 
-  const location = useLocation();
   const navigate = useNavigate();
 
   // Real-time password and confirm password validation
@@ -493,7 +492,7 @@ function SignUpPage() {
           confirmButtonText: "Try Again",
         });
       }
-    } catch (error) {
+    } catch {
       swal.fire({
         title: "Error",
         text: "Something went wrong. Please try again.",

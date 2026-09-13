@@ -596,20 +596,22 @@ function DetailPanel({ entry, onClose }) {
 }
 
 function EditServiceDetailsModal({ entry, onClose, onEntryUpdated }) {
-  if (!entry) return null;
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [vehicleType, setVehicleType] = useState(entry.vehicle_type || "small");
+  const [vehicleType, setVehicleType] = useState(entry?.vehicle_type || "small");
   const [requiredItems, setRequiredItems] = useState([{ productId: "", quantity: 1 }]);
   const [savingDetails, setSavingDetails] = useState(false);
   const [productError, setProductError] = useState("");
   const [productSuccess, setProductSuccess] = useState("");
-  const parsed = parseServiceDetailsNotes(entry.notes);
-  const serviceBase = Number(entry.service_base_price ?? 0);
-  const currentTotal = Number(entry.price ?? 0);
+
+  // Guard must come AFTER all hooks — React requires hooks in the same order every render
+  const parsed = entry ? parseServiceDetailsNotes(entry.notes) : { items: [], requiredTotal: 0 };
+  const serviceBase = Number(entry?.service_base_price ?? 0);
+  const currentTotal = Number(entry?.price ?? 0);
   const parsedRequiredTotal = parsed.requiredTotal > 0 ? parsed.requiredTotal : Math.max(currentTotal - serviceBase, 0);
 
   const refreshProducts = useCallback(async () => {
+    if (!entry?.id) return;
     setLoadingProducts(true);
     setProductError("");
     try {
@@ -641,11 +643,15 @@ function EditServiceDetailsModal({ entry, onClose, onEntryUpdated }) {
     } finally {
       setLoadingProducts(false);
     }
-  }, [entry.id]);
+  }, [entry?.id, parsed.items]);
 
   useEffect(() => {
-    refreshProducts();
-  }, [refreshProducts]);
+    if (entry?.id) {
+      refreshProducts();
+    }
+  }, [refreshProducts, entry?.id]);
+
+  if (!entry) return null;
 
   const setRequiredItem = (index, patch) => {
     setRequiredItems((prev) =>

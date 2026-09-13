@@ -682,14 +682,14 @@ function AdminBranches() {
                   />
                 </svg>
               </div>
-              <div className="text-xl sm:text-2xl font-black text-white mb-1">
+              <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-1">
                 {loading ? (
-                  <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
+                  <div className="h-7 w-8 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
                 ) : (
                   s.value
                 )}
               </div>
-              <div className="text-xs sm:text-sm text-gray-500">{s.label}</div>
+              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">{s.label}</div>
             </div>
           ))}
         </div>

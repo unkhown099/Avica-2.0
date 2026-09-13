@@ -481,11 +481,14 @@ function AccountSettings({ LayoutComponent }) {
                                 <div className="w-32 h-32 rounded-[2rem] bg-gradient-to-tr from-gray-800 to-black border-4 border-gray-900 flex items-center justify-center text-5xl font-black text-white shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden transition-all group-hover:scale-105 duration-500">
                                     {(userData?.profile_picture || userData?.profile_pic) ? (
                                         <img
-                                            src={
-                                                (userData?.profile_picture || userData?.profile_pic).startsWith('http')
-                                                    ? (userData?.profile_picture || userData?.profile_pic)
-                                                    : `${API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE}${(userData?.profile_picture || userData?.profile_pic).startsWith('/') ? (userData?.profile_picture || userData?.profile_pic) : '/' + (userData?.profile_picture || userData?.profile_pic)}`
-                                            }
+                                            src={(() => {
+                                                const pic = userData?.profile_picture || userData?.profile_pic || '';
+                                                if (!pic) return '';
+                                                if (pic.startsWith('http')) return pic;
+                                                const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+                                                const path = pic.startsWith('/') ? pic : `/${pic}`;
+                                                return `${base}${path}`;
+                                            })()}
                                             alt="Profile"
                                             className="w-full h-full object-cover"
                                         />

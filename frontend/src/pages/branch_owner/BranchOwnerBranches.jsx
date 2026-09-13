@@ -222,10 +222,10 @@ function BranchOwnerBranches() {
                   </svg>
                 </div>
               </div>
-              <div className="text-xl sm:text-2xl font-black text-white mb-1">
+              <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-1">
                 {stat.value}
               </div>
-              <div className="text-sm text-gray-500">{stat.label}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">{stat.label}</div>
             </div>
           ))}
         </div>

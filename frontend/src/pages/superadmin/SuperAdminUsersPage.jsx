@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { apiFetch } from "../../hooks/api";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
@@ -663,9 +662,12 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
     phone: "",
   });
 
+  // Sync form data when the user prop changes — this is a valid initialization
+  // pattern, not a cascading render risk (deps array is [user] so it fires once per user change)
   useEffect(() => {
     if (user) {
       const nameParts = user.profile?.name?.split(" ") || ["", ""];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         is_active: user.is_active,
         staff_role: user.profile?.role || "",
@@ -887,7 +889,7 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function SuperAdminUsers() {
   const [users, setUsers] = useState([]);
-  const [branches, setBranches] = useState([]);
+  const [_branches, setBranches] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

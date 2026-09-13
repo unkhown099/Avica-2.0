@@ -188,7 +188,7 @@ export default function EmployeeSchedule() {
     });
   }, [selectedDateObj, bookings]);
 
-  const dayBookings = useMemo(() => {
+  const _dayBookings = useMemo(() => {
     return bookings
       .filter((b) => b.date === selectedISO)
       .slice()

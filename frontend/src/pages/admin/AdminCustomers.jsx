@@ -267,10 +267,10 @@ function AdminCustomers() {
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
             Customers
           </h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm sm:text-base">
             Manage customer profiles and relationships
           </p>
         </div>
@@ -308,22 +308,26 @@ function AdminCustomers() {
               onClick={() =>
                 setSegmentFilter(segmentFilter === seg ? "All" : seg)
               }
-              className={`bg-gray-900/60 border rounded-2xl p-3 sm:p-4 backdrop-blur-sm transition-all text-left ${segmentFilter === seg ? "border-white/20" : "border-white/5 hover:border-white/10"}`}
+              className={`bg-white dark:bg-gray-900/60 border rounded-2xl p-3 sm:p-4 backdrop-blur-sm transition-all text-left shadow-sm dark:shadow-none ${
+                segmentFilter === seg
+                  ? "border-red-500 ring-2 ring-red-500/20"
+                  : "border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10"
+              }`}
             >
-              <div className="text-xl sm:text-2xl font-black text-white mb-1">
+              <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-1">
                 {loading ? (
-                  <div className="h-7 w-8 bg-gray-800 rounded animate-pulse" />
+                  <div className="h-7 w-8 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
                 ) : (
                   (segmentCounts[seg] ?? 0)
                 )}
               </div>
-              <div className="text-xs text-gray-400 font-medium">{seg}</div>
-              <div className="text-xs text-gray-600 mt-0.5">
+              <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">{seg}</div>
+              <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                 {loading || totalCustomers === 0
                   ? "—"
                   : `${Math.round(((segmentCounts[seg] ?? 0) / totalCustomers) * 100)}%`}
               </div>
-              <div className="mt-2 h-1 rounded-full bg-gray-800">
+              <div className="mt-2 h-1 rounded-full bg-gray-100 dark:bg-gray-800">
                 <div
                   className="h-1 rounded-full transition-all duration-700"
                   style={{

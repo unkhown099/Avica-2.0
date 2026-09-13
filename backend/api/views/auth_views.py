@@ -4,9 +4,8 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth import authenticate
-from ..serializers.auth_serializer import SignupSerializer
-from ..models import User, Customer, Staff
+from api.serializers.auth_serializer import SignupSerializer
+from api.models import User, Customer, Staff
 import requests
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -14,6 +13,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -21,7 +21,41 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from email.mime.image import MIMEImage
 import os
+import logging
 
+logger = logging.getLogger(__name__)
+
+
+def _get_frontend_url(request=None):
+    """Resolve base frontend URL from env or request origin."""
+    if os.getenv("FRONTEND_URL"):
+        return os.getenv("FRONTEND_URL").rstrip("/")
+    if request:
+        origin = request.headers.get("Origin") or request.headers.get("Referer")
+        if origin:
+            # Strip trailing path if referer
+            from urllib.parse import urlparse
+            parsed = urlparse(origin)
+            return f"{parsed.scheme}://{parsed.netloc}"
+    return "http://localhost:5173"
+
+
+def _attach_email_logo(msg):
+    """Safely attach company logo to email message."""
+    possible_paths = [
+        os.path.join(settings.BASE_DIR, 'api', 'assets', 'otokwikklogo.png'),
+        os.path.join(settings.BASE_DIR.parent, "frontend", "src", "assets", "otokwikklogo.png"),
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            try:
+                with open(path, 'rb') as f:
+                    img = MIMEImage(f.read())
+                    img.add_header('Content-ID', '<logo>')
+                    msg.attach(img)
+                break
+            except Exception as e:
+                logger.debug("Could not attach email logo from %s: %s", path, e)
 
 class SignupView(APIView):
     def post(self, request):
@@ -46,27 +80,31 @@ class SignupView(APIView):
             # Send verification email
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
-            verify_url = f"http://localhost:5173/verify-email?token={token}&uid={uid}"
+            frontend_url = _get_frontend_url(request)
+            verify_url = f"{frontend_url}/verify-email?token={token}&uid={uid}"
             
             subject = "Verify your email - Otokwikk"
+            first_name = (request.data.get('first_name') or 'Valued Customer').strip()
             
             # HTML Email Template
             html_content = f"""
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #07070d; margin: 0; padding: 0; color: #ffffff; }}
-                    .container {{ max-width: 600px; margin: 20px auto; background: linear-gradient(135deg, #111827 0%, #07070d 100%); border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }}
-                    .header {{ background-color: #000000; padding: 40px; text-align: center; }}
-                    .logo {{ height: 60px; }}
-                    .content {{ padding: 40px; text-align: center; }}
-                    h1 {{ color: #ffffff; font-size: 28px; font-weight: 800; margin-bottom: 10px; }}
-                    p {{ color: #9ca3af; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }}
-                    .button {{ display: inline-block; background-color: #dc2626; color: #ffffff; padding: 16px 36px; border-radius: 12px; font-weight: 700; text-decoration: none; font-size: 18px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3); }}
-                    .footer {{ background-color: rgba(0,0,0,0.3); padding: 30px; text-align: center; border-t: 1px solid rgba(255,255,255,0.05); }}
-                    .footer-text {{ color: #4b5563; font-size: 12px; }}
-                    .divider {{ height: 1px; background: linear-gradient(to right, transparent, rgba(220, 38, 38, 0.3), transparent); margin: 30px 0; }}
+                    body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #07070d; margin: 0; padding: 20px; color: #ffffff; }}
+                    .container {{ max-width: 600px; margin: 20px auto; background: #111827; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }}
+                    .header {{ background-color: #000000; padding: 32px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }}
+                    .logo {{ height: 52px; max-width: 220px; object-fit: contain; }}
+                    .content {{ padding: 36px 30px; text-align: center; }}
+                    h1 {{ color: #ffffff; font-size: 24px; font-weight: 800; margin: 0 0 12px; }}
+                    p {{ color: #9ca3af; font-size: 15px; line-height: 1.6; margin: 0 0 24px; }}
+                    .button {{ display: inline-block; background-color: #dc2626; color: #ffffff; padding: 14px 32px; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 16px; }}
+                    .footer {{ background-color: rgba(0,0,0,0.3); padding: 24px; text-align: center; border-top: 1px solid rgba(255,255,255,0.06); }}
+                    .footer-text {{ color: #6b7280; font-size: 12px; margin: 0; line-height: 1.5; }}
+                    .divider {{ height: 1px; background: rgba(255,255,255,0.08); margin: 24px 0; }}
                 </style>
             </head>
             <body>
@@ -76,14 +114,14 @@ class SignupView(APIView):
                     </div>
                     <div class="content">
                         <h1>Welcome to Otokwikk!</h1>
-                        <p>Hi {request.data.get('first_name')},<br>Thank you for joining us. Please verify your email address to activate your account and start your journey with Otokwikk.</p>
+                        <p>Hi {first_name},<br>Thank you for joining us. Please verify your email address to activate your account and start booking services.</p>
                         <a href="{verify_url}" class="button">Verify Email Address</a>
                         <div class="divider"></div>
-                        <p style="font-size: 14px;">If the button doesn't work, copy and paste this link into your browser:<br>
-                        <span style="color: #6366f1;">{verify_url}</span></p>
+                        <p style="font-size: 13px; color: #6b7280; margin-bottom: 0;">If the button above does not work, copy and paste this link into your browser:<br>
+                        <span style="color: #60a5fa; word-break: break-all;">{verify_url}</span></p>
                     </div>
                     <div class="footer">
-                        <p class="footer-text">© 2026 Otokwikk Services. All rights reserved.<br>This is an automated email, please do not reply.</p>
+                        <p class="footer-text">© 2026 Otokwikk Services. All rights reserved.<br>This is an automated message, please do not reply directly to this email.</p>
                     </div>
                 </div>
             </body>
@@ -95,18 +133,10 @@ class SignupView(APIView):
             try:
                 msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [user.email])
                 msg.attach_alternative(html_content, "text/html")
-                
-                # Attach logo as CID
-                logo_path = os.path.join(settings.BASE_DIR, 'api', 'assets', 'otokwikklogo.png')
-                if os.path.exists(logo_path):
-                    with open(logo_path, 'rb') as f:
-                        img = MIMEImage(f.read())
-                        img.add_header('Content-ID', '<logo>')
-                        msg.attach(img)
-                
+                _attach_email_logo(msg)
                 msg.send()
             except Exception as e:
-                print(f"Failed to send email: {e}")
+                logger.error("Failed to send signup verification email to %s: %s", user.email, e)
 
             return Response(
                 {
@@ -134,39 +164,45 @@ def generate_temp_password(length=10):
 
 def send_google_signup_email(user, temp_password):
     """Send welcome email with temporary password for Google signups."""
-    subject = "Welcome to Avica! Your Temporary Password"
+    subject = "Welcome to Otokwikk! Your Temporary Password"
+    frontend_url = _get_frontend_url()
+    login_url = f"{frontend_url}/signin"
     
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-            body {{ font-family: 'Inter', sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 0; }}
-            .container {{ max-width: 600px; margin: 40px auto; background: #111827; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }}
-            .header {{ background: #000000; padding: 30px; text-align: center; }}
-            .content {{ padding: 40px; text-align: center; }}
-            h1 {{ font-size: 24px; font-weight: 800; margin-bottom: 20px; color: #ffffff; }}
-            p {{ color: #9ca3af; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }}
-            .pass-box {{ background: #1f2937; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 20px; color: #dc2626; letter-spacing: 2px; font-weight: bold; margin: 20px 0; border: 1px dashed #dc2626; }}
-            .button {{ display: inline-block; background: #dc2626; color: #ffffff; padding: 14px 30px; border-radius: 12px; font-weight: 700; text-decoration: none; }}
-            .footer {{ background: rgba(0,0,0,0.2); padding: 20px; text-align: center; color: #4b5563; font-size: 12px; }}
+            body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 20px; }}
+            .container {{ max-width: 600px; margin: 20px auto; background: #111827; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }}
+            .header {{ background: #000000; padding: 32px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }}
+            .logo {{ height: 52px; max-width: 220px; object-fit: contain; }}
+            .content {{ padding: 36px 30px; text-align: center; }}
+            h1 {{ font-size: 24px; font-weight: 800; margin: 0 0 12px; color: #ffffff; }}
+            p {{ color: #9ca3af; font-size: 15px; line-height: 1.6; margin: 0 0 20px; }}
+            .pass-box {{ background: #1f2937; padding: 16px 20px; border-radius: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 22px; color: #ef4444; letter-spacing: 3px; font-weight: bold; margin: 20px auto; border: 1px dashed rgba(239, 68, 68, 0.5); display: inline-block; max-width: 90%; word-break: break-all; }}
+            .button {{ display: inline-block; background: #dc2626; color: #ffffff; padding: 14px 32px; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 16px; margin-top: 10px; }}
+            .footer {{ background: rgba(0,0,0,0.3); padding: 24px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.06); }}
+            .footer-text {{ margin: 0; line-height: 1.5; }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <img src="cid:logo" alt="Otokwikk" style="height: 50px;">
+                <img src="cid:logo" alt="Otokwikk" class="logo">
             </div>
             <div class="content">
                 <h1>Account Created Successfully!</h1>
-                <p>Welcome to Avica. You've successfully signed up using your Google account.</p>
-                <p>For your security and to allow direct login later, we've generated a temporary password for you:</p>
+                <p>Welcome to Otokwikk. You have successfully signed up using your Google account.</p>
+                <p>For your convenience and security, we have generated a temporary password for your account:</p>
                 <div class="pass-box">{temp_password}</div>
-                <p style="color: #ef4444; font-weight: bold;">IMPORTANT: Please change this password immediately in your account settings.</p>
-                <a href="http://localhost:5173/signin" class="button">Log In & Secure Account</a>
+                <p style="color: #f87171; font-weight: 600; font-size: 13px;">Please change this temporary password after logging in.</p>
+                <a href="{login_url}" class="button">Log In & Access Account</a>
             </div>
             <div class="footer">
-                © 2026 Avica Services. Professional Auto Detailing.
+                <p class="footer-text">© 2026 Otokwikk Services. Professional Auto Detailing.<br>This is an automated message, please do not reply directly to this email.</p>
             </div>
         </div>
     </body>
@@ -176,18 +212,10 @@ def send_google_signup_email(user, temp_password):
     try:
         msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [user.email])
         msg.attach_alternative(html_content, "text/html")
-        
-        # Attach the logo as CID
-        logo_path = os.path.join(settings.BASE_DIR.parent, "frontend", "src", "assets", "otokwikklogo.png")
-        if os.path.exists(logo_path):
-            with open(logo_path, 'rb') as f:
-                logo_img = MIMEImage(f.read())
-                logo_img.add_header('Content-ID', '<logo>')
-                msg.attach(logo_img)
-        
+        _attach_email_logo(msg)
         msg.send()
     except Exception as e:
-        print(f"Failed to send Google signup email: {str(e)}")
+        logger.error("Failed to send Google signup email to %s: %s", user.email, e)
 
 def _get_profile_data(user):
     """
@@ -272,7 +300,7 @@ class LoginView(APIView):
                     status=400,
                 )
 
-            user = authenticate(email=email, password=password)
+            user = authenticate(request=request, email=email, password=password)
             print("User authenticated?", user)
  
             if not user:
@@ -629,7 +657,8 @@ class ForgotPasswordView(APIView):
 
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_url = f"http://localhost:5173/reset-password?token={token}&uid={uid}"
+        frontend_url = _get_frontend_url(request)
+        reset_url = f"{frontend_url}/reset-password?token={token}&uid={uid}"
         
         subject = "Reset your password - Otokwikk"
         
@@ -637,30 +666,34 @@ class ForgotPasswordView(APIView):
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {{ font-family: 'Inter', sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 0; }}
-                .container {{ max-width: 600px; margin: 40px auto; background: #111827; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }}
-                .header {{ background: #000000; padding: 30px; text-align: center; }}
-                .content {{ padding: 40px; text-align: center; }}
-                h1 {{ font-size: 24px; font-weight: 800; margin-bottom: 20px; }}
-                p {{ color: #9ca3af; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }}
-                .button {{ display: inline-block; background: #dc2626; color: #ffffff; padding: 14px 30px; border-radius: 12px; font-weight: 700; text-decoration: none; }}
-                .footer {{ background: rgba(0,0,0,0.2); padding: 20px; text-align: center; color: #4b5563; font-size: 12px; }}
+                body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 20px; }}
+                .container {{ max-width: 600px; margin: 20px auto; background: #111827; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }}
+                .header {{ background: #000000; padding: 32px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }}
+                .logo {{ height: 52px; max-width: 220px; object-fit: contain; }}
+                .content {{ padding: 36px 30px; text-align: center; }}
+                h1 {{ font-size: 24px; font-weight: 800; margin: 0 0 12px; color: #ffffff; }}
+                p {{ color: #9ca3af; font-size: 15px; line-height: 1.6; margin: 0 0 24px; }}
+                .button {{ display: inline-block; background: #dc2626; color: #ffffff; padding: 14px 32px; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 16px; }}
+                .footer {{ background: rgba(0,0,0,0.3); padding: 24px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.06); }}
+                .footer-text {{ margin: 0; line-height: 1.5; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="cid:logo" alt="Otokwikk" style="height: 50px;">
+                    <img src="cid:logo" alt="Otokwikk" class="logo">
                 </div>
                 <div class="content">
                     <h1>Password Reset Request</h1>
-                    <p>We received a request to reset your password. Click the button below to choose a new one. This link will expire in 24 hours.</p>
+                    <p>We received a request to reset your password. Click the button below to choose a new password. This link is valid for 24 hours.</p>
                     <a href="{reset_url}" class="button">Reset Password</a>
-                    <p style="margin-top: 30px; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
+                    <p style="margin-top: 24px; font-size: 13px; color: #6b7280; margin-bottom: 0;">If you did not request a password reset, you can safely ignore this email.</p>
                 </div>
                 <div class="footer">
-                    © 2026 Otokwikk Services. Professional Auto Detailing.
+                    <p class="footer-text">© 2026 Otokwikk Services. Professional Auto Detailing.<br>This is an automated message, please do not reply directly to this email.</p>
                 </div>
             </div>
         </body>
@@ -672,21 +705,14 @@ class ForgotPasswordView(APIView):
         try:
             msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [user.email])
             msg.attach_alternative(html_content, "text/html")
-            
-            # Attach the logo as CID
-            logo_path = os.path.join(settings.BASE_DIR.parent, "frontend", "src", "assets", "otokwikklogo.png")
-            if os.path.exists(logo_path):
-                with open(logo_path, 'rb') as f:
-                    logo_img = MIMEImage(f.read())
-                    logo_img.add_header('Content-ID', '<logo>')
-                    msg.attach(logo_img)
-            
+            _attach_email_logo(msg)
             msg.send()
             return Response({
                 "success": True, 
                 "message": "If an account exists with this email, a reset link has been sent."
             }, status=200)
         except Exception as e:
+            logger.error("Failed to send password reset email to %s: %s", user.email, e)
             return Response({"success": False, "message": f"Failed to send email: {str(e)}"}, status=500)
 
 

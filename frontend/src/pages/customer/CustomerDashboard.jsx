@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import CustomerLayout from "./CustomerLayout.jsx";
-import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
 import { useNavigate } from "react-router-dom";
 import ServiceChatModal from "../../components/ServiceChatModal.jsx";
@@ -14,7 +14,7 @@ function CustomerDashboard() {
 
   const [stats, setStats] = useState({ upcoming: 0, completed: 0 });
   const [upcomingBookings, setUpcomingBookings] = useState([]);
-  const [activeSessions, setActiveSessions] = useState([]);
+  const [_activeSessions, setActiveSessions] = useState([]);
   const [chatQueueId, setChatQueueId] = useState(null);
   const [cancelBooking, setCancelBooking] = useState(null);
   const [customerRescheduleBooking, setCustomerRescheduleBooking] = useState(null);

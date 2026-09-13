@@ -962,15 +962,15 @@ function AdminInventory({
                       </svg>
                     </div>
                   </div>
-                  <div className="text-xl sm:text-2xl font-black text-white mb-1">
+                  <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-1">
                     {loading ? (
-                      <div className="h-7 w-16 bg-gray-800 rounded animate-pulse" />
+                      <div className="h-7 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
                     ) : (
                       stat.value
                     )}
                   </div>
-                  <div className="text-sm text-gray-500">{stat.label}</div>
-                  <div className="text-xs text-gray-600 mt-0.5">{stat.sub}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">{stat.label}</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{stat.sub}</div>
                 </div>
               ))}
             </div>

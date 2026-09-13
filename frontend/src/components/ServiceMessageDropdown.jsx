@@ -16,7 +16,6 @@ export default function ServiceMessageDropdown() {
     const [conversations, setConversations] = useState([]);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
     const dropdownRef = useRef(null);
-    const isEmployee = ["employee", "staff", "admin", "branch_manager", "super_admin"].includes(role);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 640);

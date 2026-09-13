@@ -43,7 +43,7 @@ export default function MessengerPopup({ queueId, index = 0, onClose }) {
                 const item = data.find(c => c.id === queueId);
                 if (item) setDetails(item);
             }
-        } catch (err) { }
+        } catch (_err) { /* fail silently */ }
     };
 
     useEffect(() => {
@@ -84,7 +84,7 @@ export default function MessengerPopup({ queueId, index = 0, onClose }) {
             } else {
                 setNewMessage(msgContent);
             }
-        } catch (err) {
+        } catch (_err) {
             setNewMessage(msgContent);
         }
     };

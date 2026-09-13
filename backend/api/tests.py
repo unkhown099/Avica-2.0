@@ -11,34 +11,38 @@ from api.models import Branch, PaymentTransaction, QueueEntry, Staff, User
 class CarRecognitionTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        # The analyze-vehicle endpoint requires authentication
+        self.user = User.objects.create_user(email="vehicletest@test.com", password="testpass123")
+        self.client.force_authenticate(user=self.user)
 
-    @patch('api.views.genai.Client')
-    def test_car_recognition_success(self, mock_genai_client):
-        # Mock Gemini response
-        mock_response = MagicMock()
-        mock_response.text = '{"make": "Toyota", "model": "Fortuner", "year": "2023", "color": "White"}'
-        
-        mock_client = MagicMock()
-        mock_genai_client.return_value = mock_client
-        mock_client.models.generate_content.return_value = mock_response
+    @patch('api.views.vehicle_views.analyze_vehicle_image')
+    def test_car_recognition_success(self, mock_analyze):
+        # Mock the AI service response
+        mock_analyze.return_value = {
+            'success': True,
+            'make': 'Toyota',
+            'model': 'Fortuner',
+            'year': '2023',
+            'color': 'White',
+            'is_demo': False,
+        }
 
-        # Create a mock image
+        # Create a mock image — view expects 'image' field (multipart)
         image_content = b"fake image content"
         car_image = SimpleUploadedFile("car.jpg", image_content, content_type="image/jpeg")
 
-        response = self.client.post('/api/car-recognition/', {'car_image': car_image}, format='multipart')
+        response = self.client.post('/api/analyze-vehicle/', {'image': car_image}, format='multipart')
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data['success'])
-        self.assertEqual(response.data['result']['make'], 'Toyota')
-        self.assertEqual(response.data['result']['model'], 'Fortuner')
-        self.assertFalse(response.data['result'].get('is_demo', True))
+        self.assertEqual(response.data['make'], 'Toyota')
+        self.assertEqual(response.data['model'], 'Fortuner')
+        self.assertFalse(response.data.get('is_demo', True))
 
     def test_car_recognition_no_image(self):
-        response = self.client.post('/api/car-recognition/', {}, format='multipart')
+        response = self.client.post('/api/analyze-vehicle/', {}, format='multipart')
+        # Endpoint returns 400 when no image is provided
         self.assertEqual(response.status_code, 400)
-        self.assertFalse(response.data['success'])
-
 
 class ReportAnalyticsTests(TestCase):
     def setUp(self):

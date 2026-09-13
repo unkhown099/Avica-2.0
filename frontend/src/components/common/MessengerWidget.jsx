@@ -17,11 +17,6 @@ function MessengerWidget() {
     const user = getUserFromSession() || {};
     const messagesEndRef = useRef(null);
 
-    // Check if I am a customer or employee
-    const isCustomer = user.role === "Customer" || !user.role;
-    // (Customer might not have a role in the session object, or it's "Customer")
-    // Let's assume Employee has role "Employee" or "Mechanic"
-
     const fetchContacts = async () => {
         try {
             const res = await fetch(`${API_BASE}/api/direct-messages/contacts/`, {
@@ -96,7 +91,7 @@ function MessengerWidget() {
             } else {
                 toast.error(data.error || "Failed to send message");
             }
-        } catch (err) {
+        } catch {
             toast.error("Network error");
         }
     };

@@ -3,6 +3,7 @@ import InventoryLayout from "./InventoryLayout";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
 import Pagination from "../../components/Pagination";
 import usePagination from "../../hooks/usePagination";
+import { exportToCSV } from "../../components/admin/DashboardUI";
 
 // ── Severity helpers ──────────────────────────────────────────────────────────
 function deriveSeverity(item) {
@@ -415,34 +416,29 @@ export default function ReorderAlerts() {
   const handleExport = () => {
     setExporting(true);
     try {
-      const rows = [
-        [
-          "Item",
-          "Category",
-          "Branch",
-          "Severity",
-          "Current Qty",
-          "Min Qty",
-          "Last Updated",
-        ],
-        ...filtered.map((a) => [
-          a.name,
-          a.category ?? "—",
-          a.branch_name ?? "—",
-          a.severity,
-          a.quantity,
-          a.minimum_qty ?? "—",
-          formatDate(a.updated_at ?? a.created_at),
-        ]),
+      const headers = [
+        "Item",
+        "Category",
+        "Branch",
+        "Severity",
+        "Current Qty",
+        "Min Qty",
+        "Last Updated",
       ];
-      const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `reorder-alerts-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const rows = filtered.map((a) => [
+        a.name || "—",
+        a.category ?? "—",
+        a.branch_name ?? "—",
+        a.severity ? a.severity.toUpperCase() : "—",
+        a.quantity ?? 0,
+        a.minimum_qty ?? "—",
+        formatDate(a.updated_at ?? a.created_at),
+      ]);
+      exportToCSV(
+        rows,
+        headers,
+        `reorder-alerts-${new Date().toISOString().slice(0, 10)}.csv`
+      );
     } finally {
       setExporting(false);
     }

@@ -121,8 +121,13 @@ class InventoryListCreateView(APIView):
         qs = InventoryItem.objects.select_related("branch").all()
 
         # Global roles can view inventory across branches; branch-scoped roles stay restricted.
+        is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
+            not requester_staff
+            or not requester_staff.branch_id
+            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+        )
         global_roles = {"super_admin", "Admin", "Business Owner", "Inventory Manager"}
-        if requester_staff and role not in global_roles:
+        if requester_staff and role not in global_roles and not is_central_inventory:
             if requester_staff.branch_id:
                 qs = qs.filter(branch_id=requester_staff.branch_id)
             else:
@@ -130,7 +135,10 @@ class InventoryListCreateView(APIView):
         if category:
             qs = qs.filter(category=category)
         if branch:
-            qs = qs.filter(branch__name=branch)
+            if branch in ["Central", "Central Warehouse", "Central Inventory"]:
+                qs = qs.filter(branch__isnull=True)
+            else:
+                qs = qs.filter(branch__name=branch)
         if search:
             qs = qs.filter(name__icontains=search) | qs.filter(sku__icontains=search)
         if archived == "true":
@@ -256,7 +264,13 @@ class RestockRequestListCreateView(APIView):
             "reviewed_by",
         ).all()
 
-        if requester_staff and requester_staff.role != "Inventory Manager":
+        is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
+            not requester_staff
+            or not requester_staff.branch_id
+            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+        )
+        is_global_manager = role in ["super_admin", "Admin", "Business Owner", "Inventory Manager"] or is_central_inventory
+        if requester_staff and not is_global_manager:
             if requester_staff.branch_id:
                 qs = qs.filter(branch_id=requester_staff.branch_id)
             else:
@@ -550,8 +564,14 @@ class DirectStockTransferView(APIView):
 
     def post(self, request):
         role = get_staff_role(request)
-        if role not in ["super_admin", "Inventory Manager"]:
-            return Response({"detail": "Only Inventory Manager or Super Admin can transfer stock."}, status=403)
+        requester_staff = getattr(request.user, "staff_profile", None)
+        is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
+            not requester_staff
+            or not requester_staff.branch_id
+            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+        )
+        if role not in ["super_admin", "Inventory Manager"] and not is_central_inventory:
+            return Response({"detail": "Only Inventory Manager, Central Inventory, or Super Admin can transfer stock."}, status=403)
 
         source_item_id = request.data.get("source_item_id")
         target_branch_id = request.data.get("target_branch_id")
@@ -690,8 +710,13 @@ class InventoryTransactionHistoryView(APIView):
                 return Response({"detail": "Invalid date_to. Use YYYY-MM-DD."}, status=400)
             qs = qs.filter(created_at__date__lte=date_to)
 
-        if role in ["Inventory", "Branch Manager"]:
-            requester_staff = getattr(request.user, "staff_profile", None)
+        requester_staff = getattr(request.user, "staff_profile", None)
+        is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
+            not requester_staff
+            or not requester_staff.branch_id
+            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+        )
+        if role in ["Inventory", "Branch Manager"] and not is_central_inventory:
             branch_name = requester_staff.branch.name if requester_staff and requester_staff.branch else ""
             if not branch_name:
                 return Response([], status=200)
@@ -724,21 +749,27 @@ class InventoryDemandForecastView(APIView):
         inventory_qs = InventoryItem.objects.select_related("branch").filter(is_active=True)
 
         requester_staff = getattr(request.user, "staff_profile", None)
-        if role in ["Inventory", "Branch Manager", "Staff", "Employee"] and requester_staff and requester_staff.branch:
-            allowed_branch_name = requester_staff.branch.name
-            transactions_qs = transactions_qs.filter(branch_name=allowed_branch_name)
-            inventory_qs = inventory_qs.filter(branch=requester_staff.branch)
-        elif role in ["Inventory", "Branch Manager", "Staff", "Employee"]:
-            return Response(
-                {
-                    "period": period,
-                    "branch_filter": "Unassigned",
-                    "time_series": [],
-                    "linear_regression": {"slope": 0, "intercept": 0, "next_period_prediction": 0, "trend": "stable"},
-                    "top_items": [],
-                    "risk_summary": {"stockout_risk_count": 0, "overstock_risk_count": 0},
-                }
-            )
+        is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
+            not requester_staff
+            or not requester_staff.branch_id
+            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+        )
+        if role in ["Inventory", "Branch Manager", "Staff", "Employee"] and not is_central_inventory:
+            if requester_staff and requester_staff.branch:
+                allowed_branch_name = requester_staff.branch.name
+                transactions_qs = transactions_qs.filter(branch_name=allowed_branch_name)
+                inventory_qs = inventory_qs.filter(branch=requester_staff.branch)
+            else:
+                return Response(
+                    {
+                        "period": period,
+                        "branch_filter": "Unassigned",
+                        "time_series": [],
+                        "linear_regression": {"slope": 0, "intercept": 0, "next_period_prediction": 0, "trend": "stable"},
+                        "top_items": [],
+                        "risk_summary": {"stockout_risk_count": 0, "overstock_risk_count": 0},
+                    }
+                )
 
         if branch_name and branch_name != "All Branches":
             transactions_qs = transactions_qs.filter(branch_name=branch_name)

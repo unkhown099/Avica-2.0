@@ -178,8 +178,19 @@ function CreateManagerStaffModal({
     };
   };
 
+  const getInitialDraft = () => ({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    role: roleOptions[0] || "",
+    status: "Active",
+    password: "",
+    confirmPassword: "",
+  });
+
   const [form, setForm] = useState(() =>
-    isEdit ? buildEditForm(initialStaff) : createDraftRef.current,
+    isEdit ? buildEditForm(initialStaff) : getInitialDraft(),
   );
 
   useEffect(() => {
@@ -452,7 +463,6 @@ function ManagerAccountManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [staffAccounts, setStaffAccounts] = useState([]);
-  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
@@ -505,7 +515,6 @@ function ManagerAccountManagement() {
         setManagerBranchName(matchedBranch?.name || "");
         setManagerStaffId(myStaffId);
         setManagerEmail(myEmail);
-        setBranches(branchList);
         setStaffAccounts(Array.isArray(staffRes.data) ? staffRes.data : []);
       } catch (err) {
         console.error("Failed to load staff accounts:", err);

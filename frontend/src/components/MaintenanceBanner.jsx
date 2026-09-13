@@ -42,7 +42,7 @@ export function MaintenanceBanner() {
             setMaintenanceMessage(parsed.message);
           }
         }
-      } catch (err) {
+      } catch (_err) {
         const localData = localStorage.getItem("maintenance_mode");
         if (localData) {
           const parsed = JSON.parse(localData);

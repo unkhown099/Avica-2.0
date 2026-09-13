@@ -218,16 +218,49 @@ class ManagerReviewReplyView(APIView):
 
         safe_message = escape(reply_message).replace("\n", "<br>")
         html_content = f"""
+        <!DOCTYPE html>
         <html>
-          <body style="font-family: Arial, sans-serif; background:#0b0f1a; color:#f9fafb; padding:24px;">
-            <div style="max-width:640px; margin:0 auto; background:#111827; border-radius:12px; padding:24px;">
-              <h2 style="margin-top:0;">Thank you for your feedback</h2>
-              <p>Hi {customer_name},</p>
-              <p>Thank you for sharing your review for <strong>{branch_name}</strong>.</p>
-              <p>{safe_message}</p>
-              <p style="margin-top:24px;">Regards,<br>{manager_name}<br>Otokwikk</p>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #07070d; color: #ffffff; margin: 0; padding: 20px; }}
+            .container {{ max-width: 620px; margin: 20px auto; background: #111827; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }}
+            .header {{ background-color: #000000; padding: 28px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }}
+            .logo {{ height: 50px; }}
+            .content {{ padding: 36px 32px; }}
+            h2 {{ color: #ffffff; font-size: 22px; font-weight: 800; margin: 0 0 16px; text-align: center; }}
+            p {{ color: #d1d5db; font-size: 15px; line-height: 1.6; margin: 0 0 16px; }}
+            .message-card {{ background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid #dc2626; border-radius: 8px; padding: 18px 20px; margin: 20px 0; color: #f3f4f6; font-size: 15px; line-height: 1.7; }}
+            .signature-box {{ margin-top: 24px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 14px; color: #9ca3af; }}
+            .signature-box strong {{ color: #ffffff; }}
+            .footer {{ background: rgba(0,0,0,0.3); padding: 22px; text-align: center; border-top: 1px solid rgba(255,255,255,0.06); }}
+            .footer-text {{ color: #6b7280; font-size: 12px; margin: 0; line-height: 1.5; }}
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <img src="https://i.ibb.co/vzR0F7Z/otokwikklogo.png" alt="Otokwikk" class="logo">
             </div>
-          </body>
+            <div class="content">
+              <h2>Thank You for Your Feedback</h2>
+              <p>Hi <strong>{customer_name}</strong>,</p>
+              <p>Thank you for sharing your experience with us regarding your service at <strong>{branch_name}</strong>. Here is the response from our team:</p>
+              <div class="message-card">
+                {safe_message}
+              </div>
+              <div class="signature-box">
+                Best regards,<br>
+                <strong>{manager_name}</strong><br>
+                <span>{branch_name} • Otokwikk Services</span>
+              </div>
+            </div>
+            <div class="footer">
+              <p class="footer-text">© 2026 Otokwikk Services. All rights reserved.<br>This is an automated message, please do not reply directly to this email.</p>
+            </div>
+          </div>
+        </body>
         </html>
         """
         text_content = strip_tags(html_content)

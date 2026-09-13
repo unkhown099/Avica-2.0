@@ -14,9 +14,6 @@ function authHeaders() {
   };
 }
 
-function normalizeStatus(status = "") {
-  return String(status).toLowerCase().replace(/\s+/g, "_");
-}
 
 function toDateLabel(dateStr) {
   if (!dateStr) return "—";

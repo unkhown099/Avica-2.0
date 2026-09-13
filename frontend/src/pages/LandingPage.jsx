@@ -254,7 +254,7 @@ function LandingPage() {
   const [branches, setBranches] = useState([]);
   const [activeBranch, setActiveBranch] = useState(null);
   const [user, setUser] = useState(null);
-  const [mapSkin, setMapSkin] = useState("dark");
+  const [mapSkin, setMapSkin] = useState("satellite");
   
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -332,7 +332,7 @@ function LandingPage() {
       }
     };
 
-    const currentSkin = mapOptions[mapSkin] || mapOptions.dark;
+    const currentSkin = mapOptions[mapSkin] || mapOptions.satellite;
 
     if (tileLayerRef.current) tileLayerRef.current.remove();
     tileLayerRef.current = window.L.tileLayer(currentSkin.url, {
@@ -494,14 +494,24 @@ function LandingPage() {
         body: post.body
       });
       setModalOpen(true);
-      document.body.style.overflow = "hidden"; // Prevent scrolling when modal is open
     }
   };
 
   const closeModal = () => {
     setModalOpen(false);
-    document.body.style.overflow = "auto"; // Restore scrolling
   };
+
+  // Manage body scroll locking when modal is open
+  useEffect(() => {
+    if (modalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [modalOpen]);
 
   // Close modal on ESC key
   useEffect(() => {

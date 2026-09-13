@@ -311,6 +311,15 @@ html[data-theme="light"] .text-white:not(button *):not(a *):not([class*="bg-red"
   color: #0f172a !important;
 }
 
+/* KPI stat cards & card buttons that are white in light mode must show dark text */
+html[data-theme="light"] button[class*="backdrop-blur"] .text-white,
+html[data-theme="light"] button[class*="rounded-2xl"] .text-white,
+html[data-theme="light"] button[class*="rounded-xl"]:not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]) .text-white,
+html[data-theme="light"] div[class*="rounded-2xl"] .text-white:not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-blue"] *),
+html[data-theme="light"] div[class*="backdrop-blur"] .text-white:not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-blue"] *) {
+  color: #0f172a !important;
+}
+
 html[data-theme="light"] .text-gray-100:not(.landing-hero *),
 html[data-theme="light"] .text-gray-200:not(.landing-hero *) {
   color: #1e293b !important;

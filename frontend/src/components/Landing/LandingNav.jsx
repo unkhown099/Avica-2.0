@@ -7,7 +7,6 @@ import logo from "../../assets/otokwikklogo.png";
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
-  const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { toggleTheme, isDark } = useTheme();
   const location = useLocation();
@@ -34,7 +33,10 @@ const Navbar = () => {
   }, [loadUser]);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => {
+      // Kept for potential future scroll-based styling
+      window.scrollY > 50;
+    };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);

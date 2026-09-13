@@ -33,9 +33,13 @@ const getUserRoleFromStorage = () => {
         const payload = JSON.parse(atob(token.split(".")[1]));
         const role = payload?.role || payload?.user_role;
         if (role) return role.toLowerCase().replace(/\s+/g, "_");
-      } catch (e) {}
+      } catch {
+        // Ignore JWT parse error
+      }
     }
-  } catch (e) {}
+  } catch {
+    // Ignore storage parse error
+  }
   return null;
 };
 
@@ -52,11 +56,12 @@ export function useMaintenanceGuard() {
       setChecking(true);
     }
     
+    // Resolve role outside try/catch so it is always accessible
+    const role = getUserRoleFromStorage();
+    const isAllowedRole = role ? MAINTENANCE_ALLOWED_ROLES.includes(role) : false;
+
     try {
-      // Get current user role from storage
-      const role = getUserRoleFromStorage();
       setUserRole(role);
-      const isAllowedRole = role ? MAINTENANCE_ALLOWED_ROLES.includes(role) : false;
       
       const authHeaders = await getAuthHeadersAsync();
       

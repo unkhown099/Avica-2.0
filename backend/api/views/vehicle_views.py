@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import SessionAuthentication
-from ..services.ai_vehicle_service import analyze_vehicle_image
+from api.services.ai_vehicle_service import analyze_vehicle_image
 
 
 class AnalyzeVehicleView(APIView):
@@ -14,8 +14,13 @@ class AnalyzeVehicleView(APIView):
     def post(self, request):
         base64_image = request.data.get("image")
 
-        # Also support multipart file upload
-        if not base64_image and "image" in request.FILES:
+        # Support multipart file upload (when image is an UploadedFile or in request.FILES)
+        if hasattr(base64_image, "read"):
+            try:
+                base64_image = base64.b64encode(base64_image.read()).decode("utf-8")
+            except Exception as e:
+                return Response({"error": f"Failed to read image file: {str(e)}"}, status=400)
+        elif not base64_image and "image" in request.FILES:
             uploaded_file = request.FILES["image"]
             try:
                 base64_image = base64.b64encode(uploaded_file.read()).decode("utf-8")
@@ -32,7 +37,7 @@ class AnalyzeVehicleView(APIView):
             return Response({"error": f"Vehicle analysis failed: {str(e)}"}, status=500)
 
 
-from ..models import VehiclePMSLog, Customer
+from api.models import VehiclePMSLog, Customer
 
 
 class PreventiveMaintenanceView(APIView):

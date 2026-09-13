@@ -7,7 +7,7 @@ django.setup()
 from api.models import User, Staff, Customer, Branch
 
 branch = Branch.objects.first()
-COMMON_PASSWORD = 'password123'
+COMMON_PASSWORD = 'Password123!'
 
 roles_info = [
     ('super_admin', 'Super Admin', 'superadmin@avica.com', True, True),

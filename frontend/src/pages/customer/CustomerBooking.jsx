@@ -602,7 +602,7 @@ function DamageDetectionModal({ onClose, onBack }) {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
-  const [error, setError] = useState("");
+  const [_error, setError] = useState("");
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const canvasRefs = useRef({});
   const [toast, setToast] = useState(null); // Add toast state
@@ -1204,7 +1204,7 @@ function NewBookingModal({
   initialPlateNumber = "",
 }) {
   const [step, setStep] = useState(0);
-  const damageServicesSynced = useRef(false);
+  const _damageServicesSynced = useRef(false);
   const [form, setForm] = useState({
     services: initialDamageData?.matchedServices ?? [],
     branch: null,
@@ -1234,7 +1234,7 @@ function NewBookingModal({
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [employeesError, setEmployeesError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [_error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [availableSlots, setAvailableSlots] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
@@ -1688,10 +1688,6 @@ function NewBookingModal({
       setLoading(false);
     }
   };
-
-  const availableCount = availableSlots
-    ? Object.values(availableSlots).filter((v) => v === true).length
-    : 0;
 
   return (
     <>
@@ -3350,85 +3346,190 @@ function ReceiptModal({ booking, onClose }) {
     typeof booking?.branch === "object"
       ? booking?.branch?.name
       : booking?.branch || booking?.branch_detail?.name || "—";
+  const serviceName = booking?.service_name || booking?.service || "Service";
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
-    <CenterModal onClose={onClose}>
-      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
-        <div className="min-w-0 mr-3">
-          <h2 className="text-base sm:text-xl font-black text-white">
-            Service <span className="text-red-500">Receipt</span>
-          </h2>
-          <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5 truncate">
-            {receiptNo}
-          </p>
-        </div>
-        <CloseBtn onClick={onClose} />
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
-        <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
-          <div className="space-y-1.5 text-xs sm:text-sm">
-            {[
-              ["Service", booking?.service_name || booking?.service || "—"],
-              ["Date", booking?.date || "—"],
-              ["Time", toDisplayTime(booking?.time) || "—"],
-              ["Branch", branchName],
-              ["Staff", booking?.staff || "TBA"],
-              [
-                "Payment",
-                booking?.payment_method
-                  ? String(booking.payment_method).toUpperCase()
-                  : "—",
-              ],
-            ].map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-4">
-                <span className="text-gray-500">{label}</span>
-                <span className="text-white font-semibold text-right">
-                  {value}
-                </span>
-              </div>
-            ))}
+    <>
+      <div id="customer-booking-print" style={{ display: "none" }}>
+        <style>{`
+          @media print {
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            html, body {
+              width: 80mm !important;
+              min-height: 0 !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #fff !important;
+              overflow: visible !important;
+            }
+            body * { visibility: hidden !important; }
+            #customer-booking-print, #customer-booking-print * { visibility: visible !important; }
+            #customer-booking-print {
+              display: block !important;
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              z-index: 999999 !important;
+              width: 80mm;
+              font-family: 'Courier New', Courier, monospace;
+              font-size: 11px;
+              line-height: 1.4;
+              color: #000;
+              background: #fff;
+              padding: 4mm 5mm;
+              box-sizing: border-box;
+            }
+          }
+        `}</style>
+        <div style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: "11px", color: "#000" }}>
+          <div style={{ textAlign: "center", marginBottom: "8px" }}>
+            <div style={{ fontSize: "16px", fontWeight: "900", letterSpacing: "1px" }}>OTOKWIKK</div>
+            <div style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase" }}>Car Care & Detailing Services</div>
+            <div style={{ fontSize: "11px", fontWeight: "bold", marginTop: "4px" }}>{branchName}</div>
+          </div>
+          <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+          <div style={{ fontSize: "10px", lineHeight: "1.5", marginBottom: "6px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>RECEIPT #:</strong></span>
+              <span style={{ fontWeight: "bold" }}>{receiptNo}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>DATE:</strong></span>
+              <span>{booking?.date || "—"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>TIME:</strong></span>
+              <span>{toDisplayTime(booking?.time) || "—"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>STAFF:</strong></span>
+              <span>{booking?.staff || "Staff"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span><strong>PAYMENT:</strong></span>
+              <span style={{ textTransform: "uppercase" }}>{booking?.payment_method || "—"}</span>
+            </div>
+          </div>
+          <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+            <span style={{ flex: 1, paddingRight: "6px" }}>1. {serviceName}</span>
+            <span style={{ fontWeight: "bold" }}>₱{Number.isFinite(total) ? total.toLocaleString("en-PH") : "0"}</span>
+          </div>
+          {products.length > 0 && (
+            <div style={{ marginTop: "4px", fontSize: "10px", color: "#333" }}>
+              <div>Products Used:</div>
+              {products.map((p, idx) => (
+                <div key={idx} style={{ paddingLeft: "8px" }}>- {p.name} (x{p.quantity})</div>
+              ))}
+            </div>
+          )}
+          <div style={{ borderBottom: "1px dashed #000", margin: "6px 0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "13px" }}>
+            <span>TOTAL PAID</span>
+            <span>₱{Number.isFinite(total) ? total.toLocaleString("en-PH") : "0"}</span>
+          </div>
+          <div style={{ borderTop: "1px dashed #000", marginTop: "10px", paddingTop: "8px", textAlign: "center", fontSize: "9px" }}>
+            <div style={{ fontWeight: "bold", textTransform: "uppercase" }}>Thank you for trusting Otokwikk!</div>
+            <div style={{ marginTop: "2px" }}>Please keep this official receipt for your records.</div>
           </div>
         </div>
-        <div className="bg-emerald-600/10 border border-emerald-600/20 rounded-xl p-3 sm:p-4">
-          <p className="text-[10px] sm:text-xs font-bold text-emerald-300 uppercase tracking-widest mb-2">
-            Products Used
-          </p>
-          {products.length === 0 ? (
-            <p className="text-gray-400 text-xs sm:text-sm">
-              No additional products were recorded for this service.
+      </div>
+
+      <CenterModal onClose={onClose}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/8 flex-shrink-0">
+          <div className="min-w-0 mr-3">
+            <h2 className="text-base sm:text-xl font-black text-white">
+              Official <span className="text-red-500">Receipt</span>
+            </h2>
+            <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5 truncate font-mono">
+              {receiptNo}
             </p>
-          ) : (
-            <div className="space-y-1.5">
-              {products.map((item, idx) => (
-                <div
-                  key={`${item.name}-${idx}`}
-                  className="flex items-center justify-between text-xs sm:text-sm"
-                >
-                  <span className="text-white">{item.name}</span>
-                  <span className="text-emerald-300 font-semibold">
-                    x{item.quantity}
+          </div>
+          <CloseBtn onClick={onClose} />
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+          <div className="bg-white/4 rounded-xl p-3 sm:p-4 border border-white/8">
+            <div className="space-y-1.5 text-xs sm:text-sm">
+              {[
+                ["Service", serviceName],
+                ["Date", booking?.date || "—"],
+                ["Time", toDisplayTime(booking?.time) || "—"],
+                ["Branch", branchName],
+                ["Staff", booking?.staff || "TBA"],
+                [
+                  "Payment",
+                  booking?.payment_method
+                    ? String(booking.payment_method).toUpperCase()
+                    : "—",
+                ],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-4">
+                  <span className="text-gray-500">{label}</span>
+                  <span className="text-white font-semibold text-right">
+                    {value}
                   </span>
                 </div>
               ))}
             </div>
-          )}
+          </div>
+          <div className="bg-emerald-600/10 border border-emerald-600/20 rounded-xl p-3 sm:p-4">
+            <p className="text-[10px] sm:text-xs font-bold text-emerald-300 uppercase tracking-widest mb-2">
+              Products Used
+            </p>
+            {products.length === 0 ? (
+              <p className="text-gray-400 text-xs sm:text-sm">
+                No additional products were recorded for this service.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {products.map((item, idx) => (
+                  <div
+                    key={`${item.name}-${idx}`}
+                    className="flex items-center justify-between text-xs sm:text-sm"
+                  >
+                    <span className="text-white">{item.name}</span>
+                    <span className="text-emerald-300 font-semibold">
+                      x{item.quantity}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="border-t border-white/10 pt-4 flex items-center justify-between">
+            <span className="text-gray-400 font-semibold">Total Paid</span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-400">
+              ₱{Number.isFinite(total) ? total.toLocaleString("en-PH") : "0"}
+            </span>
+          </div>
         </div>
-        <div className="border-t border-white/10 pt-4 flex items-center justify-between">
-          <span className="text-gray-400 font-semibold">Total Paid</span>
-          <span className="text-xl sm:text-2xl font-black text-emerald-400">
-            ₱{Number.isFinite(total) ? total.toLocaleString("en-PH") : "0"}
-          </span>
+        <div className="px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a] grid grid-cols-2 gap-3">
+          <button
+            onClick={handlePrint}
+            className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-600/20 cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 font-bold text-sm transition-colors cursor-pointer"
+          >
+            Close
+          </button>
         </div>
-      </div>
-      <div className="px-4 sm:px-6 py-4 border-t border-white/8 flex-shrink-0 bg-[#0a0a0a]">
-        <button
-          onClick={onClose}
-          className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-colors"
-        >
-          Close
-        </button>
-      </div>
-    </CenterModal>
+      </CenterModal>
+    </>
   );
 }
 

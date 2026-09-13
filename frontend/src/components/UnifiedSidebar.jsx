@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/otokwikklogo.png";
 import Swal from "sweetalert2";
@@ -375,7 +375,7 @@ function SectionDivider({ label }) {
 function UnifiedSidebar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, role, user, headers } = useAuth();
+  const { isAuthenticated, role } = useAuth();
   const { toggleTheme, isDark } = useTheme();
   const [alertCount, setAlertCount] = useState(null);
   const [expandedItems, setExpandedItems] = useState({});
@@ -388,7 +388,6 @@ function UnifiedSidebar({ isOpen, onClose }) {
   });
 
   const menuItems = MENU_ITEMS[role] ?? [];
-  const roleLabel = ROLE_LABELS[role] ?? { title: "User", subtitle: "" };
 
   // Fetch live reorder-alert count
   useEffect(() => {

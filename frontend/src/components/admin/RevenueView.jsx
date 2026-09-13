@@ -27,7 +27,7 @@ function parsePrice(value) {
 }
 
 export default function RevenueView() {
-  const { data: appointments, loading, error } = useAppointments();
+  const { data: appointments, loading } = useAppointments();
   const currentYear = new Date().getFullYear();
 
   // Derive monthly revenue/expenses/profit from real appointments

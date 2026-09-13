@@ -59,7 +59,7 @@ export default function BranchOwnerAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [calendar, setCalendar] = useState({});
   const [loading, setLoading] = useState(true);
-  const [calLoading, setCalLoading] = useState(true);
+  const [_calLoading, setCalLoading] = useState(true);
   const [showCalendar, setShowCalendar] = useState(false); // mobile toggle
 
   useEffect(() => {
@@ -262,47 +262,97 @@ export default function BranchOwnerAppointments() {
     <BranchOwnerLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
             Appointments
           </h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm sm:text-base">
             View service appointments across all branches
           </p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
-            <div className="text-xl sm:text-2xl font-black text-white mb-1">
+          <div className="bg-white dark:bg-gray-900/60 border border-gray-200 dark:border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center">
+            <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-1">
               {totalCount}
             </div>
-            <div className="text-xs text-gray-400">Total This Month</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Total This Month</div>
           </div>
-          <div className="bg-gray-900/60 border border-emerald-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
-            <div className="text-xl sm:text-2xl font-black text-emerald-400 mb-1">
+          <div className="bg-white dark:bg-gray-900/60 border border-emerald-500/30 dark:border-emerald-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center">
+            <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mb-1">
               {confirmedCount}
             </div>
-            <div className="text-xs text-gray-400">Confirmed</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Confirmed</div>
           </div>
-          <div className="bg-gray-900/60 border border-amber-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm">
-            <div className="text-xl sm:text-2xl font-black text-amber-400 mb-1">
+          <div className="bg-white dark:bg-gray-900/60 border border-amber-500/30 dark:border-amber-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center">
+            <div className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 mb-1">
               {pendingCount}
             </div>
-            <div className="text-xs text-gray-400">Pending</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Pending</div>
           </div>
-          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm flex items-center">
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              className="w-full bg-transparent text-white text-xs sm:text-sm focus:outline-none cursor-pointer"
-            >
-              <option value="">All Branches</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id} className="bg-gray-900">
-                  {b.name}
+          <div className="bg-white dark:bg-gray-900/60 border border-gray-200 dark:border-white/5 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center gap-1.5 transition-all">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                <svg
+                  className="w-3.5 h-3.5 text-red-500 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                Branch
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                {!branchFilter ? "All" : "Filtered"}
+              </span>
+            </div>
+            <div className="relative">
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="w-full appearance-none bg-gray-50 dark:bg-gray-800/90 border border-gray-300 dark:border-white/10 text-gray-900 dark:text-white rounded-xl pl-3 pr-8 py-2 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 cursor-pointer transition-all hover:bg-gray-100 dark:hover:bg-gray-800 shadow-sm"
+              >
+                <option value="" className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                  All Branches
                 </option>
-              ))}
-            </select>
+                {branches.map((b) => (
+                  <option
+                    key={b.id}
+                    value={b.id}
+                    className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium"
+                  >
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
 
