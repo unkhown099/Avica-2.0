@@ -157,9 +157,18 @@ function StaffAppointments() {
       const r = await fetch(`${API_BASE}/api/queue/employees/`, {
         headers,
       });
-      if (!r.ok) throw new Error();
       const data = await r.json();
-      setEmployees(Array.isArray(data) ? data : (data.results ?? []));
+      const raw = Array.isArray(data) ? data : (data.results ?? []);
+      const seen = new Set();
+      const unique = raw.filter((emp) => {
+        if (!emp || !emp.id) return false;
+        const normName = (emp.full_name || emp.name || "").trim().toLowerCase();
+        if (seen.has(emp.id) || (normName && seen.has(normName))) return false;
+        seen.add(emp.id);
+        if (normName) seen.add(normName);
+        return true;
+      });
+      setEmployees(unique);
     } catch {
       setEmployees([]);
     }

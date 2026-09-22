@@ -3,11 +3,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from django.db.models import Q
 import re
-from ..models import Customer
-from ..models import CustomerSetting
-from ..models import Booking
-from ..models import QueueEntry
-from ..serializers.customer_serializer import CustomerSerializer
+from api.models import Customer, CustomerSetting, Booking, QueueEntry, Branch
+from api.serializers.customer_serializer import CustomerSerializer
 
 
 DEFAULT_NOTIFICATIONS = {
@@ -28,25 +25,66 @@ class AdminCustomerListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        requester_staff = getattr(request.user, "staff_profile", None)
-        is_superuser = getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)
-        staff_role = requester_staff.role if requester_staff else ""
-        normalized_role = staff_role.lower().replace(" ", "_")
+        try:
+            requester_staff = getattr(request.user, "staff_profile", None)
+            is_superuser = getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)
+            staff_role = requester_staff.role if requester_staff else ""
+            normalized_role = staff_role.lower().replace(" ", "_")
 
-        customers = Customer.objects.select_related("user").all()
+            customers = Customer.objects.select_related("user").all()
 
-        # Non-admin/global staff only see customers in their branch.
-        if not is_superuser and normalized_role not in ("admin", "business_owner", "super_admin"):
-            if requester_staff and requester_staff.branch_id:
-                customer_user_ids = Booking.objects.filter(
-                    branch_id=requester_staff.branch_id
-                ).values_list("user_id", flat=True).distinct()
-                customers = customers.filter(user_id__in=customer_user_ids)
-            else:
-                customers = customers.none()
+            # Non-admin/global staff only see customers in their branch.
+            if not is_superuser and normalized_role not in ("admin", "business_owner", "super_admin"):
+                branch_id = getattr(requester_staff, "branch_id", None)
+                branch_name = getattr(requester_staff, "branch_name", "") or ""
+                branch_obj = requester_staff.branch if (requester_staff and requester_staff.branch) else None
+                if not branch_obj and branch_id:
+                    branch_obj = Branch.objects.filter(id=branch_id).first()
+                if not branch_obj and branch_name:
+                    branch_obj = Branch.objects.filter(name__iexact=branch_name).first()
 
-        serializer = CustomerSerializer(customers, many=True)
-        return Response(serializer.data)
+                if branch_obj:
+                    booking_user_ids = Booking.objects.filter(
+                        branch=branch_obj
+                    ).values_list("user_id", flat=True).distinct()
+                    walkin_user_ids = QueueEntry.objects.filter(
+                        Q(branch=branch_obj) | Q(branch_name__iexact=branch_obj.name)
+                    ).values_list("customer_user_id", flat=True).distinct()
+                    combined_ids = set(list(booking_user_ids) + [uid for uid in walkin_user_ids if uid])
+                    customers = customers.filter(user_id__in=combined_ids)
+                else:
+                    customers = customers.none()
+
+            # Filtering options (by service availed, date, branch)
+            service_filter = request.query_params.get("service")
+            branch_filter = request.query_params.get("branch")
+            date_filter = request.query_params.get("date")
+            date_from = request.query_params.get("date_from")
+            date_to = request.query_params.get("date_to")
+
+            booking_filters = Q()
+            if service_filter and service_filter != "All Services":
+                booking_filters &= Q(service__icontains=service_filter)
+            if branch_filter and branch_filter not in ("All Branches", "all", ""):
+                if str(branch_filter).isdigit():
+                    booking_filters &= Q(branch_id=int(branch_filter))
+                else:
+                    booking_filters &= Q(branch__name__iexact=branch_filter)
+            if date_filter:
+                booking_filters &= Q(date=date_filter)
+            if date_from:
+                booking_filters &= Q(date__gte=date_from)
+            if date_to:
+                booking_filters &= Q(date__lte=date_to)
+
+            if booking_filters:
+                matched_user_ids = Booking.objects.filter(booking_filters).values_list("user_id", flat=True).distinct()
+                customers = customers.filter(user_id__in=matched_user_ids)
+
+            serializer = CustomerSerializer(customers, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=200)
 
 
 # Add this new view for the current user's profile

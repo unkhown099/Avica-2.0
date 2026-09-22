@@ -6,6 +6,7 @@ import logo from "../../assets/otokwikklogo.png";
 import { API_BASE, useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "../../context/ThemeContext.jsx";
 import ServiceMessageDropdown from "../ServiceMessageDropdown.jsx";
+import UserAvatar from "../common/UserAvatar.jsx";
 
 // ── icons ──────────────────────────────────────────────────────────────────
 const IconBell = () => (
@@ -24,9 +25,9 @@ const IconBell = () => (
   </svg>
 );
 
-const IconChevron = ({ open }) => (
+const IconChevron = ({ open, isDark = true }) => (
   <svg
-    className={`w-4 h-4 text-white transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+    className={`w-4 h-4 transition-transform duration-300 ${isDark ? "text-gray-300" : "text-gray-600"} ${open ? "rotate-180" : ""}`}
     fill="none"
     stroke="currentColor"
     viewBox="0 0 24 24"
@@ -231,13 +232,20 @@ function useOutsideClick(ref, callback) {
 function Navbar({ user: userProp, setUser }) {
   const { user: authUser, headers } = useAuth();
   const { toggleTheme, isDark } = useTheme();
-  const [localUser, setLocalUser] = useState(() => userProp || authUser);
+  const [localUser, setLocalUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+      if (raw) return JSON.parse(raw);
+    } catch (_) {}
+    return userProp || authUser;
+  });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationTab, setNotificationTab] = useState("all");
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 640);
@@ -252,6 +260,27 @@ function Navbar({ user: userProp, setUser }) {
 
   useOutsideClick(profileRef, () => setIsProfileOpen(false));
   useOutsideClick(notifRef, () => setIsNotifOpen(false));
+
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+        if (raw) {
+          setLocalUser(JSON.parse(raw));
+          return;
+        }
+      } catch (_) {}
+      if (userProp) setLocalUser(userProp);
+      else if (authUser) setLocalUser(authUser);
+    };
+
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("userUpdate", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("userUpdate", handleSync);
+    };
+  }, [userProp, authUser]);
 
   useEffect(() => {
     if (userProp) setLocalUser(userProp);
@@ -276,7 +305,6 @@ function Navbar({ user: userProp, setUser }) {
     return () => clearInterval(intervalId);
   }, [headers.Authorization]);
 
-  const user = localUser;
   const unreadCount = notifications.filter((n) => !n.read).length;
   const visibleNotifications =
     notificationTab === "unread"
@@ -333,7 +361,7 @@ function Navbar({ user: userProp, setUser }) {
       await markRead(notif.id);
     }
     setIsNotifOpen(false);
-    navigate(resolveNotificationPath(notif));
+    setSelectedNotification(notif);
   };
 
   const handleLogout = async () => {
@@ -388,13 +416,20 @@ function Navbar({ user: userProp, setUser }) {
     navigate("/signin");
   };
 
+  const user = localUser || authUser;
+  const firstName = user?.firstName || user?.first_name || "";
+  const lastName = user?.lastName || user?.last_name || "";
   const fullName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Guest";
+    [firstName, lastName].filter(Boolean).join(" ") ||
+    user?.name ||
+    user?.full_name ||
+    "Customer";
   const initials =
     (
-      (user?.firstName?.[0] || "") + (user?.lastName?.[0] || "")
-    ).toUpperCase() || "?";
+      (firstName?.[0] || "") + (lastName?.[0] || "")
+    ).toUpperCase() || (fullName ? fullName.slice(0, 2).toUpperCase() : "?");
   const email = user?.email || "";
+  const profilePic = user?.profilePicture || user?.profile_picture || user?.profile_pic;
 
   const NAV_LINKS = [
     { label: "Dashboard", href: "/dashboard" },
@@ -410,7 +445,7 @@ function Navbar({ user: userProp, setUser }) {
   ];
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-black/95 backdrop-blur-md shadow-lg border-b border-gray-800">
+    <nav className={`fixed top-0 w-full z-50 shadow-md border-b transition-colors duration-200 ${isDark ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* ── Logo ── */}
@@ -430,7 +465,7 @@ function Navbar({ user: userProp, setUser }) {
               <Link
                 key={href}
                 to={href}
-                className="text-white hover:text-red-500 font-semibold transition-colors duration-300 relative group text-sm lg:text-base"
+                className={`font-semibold transition-colors duration-300 relative group text-sm lg:text-base hover:text-red-500 ${isDark ? "text-gray-200" : "text-gray-700"}`}
               >
                 {label}
                 <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
@@ -450,7 +485,7 @@ function Navbar({ user: userProp, setUser }) {
                   setIsNotifOpen((v) => !v);
                   setIsProfileOpen(false);
                 }}
-                className="relative p-2 sm:p-2.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
+                className={`relative p-2 sm:p-2.5 rounded-lg transition-all duration-200 ${isDark ? "text-gray-300 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"}`}
                 aria-label="Notifications"
               >
                 <IconBell />
@@ -569,44 +604,35 @@ function Navbar({ user: userProp, setUser }) {
                   setIsProfileOpen((v) => !v);
                   setIsNotifOpen(false);
                 }}
-                className="flex items-center gap-2 lg:gap-3 px-2 lg:px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300"
+                className={`flex items-center gap-2 lg:gap-3 px-2 lg:px-4 py-2 rounded-lg transition-all duration-300 ${isDark ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
               >
-                <div
-                  className="user-profile-avatar w-9 h-9 lg:w-10 lg:h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 shadow-md"
-                  style={{ backgroundColor: "#dc2626", backgroundImage: "linear-gradient(135deg, #dc2626, #991b1b)", color: "#ffffff" }}
-                >
-                  {user?.profilePicture ? (
-                    <img
-                      src={user.profilePicture}
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-white font-bold text-sm" style={{ color: "#ffffff" }}>
-                      {initials}
-                    </span>
-                  )}
-                </div>
+                <UserAvatar
+                  src={profilePic}
+                  name={fullName}
+                  initials={initials}
+                  className="w-9 h-9 lg:w-10 lg:h-10 rounded-full group-hover:scale-105 transition-transform"
+                  textClassName="text-white font-bold text-sm"
+                />
                 <div className="hidden lg:block text-left">
-                  <p className="text-white font-semibold text-sm leading-tight">
+                  <p className={`font-semibold text-sm leading-tight ${isDark ? "text-white" : "text-gray-900"}`}>
                     {fullName}
                   </p>
                   {email && (
-                    <p className="text-gray-400 text-xs truncate max-w-[140px]">
+                    <p className={`text-xs truncate max-w-[140px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                       {email}
                     </p>
                   )}
                 </div>
-                <IconChevron open={isProfileOpen} />
+                <IconChevron open={isProfileOpen} isDark={isDark} />
               </button>
 
               {/* Profile Dropdown */}
               {isProfileOpen && (
-                <div className="profile-dropdown absolute right-0 mt-2 w-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
-                  <div className="p-4 border-b border-gray-700">
-                    <p className="text-white font-bold">{fullName}</p>
+                <div className={`profile-dropdown absolute right-0 mt-2 w-64 rounded-xl shadow-2xl border overflow-hidden ${isDark ? "bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+                  <div className={`p-4 border-b ${isDark ? "border-gray-700" : "border-gray-100"}`}>
+                    <p className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{fullName}</p>
                     {email && (
-                      <p className="text-gray-400 text-sm truncate">{email}</p>
+                      <p className={`text-sm truncate ${isDark ? "text-gray-400" : "text-gray-500"}`}>{email}</p>
                     )}
                   </div>
                   <div className="py-2">
@@ -614,7 +640,7 @@ function Navbar({ user: userProp, setUser }) {
                       <Link
                         key={href}
                         to={href}
-                        className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-200"
+                        className={`flex items-center gap-3 px-4 py-3 transition-colors duration-200 ${isDark ? "text-gray-300 hover:bg-white/10 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
                       >
                         <span className="shrink-0">{icon}</span>
                         <span className="text-sm">{label}</span>
@@ -624,7 +650,7 @@ function Navbar({ user: userProp, setUser }) {
                     {/* Theme Toggle */}
                     <button
                       onClick={toggleTheme}
-                      className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-200 text-sm"
+                      className={`w-full flex items-center justify-between px-4 py-3 transition-colors duration-200 text-sm ${isDark ? "text-gray-300 hover:bg-white/10 hover:text-white" : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"}`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="shrink-0">
@@ -645,7 +671,7 @@ function Navbar({ user: userProp, setUser }) {
                       </div>
                     </button>
                   </div>
-                  <div className="border-t border-gray-700 p-2">
+                  <div className={`border-t p-2 ${isDark ? "border-gray-700" : "border-gray-100"}`}>
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-600/10 transition-colors duration-200 w-full rounded-lg"
@@ -660,24 +686,18 @@ function Navbar({ user: userProp, setUser }) {
 
             {/* ── Mobile: Avatar only (no dropdown — handled in mobile menu) ── */}
             <div className="flex sm:hidden items-center">
-              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-red-600 to-red-700">
-                {user?.profilePicture ? (
-                  <img
-                    src={user.profilePicture}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white font-bold text-xs">
-                    {initials}
-                  </span>
-                )}
-              </div>
+              <UserAvatar
+                src={profilePic}
+                name={fullName}
+                initials={initials}
+                className="w-8 h-8 rounded-full"
+                textClassName="text-white font-bold text-xs"
+              />
             </div>
 
             {/* ── Hamburger ── */}
             <button
-              className="md:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200 ml-1"
+              className={`md:hidden p-2 rounded-lg transition-all duration-200 ml-1 ${isDark ? "text-gray-300 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"}`}
               onClick={() => setIsMobileOpen((v) => !v)}
               aria-label="Toggle menu"
             >
@@ -689,31 +709,27 @@ function Navbar({ user: userProp, setUser }) {
 
       {/* ── Mobile Menu ── */}
       {isMobileOpen && (
-        <div className="md:hidden border-t border-gray-800 bg-black/98 backdrop-blur-md">
+        <div className={`md:hidden border-t ${isDark ? "border-gray-800 bg-gray-900" : "border-gray-200 bg-white"}`}>
           {/* User info */}
-          <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-800">
-            <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-br from-red-600 to-red-700">
-              {user?.profilePicture ? (
-                <img
-                  src={user.profilePicture}
-                  alt="Avatar"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-white font-bold text-sm">{initials}</span>
-              )}
-            </div>
+          <div className={`flex items-center gap-3 px-4 py-4 border-b ${isDark ? "border-gray-800" : "border-gray-200"}`}>
+            <UserAvatar
+              src={profilePic}
+              name={fullName}
+              initials={initials}
+              className="w-10 h-10 rounded-full"
+              textClassName="text-white font-bold text-sm"
+            />
             <div className="min-w-0">
-              <p className="text-white font-bold text-sm">{fullName}</p>
+              <p className={`font-bold text-sm ${isDark ? "text-white" : "text-gray-900"}`}>{fullName}</p>
               {email && (
-                <p className="text-gray-400 text-xs truncate">{email}</p>
+                <p className={`text-xs truncate ${isDark ? "text-gray-400" : "text-gray-500"}`}>{email}</p>
               )}
             </div>
           </div>
 
           {/* Nav links */}
-          <div className="px-2 py-2 border-b border-gray-800">
-            <p className="px-3 py-1 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+          <div className={`px-2 py-2 border-b ${isDark ? "border-gray-800" : "border-gray-200"}`}>
+            <p className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isDark ? "text-gray-600" : "text-gray-400"}`}>
               Navigation
             </p>
             {NAV_LINKS.map(({ label, href }) => (
@@ -721,7 +737,7 @@ function Navbar({ user: userProp, setUser }) {
                 key={href}
                 to={href}
                 onClick={() => setIsMobileOpen(false)}
-                className="flex items-center px-3 py-3 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-200 font-semibold text-sm"
+                className={`flex items-center px-3 py-3 rounded-lg transition-colors duration-200 font-semibold text-sm ${isDark ? "text-gray-300 hover:bg-white/10 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
               >
                 {label}
               </Link>
@@ -729,8 +745,8 @@ function Navbar({ user: userProp, setUser }) {
           </div>
 
           {/* Account links */}
-          <div className="px-2 py-2 border-b border-gray-800">
-            <p className="px-3 py-1 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+          <div className={`px-2 py-2 border-b ${isDark ? "border-gray-800" : "border-gray-200"}`}>
+            <p className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isDark ? "text-gray-600" : "text-gray-400"}`}>
               Account
             </p>
             {PROFILE_ITEMS.map(({ label, href, icon }) => (
@@ -738,9 +754,9 @@ function Navbar({ user: userProp, setUser }) {
                 key={href}
                 to={href}
                 onClick={() => setIsMobileOpen(false)}
-                className="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-200 text-sm"
+                className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors duration-200 text-sm ${isDark ? "text-gray-300 hover:bg-white/10 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}`}
               >
-                <span className="text-gray-500 shrink-0">{icon}</span>
+                <span className={`shrink-0 ${isDark ? "text-gray-500" : "text-gray-400"}`}>{icon}</span>
                 {label}
               </Link>
             ))}
@@ -748,7 +764,7 @@ function Navbar({ user: userProp, setUser }) {
             {/* Mobile Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors duration-200 text-sm"
+              className={`flex items-center justify-between w-full px-3 py-3 rounded-lg transition-colors duration-200 text-sm ${isDark ? "text-gray-300 hover:bg-white/10 hover:text-white" : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"}`}
             >
               <div className="flex items-center gap-3">
                 <span className="shrink-0">
@@ -786,6 +802,77 @@ function Navbar({ user: userProp, setUser }) {
         </div>
       )}
 
+      {/* ── Notification Detail Modal ── */}
+      {selectedNotification &&
+        createPortal(
+          <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+              onClick={() => setSelectedNotification(null)}
+            />
+            <div className="relative bg-gradient-to-b from-gray-900 to-[#0e0e0e] border border-white/15 w-full max-w-md sm:max-w-lg rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
+              <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-11 h-11 rounded-xl ${selectedNotification.bg || "bg-red-600/20"} ${selectedNotification.accent || "text-red-400"} flex items-center justify-center shrink-0 text-xl border border-white/10`}
+                  >
+                    {selectedNotification.icon || "🔔"}
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-base leading-snug">
+                      {selectedNotification.title || "Notification"}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-white/10 text-gray-300">
+                        {selectedNotification.notification_type || "Notice"}
+                      </span>
+                      <span className="text-[11px] text-gray-400">
+                        {selectedNotification.time || "Recent"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedNotification(null)}
+                  className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+                <p className="text-xs sm:text-sm text-gray-200 leading-relaxed whitespace-pre-wrap font-normal">
+                  {selectedNotification.message}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    const path = resolveNotificationPath(selectedNotification);
+                    setSelectedNotification(null);
+                    if (path) navigate(path);
+                  }}
+                  className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-600/25"
+                >
+                  <span>View Details / Page</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setSelectedNotification(null)}
+                  className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-gray-300 hover:text-white font-bold rounded-xl text-xs transition-colors border border-white/10"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </nav>
   );
 }

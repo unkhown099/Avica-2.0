@@ -18,6 +18,41 @@ const timeAgo = (date) => {
     return Math.floor(seconds) + "s ago";
 };
 
+function playNotificationSound() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(587.33, now);
+        osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(880, now + 0.12);
+        osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.35);
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc1.stop(now + 0.12);
+        osc2.start(now + 0.12);
+        osc2.stop(now + 0.4);
+    } catch {
+        // Browsers require prior interaction to play audio
+    }
+}
+
 const NotificationDropdown = () => {
     const { headers, role } = useAuth();
     const navigate = useNavigate();
@@ -25,6 +60,8 @@ const NotificationDropdown = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+    const [pingActive, setPingActive] = useState(false);
+    const prevCountRef = useRef(-1);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -40,7 +77,16 @@ const NotificationDropdown = () => {
             if (res.ok) {
                 const data = await res.json();
                 setNotifications(data);
-                setUnreadCount(data.filter(n => !n.is_read).length);
+                const count = data.filter(n => !n.is_read).length;
+                setUnreadCount(count);
+
+                // If count increased and not initial load, trigger ping sound and animation
+                if (prevCountRef.current !== -1 && count > prevCountRef.current) {
+                    playNotificationSound();
+                    setPingActive(true);
+                    setTimeout(() => setPingActive(false), 3000);
+                }
+                prevCountRef.current = count;
             }
         } catch (err) {
             console.error("Failed to fetch notifications:", err);
@@ -50,7 +96,7 @@ const NotificationDropdown = () => {
     useEffect(() => {
         if (headers.Authorization) {
             fetchNotifications();
-            const interval = setInterval(fetchNotifications, 60000);
+            const interval = setInterval(fetchNotifications, 15000);
             return () => clearInterval(interval);
         }
     }, [headers]);
@@ -101,12 +147,14 @@ const NotificationDropdown = () => {
         return role === "customer" ? "/dashboard" : "/dashboard";
     };
 
+    const [selectedNotification, setSelectedNotification] = useState(null);
+
     const handleNotificationClick = async (notification) => {
         if (!notification?.is_read) {
             await markAsRead(notification.id);
         }
         setIsOpen(false);
-        navigate(resolveNotificationPath(notification));
+        setSelectedNotification(notification);
     };
 
     const markAllRead = async () => {
@@ -165,7 +213,10 @@ const NotificationDropdown = () => {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 focus:outline-none"
+                className={`relative p-2 text-gray-400 hover:text-white transition-all rounded-full hover:bg-white/5 focus:outline-none ${
+                    pingActive ? "animate-bounce text-red-400 ring-2 ring-red-500/50 scale-110" : ""
+                }`}
+                aria-label="Notifications"
             >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -180,6 +231,66 @@ const NotificationDropdown = () => {
                 )}
             </button>
             {isOpen && (isMobile ? createPortal(DropdownContent, document.body) : DropdownContent)}
+            {selectedNotification && createPortal(
+                <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden p-6 font-sans">
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 shrink-0">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-white leading-tight">
+                                        {selectedNotification.title || "Notification"}
+                                    </h3>
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                        {timeAgo(selectedNotification.created_at)}
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedNotification(null)}
+                                className="text-gray-500 hover:text-white transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/5 rounded-xl p-4 mb-6">
+                            <p className="text-sm text-gray-200 leading-relaxed">
+                                {selectedNotification.message}
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => {
+                                    const path = resolveNotificationPath(selectedNotification);
+                                    setSelectedNotification(null);
+                                    if (path) navigate(path);
+                                }}
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-red-600/30"
+                            >
+                                <span>Go to Page</span>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={() => setSelectedNotification(null)}
+                                className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-gray-300 font-bold rounded-xl transition-all text-xs"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };

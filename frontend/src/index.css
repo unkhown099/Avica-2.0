@@ -275,9 +275,9 @@ html[data-theme="light"] .bg-black\/40:not(.landing-hero *),
 html[data-theme="light"] .bg-white\/5:not(.landing-hero *):not(nav *),
 html[data-theme="light"] .bg-white\/10:not(.landing-hero *):not(nav *),
 html[data-theme="light"] .bg-white\/3:not(.landing-hero *),
-html[data-theme="light"] .backdrop-blur-sm:not(.landing-hero *),
-html[data-theme="light"] .backdrop-blur-md:not(.landing-hero *),
-html[data-theme="light"] .backdrop-blur-xl:not(.landing-hero *) {
+html[data-theme="light"] .backdrop-blur-sm:not(.landing-hero *):not([class*="bg-black/6"]):not([class*="bg-black/7"]):not([class*="bg-black/8"]):not([class*="bg-black/9"]):not([class*="category-badge"]):not(.category-badge):not(.map-badge),
+html[data-theme="light"] .backdrop-blur-md:not(.landing-hero *):not([class*="bg-black/6"]):not([class*="bg-black/7"]):not([class*="bg-black/8"]):not([class*="bg-black/9"]):not([class*="category-badge"]):not(.category-badge):not(.map-badge),
+html[data-theme="light"] .backdrop-blur-xl:not(.landing-hero *):not([class*="bg-black/6"]):not([class*="bg-black/7"]):not([class*="bg-black/8"]):not([class*="bg-black/9"]):not([class*="category-badge"]):not(.category-badge):not(.map-badge) {
   background-color: #ffffff !important;
   background-image: none !important;
   border-color: #e2e8f0 !important;
@@ -297,7 +297,7 @@ html[data-theme="light"] .border-white\/10:not(.landing-hero *):not(nav *) {
   border-color: #e2e8f0 !important;
 }
 
-/* â”€â”€ 5. Text & Headings (app pages only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── 5. Text & Headings (app pages only) ────────────────────────────────── */
 html[data-theme="light"] h1:not(.landing-hero *):not(.landing-footer *),
 html[data-theme="light"] h2:not(.landing-hero *):not(.landing-footer *),
 html[data-theme="light"] h3:not(.landing-hero *):not(.landing-footer *),
@@ -307,16 +307,94 @@ html[data-theme="light"] h6:not(.landing-hero *):not(.landing-footer *) {
   color: #0f172a !important;
 }
 
-html[data-theme="light"] .text-white:not(button *):not(a *):not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-green"] *):not([class*="bg-blue"] *):not(.landing-hero *):not(.landing-footer):not(.landing-footer *) {
+html[data-theme="light"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-green"]):not([class*="bg-green"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-primary"]):not([class*="bg-primary"] *):not(.category-badge):not(.category-badge *):not([class*="category-badge"]):not([class*="category-badge"] *):not([class*="bg-black/60"]):not([class*="bg-black/60"] *):not([class*="bg-black/70"]):not([class*="bg-black/70"] *):not([class*="bg-black/75"]):not([class*="bg-black/75"] *):not([class*="bg-black/80"]):not([class*="bg-black/80"] *):not([class*="bg-black/90"]):not([class*="bg-black/90"] *):not(.landing-hero *):not(.landing-footer):not(.landing-footer *) {
   color: #0f172a !important;
 }
 
-/* KPI stat cards & card buttons that are white in light mode must show dark text */
-html[data-theme="light"] button[class*="backdrop-blur"] .text-white,
-html[data-theme="light"] button[class*="rounded-2xl"] .text-white,
-html[data-theme="light"] button[class*="rounded-xl"]:not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]) .text-white,
-html[data-theme="light"] div[class*="rounded-2xl"] .text-white:not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-blue"] *),
-html[data-theme="light"] div[class*="backdrop-blur"] .text-white:not([class*="bg-red"] *):not([class*="bg-emerald"] *):not([class*="bg-blue"] *) {
+/* Category badges, image overlays, and dark chips MUST ALWAYS keep proper background & high-contrast text */
+html[data-theme="light"] .category-badge,
+html[data-theme="light"] [class*="category-badge"],
+html[data-theme="light"] span.category-badge,
+html[data-theme="light"] [class*="bg-black/60"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
+html[data-theme="light"] [class*="bg-black/70"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
+html[data-theme="light"] [class*="bg-black/75"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
+html[data-theme="light"] [class*="bg-black/80"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
+html[data-theme="light"] [class*="bg-black/90"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box) {
+  background-color: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+html[data-theme="light"] .category-badge,
+html[data-theme="light"] .category-badge *,
+html[data-theme="light"] [class*="category-badge"],
+html[data-theme="light"] [class*="category-badge"] *,
+html[data-theme="light"] span.category-badge,
+html[data-theme="light"] [class*="bg-black/60"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn),
+html[data-theme="light"] [class*="bg-black/70"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn),
+html[data-theme="light"] [class*="bg-black/75"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn),
+html[data-theme="light"] [class*="bg-black/80"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn),
+html[data-theme="light"] [class*="bg-black/90"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn) {
+  color: #ffffff !important;
+}
+
+/* ── Floating Map Controls Light Mode Adaptability ── */
+html[data-theme="light"] .map-badge {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #dc2626 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-theme="light"] .map-control-btn {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-theme="light"] .map-control-btn svg {
+  color: #0f172a !important;
+  stroke: #0f172a !important;
+}
+
+html[data-theme="light"] .map-control-btn:hover {
+  background-color: #f1f5f9 !important;
+}
+
+html[data-theme="light"] .map-skin-box {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-theme="light"] .map-skin-btn:not(.map-skin-btn-active) {
+  color: #334155 !important;
+  background-color: transparent !important;
+}
+
+html[data-theme="light"] .map-skin-btn:not(.map-skin-btn-active):hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+.map-skin-btn-active,
+html[data-theme="light"] .map-skin-btn-active {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4) !important;
+}
+
+html[data-theme="light"] .text-red-500,
+html[data-theme="light"] [class*="text-red-500"] {
+  color: #ef4444 !important;
+}
+
+/* KPI stat cards, accordions & card buttons that are white in light mode must show dark text */
+html[data-theme="light"] button:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-green"]):not([class*="bg-green"] *):not([class*="bg-primary"]):not([class*="bg-primary"] *) .text-white:not(.category-badge):not(.category-badge *),
+html[data-theme="light"] button[class*="backdrop-blur"]:not([class*="bg-red"]):not([class*="bg-red"] *) .text-white:not(.category-badge):not(.category-badge *),
+html[data-theme="light"] button[class*="rounded-2xl"]:not([class*="bg-red"]):not([class*="bg-red"] *) .text-white:not(.category-badge):not(.category-badge *),
+html[data-theme="light"] button[class*="rounded-xl"]:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *) .text-white:not(.category-badge):not(.category-badge *),
+html[data-theme="light"] div[class*="rounded-2xl"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not(.category-badge):not(.category-badge *):not([class*="bg-black/60"] *):not([class*="bg-black/70"] *):not([class*="bg-black/75"] *):not([class*="bg-black/80"] *):not([class*="bg-black/90"] *),
+html[data-theme="light"] div[class*="backdrop-blur"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not(.category-badge):not(.category-badge *):not([class*="bg-black/60"] *):not([class*="bg-black/70"] *):not([class*="bg-black/75"] *):not([class*="bg-black/80"] *):not([class*="bg-black/90"] *) {
   color: #0f172a !important;
 }
 
@@ -418,6 +496,16 @@ html[data-theme="light"] .bg-blue-500\/20:not(.landing-hero *) {
   border-color: #bfdbfe !important;
 }
 
+html[data-theme="light"] .bg-blue-500\/10:not(.landing-hero *) {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
+html[data-theme="light"] .text-blue-300:not(.landing-hero *),
+html[data-theme="light"] .text-blue-400:not(.landing-hero *) {
+  color: #1d4ed8 !important;
+}
+
 html[data-theme="light"] .bg-yellow-500\/20:not(.landing-hero *) {
   background-color: #fef3c7 !important;
   color: #92400e !important;
@@ -442,17 +530,28 @@ html[data-theme="light"] .bg-gray-500\/20:not(.landing-hero *) {
   border-color: #cbd5e1 !important;
 }
 
-/* â”€â”€ 10. Primary Buttons & Brand Elements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── 10. Primary Buttons & Brand Elements ────────────────────────────────── */
 html[data-theme="light"] button.bg-red-600:not(.landing-hero *),
+html[data-theme="light"] button.bg-red-700:not(.landing-hero *),
+html[data-theme="light"] button.bg-red-500:not(.landing-hero *),
 html[data-theme="light"] button.hover\:bg-red-700:hover:not(.landing-hero *),
+html[data-theme="light"] button.hover\:bg-red-600:hover:not(.landing-hero *),
 html[data-theme="light"] a.bg-red-600:not(.landing-hero *),
-html[data-theme="light"] .bg-red-600:not(.landing-hero *) {
+html[data-theme="light"] a.bg-red-700:not(.landing-hero *),
+html[data-theme="light"] a.bg-red-500:not(.landing-hero *),
+html[data-theme="light"] .bg-red-600:not(.landing-hero *),
+html[data-theme="light"] .bg-red-700:not(.landing-hero *) {
   background-color: #dc2626 !important;
   color: #ffffff !important;
 }
 
 html[data-theme="light"] button.bg-red-600 *:not(.landing-hero *),
-html[data-theme="light"] a.bg-red-600 *:not(.landing-hero *) {
+html[data-theme="light"] button.bg-red-700 *:not(.landing-hero *),
+html[data-theme="light"] button.bg-red-500 *:not(.landing-hero *),
+html[data-theme="light"] a.bg-red-600 *:not(.landing-hero *),
+html[data-theme="light"] a.bg-red-700 *:not(.landing-hero *),
+html[data-theme="light"] .bg-red-600 *:not(.landing-hero *),
+html[data-theme="light"] .bg-red-700 *:not(.landing-hero *) {
   color: #ffffff !important;
 }
 
@@ -630,98 +729,120 @@ html[data-theme="light"] .portal-dropdown > div > div.p-8 {
 }
 
 /* ── 15. Customer Navbar — Notification & Profile Dropdowns (light mode) ───────
-   These panels use bg-gradient-to-br from-gray-900 and are inside the nav,
-   which gets overridden to white. We force dark appearance for readability.     */
+   Clean, modern white cards with crisp high-contrast dark text in light mode. */
 html[data-theme="light"] .notif-dropdown {
-  background: #1e293b !important;
+  background: #ffffff !important;
   background-image: none !important;
-  border-color: rgba(255,255,255,0.1) !important;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.35) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
 }
 
 html[data-theme="light"] .notif-dropdown * {
-  border-color: rgba(255,255,255,0.07) !important;
+  border-color: #f1f5f9 !important;
+}
+
+html[data-theme="light"] .notif-dropdown > div:first-child {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
 }
 
 html[data-theme="light"] .notif-dropdown span.text-white,
 html[data-theme="light"] .notif-dropdown p.text-white {
-  color: #ffffff !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 
 html[data-theme="light"] .notif-dropdown .text-gray-300,
 html[data-theme="light"] .notif-dropdown p.text-gray-300 {
-  color: #cbd5e1 !important;
+  color: #334155 !important;
 }
 
 html[data-theme="light"] .notif-dropdown .text-gray-400,
 html[data-theme="light"] .notif-dropdown p.text-gray-400 {
-  color: #94a3b8 !important;
+  color: #64748b !important;
 }
 
 html[data-theme="light"] .notif-dropdown .text-gray-500,
 html[data-theme="light"] .notif-dropdown span.text-gray-500 {
-  color: #64748b !important;
+  color: #94a3b8 !important;
 }
 
 html[data-theme="light"] .notif-dropdown .text-red-400 {
-  color: #f87171 !important;
+  color: #dc2626 !important;
 }
 
 html[data-theme="light"] .notif-dropdown button:not(.bg-red-600) {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
+  color: #475569 !important;
 }
 
 /* Tab strip background */
 html[data-theme="light"] .notif-dropdown .bg-gray-800\/70 {
-  background-color: rgba(255,255,255,0.08) !important;
+  background-color: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
 }
 
 /* Notification item rows */
 html[data-theme="light"] .notif-dropdown button.w-full:hover {
-  background-color: rgba(255,255,255,0.05) !important;
+  background-color: #f8fafc !important;
 }
 
 html[data-theme="light"] .notif-dropdown .bg-white\/\[0\.03\] {
-  background-color: rgba(220,38,38,0.07) !important;
+  background-color: rgba(220, 38, 38, 0.04) !important;
 }
 
 /* Profile dropdown */
 html[data-theme="light"] .profile-dropdown {
-  background: #1e293b !important;
+  background: #ffffff !important;
   background-image: none !important;
-  border-color: rgba(255,255,255,0.1) !important;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.35) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
 }
 
 html[data-theme="light"] .profile-dropdown * {
-  border-color: rgba(255,255,255,0.07) !important;
+  border-color: #f1f5f9 !important;
 }
 
+html[data-theme="light"] .profile-dropdown > div:first-child {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .profile-dropdown p.font-bold,
 html[data-theme="light"] .profile-dropdown p.text-white,
 html[data-theme="light"] .profile-dropdown span.text-white {
-  color: #ffffff !important;
+  color: #0f172a !important;
 }
 
 html[data-theme="light"] .profile-dropdown .text-gray-300,
 html[data-theme="light"] .profile-dropdown .text-gray-400 {
+  color: #64748b !important;
+}
+
+html[data-theme="light"] .profile-dropdown .text-gray-500 {
   color: #94a3b8 !important;
 }
 
-html[data-theme="light"] .profile-dropdown a {
-  color: #94a3b8 !important;
+html[data-theme="light"] .profile-dropdown a,
+html[data-theme="light"] .profile-dropdown button {
+  color: #475569 !important;
   background: transparent !important;
 }
 
-html[data-theme="light"] .profile-dropdown a:hover {
-  background-color: rgba(255,255,255,0.06) !important;
-  color: #ffffff !important;
+html[data-theme="light"] .profile-dropdown a:hover,
+html[data-theme="light"] .profile-dropdown button:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }
 
 html[data-theme="light"] .profile-dropdown .text-red-400,
-html[data-theme="light"] .profile-dropdown .text-red-500 {
-  color: #f87171 !important;
+html[data-theme="light"] .profile-dropdown .text-red-500,
+html[data-theme="light"] .profile-dropdown button.text-red-500 {
+  color: #dc2626 !important;
+}
+
+html[data-theme="light"] .profile-dropdown button.text-red-500:hover {
+  background-color: #fef2f2 !important;
+  color: #b91c1c !important;
 }
 
 /* ── 16. Customer Services — Category Pills (Light Mode) ─────────────────────── */

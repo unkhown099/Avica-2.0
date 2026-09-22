@@ -162,15 +162,14 @@ function ManagerContents() {
     }));
   };
 
-  const addException = () => {
+  const addException = async () => {
     if (!exceptionDraft.date) {
       notify("warning", "Please select a date for the exception.");
       return;
     }
-    setScheduleConfig((prev) => ({
-      ...prev,
-      exceptions: [{ id: Date.now(), ...exceptionDraft }, ...prev.exceptions],
-    }));
+    const newExceptions = [{ id: Date.now(), ...exceptionDraft }, ...scheduleConfig.exceptions];
+    const updatedConfig = { ...scheduleConfig, exceptions: newExceptions };
+    setScheduleConfig(updatedConfig);
     setExceptionDraft({
       type: "holiday",
       date: "",
@@ -178,14 +177,34 @@ function ManagerContents() {
       end: "",
       reason: "",
     });
-    notify("success", "Schedule override added.");
+    try {
+      const res = await fetch(`${API_BASE}/api/manager/schedule-config/`, {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ config: updatedConfig }),
+      });
+      if (!res.ok) throw new Error("Failed to persist override.");
+      notify("success", "Schedule override added and saved.");
+    } catch {
+      notify("warning", "Override added locally. Please click 'Save Schedule Settings' to persist.");
+    }
   };
 
-  const removeException = (id) => {
-    setScheduleConfig((prev) => ({
-      ...prev,
-      exceptions: prev.exceptions.filter((item) => item.id !== id),
-    }));
+  const removeException = async (id) => {
+    const newExceptions = scheduleConfig.exceptions.filter((item) => item.id !== id);
+    const updatedConfig = { ...scheduleConfig, exceptions: newExceptions };
+    setScheduleConfig(updatedConfig);
+    try {
+      const res = await fetch(`${API_BASE}/api/manager/schedule-config/`, {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ config: updatedConfig }),
+      });
+      if (!res.ok) throw new Error("Failed to persist removal.");
+      notify("success", "Schedule override removed and saved.");
+    } catch {
+      notify("warning", "Override removed locally. Please click 'Save Schedule Settings' to persist.");
+    }
   };
 
   const toggleServiceStatus = async (service) => {

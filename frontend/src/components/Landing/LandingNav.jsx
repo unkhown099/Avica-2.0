@@ -98,7 +98,11 @@ const Navbar = () => {
     <>
       {/* ── Main nav bar ── */}
       <nav
-        className="fixed top-0 w-full z-50 bg-black border-b border-white/10 shadow-lg transition-colors duration-300"
+        className={`fixed top-0 w-full z-50 border-b shadow-lg transition-colors duration-300 ${
+          isDark
+            ? "bg-black/90 border-white/10 text-white backdrop-blur-md"
+            : "bg-white/95 border-gray-200 text-gray-900 backdrop-blur-md shadow-sm"
+        }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20 transition-all duration-300">
@@ -119,7 +123,11 @@ const Navbar = () => {
               {/* Theme Toggle Button */}
               <button
                 onClick={toggleTheme}
-                className="w-10 h-10 rounded-full flex items-center justify-center border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all duration-300"
+                className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 ${
+                  isDark
+                    ? "border-white/10 bg-white/5 hover:bg-white/10 text-white"
+                    : "border-gray-200 bg-gray-100 hover:bg-gray-200 text-gray-700"
+                }`}
                 title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
               >
                 {isDark ? (
@@ -127,7 +135,7 @@ const Navbar = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
                 )}
@@ -137,7 +145,9 @@ const Navbar = () => {
               {!user && (
                 <div className="flex items-center gap-3 md:gap-5">
                   <Link to="/signin">
-                    <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
+                    <button className={`font-semibold px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base ${
+                      isDark ? "text-white/80 hover:text-white" : "text-gray-700 hover:text-gray-900"
+                    }`}>
                       Sign In
                       <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
                     </button>
@@ -164,13 +174,17 @@ const Navbar = () => {
                   {user.role === "customer" && (
                     <>
                       <Link to="/dashboard">
-                        <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
+                        <button className={`font-semibold px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base ${
+                          isDark ? "text-white/80 hover:text-white" : "text-gray-700 hover:text-gray-900"
+                        }`}>
                           Dashboard
                           <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
                         </button>
                       </Link>
                       <Link to="/profile">
-                        <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
+                        <button className={`font-semibold px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base ${
+                          isDark ? "text-white/80 hover:text-white" : "text-gray-700 hover:text-gray-900"
+                        }`}>
                           Profile
                           <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
                         </button>
@@ -180,7 +194,9 @@ const Navbar = () => {
 
                   {user.role === "admin" && (
                     <Link to="/admin/dashboard">
-                      <button className="text-white/80 hover:text-white font-medium px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base">
+                      <button className={`font-semibold px-3 md:px-4 py-2 transition-all duration-300 relative group text-sm md:text-base ${
+                        isDark ? "text-white/80 hover:text-white" : "text-gray-700 hover:text-gray-900"
+                      }`}>
                         Admin Panel
                         <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full" />
                       </button>
@@ -188,13 +204,17 @@ const Navbar = () => {
                   )}
 
                   {/* Welcome badge */}
-                  <div className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-full border border-red-600/40 bg-red-600/10 backdrop-blur-sm">
+                  <div className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-full border ${
+                    isDark
+                      ? "border-red-600/40 bg-red-600/10 text-white/70"
+                      : "border-red-500/30 bg-red-50 text-gray-700"
+                  }`}>
                     <span className="relative flex h-2 w-2 flex-shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600" />
                     </span>
-                    <span className="text-xs md:text-sm font-medium text-white/70 whitespace-nowrap">
-                      Hey, <span className="font-black text-white">{displayName}</span>!
+                    <span className="text-xs md:text-sm font-medium whitespace-nowrap">
+                      Hey, <span className={`font-black ${isDark ? "text-white" : "text-gray-900"}`}>{displayName}</span>!
                     </span>
                   </div>
 
@@ -220,24 +240,28 @@ const Navbar = () => {
             {/* ── Mobile: Hamburger button ── */}
             <button
               onClick={() => setMenuOpen((prev) => !prev)}
-              className="sm:hidden flex items-center justify-center w-10 h-10 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md text-white transition-all duration-300 hover:border-red-600/50 hover:bg-red-600/10 flex-shrink-0"
+              className={`sm:hidden flex items-center justify-center w-10 h-10 rounded-xl border transition-all duration-300 flex-shrink-0 ${
+                isDark
+                  ? "border-white/10 bg-white/5 text-white hover:border-red-600/50 hover:bg-red-600/10"
+                  : "border-gray-200 bg-gray-100 text-gray-800 hover:border-red-600/50 hover:bg-red-50"
+              }`}
               aria-label="Toggle menu"
             >
               <div className="w-5 h-4 flex flex-col justify-between">
                 <span
-                  className={`block h-0.5 bg-white rounded-full transition-all duration-300 origin-center ${
-                    menuOpen ? "rotate-45 translate-y-[7px]" : ""
-                  }`}
+                  className={`block h-0.5 rounded-full transition-all duration-300 origin-center ${
+                    isDark ? "bg-white" : "bg-gray-800"
+                  } ${menuOpen ? "rotate-45 translate-y-[7px]" : ""}`}
                 />
                 <span
-                  className={`block h-0.5 bg-white rounded-full transition-all duration-300 ${
-                    menuOpen ? "opacity-0 scale-x-0" : ""
-                  }`}
+                  className={`block h-0.5 rounded-full transition-all duration-300 ${
+                    isDark ? "bg-white" : "bg-gray-800"
+                  } ${menuOpen ? "opacity-0 scale-x-0" : ""}`}
                 />
                 <span
-                  className={`block h-0.5 bg-white rounded-full transition-all duration-300 origin-center ${
-                    menuOpen ? "-rotate-45 -translate-y-[7px]" : ""
-                  }`}
+                  className={`block h-0.5 rounded-full transition-all duration-300 origin-center ${
+                    isDark ? "bg-white" : "bg-gray-800"
+                  } ${menuOpen ? "-rotate-45 -translate-y-[7px]" : ""}`}
                 />
               </div>
             </button>
@@ -261,16 +285,24 @@ const Navbar = () => {
 
         {/* Slide-in panel */}
         <div
-          className={`absolute top-0 right-0 h-full w-72 max-w-[85vw] bg-[#0a0a0a] border-l border-white/10 shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] flex flex-col ${
+          className={`absolute top-0 right-0 h-full w-72 max-w-[85vw] border-l shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] flex flex-col ${
+            isDark ? "bg-[#0a0a0a] border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
+          } ${
             menuOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
           {/* Drawer header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+          <div className={`flex items-center justify-between px-6 py-5 border-b ${
+            isDark ? "border-white/10" : "border-gray-200"
+          }`}>
             <img src={logo} alt="Otokwikk logo" className="h-8 object-contain" />
             <button
               onClick={() => setMenuOpen(false)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-red-600/50 transition-all"
+              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${
+                isDark
+                  ? "border-white/10 text-white/60 hover:text-white hover:border-red-600/50"
+                  : "border-gray-200 text-gray-500 hover:text-gray-900 hover:border-red-600/50"
+              }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -283,13 +315,17 @@ const Navbar = () => {
 
             {/* Logged-in welcome */}
             {user && (
-              <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-red-600/30 bg-red-600/10 mb-4">
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border mb-4 ${
+                isDark
+                  ? "border-red-600/30 bg-red-600/10 text-white/70"
+                  : "border-red-500/30 bg-red-50 text-gray-700"
+              }`}>
                 <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-600" />
                 </span>
-                <span className="text-sm font-medium text-white/70">
-                  Hey, <span className="font-black text-white">{displayName}</span>!
+                <span className="text-sm font-medium">
+                  Hey, <span className={`font-black ${isDark ? "text-white" : "text-gray-900"}`}>{displayName}</span>!
                 </span>
               </div>
             )}
@@ -297,26 +333,30 @@ const Navbar = () => {
             {/* Nav links */}
             {!user && (
               <>
-                <MobileNavLink to="/signin" onClick={() => setMenuOpen(false)}>Sign In</MobileNavLink>
-                <MobileNavLink to="/signup" onClick={() => setMenuOpen(false)} accent>Sign Up</MobileNavLink>
+                <MobileNavLink to="/signin" isDark={isDark} onClick={() => setMenuOpen(false)}>Sign In</MobileNavLink>
+                <MobileNavLink to="/signup" isDark={isDark} onClick={() => setMenuOpen(false)} accent>Sign Up</MobileNavLink>
               </>
             )}
 
             {user?.role === "customer" && (
               <>
-                <MobileNavLink to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</MobileNavLink>
-                <MobileNavLink to="/profile" onClick={() => setMenuOpen(false)}>Profile</MobileNavLink>
+                <MobileNavLink to="/dashboard" isDark={isDark} onClick={() => setMenuOpen(false)}>Dashboard</MobileNavLink>
+                <MobileNavLink to="/profile" isDark={isDark} onClick={() => setMenuOpen(false)}>Profile</MobileNavLink>
               </>
             )}
 
             {user?.role === "admin" && (
-              <MobileNavLink to="/admin/dashboard" onClick={() => setMenuOpen(false)}>Admin Panel</MobileNavLink>
+              <MobileNavLink to="/admin/dashboard" isDark={isDark} onClick={() => setMenuOpen(false)}>Admin Panel</MobileNavLink>
             )}
 
             {/* Mobile Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="w-full px-4 py-3.5 rounded-2xl font-bold text-base transition-all duration-200 flex items-center justify-between text-white/70 hover:text-white hover:bg-white/5 border border-white/10 mt-2"
+              className={`w-full px-4 py-3.5 rounded-2xl font-bold text-base transition-all duration-200 flex items-center justify-between border mt-2 ${
+                isDark
+                  ? "text-white/70 hover:text-white hover:bg-white/5 border-white/10"
+                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-100 border-gray-200"
+              }`}
             >
               <div className="flex items-center gap-3">
                 {isDark ? (
@@ -324,7 +364,7 @@ const Navbar = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
                 )}
@@ -338,10 +378,10 @@ const Navbar = () => {
 
           {/* Logout at bottom */}
           {user && (
-            <div className="px-6 pb-8 border-t border-white/10 pt-4">
+            <div className={`px-6 pb-8 border-t pt-4 ${isDark ? "border-white/10" : "border-gray-200"}`}>
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-3 bg-red-600 hover:bg-red-700 text-white font-black py-3.5 rounded-2xl transition-all duration-300 shadow-[0_8px_20px_rgba(220,38,38,0.3)]"
+                className="w-full flex items-center justify-center gap-3 bg-red-600 hover:bg-red-700 text-white font-black py-3.5 rounded-2xl transition-all duration-300 shadow-[0_8px_20px_rgba(220,38,38,0.3)] cursor-pointer"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -357,20 +397,22 @@ const Navbar = () => {
 };
 
 /* Helper: mobile nav link */
-function MobileNavLink({ to, onClick, accent, children }) {
+function MobileNavLink({ to, onClick, accent, isDark, children }) {
   return (
     <Link to={to} onClick={onClick}>
       <div
         className={`w-full px-4 py-3.5 rounded-2xl font-bold text-base transition-all duration-200 flex items-center justify-between group ${
           accent
             ? "bg-red-600 text-white shadow-[0_6px_20px_rgba(220,38,38,0.3)] hover:bg-red-700"
-            : "text-white/70 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
+            : isDark
+            ? "text-white/70 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
+            : "text-gray-700 hover:text-gray-900 hover:bg-gray-100 border border-transparent hover:border-gray-200"
         }`}
       >
         {children}
         <svg
           className={`w-4 h-4 transition-transform duration-200 group-hover:translate-x-1 ${
-            accent ? "text-white/80" : "text-white/30 group-hover:text-white/60"
+            accent ? "text-white/80" : isDark ? "text-white/30 group-hover:text-white/60" : "text-gray-400 group-hover:text-gray-700"
           }`}
           fill="none"
           stroke="currentColor"
@@ -384,3 +426,4 @@ function MobileNavLink({ to, onClick, accent, children }) {
 }
 
 export default Navbar;
+

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import EmployeeLayout from "./EmployeeLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
+import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -174,7 +175,7 @@ function parseServiceDetailsNotes(notes = "") {
 
 // ─── Job Card ──────────────────────────────────────────────────────────────
 
-function JobCard({ entry, col, isSelected, onClick, onEditDetails }) {
+function JobCard({ entry, col, isSelected, onClick, onEditDetails, onOpenChat, onMarkAsDone }) {
   return (
     <div
       onClick={() => onClick(entry)}
@@ -198,19 +199,21 @@ function JobCard({ entry, col, isSelected, onClick, onEditDetails }) {
         ))}
       </div>
 
-      {/* Queue number + customer name */}
-      <div className="flex items-center gap-3 mb-3 pr-8">
-        <div className="w-10 h-10 rounded-lg bg-gray-800 border border-white/10 flex items-center justify-center font-black text-white text-sm shrink-0">
-          #{entry.position}
-        </div>
-        <div className="min-w-0">
-          <p className="text-white font-bold text-sm leading-tight">
+      {/* Top row */}
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-gray-300 shrink-0">
+            #{entry.position}
+          </div>
+          <span className="text-white font-bold text-sm truncate leading-tight">
             {entry.customer_name}
-          </p>
-          {entry.phone && (
-            <p className="text-gray-500 text-xs mt-0.5 truncate">
-              {entry.phone}
-            </p>
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {entry.vehicle_type && (
+            <span className="text-[10px] uppercase font-bold text-gray-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+              {entry.vehicle_type}
+            </span>
           )}
         </div>
       </div>
@@ -290,7 +293,7 @@ function JobCard({ entry, col, isSelected, onClick, onEditDetails }) {
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-white/5">
         <div className="flex items-center gap-2">
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${col.statusBadge}`}
@@ -310,17 +313,46 @@ function JobCard({ entry, col, isSelected, onClick, onEditDetails }) {
             {entry.source === "walk_in" ? "Walk-in" : "Booking"}
           </span>
         </div>
-        {entry.status === "in_service" && (
+
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onEditDetails(entry);
+              onOpenChat?.(entry);
             }}
-            className="px-2.5 py-1 rounded-lg text-xs font-bold border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 transition-all"
+            className="px-2.5 py-1 rounded-lg text-xs font-bold border border-blue-500/40 text-blue-300 hover:bg-blue-500/15 transition-all flex items-center gap-1"
           >
-            Edit Service Details
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            Chat
           </button>
-        )}
+          {entry.status === "in_service" && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditDetails(entry);
+                }}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 transition-all"
+              >
+                Products
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMarkAsDone?.(entry);
+                }}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all flex items-center gap-1 shadow-sm shadow-emerald-600/30"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                Done
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -334,6 +366,8 @@ function KanbanColumn({
   selectedId,
   onCardClick,
   onEditDetails,
+  onOpenChat,
+  onMarkAsDone,
 }) {
   return (
     <div className="flex flex-col">
@@ -389,6 +423,8 @@ function KanbanColumn({
                 isSelected={selectedId === entry.id}
                 onClick={onCardClick}
                 onEditDetails={onEditDetails}
+                onOpenChat={onOpenChat}
+                onMarkAsDone={onMarkAsDone}
               />
             ))}
           </div>
@@ -400,7 +436,7 @@ function KanbanColumn({
 
 // ─── Detail Modal ──────────────────────────────────────────────────────────
 
-function DetailPanel({ entry, onClose }) {
+function DetailPanel({ entry, onClose, onOpenChat, onMarkAsDone }) {
   if (!entry) return null;
   const col = COLUMNS.find((c) => c.id === entry.status) || COLUMNS[0];
   const serviceBase = Number(entry.service_base_price ?? 0);
@@ -586,8 +622,27 @@ function DetailPanel({ entry, onClose }) {
             </div>
           )}
 
-          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
-            Queue flow is managed by staff. Employees can view status updates here.
+          <div className="pt-2 flex gap-2">
+            <button
+              onClick={() => onOpenChat?.(entry)}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-300 hover:text-white text-xs font-semibold py-2.5 rounded-xl transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              Chat with Customer
+            </button>
+            {entry.status === "in_service" && (
+              <button
+                onClick={() => onMarkAsDone?.(entry)}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                Mark as Done
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -922,8 +977,8 @@ export default function EmployeeActiveJobs() {
     : [];
 
   const inProgressEntries = myEntries.filter((e) => e.status === "in_service");
+  const [chatQueueId, setChatQueueId] = useState(null);
   const inProgressColumn = COLUMNS.find((c) => c.id === "in_service");
-
 
   const totalInProgress = inProgressEntries.length;
 
@@ -931,6 +986,25 @@ export default function EmployeeActiveJobs() {
     if (!updated?.id) return;
     setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
     setSelectedEntry((prev) => (prev?.id === updated.id ? updated : prev));
+  };
+
+  const handleMarkAsDone = async (entry) => {
+    if (!entry?.id) return;
+    try {
+      const res = await fetch(`${API}/api/queue/${entry.id}/action/`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ status: "done" }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to mark as done.");
+      }
+      setSelectedEntry(null);
+      await fetchEntries();
+    } catch (e) {
+      alert(e.message || "Failed to mark as done.");
+    }
   };
 
   return (
@@ -942,6 +1016,8 @@ export default function EmployeeActiveJobs() {
             myEntries.find((e) => e.id === selectedEntry.id) ?? selectedEntry
           }
           onClose={() => setSelectedEntry(null)}
+          onOpenChat={(entry) => setChatQueueId(entry.id)}
+          onMarkAsDone={handleMarkAsDone}
         />
       )}
 
@@ -963,7 +1039,7 @@ export default function EmployeeActiveJobs() {
               My Jobs
             </h1>
             <p className="text-gray-500 mt-1 text-sm">
-              Staff manages queue flow · only in-progress jobs are shown
+              Active assigned jobs · chat with customers & mark tasks as done
             </p>
           </div>
           <div className="flex items-center gap-3 md:mt-12">
@@ -1056,11 +1132,21 @@ export default function EmployeeActiveJobs() {
                     prev?.id === entry.id ? null : entry,
                   )
                 }
+                onOpenChat={(entry) => setChatQueueId(entry.id)}
+                onMarkAsDone={handleMarkAsDone}
               />
             ))}
           </div>
         )}
       </div>
+
+      {chatQueueId && (
+        <ServiceChatModal
+          queueId={chatQueueId}
+          isEmployee={true}
+          onClose={() => setChatQueueId(null)}
+        />
+      )}
     </EmployeeLayout>
   );
 }

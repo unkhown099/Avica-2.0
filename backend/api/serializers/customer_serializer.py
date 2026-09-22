@@ -15,6 +15,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model  = Customer
         fields = [
             "id", "first_name", "last_name", "email", "phone",
+            "address", "car_make", "car_model", "car_year", "car_color", "car_plate",
             "loyalty_points", "total_spent", "visits", "avg_rating", "segment",
         ]
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import CustomerLayout from "./CustomerLayout.jsx";
 import { API_BASE } from "../../hooks/useAuth.js";
@@ -86,7 +86,8 @@ const FALLBACK_CATEGORIES = [
 
 const CategoryBadge = ({ category }) => (
   <span
-    className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-black/60 text-white border-white/20 backdrop-blur-md shadow-sm inline-flex items-center"
+    className="category-badge px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-black/75 text-white border-white/20 backdrop-blur-md shadow-sm inline-flex items-center"
+    style={{ color: "#ffffff" }}
   >
     {category}
   </span>
@@ -104,6 +105,28 @@ function ServicesPage() {
   const [error, setError] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedTier, setSelectedTier] = useState(null);
+  const modalScrollRef = useRef(null);
+  const [canScrollMore, setCanScrollMore] = useState(false);
+
+  const handleModalScroll = () => {
+    const el = modalScrollRef.current;
+    if (!el) return;
+    const hasMore = el.scrollHeight - el.scrollTop - el.clientHeight > 30;
+    setCanScrollMore(hasMore);
+  };
+
+  useEffect(() => {
+    if (selectedService) {
+      const timer = setTimeout(() => {
+        const el = modalScrollRef.current;
+        if (el) {
+          const hasMore = el.scrollHeight - el.clientHeight > 30;
+          setCanScrollMore(hasMore);
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedService]);
 
   const handleServiceClick = (svc) => {
     setSelectedService(svc);
@@ -487,10 +510,27 @@ function ServicesPage() {
         )}
       </div>
 
-      {/* Hide scrollbar utility */}
+      {/* Sleek visible scrollbar */}
       <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .service-modal-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(239, 68, 68, 0.5) rgba(255, 255, 255, 0.05);
+        }
+        .service-modal-scroll::-webkit-scrollbar {
+          width: 7px;
+        }
+        .service-modal-scroll::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.04);
+          border-radius: 9999px;
+          margin: 6px 0;
+        }
+        .service-modal-scroll::-webkit-scrollbar-thumb {
+          background: rgba(239, 68, 68, 0.6);
+          border-radius: 9999px;
+        }
+        .service-modal-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(239, 68, 68, 0.9);
+        }
       `}</style>
 
       {/* ── Service Detail Modal ── */}
@@ -526,14 +566,18 @@ function ServicesPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0a]">
+            <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0a] relative">
               <div className="hidden lg:flex items-center justify-between p-8 pb-0 shrink-0">
                 <div />
                 <button onClick={() => setSelectedService(null)} className="w-10 h-10 hover:bg-white/5 rounded-2xl flex items-center justify-center text-gray-500 hover:text-white transition-all group">
                   <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
-              <div className="p-8 lg:p-10 pt-4 lg:pt-6 overflow-y-auto no-scrollbar flex-1">
+              <div
+                ref={modalScrollRef}
+                onScroll={handleModalScroll}
+                className="p-8 lg:p-10 pt-4 lg:pt-6 overflow-y-auto service-modal-scroll flex-1 pr-4 sm:pr-6"
+              >
                 <h2 className="text-4xl lg:text-5xl font-black text-white mb-6 leading-[1.1] tracking-tight">{selectedService.name}</h2>
                 <div className="grid grid-cols-2 gap-4 mb-10">
                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-4">
@@ -607,6 +651,19 @@ function ServicesPage() {
                   )}
                 </div>
               </div>
+
+              {/* Scrollable indicator badge on side/bottom */}
+              {canScrollMore && (
+                <div className="absolute bottom-24 right-6 sm:right-8 z-30 pointer-events-none transition-all duration-300 animate-bounce">
+                  <div className="flex items-center gap-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full shadow-xl shadow-red-950/70 border border-white/20 backdrop-blur-md">
+                    <span>Scroll for details</span>
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+
               <div className="p-8 lg:p-10 border-t border-white/5 bg-[#0d0d0d]/80 backdrop-blur-xl flex gap-4 shrink-0">
                 <button onClick={() => { setSelectedService(null); setSelectedTier(null); }} className="flex-1 px-8 py-4 rounded-2xl border border-white/10 text-gray-500 font-bold hover:text-white hover:bg-white/5 transition-all text-sm uppercase tracking-widest">Close</button>
                 <button

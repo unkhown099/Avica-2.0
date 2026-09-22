@@ -508,17 +508,17 @@ export default function SuperAdminReports() {
     <SuperAdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6">
+        <div className={`rounded-3xl border p-6 ${isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.3em] text-red-400">
                 Super Admin
               </div>
-              <h1 className="text-3xl font-black text-white flex items-center gap-3">
+              <h1 className={`text-3xl font-black flex items-center gap-3 ${isDark ? "text-white" : "text-gray-900"}`}>
                 <IconClipboardCheck className="w-8 h-8 text-red-400" />
                 Reports &amp; Monitoring
               </h1>
-              <p className="max-w-2xl text-sm text-gray-400">
+              <p className={`max-w-2xl text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
                 Monitor system audit logs and track user actions across the
                 platform.
               </p>
@@ -526,7 +526,9 @@ export default function SuperAdminReports() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleExportCSV}
-                className="rounded-xl bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-all flex items-center gap-2 border border-white/5"
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 border ${
+                  isDark ? "bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border-white/5" : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200 shadow-sm"
+                }`}
               >
                 <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -535,7 +537,9 @@ export default function SuperAdminReports() {
               </button>
               <button
                 onClick={handlePrint}
-                className="rounded-xl bg-gray-800 hover:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-all flex items-center gap-2 border border-white/5"
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 border ${
+                  isDark ? "bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border-white/5" : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200 shadow-sm"
+                }`}
               >
                 <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -554,14 +558,18 @@ export default function SuperAdminReports() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="border-b border-white/10">
+        <div className={`border-b ${isDark ? "border-white/10" : "border-gray-200"}`}>
           <div className="flex gap-1">
             <button
               onClick={() => handleTabSwitch("audit-logs")}
               className={`px-6 py-3 text-sm font-medium transition-all rounded-t-xl flex items-center gap-2 ${
                 activeTab === "audit-logs"
-                  ? "bg-gray-900/80 text-red-400 border-b-2 border-red-400"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/30"
+                  ? isDark
+                    ? "bg-gray-900/80 text-red-400 border-b-2 border-red-400"
+                    : "bg-white text-red-600 border-b-2 border-red-600 shadow-sm"
+                  : isDark
+                    ? "text-gray-400 hover:text-gray-200 hover:bg-gray-800/30"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
             >
               <IconClipboardCheck className="w-4 h-4" />
@@ -571,8 +579,12 @@ export default function SuperAdminReports() {
               onClick={() => handleTabSwitch("user-actions")}
               className={`px-6 py-3 text-sm font-medium transition-all rounded-t-xl flex items-center gap-2 ${
                 activeTab === "user-actions"
-                  ? "bg-gray-900/80 text-red-400 border-b-2 border-red-400"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/30"
+                  ? isDark
+                    ? "bg-gray-900/80 text-red-400 border-b-2 border-red-400"
+                    : "bg-white text-red-600 border-b-2 border-red-600 shadow-sm"
+                  : isDark
+                    ? "text-gray-400 hover:text-gray-200 hover:bg-gray-800/30"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
             >
               <IconUser className="w-4 h-4" />
@@ -583,69 +595,77 @@ export default function SuperAdminReports() {
 
         {/* Stats Summary */}
         <div className="grid gap-6 lg:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 hover:border-blue-500/30 transition-all group">
+          <div className={`rounded-3xl border p-6 hover:border-blue-500/30 transition-all group ${
+            isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="text-sm uppercase tracking-[0.25em] text-gray-400">
+              <div className={`text-sm uppercase tracking-[0.25em] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                 Total Events
               </div>
               <div className="p-2 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-all">
                 <IconClipboard className="w-6 h-6 text-blue-400" />
               </div>
             </div>
-            <div className="mt-4 text-3xl font-black text-white">
+            <div className={`mt-4 text-3xl font-black ${isDark ? "text-white" : "text-gray-900"}`}>
               {stats.total}
             </div>
-            <p className="mt-2 text-sm text-gray-400">Total recorded events</p>
+            <p className={`mt-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>Total recorded events</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 hover:border-green-500/30 transition-all group">
+          <div className={`rounded-3xl border p-6 hover:border-green-500/30 transition-all group ${
+            isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="text-sm uppercase tracking-[0.25em] text-gray-400">
+              <div className={`text-sm uppercase tracking-[0.25em] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                 Success
               </div>
               <div className="p-2 rounded-xl bg-green-500/10 group-hover:bg-green-500/20 transition-all">
                 <IconSuccess className="w-6 h-6 text-green-400" />
               </div>
             </div>
-            <div className="mt-4 text-3xl font-black text-white">
+            <div className={`mt-4 text-3xl font-black ${isDark ? "text-white" : "text-gray-900"}`}>
               {stats.success}
             </div>
-            <p className="mt-2 text-sm text-gray-400">Successful operations</p>
+            <p className={`mt-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>Successful operations</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 hover:border-yellow-500/30 transition-all group">
+          <div className={`rounded-3xl border p-6 hover:border-yellow-500/30 transition-all group ${
+            isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="text-sm uppercase tracking-[0.25em] text-gray-400">
+              <div className={`text-sm uppercase tracking-[0.25em] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                 Warnings
               </div>
               <div className="p-2 rounded-xl bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-all">
                 <IconWarning className="w-6 h-6 text-yellow-400" />
               </div>
             </div>
-            <div className="mt-4 text-3xl font-black text-white">
+            <div className={`mt-4 text-3xl font-black ${isDark ? "text-white" : "text-gray-900"}`}>
               {stats.warning}
             </div>
-            <p className="mt-2 text-sm text-gray-400">Warning events</p>
+            <p className={`mt-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>Warning events</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 hover:border-red-500/30 transition-all group">
+          <div className={`rounded-3xl border p-6 hover:border-red-500/30 transition-all group ${
+            isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="text-sm uppercase tracking-[0.25em] text-gray-400">
+              <div className={`text-sm uppercase tracking-[0.25em] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                 Errors
               </div>
               <div className="p-2 rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-all">
                 <IconError className="w-6 h-6 text-red-400" />
               </div>
             </div>
-            <div className="mt-4 text-3xl font-black text-white">
+            <div className={`mt-4 text-3xl font-black ${isDark ? "text-white" : "text-gray-900"}`}>
               {stats.error}
             </div>
-            <p className="mt-2 text-sm text-gray-400">Error events</p>
+            <p className={`mt-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>Error events</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6">
+        <div className={`rounded-3xl border p-6 ${isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-2 flex-wrap">
               <button
@@ -653,7 +673,7 @@ export default function SuperAdminReports() {
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 ${
                   filterStatus === "all"
                     ? "bg-red-500 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                    : isDark ? "bg-gray-800 text-gray-400 hover:bg-gray-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 <IconFilter className="w-4 h-4" />
@@ -664,7 +684,7 @@ export default function SuperAdminReports() {
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 ${
                   filterStatus === "success"
                     ? "bg-green-500 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                    : isDark ? "bg-gray-800 text-gray-400 hover:bg-gray-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 <IconSuccess className="w-4 h-4" />
@@ -675,7 +695,7 @@ export default function SuperAdminReports() {
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 ${
                   filterStatus === "warning"
                     ? "bg-yellow-500 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                    : isDark ? "bg-gray-800 text-gray-400 hover:bg-gray-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 <IconWarning className="w-4 h-4" />
@@ -686,7 +706,7 @@ export default function SuperAdminReports() {
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 ${
                   filterStatus === "error"
                     ? "bg-red-500 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                    : isDark ? "bg-gray-800 text-gray-400 hover:bg-gray-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 <IconError className="w-4 h-4" />
@@ -697,7 +717,9 @@ export default function SuperAdminReports() {
               <select
                 value={filters.user_id}
                 onChange={(e) => handleUserFilterChange(e.target.value)}
-                className="rounded-xl bg-gray-800/50 border border-white/10 px-4 py-2 text-white text-sm focus:outline-none focus:border-red-500/50"
+                className={`rounded-xl border px-4 py-2 text-sm focus:outline-none focus:border-red-500/50 ${
+                  isDark ? "bg-gray-800/50 border-white/10 text-white" : "bg-gray-50 border-gray-300 text-gray-900"
+                }`}
               >
                 <option value="">All Users</option>
                 {users.map((user) => (
@@ -711,7 +733,9 @@ export default function SuperAdminReports() {
                 onChange={(e) =>
                   setFilters({ ...filters, days: e.target.value })
                 }
-                className="rounded-xl bg-gray-800/50 border border-white/10 px-4 py-2 text-white text-sm focus:outline-none focus:border-red-500/50"
+                className={`rounded-xl border px-4 py-2 text-sm focus:outline-none focus:border-red-500/50 ${
+                  isDark ? "bg-gray-800/50 border-white/10 text-white" : "bg-gray-50 border-gray-300 text-gray-900"
+                }`}
               >
                 <option value="1">Last 24 hours</option>
                 <option value="7">Last 7 days</option>
@@ -724,7 +748,9 @@ export default function SuperAdminReports() {
                   placeholder="Search events..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full sm:w-80 rounded-xl bg-gray-800/50 border border-white/10 px-4 py-2 pl-10 text-white placeholder-gray-500 focus:outline-none focus:border-red-500/50"
+                  className={`w-full sm:w-80 rounded-xl border px-4 py-2 pl-10 text-sm focus:outline-none focus:border-red-500/50 ${
+                    isDark ? "bg-gray-800/50 border-white/10 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400"
+                  }`}
                 />
                 <div className="absolute left-3 top-2.5 text-gray-500">
                   <IconSearch className="w-4 h-4" />
@@ -755,10 +781,10 @@ export default function SuperAdminReports() {
 
         {/* Loading State */}
         {loading && (
-          <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-12">
+          <div className={`rounded-3xl border p-12 ${isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"}`}>
             <div className="flex flex-col items-center justify-center gap-4">
               <div className="w-12 h-12 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-              <p className="text-gray-400">
+              <p className={isDark ? "text-gray-400" : "text-gray-600"}>
                 Loading{" "}
                 {activeTab === "audit-logs" ? "audit logs" : "user actions"}...
               </p>
@@ -768,10 +794,10 @@ export default function SuperAdminReports() {
 
         {/* Data Table */}
         {!loading && !error && (
-          <div className="rounded-3xl border border-white/10 bg-gray-900/80 overflow-hidden">
+          <div className={`rounded-3xl border overflow-hidden ${isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"}`}>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-white/10 bg-gray-800/50">
+                <thead className={`border-b ${isDark ? "border-white/10 bg-gray-800/50" : "border-gray-200 bg-gray-50"}`}>
                   <tr>
                     {[
                       "Event",
@@ -783,18 +809,18 @@ export default function SuperAdminReports() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"
+                        className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-600"}`}
                       >
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className={`divide-y ${isDark ? "divide-white/5" : "divide-gray-100"}`}>
                   {filteredData.map((log) => (
                     <tr
                       key={log.id}
-                      className="hover:bg-white/5 transition-colors cursor-pointer"
+                      className={`transition-colors cursor-pointer ${isDark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}
                       onClick={() =>
                         setSelectedLog(selectedLog?.id === log.id ? null : log)
                       }
@@ -802,12 +828,12 @@ export default function SuperAdminReports() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <ActionIcon type={log.type} />
-                          <span className="text-sm font-medium text-white">
+                          <span className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
                             {log.title}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDark ? "text-gray-300" : "text-gray-700"}`}>
                         {log.user}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -815,13 +841,13 @@ export default function SuperAdminReports() {
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold border ${
                             isDark
                               ? "bg-gray-700 text-gray-300 border-gray-600"
-                              : "bg-gray-100 text-gray-600 border-gray-200"
+                              : "bg-gray-100 text-gray-700 border-gray-200"
                           }`}
                         >
                           {log.type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
                         {log.created_at
                           ? new Date(log.created_at).toLocaleString()
                           : "N/A"}
@@ -842,7 +868,7 @@ export default function SuperAdminReports() {
                           {log.status || "info"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-400 max-w-md truncate">
+                      <td className={`px-6 py-4 text-sm max-w-md truncate ${isDark ? "text-gray-400" : "text-gray-600"}`}>
                         {log.message}
                       </td>
                     </tr>

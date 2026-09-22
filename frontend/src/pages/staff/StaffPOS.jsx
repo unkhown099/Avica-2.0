@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import StaffLayout from "./StaffLayout";
 import { API_BASE, useAuth } from "../../hooks/useAuth.js";
+import { useTheme } from "../../context/ThemeContext.jsx";
 import Swal from "sweetalert2";
 
 const getToken = () =>
@@ -422,6 +423,7 @@ function ReceiptModal({
   staffName,
   onClose,
 }) {
+  const { isDark = true } = useTheme?.() || {};
   const receiptNo = initialReceiptNo || generateInvoiceNo();
   const date = initialDate || new Date().toLocaleString("en-PH", {
     year: "numeric",
@@ -464,7 +466,11 @@ function ReceiptModal({
         staffName={staffName}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-        <div className="bg-gray-900 border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+        <div className={`rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh] border transition-colors ${
+          isDark
+            ? "bg-gray-900 border-white/10 text-white"
+            : "bg-white border-gray-200 text-gray-900"
+        }`}>
           {/* Header Banner */}
           <div className="bg-gradient-to-r from-emerald-600/30 to-teal-600/30 border-b border-emerald-500/20 px-6 py-5 text-center shrink-0">
             <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-400">
@@ -472,69 +478,77 @@ function ReceiptModal({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white">Payment Successful</h2>
-            <p className="text-emerald-400 text-base sm:text-lg font-black mt-1">₱{fmt(total)} collected</p>
+            <h2 className={`text-xl sm:text-2xl font-black ${isDark ? "text-white" : "text-gray-900"}`}>Payment Successful</h2>
+            <p className="text-emerald-500 text-base sm:text-lg font-black mt-1">₱{fmt(total)} collected</p>
           </div>
 
           {/* Details Scrollable Area */}
           <div className="px-6 py-4 space-y-3 overflow-y-auto flex-1 font-sans text-sm">
             {/* Meta Box */}
-            <div className="bg-white/5 rounded-2xl p-3.5 space-y-2 border border-white/5">
+            <div className={`rounded-2xl p-3.5 space-y-2 border ${
+              isDark ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-200"
+            }`}>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-400 font-semibold uppercase tracking-wider">Invoice #</span>
-                <span className="text-white font-mono font-bold">{receiptNo}</span>
+                <span className={`font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>Invoice #</span>
+                <span className={`font-mono font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{receiptNo}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-400 font-semibold uppercase tracking-wider">Date & Time</span>
-                <span className="text-gray-300 font-medium">{date}</span>
+                <span className={`font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>Date & Time</span>
+                <span className={`font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}>{date}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-400 font-semibold uppercase tracking-wider">Branch</span>
-                <span className="text-amber-400 font-bold">{branchName || "Main Branch"}</span>
+                <span className={`font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>Branch</span>
+                <span className="text-amber-500 font-bold">{branchName || "Main Branch"}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-400 font-semibold uppercase tracking-wider">Staff / Cashier</span>
-                <span className="text-gray-300 font-bold">{staffName || "Staff"}</span>
+                <span className={`font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>Staff / Cashier</span>
+                <span className={`font-bold ${isDark ? "text-gray-300" : "text-gray-700"}`}>{staffName || "Staff"}</span>
               </div>
-              <div className="flex justify-between items-center text-xs border-t border-white/5 pt-2">
-                <span className="text-gray-400 font-semibold uppercase tracking-wider">Customer</span>
-                <span className="text-white font-bold">{customerName || "Walk-in Customer"}</span>
+              <div className={`flex justify-between items-center text-xs border-t pt-2 ${isDark ? "border-white/5" : "border-gray-200"}`}>
+                <span className={`font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>Customer</span>
+                <span className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{customerName || "Walk-in Customer"}</span>
               </div>
             </div>
 
             {/* Line Items */}
-            <div className="border border-white/5 rounded-2xl p-3.5 space-y-2.5 bg-black/20">
-              <div className="text-[11px] font-black uppercase tracking-wider text-gray-400 border-b border-white/5 pb-1 flex justify-between">
+            <div className={`rounded-2xl p-3.5 space-y-2.5 border ${
+              isDark ? "border-white/5 bg-black/20" : "border-gray-200 bg-gray-50/70"
+            }`}>
+              <div className={`text-[11px] font-black uppercase tracking-wider border-b pb-1 flex justify-between ${
+                isDark ? "text-gray-400 border-white/5" : "text-gray-500 border-gray-200"
+              }`}>
                 <span>Items Purchased</span>
                 <span>Amount</span>
               </div>
               {numberedItems.map((item, i) => (
                 <div key={`line-${i}`} className="flex justify-between text-xs sm:text-sm">
-                  <span className="text-gray-300 font-medium">{i + 1}. {item.label}</span>
-                  <span className="text-white font-bold">₱{fmt(item.amount)}</span>
+                  <span className={`font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}>{i + 1}. {item.label}</span>
+                  <span className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>₱{fmt(item.amount)}</span>
                 </div>
               ))}
             </div>
 
             {/* Payment Summary */}
-            <div className="bg-white/5 rounded-2xl p-3.5 space-y-2 border border-white/5">
+            <div className={`rounded-2xl p-3.5 space-y-2 border ${
+              isDark ? "bg-white/5 border-white/5" : "bg-gray-50 border-gray-200"
+            }`}>
               <div className="flex justify-between items-center pt-0.5">
-                <span className="text-white font-bold text-base">Total Amount</span>
-                <span className="text-emerald-400 font-black text-xl">₱{fmt(total)}</span>
+                <span className={`font-bold text-base ${isDark ? "text-white" : "text-gray-900"}`}>Total Amount</span>
+                <span className="text-emerald-500 font-black text-xl">₱{fmt(total)}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-400 font-semibold">Payment Method</span>
-                <span className="text-white font-bold uppercase">{paymentMethod}</span>
+                <span className={`font-semibold ${isDark ? "text-gray-400" : "text-gray-500"}`}>Payment Method</span>
+                <span className={`font-bold uppercase ${isDark ? "text-white" : "text-gray-900"}`}>{paymentMethod}</span>
               </div>
               {paymentMethod === "cash" && amountGiven > 0 && (
                 <>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-400 font-semibold">Amount Tendered</span>
-                    <span className="text-white font-semibold">₱{fmt(amountGiven)}</span>
+                    <span className={`font-semibold ${isDark ? "text-gray-400" : "text-gray-500"}`}>Amount Tendered</span>
+                    <span className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>₱{fmt(amountGiven)}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-400 font-semibold">Change</span>
-                    <span className="text-emerald-400 font-bold">₱{fmt(change >= 0 ? change : 0)}</span>
+                    <span className={`font-semibold ${isDark ? "text-gray-400" : "text-gray-500"}`}>Change</span>
+                    <span className="text-emerald-500 font-bold">₱{fmt(change >= 0 ? change : 0)}</span>
                   </div>
                 </>
               )}
@@ -542,7 +556,9 @@ function ReceiptModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="px-6 pb-6 pt-2 space-y-2 shrink-0 bg-gray-900 border-t border-white/5">
+          <div className={`px-6 pb-6 pt-3 space-y-2 shrink-0 border-t ${
+            isDark ? "bg-gray-900 border-white/5" : "bg-gray-50 border-gray-200"
+          }`}>
             <button
               onClick={handlePrint}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/30 text-sm cursor-pointer"
@@ -554,7 +570,11 @@ function ReceiptModal({
             </button>
             <button
               onClick={onClose}
-              className="w-full bg-white/10 hover:bg-white/15 text-gray-300 font-bold py-3 rounded-xl transition-all text-sm cursor-pointer"
+              className={`w-full font-bold py-3 rounded-xl transition-all text-sm cursor-pointer ${
+                isDark
+                  ? "bg-white/10 hover:bg-white/15 text-gray-300"
+                  : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+              }`}
             >
               Close
             </button>
@@ -693,7 +713,7 @@ export default function StaffPOS() {
       setLoadingUnpaid(true);
       const token = getToken();
       if (!token) { setUnpaidEntries([]); setLoadingUnpaid(false); return; }
-      const res = await fetch(`${API}/api/queue/?status=done&payment_status=unpaid`, {
+      const res = await fetch(`${API}/api/queue/?status=waiting,in_service,done&payment_status=unpaid`, {
         headers: authHeaders(), credentials: "include",
       });
       if (res.status === 401 || !res.ok) { setUnpaidEntries([]); setLoadingUnpaid(false); return; }
@@ -1329,11 +1349,11 @@ const filteredServices = services.filter((s) => {
           </div>
 
           {/* ══ COL 3: Pending Payment + Checkout ══ */}
-          <div className={`bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-hidden ${colH}`}>
+          <div className={`bg-gray-900/60 border border-white/5 rounded-2xl backdrop-blur-sm flex flex-col overflow-y-auto ${colH}`}>
 
             {/* Pending Payment Queue */}
-            <div className="border-b border-white/10 shrink-0 flex-1 flex flex-col min-h-0">
-              <div className="flex items-center justify-between px-5 py-4 shrink-0">
+            <div className="border-b border-white/10 shrink-0 flex flex-col max-h-[260px] min-h-[140px]">
+              <div className="flex items-center justify-between px-5 py-3.5 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-4 bg-amber-500 rounded-full" />
                   <span className="text-sm font-black text-white uppercase tracking-wider">Pending Payment</span>
@@ -1342,23 +1362,23 @@ const filteredServices = services.filter((s) => {
                     : <span className="text-xs bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full">All clear</span>
                   )}
                 </div>
-                <button onClick={fetchUnpaid} className="text-gray-600 hover:text-gray-400 transition-colors" title="Refresh">
+                <button onClick={fetchUnpaid} className="text-gray-400 hover:text-white transition-colors" title="Refresh">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto min-h-[200px]">
+              <div className="flex-1 overflow-y-auto">
                 {loadingUnpaid ? (
                   Array.from({ length: 5 }).map((_, i) => <SkeletonQueueRow key={i} />)
                 ) : unpaidEntries.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full min-h-[160px]">
-                    <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center mb-3">
-                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex flex-col items-center justify-center h-full min-h-[100px] py-4">
+                    <div className="w-9 h-9 bg-emerald-500/10 rounded-full flex items-center justify-center mb-2">
+                      <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <p className="text-gray-600 text-sm">All services paid</p>
+                    <p className="text-gray-500 text-xs font-semibold">All services paid</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-white/5">
@@ -1377,11 +1397,26 @@ const filteredServices = services.filter((s) => {
                               amount={price}
                               tone="queue"
                               rightSlot={
-                                price === 0 ? (
-                                  <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold">
-                                    No price
-                                  </span>
-                                ) : null
+                                <div className="flex flex-col items-end gap-1">
+                                  {entry.status === "in_service" ? (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                      In Progress
+                                    </span>
+                                  ) : entry.status === "waiting" ? (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                      Waiting
+                                    </span>
+                                  ) : entry.status === "done" ? (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                      Done
+                                    </span>
+                                  ) : null}
+                                  {price === 0 ? (
+                                    <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold">
+                                      No price
+                                    </span>
+                                  ) : null}
+                                </div>
                               }
                             />
                           </div>

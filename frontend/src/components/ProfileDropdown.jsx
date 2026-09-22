@@ -35,6 +35,8 @@ const IconMoon = () => (
     </svg>
 );
 
+import UserAvatar from "./common/UserAvatar.jsx";
+
 const ProfileDropdown = () => {
     const { user, role } = useAuth();
     const { toggleTheme, isDark } = useTheme();
@@ -98,7 +100,13 @@ const ProfileDropdown = () => {
         navigate("/signin");
     };
 
-    const [currentUser, setCurrentUser] = useState(user);
+    const [currentUser, setCurrentUser] = useState(() => {
+        try {
+            const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+            if (raw) return JSON.parse(raw);
+        } catch (_) {}
+        return user;
+    });
 
     useEffect(() => {
         const handleStorageChange = () => {
@@ -114,27 +122,17 @@ const ProfileDropdown = () => {
         };
         window.addEventListener("storage", handleStorageChange);
         window.addEventListener("userUpdate", handleStorageChange);
+        if (user) setCurrentUser(user);
         return () => {
             window.removeEventListener("storage", handleStorageChange);
             window.removeEventListener("userUpdate", handleStorageChange);
         };
-    }, []);
+    }, [user]);
 
     const userData = currentUser || user;
     const fullName = userData?.first_name ? `${userData.first_name} ${userData.last_name}` : (userData?.full_name || "User");
     const initials = ((userData?.first_name?.[0] || "") + (userData?.last_name?.[0] || "")).toUpperCase() || "?";
-
-    const profilePic = userData?.profile_picture || userData?.profile_pic;
-    let displayPic = null;
-    if (profilePic) {
-        if (profilePic.startsWith('http')) {
-            displayPic = profilePic;
-        } else {
-            const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
-            const picPath = profilePic.startsWith('/') ? profilePic : `/${profilePic}`;
-            displayPic = `${baseUrl}${picPath}`;
-        }
-    }
+    const profilePic = userData?.profile_picture || userData?.profile_pic || userData?.profilePicture;
 
     const settingsPath = role === 'super_admin' ? '/super-admin/account-settings' :
         role === 'business_owner' ? '/branch-owner/settings' :
@@ -158,24 +156,13 @@ const ProfileDropdown = () => {
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-3 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-all duration-200 group"
             >
-                <div
-                    className="user-profile-avatar w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center shadow-md group-hover:scale-105 transition-transform overflow-hidden shrink-0"
-                    style={{ backgroundColor: "#dc2626", backgroundImage: "linear-gradient(135deg, #dc2626, #991b1b)", color: "#ffffff" }}
-                >
-                    {displayPic ? (
-                        <img
-                            src={displayPic}
-                            alt="Avatar"
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.parentElement.innerHTML = `<span class="text-white font-black text-xs" style="color:#ffffff !important;">${initials}</span>`;
-                            }}
-                        />
-                    ) : (
-                        <span className="text-white font-black text-xs" style={{ color: "#ffffff" }}>{initials}</span>
-                    )}
-                </div>
+                <UserAvatar
+                    src={profilePic}
+                    name={fullName}
+                    initials={initials}
+                    className="w-8 h-8 lg:w-9 lg:h-9 rounded-full group-hover:scale-105 transition-transform"
+                    textClassName="text-white font-black text-xs"
+                />
                 <div className="hidden sm:block text-left mr-2">
                     <p className={`font-bold text-xs leading-tight truncate max-w-[120px] ${headingColor}`}>{fullName}</p>
                     <p className={`text-[10px] leading-tight truncate max-w-[120px] ${subTextColor}`}>{userData?.email}</p>
@@ -183,7 +170,7 @@ const ProfileDropdown = () => {
             </button>
 
             {isOpen && (
-                <div className={`absolute right-0 mt-3 w-60 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 z-50 ${dropdownBg}`}>
+                <div className={`profile-dropdown absolute right-0 mt-3 w-60 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 z-50 ${dropdownBg}`}>
                     {/* User info header */}
                     <div className={`p-4 border-b ${headerBg}`}>
                         <p className={`font-black text-sm truncate ${headingColor}`}>{fullName}</p>
@@ -220,8 +207,9 @@ const ProfileDropdown = () => {
                     {/* Logout */}
                     <div className={`border-t p-1 ${dividerColor}`}>
                         <button
+                            type="button"
                             onClick={() => { setIsOpen(false); handleLogout(); }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors rounded-xl"
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors rounded-xl cursor-pointer"
                         >
                             <IconLogout />
                             Logout

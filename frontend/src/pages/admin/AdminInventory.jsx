@@ -257,27 +257,49 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
   }, [form.category, form.sku, isEdit, itemsSnapshot]);
 
   const submit = async () => {
-    if (!form.name) {
+    if (!form.name.trim()) {
       Swal.fire({
         icon: "warning",
         title: "Missing fields",
-        text: "Name is required.",
+        text: "Item name is required.",
+        ...DARK_SWAL,
+      });
+      return;
+    }
+    if (form.quantity === "" || isNaN(Number(form.quantity)) || Number(form.quantity) < 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid quantity",
+        text: "Please enter a valid quantity (0 or more).",
+        ...DARK_SWAL,
+      });
+      return;
+    }
+    if (form.price === "" || isNaN(Number(form.price)) || Number(form.price) < 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid price",
+        text: "Please enter a valid price (0 or more).",
         ...DARK_SWAL,
       });
       return;
     }
     try {
       setSaving(true);
-      const payload = { ...form };
+      const payload = {
+        ...form,
+        quantity: Number(form.quantity),
+        minimum_qty: form.minimum_qty !== "" ? Number(form.minimum_qty) : 0,
+        price: Number(form.price),
+      };
       if (!isEdit) payload.sku = generatedSku;
-      if (isEdit)
-        await axios.patch(`${API_BASE}/inventory/${editItem.id}/`, payload, {
-          headers: authHeaders,
-        });
-      else
-        await axios.post(`${API_BASE}/inventory/`, payload, {
-          headers: authHeaders,
-        });
+      // Always include Content-Type so the API accepts JSON
+      const headers = { "Content-Type": "application/json", ...authHeaders };
+      if (isEdit) {
+        await axios.patch(`${API_BASE}/inventory/${editItem.id}/`, payload, { headers });
+      } else {
+        await axios.post(`${API_BASE}/inventory/`, payload, { headers });
+      }
       onSaved();
       onClose();
       Swal.fire({
@@ -289,12 +311,16 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
         ...DARK_SWAL,
       });
     } catch (err) {
+      const data = err.response?.data;
       const msg =
-        err.response?.data?.sku?.[0] ??
-        err.response?.data?.detail ??
-        JSON.stringify(err.response?.data) ??
+        (data && typeof data === "object"
+          ? Object.entries(data)
+              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v[0] : v}`)
+              .join("; ")
+          : null) ??
+        err.message ??
         "Failed to save";
-      Swal.fire({ icon: "error", title: "Error", text: msg, ...DARK_SWAL });
+      Swal.fire({ icon: "error", title: "Save Failed", text: msg, ...DARK_SWAL });
     } finally {
       setSaving(false);
     }
@@ -309,31 +335,22 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               {isEdit ? "Edit Item" : "Add Inventory Item"}
             </h2>
             <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-              {isEdit ? "Update item details" : "Add a new item to inventory"}
+              {isEdit ? "Update item details" : "Fill in the details to add a new item"}
             </p>
           </div>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="p-4 sm:p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Item Name">
+        <div className="p-4 sm:p-6 space-y-5">
+          {/* Row 1: Name + Category */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Item Name *">
               <input
                 className={inputCls}
                 placeholder="e.g. Engine Oil 5W-30"
@@ -353,22 +370,25 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               </select>
             </Field>
           </div>
+          {/* Row 2: SKU + Unit */}
           <div className="grid grid-cols-2 gap-4">
-            <Field label={isEdit ? "SKU" : "SKU (Auto)"}>
+            <Field label={isEdit ? "SKU" : "SKU (Auto-generated)"}>
               <input
-                className={inputCls}
+                className={`${inputCls} opacity-60 cursor-not-allowed`}
                 value={isEdit ? form.sku : generatedSku}
                 disabled
               />
             </Field>
             <Field label="Unit">
-              <input className={inputCls} value="Pieces" disabled />
+              <input className={`${inputCls} opacity-60 cursor-not-allowed`} value="Pieces" disabled />
             </Field>
           </div>
+          {/* Row 3: Qty + Min Qty + Price */}
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Quantity">
+            <Field label="Quantity *">
               <input
                 type="number"
+                min="0"
                 className={inputCls}
                 placeholder="0"
                 value={form.quantity}
@@ -378,15 +398,18 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
             <Field label="Min Qty">
               <input
                 type="number"
+                min="0"
                 className={inputCls}
                 placeholder="0"
                 value={form.minimum_qty}
                 onChange={(e) => set("minimum_qty", e.target.value)}
               />
             </Field>
-            <Field label="Price (₱)">
+            <Field label="Price (₱) *">
               <input
                 type="number"
+                min="0"
+                step="0.01"
                 className={inputCls}
                 placeholder="0.00"
                 value={form.price}
@@ -394,6 +417,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               />
             </Field>
           </div>
+          {/* Row 4: Supplier */}
           <Field label="Supplier">
             <input
               className={inputCls}
@@ -402,11 +426,17 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               onChange={(e) => set("supplier", e.target.value)}
             />
           </Field>
-          <div className="flex gap-3 pt-2">
+          {/* Helper hint */}
+          {!isEdit && (
+            <p className="text-xs text-gray-600 bg-white/3 border border-white/5 rounded-lg px-3 py-2">
+              💡 SKU is auto-generated based on category. Item will be added to Central inventory.
+            </p>
+          )}
+          <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 border border-white/10 text-gray-400 hover:text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm"
+              className="flex-1 border border-white/10 text-gray-400 hover:text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm hover:bg-white/5"
             >
               Cancel
             </button>
@@ -414,9 +444,17 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               type="button"
               onClick={submit}
               disabled={saving}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-red-600/30"
+              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-red-600/30 flex items-center justify-center gap-2"
             >
-              {saving ? "Saving..." : isEdit ? "Save Changes" : "Add Item"}
+              {saving ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Saving...
+                </>
+              ) : isEdit ? "Save Changes" : "Add Item"}
             </button>
           </div>
         </div>
@@ -1288,6 +1326,21 @@ function AdminInventory({
               )}
             </div>
 
+            {/* Mobile empty state CTA */}
+            {!loading && filtered.length === 0 && searchQuery === "" && categoryFilter === "All Categories" && statusFilter === "all" && (
+              <div className="md:hidden text-center pt-4">
+                <button
+                  onClick={openCreate}
+                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all text-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add First Item
+                </button>
+              </div>
+            )}
+
             {/* Desktop Table */}
             <div className="hidden md:block bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
               <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -1306,10 +1359,22 @@ function AdminInventory({
                 Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-gray-500 text-lg">No items found</p>
-                  <p className="text-gray-600 text-sm mt-1">
-                    Try adjusting your search or filters
-                  </p>
+                  <svg className="w-14 h-14 text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <p className="text-gray-400 text-lg font-semibold">No items found</p>
+                  <p className="text-gray-600 text-sm mt-1 mb-5">Try adjusting your search or filters</p>
+                  {searchQuery === "" && categoryFilter === "All Categories" && statusFilter === "all" && (
+                    <button
+                      onClick={openCreate}
+                      className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add First Item
+                    </button>
+                  )}
                 </div>
               ) : (
                 paginatedItems.map((item) => (

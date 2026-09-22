@@ -376,14 +376,14 @@ def run_all_forecasts_for_branch(branch: Branch):
                 )
 
         avg_duration = (
-            (sum(durations, Decimal("0")) / Decimal(len(durations)))
+            (sum(durations, Decimal("0")) / Decimal(len(durations))).quantize(Decimal("0.01"))
             if durations
-            else Decimal("30")
+            else Decimal("30.00")
         )
         estimated_wait = (
-            (avg_duration * Decimal(max(based_on_queue_volume, 1))) / Decimal("2")
+            ((avg_duration * Decimal(max(based_on_queue_volume, 1))) / Decimal("2")).quantize(Decimal("0.01"))
             if based_on_queue_volume
-            else Decimal("0")
+            else Decimal("0.00")
         )
 
         assigned_row = service_queue.filter(assigned_employee_id__in=employee_ids).first()

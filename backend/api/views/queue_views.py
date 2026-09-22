@@ -4,7 +4,7 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
-from django.db.models import Q
+from django.db.models import Q, Avg, Count
 from django.db import transaction
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -476,7 +476,13 @@ def queue_list(request):
     _auto_mark_no_show_entries(queryset)
     
     if status_param:
-        queryset = queryset.filter(status=status_param)
+        if "," in status_param:
+            statuses = [s.strip() for s in status_param.split(",") if s.strip()]
+            queryset = queryset.filter(status__in=statuses)
+        elif status_param == "all":
+            pass
+        else:
+            queryset = queryset.filter(status=status_param)
     else:
         queryset = queryset.filter(status__in=["waiting", "in_service"])
     
@@ -495,6 +501,15 @@ def queue_list(request):
                 Q(status="in_service")
                 | Q(status="waiting", booking__date=selected_date)
                 | Q(status="waiting", booking__isnull=True, queued_at__date=selected_date)
+            )
+        elif "," in status_param or status_param == "all":
+            queryset = queryset.filter(
+                Q(status="in_service")
+                | Q(status="waiting", booking__date=selected_date)
+                | Q(status="waiting", booking__isnull=True, queued_at__date=selected_date)
+                | Q(completed_at__date=selected_date)
+                | Q(source="booking", booking__date=selected_date)
+                | Q(source="walk_in", queued_at__date=selected_date)
             )
         elif status_param == "in_service":
             pass
@@ -814,7 +829,7 @@ def queue_employees(request):
 
     employees = Staff.objects.filter(
         role__iexact="Employee", status__iexact="Active"
-    ).select_related("branch").order_by("first_name", "last_name")
+    ).select_related("branch", "user").order_by("first_name", "last_name")
 
     employees = _scope_to_requester_branch(employees, requester_staff)
 
@@ -830,14 +845,71 @@ def queue_employees(request):
         else:
             employees = employees.filter(branch_id=branch_id_int)
 
-    data = [
-        {
-            "id":        e.id,
-            "full_name": f"{e.first_name} {e.last_name}".strip(),
-            "branch":    e.branch.name if e.branch else e.branch_name or "",
-        }
-        for e in employees
-    ]
+    current_year = timezone.now().year
+    data = []
+    seen_ids = set()
+    seen_names = set()
+
+    for e in employees.distinct():
+        if e.id in seen_ids:
+            continue
+
+        full_name = f"{e.first_name} {e.last_name}".strip()
+        branch_label = e.branch.name if e.branch else e.branch_name or "Avica"
+        name_branch_key = (full_name.lower(), branch_label.lower())
+        if name_branch_key in seen_names:
+            continue
+
+        seen_ids.add(e.id)
+        seen_names.add(name_branch_key)
+
+        # Years of experience based on account creation / staff join
+        date_joined = getattr(e.user, "date_joined", None)
+        years_exp = max(1, current_year - date_joined.year) if date_joined else 1
+
+        # Calculate ratings & completed tasks from QueueEntry
+        queue_qs = QueueEntry.objects.filter(assigned_employee=e)
+        tasks_count = queue_qs.filter(status="done").count()
+        rating_agg = queue_qs.filter(rating_score__isnull=False).aggregate(
+            avg=Avg("rating_score"),
+            cnt=Count("id")
+        )
+        avg_score = rating_agg["avg"]
+        reviews_count = rating_agg["cnt"] or 0
+        rating_val = round(float(avg_score), 1) if avg_score is not None else 5.0
+
+        avatar_url = None
+        if e.profile_picture:
+            try:
+                avatar_url = request.build_absolute_uri(e.profile_picture.url)
+            except Exception:
+                avatar_url = str(e.profile_picture)
+
+        specializations = [
+            "Auto Detailing & Polishing",
+            "Paint Correction",
+            "Interior Deep Sanitize",
+            "Ceramic Coating",
+        ]
+        bio = (
+            f"Certified detailing specialist at {branch_label} with {years_exp} "
+            f"year{'s' if years_exp > 1 else ''} of automotive service experience. "
+            f"Committed to showroom-grade finish and customer satisfaction."
+        )
+
+        data.append({
+            "id": e.id,
+            "full_name": full_name,
+            "branch": branch_label,
+            "years_of_experience": years_exp,
+            "rating": rating_val,
+            "reviews_count": reviews_count,
+            "tasks_completed": tasks_count,
+            "specializations": specializations,
+            "bio": bio,
+            "avatar": avatar_url,
+            "phone": e.phone or "",
+        })
     return Response(data)
 
 
@@ -870,11 +942,7 @@ def queue_history(request):
     ).select_related("assigned_employee", "branch", "booking")
 
     # Non-admin/owner staff can only view queue history from their own branch.
-    if requester_staff and requester_staff.role not in ("Admin", "Business Owner", "super_admin"):
-        if requester_staff.branch_id:
-            entries = entries.filter(branch_id=requester_staff.branch_id)
-        else:
-            entries = entries.none()
+    entries = _scope_to_requester_branch(entries, requester_staff)
 
     if date_param:
         try:

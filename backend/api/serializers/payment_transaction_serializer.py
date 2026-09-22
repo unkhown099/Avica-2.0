@@ -6,6 +6,11 @@ from api.models import PaymentTransaction
 class PaymentTransactionSerializer(serializers.ModelSerializer):
     staff_name = serializers.SerializerMethodField()
     branch_name = serializers.SerializerMethodField()
+    customer_name = serializers.SerializerMethodField()
+    vehicle = serializers.SerializerMethodField()
+    plate_number = serializers.SerializerMethodField()
+    service = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
 
     class Meta:
         model = PaymentTransaction
@@ -16,6 +21,11 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
             "branch",
             "branch_name",
             "queue_entry",
+            "customer_name",
+            "vehicle",
+            "plate_number",
+            "service",
+            "phone",
             "transaction_type",
             "description",
             "quantity",
@@ -43,3 +53,29 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         if not obj.branch:
             return ""
         return obj.branch.name
+
+    def get_customer_name(self, obj):
+        if obj.queue_entry:
+            return obj.queue_entry.customer_name or ""
+        return ""
+
+    def get_vehicle(self, obj):
+        if obj.queue_entry:
+            return obj.queue_entry.vehicle or ""
+        return ""
+
+    def get_plate_number(self, obj):
+        if obj.queue_entry:
+            return obj.queue_entry.plate_number or ""
+        return ""
+
+    def get_service(self, obj):
+        if obj.queue_entry:
+            return obj.queue_entry.service or ""
+        return obj.description or ""
+
+    def get_phone(self, obj):
+        if obj.queue_entry:
+            return obj.queue_entry.phone or ""
+        return ""
+

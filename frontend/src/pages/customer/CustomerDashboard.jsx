@@ -4,6 +4,7 @@ import { API_BASE } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
 import { useNavigate } from "react-router-dom";
 import ServiceChatModal from "../../components/ServiceChatModal.jsx";
+import CustomDatePicker from "../../components/common/CustomDatePicker.jsx";
 
 function CustomerDashboard() {
   const [user] = useState(() => getUserFromSession());
@@ -47,31 +48,48 @@ function CustomerDashboard() {
   };
   const navigate = useNavigate();
 
+  const [hasActiveBookingState, setHasActiveBookingState] = useState(false);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsDashboardLoading(true);
       setDashboardError(null);
       try {
-        const response = await fetch(`${API_BASE}/api/customer/dashboard/`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        });
-        if (!response.ok)
-          throw new Error(`Failed to fetch dashboard data (${response.status})`);
-        const data = await response.json();
-        const now = new Date();
-        const trueUpcoming = (data.upcoming_bookings || []).filter((b) => {
-          let bookingDateTime;
-          if (b.time) {
-            bookingDateTime = new Date(`${b.date}T${b.time}`);
-          } else {
-            bookingDateTime = new Date(b.date);
-            bookingDateTime.setHours(23, 59, 59, 999);
-          }
-          return bookingDateTime > now;
-        });
-        setStats(data.stats || { upcoming: 0, completed: 0 });
-        setUpcomingBookings(trueUpcoming);
+        const [dashRes, bookingsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/customer/dashboard/`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          }),
+          fetch(`${API_BASE}/api/bookings/`, {
+            method: "GET",
+            headers: getAuthHeaders(),
+          }).catch(() => null),
+        ]);
+
+        if (!dashRes.ok)
+          throw new Error(`Failed to fetch dashboard data (${dashRes.status})`);
+        const data = await dashRes.json();
+
+        let allBookings = [];
+        if (bookingsRes && bookingsRes.ok) {
+          const bData = await bookingsRes.json();
+          allBookings = Array.isArray(bData) ? bData : (bData.results ?? []);
+        }
+
+        const activeStatuses = ["pending", "confirmed", "rescheduled"];
+        const activeInDashboard = Boolean(data.has_active_booking);
+        const activeInAllBookings = allBookings.some((b) => activeStatuses.includes(b.status));
+        const activeInUpcoming = (data.upcoming_bookings || []).some((b) => activeStatuses.includes(b.status));
+        const isActive = activeInDashboard || activeInAllBookings || activeInUpcoming;
+
+        setHasActiveBookingState(isActive);
+
+        const rawUpcoming = data.upcoming_bookings || [];
+        const activeFromAll = allBookings.filter((b) => activeStatuses.includes(b.status));
+        const mergedUpcoming = rawUpcoming.length > 0 ? rawUpcoming : activeFromAll;
+
+        setStats(data.stats || { upcoming: mergedUpcoming.length, completed: 0 });
+        setUpcomingBookings(mergedUpcoming);
         setActiveSessions(data.active_sessions || []);
         setServiceHistory(data.service_history || []);
       } catch (error) {
@@ -84,10 +102,12 @@ function CustomerDashboard() {
     fetchDashboardData();
   }, []);
 
-  // ── Derived: does the user have a pending or confirmed booking? ──
+  // ── Derived: does the user have an active booking? (pending, confirmed, rescheduled) ──
   const hasActiveBooking = useMemo(
-    () => upcomingBookings.some((b) => b.status === "pending" || b.status === "confirmed"),
-    [upcomingBookings],
+    () =>
+      hasActiveBookingState ||
+      upcomingBookings.some((b) => ["pending", "confirmed", "rescheduled"].includes(b.status)),
+    [hasActiveBookingState, upcomingBookings],
   );
 
   const handleCarImageUpload = async (e) => {
@@ -144,8 +164,12 @@ function CustomerDashboard() {
           cancellation_reason: reason,
         }),
       });
-      if (!res.ok) throw new Error("Failed to cancel");
-      setUpcomingBookings((prev) => prev.filter((b) => b.id !== booking.id));
+      setUpcomingBookings((prev) => {
+        const next = prev.filter((b) => b.id !== booking.id);
+        const hasRemainingActive = next.some((b) => ["pending", "confirmed", "rescheduled"].includes(b.status));
+        setHasActiveBookingState(hasRemainingActive);
+        return next;
+      });
       setStats((prev) => ({ ...prev, upcoming: Math.max(0, (prev.upcoming || 1) - 1) }));
       showToast("Booking cancelled successfully.", "success");
       setCancelBooking(null);
@@ -291,6 +315,26 @@ function CustomerDashboard() {
               </button>
             </BookingBlockedTooltip>
           </div>
+
+          {/* ── Active Booking Banner ── */}
+          {!isDashboardLoading && hasActiveBooking && (
+            <div className="mt-6 flex items-center gap-3 bg-yellow-600/10 border border-yellow-600/25 rounded-2xl px-4 py-3">
+              <div className="w-8 h-8 rounded-lg bg-yellow-600/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-yellow-400 font-semibold text-xs sm:text-sm">You have an active booking</p>
+                <p className="text-gray-400 text-[10px] sm:text-xs">
+                  New bookings are blocked until your current one is completed or cancelled.{" "}
+                  <button onClick={() => navigate("/bookings")} className="text-yellow-400 hover:text-yellow-300 underline underline-offset-2 transition-colors">
+                    View booking →
+                  </button>
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -303,26 +347,6 @@ function CustomerDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             </svg>
             <span className="text-sm font-semibold">{dashboardError}</span>
-          </div>
-        )}
-
-        {/* ── Active Booking Banner ── */}
-        {!isDashboardLoading && hasActiveBooking && (
-          <div className="mb-6 sm:mb-8 flex items-center gap-3 bg-yellow-600/10 border border-yellow-600/25 rounded-2xl px-4 py-3">
-            <div className="w-8 h-8 rounded-lg bg-yellow-600/20 flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-yellow-400 font-semibold text-xs sm:text-sm">You have an active booking</p>
-              <p className="text-gray-500 text-[10px] sm:text-xs">
-                New bookings are blocked until your current one is completed or cancelled.{" "}
-                <button onClick={() => navigate("/bookings")} className="text-yellow-400 hover:text-yellow-300 underline underline-offset-2 transition-colors">
-                  View booking →
-                </button>
-              </p>
-            </div>
           </div>
         )}
 
@@ -569,7 +593,8 @@ function CustomerDashboard() {
                                 <button
                                   type="button"
                                   onClick={() => handleBookRecommended(svc)}
-                                  className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer"
+                                  className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white !text-white font-bold rounded-lg text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer"
+                                  style={{ color: "#ffffff" }}
                                 >
                                   Book
                                 </button>
@@ -584,12 +609,13 @@ function CustomerDashboard() {
                   <button
                     type="button"
                     onClick={() => handleBookRecommended(analysisResult.recommendedServices?.[0] || null)}
-                    className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-black px-4 py-3.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm mt-3 cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white !text-white font-black px-4 py-3.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm mt-3 cursor-pointer"
+                    style={{ color: "#ffffff" }}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002-2z" />
                     </svg>
-                    Book {analysisResult.recommendedServices?.[0]?.name ? `"${analysisResult.recommendedServices[0].name}"` : "Recommended Service"}
+                    <span>Book {analysisResult.recommendedServices?.[0]?.name ? `"${analysisResult.recommendedServices[0].name}"` : "Recommended Service"}</span>
                   </button>
                   <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
                     <div className="flex items-start gap-2">
@@ -968,7 +994,8 @@ function CancelBookingModal({ booking, onClose, onConfirm }) {
 
 // ─── Customer Reschedule Modal ──────────────────────────────────────────────
 function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
-  const [reason, setReason] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState("");
+  const [notes, setNotes] = useState("");
   const [preferredDate, setPreferredDate] = useState("");
   const [preferredTime, setPreferredTime] = useState("");
   const [loading, setLoading] = useState(false);
@@ -981,20 +1008,37 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
     "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"
   ];
 
+  const RESCHEDULE_REASONS = [
+    "Schedule / Time Conflict",
+    "Vehicle Unavailable",
+    "Emergency / Urgent Matter",
+    "Bad Weather / Rain Forecast",
+    "Prefer Another Date / Time",
+    "Other / Custom Reason",
+  ];
+
   const handleSubmit = async () => {
-    if (!reason.trim() || reason.trim().length < 5) {
-      setError("Please provide a reason for rescheduling (at least 5 characters).");
+    const combinedReason = selectedPreset
+      ? (notes.trim() ? `${selectedPreset} - ${notes.trim()}` : selectedPreset)
+      : notes.trim();
+
+    if (!combinedReason || combinedReason.length < 5) {
+      setError("Please select a reason or provide at least 5 characters in notes.");
       return;
     }
     setLoading(true);
     setError("");
     await onSubmit({
-      reason: reason.trim(),
+      reason: combinedReason,
       preferredDate: preferredDate || null,
       preferredTime: preferredTime || null,
     });
     setLoading(false);
   };
+
+  const currentReason = selectedPreset
+    ? (notes.trim() ? `${selectedPreset} - ${notes.trim()}` : selectedPreset)
+    : notes.trim();
 
   return (
     <CenterModal onClose={onClose}>
@@ -1019,13 +1063,47 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
           </div>
         )}
 
+        <div className="space-y-2">
+          <label className="font-bold text-gray-300 block">
+            Reason for Rescheduling <span className="text-red-400">*</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {RESCHEDULE_REASONS.map((r) => {
+              const active = selectedPreset === r;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPreset(active ? "" : r);
+                    setError("");
+                  }}
+                  className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all ${
+                    active
+                      ? "border-indigo-500 bg-indigo-600/25 text-indigo-300 ring-1 ring-indigo-500/40 font-bold"
+                      : "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20"
+                  }`}
+                >
+                  {r}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="space-y-1.5">
-          <label className="font-bold text-gray-300">Reason for Rescheduling *</label>
+          <label className="font-bold text-gray-300 block">
+            {selectedPreset ? "Additional Notes (Optional)" : "Reason Notes / Details *"}
+          </label>
           <textarea
             rows={3}
-            value={reason}
-            onChange={(e) => { setReason(e.target.value); setError(""); }}
-            placeholder="e.g. Schedule conflict, need to move to another time..."
+            value={notes}
+            onChange={(e) => { setNotes(e.target.value); setError(""); }}
+            placeholder={
+              selectedPreset
+                ? "Add extra details or specific instructions for the staff..."
+                : "e.g. Schedule conflict, need to move to another date..."
+            }
             className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
@@ -1033,12 +1111,11 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="font-bold text-gray-300">Preferred Date (Optional)</label>
-            <input
-              type="date"
+            <CustomDatePicker
               min={new Date().toISOString().split("T")[0]}
               value={preferredDate}
-              onChange={(e) => setPreferredDate(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500 [color-scheme:dark]"
+              onChange={(val) => setPreferredDate(val)}
+              placeholder="Select preferred date"
             />
           </div>
           <div className="space-y-1.5">
@@ -1066,7 +1143,7 @@ function CustomerRescheduleModal({ booking, onClose, onSubmit }) {
         </button>
         <button
           onClick={handleSubmit}
-          disabled={loading || !reason.trim()}
+          disabled={loading || !currentReason.trim()}
           className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-1.5"
         >
           {loading ? "Submitting..." : "Send Request"}

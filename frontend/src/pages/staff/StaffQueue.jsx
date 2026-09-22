@@ -731,6 +731,7 @@ function WalkInModal({ onClose, onAdded }) {
     customerName: "",
     phone: "",
     vehicle: "",
+    vehicleSize: "",
     plateNumber: "",
     service: "",
     notes: "",
@@ -744,6 +745,7 @@ function WalkInModal({ onClose, onAdded }) {
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [serviceSearch, setServiceSearch] = useState("");
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -856,6 +858,7 @@ function WalkInModal({ onClose, onAdded }) {
           customer_name: form.customerName,
           phone: normalizedPhone,
           vehicle: form.vehicle,
+          vehicle_type: form.vehicleSize || "",
           plate_number: form.plateNumber,
           service: form.service,
           price: selectedServicePrice,
@@ -979,13 +982,13 @@ function WalkInModal({ onClose, onAdded }) {
                 label: "Vehicle *",
                 key: "vehicle",
                 type: "text",
-                placeholder: "Toyota Vios 2021",
+                placeholder: "e.g. Toyota Vios 2021",
               },
               {
                 label: "Plate Number",
                 key: "plateNumber",
                 type: "text",
-                placeholder: "ABC 1234",
+                placeholder: "e.g. ABC 1234",
               },
             ].map(({ label, key, type, placeholder }) => (
               <div key={key}>
@@ -1035,39 +1038,90 @@ function WalkInModal({ onClose, onAdded }) {
                 )}
               </div>
             ))}
+
+            {/* Vehicle Size Picker */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
+                Vehicle Size
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {["Sedan", "SUV", "Van", "XL", "Other"].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => set("vehicleSize", form.vehicleSize === size ? "" : size)}
+                    className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
+                      form.vehicleSize === size
+                        ? "bg-red-600 border-red-600 text-white"
+                        : "bg-gray-800 border-white/10 text-gray-400 hover:border-white/25 hover:text-white"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Service Selection with Search */}
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
                 Service *
               </label>
-              <select
-                value={form.service}
-                onChange={(e) => {
-                  set("service", e.target.value);
-                  if (fieldErrors.service) {
-                    setFieldErrors((prev) => ({ ...prev, service: false }));
-                  }
-                }}
-                className={`w-full bg-gray-800 border text-white rounded-xl px-4 py-2.5 focus:outline-none transition-all text-sm cursor-pointer ${fieldErrors.service ? "border-red-500/70 focus:border-red-500" : "border-white/10 focus:border-red-500/60"
-                  }`}
-              >
-                <option value="">
-                  {loadingServices ? "Loading services..." : "Select a service"}
-                </option>
-                {serviceOptions.map((s) => (
-                  <option key={s.name} value={s.name}>
-                    {s.name}
-                    {Number.isFinite(Number(s.price))
-                      ? ` - PHP ${Number(s.price).toFixed(2)}`
-                      : ""}
-                  </option>
-                ))}
-              </select>
+              {/* Search field */}
+              <div className="relative mb-2">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={serviceSearch}
+                  onChange={(e) => setServiceSearch(e.target.value)}
+                  placeholder="Search services..."
+                  className="w-full bg-gray-800 border border-white/10 text-white placeholder-gray-600 rounded-xl pl-9 pr-4 py-2 focus:outline-none focus:border-red-500/60 transition-all text-sm"
+                />
+              </div>
+              <div className={`max-h-36 overflow-y-auto rounded-xl border ${fieldErrors.service ? "border-red-500/50" : "border-white/10"} bg-gray-800 divide-y divide-white/5`}>
+                {loadingServices ? (
+                  <div className="px-4 py-3 text-xs text-gray-500">Loading services...</div>
+                ) : serviceOptions.filter((s) => !serviceSearch.trim() || s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase())).length === 0 ? (
+                  <div className="px-4 py-3 text-xs text-gray-500">No services found</div>
+                ) : (
+                  serviceOptions
+                    .filter((s) => !serviceSearch.trim() || s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase()))
+                    .map((s) => (
+                      <button
+                        key={s.name}
+                        type="button"
+                        onClick={() => {
+                          set("service", s.name);
+                          setFieldErrors((prev) => ({ ...prev, service: false }));
+                          setServiceSearch("");
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-xs flex items-center justify-between transition-all ${
+                          form.service === s.name
+                            ? "bg-red-600/20 text-red-300"
+                            : "text-gray-300 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="font-medium">{s.name}</span>
+                        {Number.isFinite(Number(s.price)) && Number(s.price) > 0 && (
+                          <span className="text-emerald-400 font-semibold">PHP {Number(s.price).toFixed(2)}</span>
+                        )}
+                        {form.service === s.name && (
+                          <svg className="w-3.5 h-3.5 text-red-400 ml-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    ))
+                )}
+              </div>
+              {form.service && (
+                <p className="text-[11px] text-emerald-400/90 font-semibold mt-1.5">
+                  ✓ Selected: {form.service} — PHP {selectedServicePrice.toFixed(2)}
+                </p>
+              )}
             </div>
-            {form.service && (
-              <p className="text-xs text-emerald-400/90 font-semibold">
-                Service price: PHP {selectedServicePrice.toFixed(2)}
-              </p>
-            )}
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
                 Notes
@@ -1180,7 +1234,17 @@ function StaffQueue() {
       const res = await authFetch(`${API}/api/queue/employees/`);
       if (!res.ok) return;
       const data = await res.json();
-      setEmployees(Array.isArray(data) ? data : []);
+      const raw = Array.isArray(data) ? data : [];
+      const seen = new Set();
+      const unique = raw.filter((emp) => {
+        if (!emp || !emp.id) return false;
+        const normName = (emp.full_name || emp.name || "").trim().toLowerCase();
+        if (seen.has(emp.id) || (normName && seen.has(normName))) return false;
+        seen.add(emp.id);
+        if (normName) seen.add(normName);
+        return true;
+      });
+      setEmployees(unique);
     } catch { /* fail silently */ }
   }, []);
 
@@ -1280,14 +1344,17 @@ function StaffQueue() {
   const inService = sortEntriesBySchedule(
     queue.filter((q) => q.status === "in_service"),
   );
-  const doneRows = sortEntriesBySchedule(
-    history.filter(
-      (h) => h.status === "done" && String(h.payment_status || "").toLowerCase() !== "paid",
-    ),
-  );
-  const doneToday = history.filter(
-    (h) => h.status === "done" && String(h.payment_status || "").toLowerCase() !== "paid",
-  ).length;
+  const doneEntries = [
+    ...queue.filter((q) => q.status === "done"),
+    ...history.filter((h) => h.status === "done"),
+  ];
+  const uniqueDoneMap = new Map();
+  doneEntries.forEach((e) => {
+    if (e?.id) uniqueDoneMap.set(e.id, e);
+  });
+  const dedupedDone = Array.from(uniqueDoneMap.values());
+  const doneRows = sortEntriesBySchedule(dedupedDone);
+  const doneToday = dedupedDone.length;
   const unassigned = queue.filter(
     (q) =>
       !q.assigned_employee && q.status !== "done" && q.status !== "skipped",

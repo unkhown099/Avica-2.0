@@ -4,8 +4,9 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.permissions import IsAuthenticated
-from api.serializers.auth_serializer import SignupSerializer
-from api.models import User, Customer, Staff
+from django.contrib.auth import authenticate
+from ..serializers.auth_serializer import SignupSerializer
+from ..models import User, Customer, Staff
 import requests
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -13,7 +14,6 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -300,7 +300,7 @@ class LoginView(APIView):
                     status=400,
                 )
 
-            user = authenticate(request=request, email=email, password=password)
+            user = authenticate(email=email, password=password)
             print("User authenticated?", user)
  
             if not user:

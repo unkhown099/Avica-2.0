@@ -55,7 +55,11 @@ export default function BranchOwnerAppointments() {
   });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [branchFilter, setBranchFilter] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [branches, setBranches] = useState([]);
+  const [servicesList, setServicesList] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [calendar, setCalendar] = useState({});
   const [loading, setLoading] = useState(true);
@@ -67,6 +71,15 @@ export default function BranchOwnerAppointments() {
     fetch(`${API_BASE}/owner/branches/`, { headers, credentials: "include" })
       .then((r) => r.json())
       .then((data) => setBranches(Array.isArray(data) ? data : []))
+      .catch(() => {});
+
+    fetch(`${API_BASE}/services/`, { headers, credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : (data.results ?? []);
+        const names = rows.map((s) => s.name).filter(Boolean);
+        setServicesList(Array.from(new Set(names)));
+      })
       .catch(() => {});
   }, [isAuthenticated, headers]);
 
@@ -93,6 +106,9 @@ export default function BranchOwnerAppointments() {
     try {
       const params = new URLSearchParams({ date: selectedDate });
       if (branchFilter) params.set("branch", branchFilter);
+      if (serviceFilter) params.set("service", serviceFilter);
+      if (statusFilter) params.set("status", statusFilter);
+      if (searchQuery.trim()) params.set("search", searchQuery.trim());
       const res = await fetch(`${API_BASE}/owner/appointments/?${params}`, {
         headers,
         credentials: "include",
@@ -104,7 +120,7 @@ export default function BranchOwnerAppointments() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, headers, selectedDate, branchFilter]);
+  }, [isAuthenticated, headers, selectedDate, branchFilter, serviceFilter, statusFilter, searchQuery]);
 
   useEffect(() => {
     fetchAppointments();
@@ -150,7 +166,14 @@ export default function BranchOwnerAppointments() {
   const appointmentsPagination = usePagination({
     items: sortedAppointments,
     pageSize: 8,
-    resetDeps: [appointments.length, selectedDate, branchFilter],
+    resetDeps: [
+      appointments.length,
+      selectedDate,
+      branchFilter,
+      serviceFilter,
+      statusFilter,
+      searchQuery,
+    ],
   });
 
   const CalendarPanel = () => (
@@ -393,14 +416,103 @@ export default function BranchOwnerAppointments() {
           {/* Appointments Panel */}
           <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm">
             <div className="mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg font-black text-white">
-                {selectedLabel}
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                {loading
-                  ? "Loading…"
-                  : `${appointments.length} appointment${appointments.length !== 1 ? "s" : ""}`}
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-white">
+                    {selectedLabel}
+                  </h2>
+                  <p className="text-gray-500 text-sm mt-0.5">
+                    {loading
+                      ? "Loading…"
+                      : `${appointments.length} appointment${appointments.length !== 1 ? "s" : ""}`}
+                  </p>
+                </div>
+                {(serviceFilter || statusFilter || searchQuery) && (
+                  <button
+                    onClick={() => {
+                      setServiceFilter("");
+                      setStatusFilter("");
+                      setSearchQuery("");
+                    }}
+                    className="self-start sm:self-auto text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Reset Filters
+                  </button>
+                )}
+              </div>
+
+              {/* Filters Toolbar */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                {/* Search */}
+                <div className="sm:col-span-6 relative">
+                  <svg
+                    className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search customer, vehicle, plate, service..."
+                    className="w-full bg-gray-800/80 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 transition-all"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* Service Filter */}
+                <div className="sm:col-span-3">
+                  <select
+                    value={serviceFilter}
+                    onChange={(e) => setServiceFilter(e.target.value)}
+                    className="w-full bg-gray-800/80 border border-white/10 text-white rounded-xl px-3 py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 cursor-pointer transition-all"
+                  >
+                    <option value="">All Services</option>
+                    {servicesList.map((srv) => (
+                      <option key={srv} value={srv}>
+                        {srv}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div className="sm:col-span-3">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full bg-gray-800/80 border border-white/10 text-white rounded-xl px-3 py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500 cursor-pointer transition-all"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="rescheduled">Rescheduled</option>
+                    <option value="done">Done</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="no_show">No Show</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {loading ? (

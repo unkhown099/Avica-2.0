@@ -14,13 +14,12 @@ class CustomerDashboardAPIView(APIView):
         now = timezone.now()
         today = now.date()
 
-        # FIX 1: Only return upcoming bookings with a future date
-        # Bookings that are pending/confirmed but dated in the past are excluded
+        # Active/upcoming bookings: pending, confirmed, rescheduled
         upcoming = Booking.objects.filter(
             user=user,
-            status__in=["pending", "confirmed"],
-            date__gte=today          # must be today or future
+            status__in=["pending", "confirmed", "rescheduled"],
         ).order_by("date", "time")
+        has_active_booking = upcoming.exists()
 
         # Service history — all completed queue entries, newest first
         # No date filter: return full history
@@ -110,6 +109,7 @@ class CustomerDashboardAPIView(APIView):
         }
 
         return Response({
+            "has_active_booking": has_active_booking,
             "stats": stats,
             "upcoming_bookings": upcoming_data,
             "active_sessions": active_data,

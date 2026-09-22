@@ -1,0 +1,56 @@
+﻿Business Intelligence Report
+Report Type,dashboard_summary
+Period,monthly
+Scope,branch
+Generated At,2026-09-18T16:42:53.859418+00:00
+
+KPI Summary
+Total Revenue,3400.0
+Services Completed,3
+Customers,4
+Conversion Rate (%),50.0
+Payment Rate (%),50.0
+Total Transactions,7
+
+Period-over-Period Comparison
+Revenue Current,3400.0
+Revenue Previous,62800.0
+Revenue Change (%),-94.59
+Conversion Rate Current (%),50.0
+Conversion Rate Previous (%),100.0
+Payment Rate Current (%),50.0
+Payment Rate Previous (%),100.0
+
+Peak Periods
+Peak Hour,23:00,1200.0
+Peak Day,Thursday,1800.0
+Peak Month,Sep,3400.0
+
+Revenue Split
+Appointments,0.0
+Walk-ins,1200.0
+Services,2200.0
+Products,0.0
+
+Reconciliation
+Payment Total,3400.0
+Dashboard Total,1850.0
+Mismatch Amount,1550.0
+Mismatch Threshold,1.0
+Data Mismatch,True
+
+Top Services
+Service,Revenue,Count
+Buffing payment,1100.0,1
+POS service sale - Engine Steamed Wash,1000.0,2
+Engine Steamed Wash,650.0,1
+POS service sale - Under Wash,400.0,1
+POS service sale - Premium Carwash,150.0,1
+All Shine payment,100.0,1
+
+Top Customers
+Customer,Revenue,Transactions
+Walk-in Customer,1550.0,4
+Nalang John Emmanuel P,1100.0,1
+Maria Clara Santos,650.0,1
+Marky,100.0,1

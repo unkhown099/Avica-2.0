@@ -452,10 +452,8 @@ class BookingListCreateView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
-        today = timezone.now().date()
         has_active_booking = Booking.objects.filter(
             user=self.request.user,
-            date__gte=today,
             status__in=["pending", "confirmed", "rescheduled"],
         ).exists()
 
@@ -1019,22 +1017,7 @@ class StaffBookingActionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Once a confirmed booking already has an assigned employee, do not allow changing it.
-        if (
-            booking.status == "confirmed"
-            and assigned_employee_id is not None
-            and existing_assigned_employee_id is not None
-        ):
-            normalized_assigned = assigned_employee_id
-            if normalized_assigned in ("", "null", None):
-                normalized_assigned = None
-
-            if normalized_assigned is None or int(normalized_assigned) != int(existing_assigned_employee_id):
-                return Response(
-                    {"detail": "Assigned employee is locked after approval and cannot be changed."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
+        # Allow managers and staff to assign or update the assigned employee.
         assigned_employee = None
         if assignment_provided and assigned_employee_id is not None:
             assigned_employee_id = normalized_assigned_employee_id
@@ -1100,11 +1083,18 @@ class StaffBookingActionView(APIView):
             booking.cancellation_reason = cancellation_reason
             booking.status = "cancelled"
             booking.save()
-            _notify_customer_booking_status(booking, "cancelled")
-            _notify_staff_and_manager_cancellation(booking)
+            try:
+                _notify_customer_booking_status(booking, "cancelled")
+            except Exception:
+                logger.exception("Failed to send customer cancellation notification")
+            try:
+                _notify_staff_and_manager_cancellation(booking)
+            except Exception:
+                logger.exception("Failed to send staff/manager cancellation notification")
             
             # Return early - no queue entry for cancelled bookings
             from api.serializers.bookings_serializer import BookingSerializer
+            booking.refresh_from_db()
             return Response(BookingSerializer(booking).data)
 
         # If not cancelled, proceed with normal flow
@@ -1155,9 +1145,17 @@ class StaffBookingActionView(APIView):
                 if assignment_provided and assigned_employee_id is not None:
                     entry.assigned_employee = assigned_employee
                     entry.save(update_fields=["assigned_employee"])
+                    try:
+                        from api.views.queue_views import _notify_employee_task_assigned
+                        _notify_employee_task_assigned(entry)
+                    except Exception:
+                        logger.exception("Failed to notify employee of task assignment")
 
                 print(f"[QUEUE] ✅ Success — queue entry #{entry.id} at position #{entry.position}")
-                _notify_customer_booking_status(booking, "confirmed")
+                try:
+                    _notify_customer_booking_status(booking, "confirmed")
+                except Exception:
+                    logger.exception("Failed to send customer booking confirmation notification")
             except Exception as e:
                 print(f"[QUEUE] ❌ FAILED for booking #{booking.id}: {e}")
                 print(traceback.format_exc())
@@ -1167,25 +1165,35 @@ class StaffBookingActionView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-        elif assignment_provided and assigned_employee_id is not None and hasattr(booking, "queue_entry"):
-            queue_entry = booking.queue_entry
-            queue_entry.assigned_employee = assigned_employee
-            queue_entry.save(update_fields=["assigned_employee"])
+        elif assignment_provided and assigned_employee_id is not None:
+            queue_entry = getattr(booking, "queue_entry", None)
+            if queue_entry:
+                queue_entry.assigned_employee = assigned_employee
+                queue_entry.save(update_fields=["assigned_employee"])
+                try:
+                    from api.views.queue_views import _notify_employee_task_assigned
+                    _notify_employee_task_assigned(queue_entry)
+                except Exception:
+                    logger.exception("Failed to notify employee of task assignment")
 
         if new_status == "rescheduled":
-            _notify_user_inapp_and_email(
-                user=booking.user,
-                title="Reschedule Proposal Received",
-                message=(
-                    f"We proposed a new schedule for your {booking.service} appointment: "
-                    f"{booking.reschedule_options[0]['date']} at {booking.reschedule_options[0]['time']}. "
-                    "Please accept or decline in your bookings."
-                ),
-                email_subject="Reschedule Proposal for Your Appointment - Otokwikk",
-                target_path="/bookings",
-            )
+            try:
+                _notify_user_inapp_and_email(
+                    user=booking.user,
+                    title="Reschedule Proposal Received",
+                    message=(
+                        f"We proposed a new schedule for your {booking.service} appointment: "
+                        f"{booking.reschedule_options[0]['date']} at {booking.reschedule_options[0]['time']}. "
+                        "Please accept or decline in your bookings."
+                    ),
+                    email_subject="Reschedule Proposal for Your Appointment - Otokwikk",
+                    target_path="/bookings",
+                )
+            except Exception:
+                logger.exception("Failed to send reschedule notification")
 
         from api.serializers.bookings_serializer import BookingSerializer
+        booking.refresh_from_db()
         return Response(BookingSerializer(booking).data)
 
 

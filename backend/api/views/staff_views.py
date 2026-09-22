@@ -2,8 +2,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from ..serializers.staff_serializer import StaffSerializer
-from ..models import Staff
+from api.serializers.staff_serializer import StaffSerializer
+from api.models import Staff
 
 
 def _branch_name(staff):
@@ -27,22 +27,36 @@ class StaffView(APIView):
             else:
                 staff = staff.none()
 
-        data = [
-            {
+        data = []
+        seen = set()
+        for s in staff:
+            if s.id in seen:
+                continue
+            email_key = s.user.email.strip().lower() if s.user and s.user.email else None
+            name_branch_key = (f"{s.first_name} {s.last_name}".strip().lower(), s.role.lower(), str(s.branch_id))
+            if email_key and email_key in seen:
+                continue
+            if name_branch_key in seen:
+                continue
+
+            seen.add(s.id)
+            if email_key:
+                seen.add(email_key)
+            seen.add(name_branch_key)
+
+            data.append({
                 "id": s.id,
                 "first_name": s.first_name,
                 "last_name": s.last_name,
-                "name": f"{s.first_name} {s.last_name}",
-                "email": s.user.email,
+                "name": f"{s.first_name} {s.last_name}".strip(),
+                "email": s.user.email if s.user else "",
                 "phone": s.phone,
                 "role": s.role,
                 "branch": _branch_name(s),
                 "branch_id": s.branch_id,
                 "status": s.status,
-                "lastLogin": s.user.last_login,
-            }
-            for s in staff
-        ]
+                "lastLogin": s.user.last_login if s.user else None,
+            })
 
         return Response(data)
 

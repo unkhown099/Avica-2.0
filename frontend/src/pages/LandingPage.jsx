@@ -3,6 +3,7 @@ import Navbar from "../components/Landing/LandingNav.jsx";
 import BorderGlow from "../components/Landing/BorderGlow.jsx";
 import logo from "../assets/otokwikklogo.png";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext.jsx";
 
 // ─── API base ─────────────────────────────────────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -155,7 +156,7 @@ function loadFBSDK() {
 }
 
 // ─── FBVideoEmbed — autoplay + loop via FB SDK ────────────────────────────────
-function FBVideoEmbed({ url, index }) {
+function FBVideoEmbed({ url, index, isDark = true }) {
   const containerRef = useRef(null);
   const playerRef = useRef(null);
 
@@ -200,16 +201,20 @@ function FBVideoEmbed({ url, index }) {
 
   if (!url) {
     return (
-      <div className="group relative rounded-[28px] sm:rounded-[32px] overflow-hidden border border-white/10 shadow-2xl bg-gray-950 flex flex-col h-[560px] sm:h-[620px] w-full items-center justify-center text-gray-500">
-        <div className="w-16 h-16 rounded-full bg-red-600/10 border border-red-600/20 flex items-center justify-center mb-3 text-red-500">
+      <div className={`group relative rounded-[28px] sm:rounded-[32px] overflow-hidden border shadow-2xl flex flex-col h-[560px] sm:h-[620px] w-full items-center justify-center transition-colors ${
+        isDark ? "bg-gray-950 border-white/10 text-gray-400" : "bg-white border-gray-200 text-gray-600 shadow-md"
+      }`}>
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 text-red-500 ${
+          isDark ? "bg-red-600/10 border border-red-600/20" : "bg-red-50 border border-red-200"
+        }`}>
           <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
           </svg>
         </div>
-        <span className="text-xs font-black uppercase tracking-widest text-gray-300">
+        <span className={`text-xs font-black uppercase tracking-widest ${isDark ? "text-gray-300" : "text-gray-800"}`}>
           Facebook Reel Slot #{index + 1}
         </span>
-        <span className="text-[11px] text-gray-600 mt-1">
+        <span className={`text-[11px] mt-1 ${isDark ? "text-gray-600" : "text-gray-400"}`}>
           Paste Facebook Reel URL in Super Admin
         </span>
       </div>
@@ -219,7 +224,9 @@ function FBVideoEmbed({ url, index }) {
   return (
     <div
       ref={containerRef}
-      className="group relative rounded-[28px] sm:rounded-[32px] overflow-hidden border border-white/10 shadow-2xl bg-gray-950 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(220,38,38,0.25)] flex flex-col h-[560px] sm:h-[620px] w-full"
+      className={`group relative rounded-[28px] sm:rounded-[32px] overflow-hidden border shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(220,38,38,0.25)] flex flex-col h-[560px] sm:h-[620px] w-full ${
+        isDark ? "border-white/10 bg-gray-950" : "border-gray-200 bg-white"
+      }`}
     >
       {/* fb-video div — rendered & controlled by FB JS SDK */}
       <div
@@ -244,6 +251,7 @@ const SERVICE_ICONS = [
 
 function LandingPage() {
   const navigate = useNavigate();
+  const { isDark } = useTheme() || { isDark: true };
 
   // ─── State ────────────────────────────────────────────────────────────────
   const [pageContent, setPageContent] = useState(null);
@@ -583,7 +591,9 @@ function LandingPage() {
   const currentStation = activeBranch ?? null;
 
   return (
-    <div className="min-h-screen bg-black font-sans selection:bg-red-600 selection:text-white">
+    <div className={`min-h-screen font-sans selection:bg-red-600 selection:text-white transition-colors duration-300 ${
+      isDark ? "bg-black text-white" : "bg-slate-50 text-gray-900"
+    }`}>
       <Navbar />
 
       {/* Modal Popup */}
@@ -593,17 +603,21 @@ function LandingPage() {
           onClick={closeModal}
         >
           <div 
-            className="relative bg-gradient-to-br from-gray-900 to-black rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-hidden border border-white/20 shadow-2xl transform transition-all duration-300 scale-100"
+            className={`relative rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-hidden border shadow-2xl transform transition-all duration-300 scale-100 ${
+              isDark 
+                ? "bg-gradient-to-br from-gray-900 to-black border-white/20 text-white" 
+                : "bg-white border-gray-200 text-gray-900"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10 bg-red-600/10">
-              <h2 className="text-2xl font-black text-white tracking-tighter">
+            <div className={`flex items-center justify-between p-6 border-b ${isDark ? "border-white/10 bg-red-600/10" : "border-gray-200 bg-red-50"}`}>
+              <h2 className={`text-2xl font-black tracking-tighter ${isDark ? "text-white" : "text-gray-900"}`}>
                 {modalContent.title}
               </h2>
               <button
                 onClick={closeModal}
-                className="text-gray-400 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/10"
+                className={`p-2 rounded-xl transition-colors ${isDark ? "text-gray-400 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"}`}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -613,9 +627,9 @@ function LandingPage() {
             
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar">
-              <div className="prose prose-invert prose-red max-w-none">
+              <div className="prose max-w-none">
                 {modalContent.body.split('\n').map((paragraph, idx) => (
-                  <p key={idx} className="text-gray-300 leading-relaxed mb-4">
+                  <p key={idx} className={`leading-relaxed mb-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
                     {paragraph}
                   </p>
                 ))}
@@ -623,7 +637,7 @@ function LandingPage() {
             </div>
             
             {/* Modal Footer */}
-            <div className="p-6 border-t border-white/10 bg-black/50">
+            <div className={`p-6 border-t ${isDark ? "border-white/10 bg-black/50" : "border-gray-200 bg-gray-50"}`}>
               <button
                 onClick={closeModal}
                 className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-[1.02] active:scale-95 shadow-lg shadow-red-900/30"
@@ -761,15 +775,15 @@ function LandingPage() {
       </div>
 
       {/* ── Services Section ── */}
-      <section id="services" className="py-20 sm:py-28 md:py-32 bg-black relative">
+      <section id="services" className={`py-20 sm:py-28 md:py-32 relative transition-colors duration-300 ${isDark ? "bg-black" : "bg-slate-50"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 reveal">
           <div className="text-center mb-12 sm:mb-16 md:mb-20">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 uppercase tracking-tighter">
+            <h2 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 uppercase tracking-tighter ${isDark ? "text-white" : "text-gray-900"}`}>
               {services.sectionTitle}{" "}
               <span className="text-red-600">{services.sectionTitleAccent}</span>
             </h2>
             <div className="w-20 sm:w-24 h-1.5 bg-red-600 mx-auto rounded-full mb-4 sm:mb-6" />
-            <p className="text-gray-500 text-base sm:text-lg font-medium max-w-2xl mx-auto px-2">
+            <p className={`text-base sm:text-lg font-medium max-w-2xl mx-auto px-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
               {services.sectionSubtitle}
             </p>
           </div>
@@ -778,7 +792,7 @@ function LandingPage() {
             {filteredServices.slice(0, 3).map((svc, i) => {
               const reelUrl = typeof svc === "string" ? svc : (svc?.url || svc?.link || svc?.image || "");
               return (
-                <FBVideoEmbed key={i} url={reelUrl} index={i} />
+                <FBVideoEmbed key={i} url={reelUrl} index={i} isDark={isDark} />
               );
             })}
           </div>
@@ -786,13 +800,13 @@ function LandingPage() {
       </section>
 
       {/* ── Branches / Map Section ── */}
-      <section id="branches" className="py-20 sm:py-24 bg-neutral-900 relative">
+      <section id="branches" className={`py-20 sm:py-24 relative transition-colors duration-300 ${isDark ? "bg-neutral-900" : "bg-slate-100"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 reveal">
           <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter leading-tight">
+            <h2 className={`text-3xl sm:text-4xl md:text-5xl font-black mb-4 uppercase tracking-tighter leading-tight ${isDark ? "text-white" : "text-gray-900"}`}>
               LOCATE OUR <span className="text-red-600">STATIONS</span>
             </h2>
-            <p className="text-gray-400 text-base sm:text-lg max-w-xl mx-auto font-medium px-2">
+            <p className={`text-base sm:text-lg max-w-xl mx-auto font-medium px-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
               Select a branch below to view its location and contact
               information.
             </p>
@@ -807,10 +821,14 @@ function LandingPage() {
                     null
                   )
                 }
-                className="w-full bg-black/60 text-white font-black text-sm uppercase tracking-[0.2em] px-6 py-4 rounded-2xl border border-white/10 appearance-none focus:outline-none focus:border-red-600 transition-all cursor-pointer shadow-2xl backdrop-blur-xl"
+                className={`w-full font-black text-sm uppercase tracking-[0.2em] px-6 py-4 rounded-2xl border appearance-none focus:outline-none focus:border-red-600 transition-all cursor-pointer shadow-2xl backdrop-blur-xl ${
+                  isDark 
+                    ? "bg-black/60 text-white border-white/10" 
+                    : "bg-white text-gray-900 border-gray-300 shadow-md"
+                }`}
               >
                 {branches.map((b) => (
-                  <option key={b.id} value={b.id} className="bg-neutral-900 py-2">
+                  <option key={b.id} value={b.id} className={isDark ? "bg-neutral-900 text-white py-2" : "bg-white text-gray-900 py-2"}>
                     {b.name.toUpperCase()}
                   </option>
                 ))}
@@ -840,7 +858,9 @@ function LandingPage() {
           >
             {/* Interactive Leaflet Map */}
             <div
-              className={`relative group rounded-[24px] sm:rounded-[40px] overflow-hidden border border-white/10 shadow-3xl transition-all duration-700 bg-gray-900 ${isMapExpanded
+              className={`relative group rounded-[24px] sm:rounded-[40px] overflow-hidden border shadow-3xl transition-all duration-700 ${
+                isDark ? "border-white/10 bg-gray-900" : "border-gray-200 bg-gray-100"
+              } ${isMapExpanded
                 ? "h-[600px] sm:h-[800px] lg:w-full"
                 : "h-[400px] sm:h-[500px] lg:w-2/3"
                 }`}
@@ -849,20 +869,28 @@ function LandingPage() {
 
               {/* Map label */}
               <div className="absolute top-4 left-4 z-10 pointer-events-none">
-                <div className="bg-black/80 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-[10px] font-black text-red-500 uppercase tracking-[0.2em] shadow-2xl">
+                <div className={`map-badge px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl backdrop-blur-md transition-colors ${
+                  isDark
+                    ? "bg-black/80 border-white/10 text-red-500"
+                    : "bg-white border-gray-200 text-red-600 shadow-md"
+                }`}>
                   {currentStation?.name || "Live Precision Map"}
                 </div>
               </div>
 
               {/* Expand/collapse + Skin selector */}
-              <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
+              <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2 map-floating-controls">
                 <button
                   onClick={() => setIsMapExpanded((prev) => !prev)}
-                  className="bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10 text-white hover:bg-white/10 transition-all shadow-2xl active:scale-95 flex items-center justify-center w-12 h-12"
+                  className={`map-control-btn p-3 rounded-xl border shadow-2xl active:scale-95 flex items-center justify-center w-12 h-12 cursor-pointer backdrop-blur-md transition-all ${
+                    isDark
+                      ? "bg-black/80 border-white/10 text-white hover:bg-white/10"
+                      : "bg-white border-gray-200 text-gray-800 hover:bg-gray-100 shadow-md"
+                  }`}
                   title={isMapExpanded ? "Collapse Map" : "Expand Map"}
                 >
                   <svg
-                    className="w-5 h-5"
+                    className={`w-5 h-5 ${isDark ? "text-white" : "text-gray-800"}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -886,13 +914,22 @@ function LandingPage() {
                 </button>
 
                 {/* Skin Selector */}
-                <div className="flex flex-col gap-1.5 p-1.5 bg-black/70 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl">
+                <div className={`map-skin-box flex flex-col gap-1.5 p-1.5 rounded-xl border shadow-2xl backdrop-blur-md transition-colors ${
+                  isDark
+                    ? "bg-black/80 border-white/10"
+                    : "bg-white border-gray-200 shadow-md"
+                }`}>
                   {["dark", "satellite", "streets"].map((skin) => (
                     <button
                       key={skin}
                       onClick={() => setMapSkin(skin)}
-                      className={`px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${mapSkin === skin ? "bg-red-600 text-white" : "text-gray-400 hover:text-white"
-                        }`}
+                      className={`map-skin-btn px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                        mapSkin === skin
+                          ? "map-skin-btn-active bg-red-600 text-white shadow-md font-black"
+                          : isDark
+                          ? "text-gray-300 hover:text-white"
+                          : "text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-bold"
+                      }`}
                     >
                       {skin}
                     </button>
@@ -906,8 +943,12 @@ function LandingPage() {
               className={`${isMapExpanded ? "hidden" : "flex"
                 } flex-col gap-4 sm:gap-6 lg:w-1/3`}
             >
-              <div className="bg-white/5 backdrop-blur-xl rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 border border-white/10 hover:border-red-600/30 transition-all flex-grow shadow-2xl">
-                <h3 className="text-xl sm:text-2xl font-black text-white mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4">
+              <div className={`backdrop-blur-xl rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 border transition-all flex-grow shadow-2xl ${
+                isDark 
+                  ? "bg-white/5 border-white/10 hover:border-red-600/30 text-white" 
+                  : "bg-white border-gray-200 hover:border-red-500/40 text-gray-900 shadow-lg"
+              }`}>
+                <h3 className={`text-xl sm:text-2xl font-black mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4 ${isDark ? "text-white" : "text-gray-900"}`}>
                   <span className="w-1.5 h-7 sm:h-8 bg-red-600 rounded-full" />
                   STATION INFO
                 </h3>
@@ -930,7 +971,11 @@ function LandingPage() {
                     },
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600/10 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 border border-red-600/20 shadow-inner">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 border shadow-inner ${
+                        isDark 
+                          ? "bg-red-600/10 border-red-600/20" 
+                          : "bg-red-50 border-red-200"
+                      }`}>
                         <svg
                           className="w-5 h-5 sm:w-6 sm:h-6 text-red-600"
                           fill="none"
@@ -949,7 +994,7 @@ function LandingPage() {
                         <p className="text-red-600 font-black text-[10px] sm:text-xs tracking-widest mb-1">
                           {item.label}
                         </p>
-                        <p className="text-gray-300 text-base sm:text-lg font-bold leading-tight">
+                        <p className={`text-base sm:text-lg font-bold leading-tight ${isDark ? "text-gray-300" : "text-gray-800"}`}>
                           {item.value}
                         </p>
                       </div>
@@ -1018,16 +1063,20 @@ function LandingPage() {
           <div className={`flex ${!isDragging ? 'animate-marquee hover:[animation-play-state:paused]' : ''} whitespace-nowrap`}>
             {Array(20).fill(reviews).flat().map((f, i) => (
               <div key={i} className="inline-block px-3 sm:px-4">
-                <div className="w-[280px] sm:w-[350px] md:w-[420px] bg-black text-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-2xl border border-white/10 whitespace-normal">
-                  <p className="text-base sm:text-xl italic font-bold leading-relaxed mb-5 sm:mb-6">
+                <div className={`w-[280px] sm:w-[350px] md:w-[420px] p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-2xl border whitespace-normal transition-colors ${
+                  isDark 
+                    ? "bg-black text-white border-white/10" 
+                    : "bg-white text-gray-900 border-red-200 shadow-xl"
+                }`}>
+                  <p className={`text-base sm:text-xl italic font-bold leading-relaxed mb-5 sm:mb-6 ${isDark ? "text-white" : "text-gray-800"}`}>
                     "{f.text}"
                   </p>
                   <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600 rounded-full flex items-center justify-center font-black text-base sm:text-lg flex-shrink-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600 text-white rounded-full flex items-center justify-center font-black text-base sm:text-lg flex-shrink-0 shadow-md">
                       {f.name[0]}
                     </div>
                     <div>
-                      <h4 className="font-black uppercase tracking-tight text-sm sm:text-base">
+                      <h4 className={`font-black uppercase tracking-tight text-sm sm:text-base ${isDark ? "text-white" : "text-gray-900"}`}>
                         {f.name}
                       </h4>
                       <p className="text-red-600 text-xs sm:text-sm font-black tracking-widest">
@@ -1043,10 +1092,14 @@ function LandingPage() {
       </section>
 
       {/* ── All Branches Facebook Links ── */}
-      <section id="facebook-pages" className="fb-pages-section py-20 sm:py-24 bg-gray-100 border-t border-gray-200 reveal">
+      <section id="facebook-pages" className={`fb-pages-section py-20 sm:py-24 border-t reveal transition-colors duration-300 ${
+        isDark 
+          ? "bg-neutral-950 border-white/10 text-white" 
+          : "bg-gray-100 border-gray-200 text-gray-900"
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tighter uppercase">
+            <h2 className={`text-3xl sm:text-4xl font-black tracking-tighter uppercase ${isDark ? "text-white" : "text-gray-900"}`}>
               OFFICIAL <span className="text-red-600">FACEBOOK PAGES</span>
             </h2>
             <div className="w-14 sm:w-16 h-1 bg-red-600 mx-auto mt-5 sm:mt-6 rounded-full" />
@@ -1059,7 +1112,11 @@ function LandingPage() {
                 href={branch.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="fb-page-card bg-white hover:bg-red-50 p-5 sm:p-6 rounded-2xl border border-gray-200 hover:border-red-500/50 transition-all duration-300 flex items-center justify-between group shadow-sm hover:shadow-md"
+                className={`fb-page-card p-5 sm:p-6 rounded-2xl border transition-all duration-300 flex items-center justify-between group shadow-sm hover:shadow-md ${
+                  isDark 
+                    ? "bg-gray-900 hover:bg-neutral-800 border-white/10 hover:border-red-500/50 text-white" 
+                    : "bg-white hover:bg-red-50 border-gray-200 hover:border-red-500/50 text-gray-900"
+                }`}
               >
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#1877F2]/10 rounded-lg flex items-center justify-center text-[#1877F2] group-hover:bg-[#1877F2] group-hover:text-white transition-all flex-shrink-0">
@@ -1072,10 +1129,10 @@ function LandingPage() {
                     </svg>
                   </div>
                   <div className="min-w-0">
-                    <span className="fb-branch-name text-gray-900 font-bold tracking-tight block text-sm sm:text-base truncate">
+                    <span className={`fb-branch-name font-bold tracking-tight block text-sm sm:text-base truncate ${isDark ? "text-white" : "text-gray-900"}`}>
                       {branch.name}
                     </span>
-                    <span className="fb-visit-label text-[9px] sm:text-[10px] text-gray-500 font-black uppercase tracking-widest group-hover:text-red-500 transition-colors">
+                    <span className={`fb-visit-label text-[9px] sm:text-[10px] font-black uppercase tracking-widest group-hover:text-red-500 transition-colors ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                       Visit Page
                     </span>
                   </div>

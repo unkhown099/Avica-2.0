@@ -683,9 +683,11 @@ class InventoryTransactionHistoryView(APIView):
 
     def get(self, request):
         role = get_staff_role(request)
-        if role not in ["super_admin", "Inventory Manager", "Inventory", "Branch Manager"]:
+        is_superuser = getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)
+        allowed_roles = ["super_admin", "Admin", "Business Owner", "Inventory Manager", "Inventory", "Branch Manager", "Staff"]
+        if not is_superuser and role not in allowed_roles:
             return Response(
-                {"detail": "Only Inventory Manager, Inventory, Branch Manager, or Super Admin can view inventory transactions."},
+                {"detail": "Only authorized staff can view inventory transactions."},
                 status=403,
             )
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AdminLayout from "./AdminLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
 import axios from "axios";
@@ -149,6 +149,11 @@ function AdminCustomers() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [segmentFilter, setSegmentFilter] = useState("All");
+  const [branchFilter, setBranchFilter] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [branches, setBranches] = useState([]);
+  const [servicesList, setServicesList] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -166,26 +171,51 @@ function AdminCustomers() {
   });
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchOptions = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        const res = await axios.get(`${API_BASE}/customers/`, {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        });
-        setCustomers(res.data);
-      } catch (err) {
-        setError(
-          err.response?.status === 401
-            ? "Unauthorized — please log in again."
-            : "Failed to load customers. Please try again.",
-        );
-      } finally {
-        setLoading(false);
-      }
+        const token = getToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [bRes, sRes] = await Promise.all([
+          axios.get(`${API_BASE}/branches/`, { headers }).catch(() => ({ data: [] })),
+          axios.get(`${API_BASE}/services/`, { headers }).catch(() => ({ data: [] })),
+        ]);
+        setBranches(Array.isArray(bRes.data) ? bRes.data : bRes.data?.results || []);
+        const sData = Array.isArray(sRes.data) ? sRes.data : sRes.data?.results || [];
+        const names = sData.map((s) => s.name).filter(Boolean);
+        setServicesList(Array.from(new Set(names)));
+      } catch {}
     };
-    fetch();
+    fetchOptions();
   }, []);
+
+  const fetchCustomers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params = new URLSearchParams();
+      if (branchFilter) params.set("branch", branchFilter);
+      if (serviceFilter) params.set("service", serviceFilter);
+      if (dateFilter) params.set("date", dateFilter);
+      const url = `${API_BASE}/customers/${params.toString() ? `?${params.toString()}` : ""}`;
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setCustomers(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setError(
+        err.response?.status === 401
+          ? "Unauthorized — please log in again."
+          : "Failed to load customers. Please try again.",
+      );
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [branchFilter, serviceFilter, dateFilter]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const filtered = customers.filter((c) => {
     const q = searchQuery.toLowerCase();
@@ -208,7 +238,14 @@ function AdminCustomers() {
   } = usePagination({
     items: filtered,
     pageSize: 10,
-    resetDeps: [searchQuery, segmentFilter, customers.length],
+    resetDeps: [
+      searchQuery,
+      segmentFilter,
+      branchFilter,
+      serviceFilter,
+      dateFilter,
+      customers.length,
+    ],
   });
 
   const segmentCounts = SEGMENTS.reduce((acc, s) => {
@@ -342,35 +379,128 @@ function AdminCustomers() {
           ))}
         </div>
 
-        {/* Search */}
-        <div className="relative mb-6">
-          <svg
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by name, email, or ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm"
-          />
-          {segmentFilter !== "All" && (
-            <button
-              onClick={() => setSegmentFilter("All")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full hover:bg-red-500/20 transition-all"
-            >
-              {segmentFilter} ✕
-            </button>
+        {/* Filters Toolbar */}
+        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 mb-6 backdrop-blur-sm space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            {/* Search */}
+            <div className="sm:col-span-12 lg:col-span-5 relative">
+              <svg
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search by name, email, or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-gray-800/80 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-2.5 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Branch Filter */}
+            <div className="sm:col-span-4 lg:col-span-2.5">
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="w-full bg-gray-800/80 border border-white/10 text-white rounded-xl px-3 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-red-500/50 cursor-pointer"
+              >
+                <option value="">All Branches</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Service Filter */}
+            <div className="sm:col-span-4 lg:col-span-2.5">
+              <select
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+                className="w-full bg-gray-800/80 border border-white/10 text-white rounded-xl px-3 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-red-500/50 cursor-pointer"
+              >
+                <option value="">All Services</option>
+                {servicesList.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date Filter */}
+            <div className="sm:col-span-4 lg:col-span-2">
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full bg-gray-800/80 border border-white/10 text-white rounded-xl px-3 py-2 text-xs sm:text-sm font-medium focus:outline-none focus:border-red-500/50 cursor-pointer [color-scheme:dark]"
+              />
+            </div>
+          </div>
+
+          {(searchQuery || branchFilter || serviceFilter || dateFilter || segmentFilter !== "All") && (
+            <div className="flex items-center justify-between pt-2 border-t border-white/5">
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="text-gray-400">Active filters:</span>
+                {segmentFilter !== "All" && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                    Segment: {segmentFilter}
+                    <button onClick={() => setSegmentFilter("All")} className="hover:text-white">✕</button>
+                  </span>
+                )}
+                {branchFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                    Branch: {branches.find((b) => String(b.id) === String(branchFilter))?.name || branchFilter}
+                    <button onClick={() => setBranchFilter("")} className="hover:text-white">✕</button>
+                  </span>
+                )}
+                {serviceFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                    Service: {serviceFilter}
+                    <button onClick={() => setServiceFilter("")} className="hover:text-white">✕</button>
+                  </span>
+                )}
+                {dateFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                    Date: {dateFilter}
+                    <button onClick={() => setDateFilter("")} className="hover:text-white">✕</button>
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSegmentFilter("All");
+                  setBranchFilter("");
+                  setServiceFilter("");
+                  setDateFilter("");
+                }}
+                className="text-xs font-semibold text-gray-400 hover:text-white transition-colors"
+              >
+                Clear all
+              </button>
+            </div>
           )}
         </div>
 

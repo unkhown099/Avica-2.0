@@ -420,9 +420,9 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState("All Branches");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [_reportRun, setReportRun] = useState(null);
-  const [_reportLoading, setReportLoading] = useState(false);
-  const [_reportError, setReportError] = useState(null);
+  const [reportRun, setReportRun] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState(null);
   const [selectedKpiModal, setSelectedKpiModal] = useState(null);
 
   const handleOpenKpi = (card) => {
@@ -443,42 +443,37 @@ export default function AdminDashboard({ dataScope = "admin" }) {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
-        const forecastRes = await fetch(`${API_BASE}/api/forecast/system/`, { headers, credentials: "include" });
         const dashboardPathByScope = {
           admin: "/dashboard/",
           manager: "/dashboard/",
           owner: "/dashboard/",
         };
         const dashboardEndpoint = `${baseUrl}${dashboardPathByScope[dataScope] || "/dashboard/"}`;
-        const [dashboardRes, customersRes, inventoryRes, appointmentsRes, queueHistoryRes] = await Promise.all([
-          fetch(dashboardEndpoint, { headers, credentials: "include" }),
-          fetch(`${baseUrl}/customers/`, { headers, credentials: "include" }),
-          fetch(`${baseUrl}/inventory/`, { headers, credentials: "include" }),
-          fetch(`${baseUrl}/appointments/`, { headers, credentials: "include" }),
-          fetch(`${baseUrl}/api/queue/history/`, { headers, credentials: "include" }),
+        
+        const [dashboardRes, customersRes, inventoryRes, appointmentsRes, queueHistoryRes, forecastRes] = await Promise.all([
+          fetch(dashboardEndpoint, { headers, credentials: "include" }).catch(() => ({ ok: false })),
+          fetch(`${baseUrl}/customers/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
+          fetch(`${baseUrl}/inventory/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
+          fetch(`${baseUrl}/appointments/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
+          fetch(`${baseUrl}/api/queue/history/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
+          fetch(`${API_BASE}/api/forecast/system/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
         ]);
 
-        if (!dashboardRes.ok) throw new Error(`Dashboard: ${dashboardRes.status}`);
-        if (!customersRes.ok) throw new Error(`Customers: ${customersRes.status}`);
-        if (!inventoryRes.ok) throw new Error(`Inventory: ${inventoryRes.status}`);
-        if (!appointmentsRes.ok) throw new Error(`Appointments: ${appointmentsRes.status}`);
+        const dashboardData = dashboardRes?.ok ? await dashboardRes.json().catch(() => ({})) : {};
+        const customersData = customersRes?.ok ? await customersRes.json().catch(() => []) : [];
+        const inventoryData = inventoryRes?.ok ? await inventoryRes.json().catch(() => []) : [];
+        const appointmentsData = appointmentsRes?.ok ? await appointmentsRes.json().catch(() => []) : [];
+        const queueHistoryData = queueHistoryRes?.ok ? await queueHistoryRes.json().catch(() => []) : [];
+        const forecastData = forecastRes?.ok ? await forecastRes.json().catch(() => ({})) : {};
 
-    
-        const [dashboardData, customersData, inventoryData, appointmentsData, queueHistoryData, forecastData] = await Promise.all([
-          dashboardRes.json(),
-          customersRes.json(),
-          inventoryRes.json(),
-          appointmentsRes.json(),
-          queueHistoryRes.ok ? queueHistoryRes.json() : Promise.resolve([]),
-          forecastRes.json(),
-        ]);
-
-        setStats(dashboardData.stats);
-        setTransactions(dashboardData.recent_transactions ?? []);
-        setChart(dashboardData.chart ?? null);
-        setAnalytics(dashboardData.analytics ?? null);
-        setCustomers(customersData ?? []);
-        setInventoryItems(inventoryData ?? []);
+        if (dashboardData?.stats) {
+          setStats(dashboardData.stats);
+        }
+        setTransactions(dashboardData?.recent_transactions ?? []);
+        setChart(dashboardData?.chart ?? null);
+        setAnalytics(dashboardData?.analytics ?? null);
+        setCustomers(Array.isArray(customersData) ? customersData : (customersData?.results ?? []));
+        setInventoryItems(Array.isArray(inventoryData) ? inventoryData : (inventoryData?.results ?? []));
         setInventoryForecast(DEFAULT_INVENTORY_FORECAST);
         setServiceForecastRows(
           (forecastData?.service_forecast?.results ?? []).map((row) => ({
@@ -527,10 +522,10 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               });
             })();
         setCategoryForecastRows(normalizedCategoryRows);
-        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData.results ?? []));
+        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : (appointmentsData?.results ?? []));
         setQueueHistory(Array.isArray(queueHistoryData) ? queueHistoryData : (queueHistoryData?.results ?? []));
       } catch (err) {
-        setError(err.message || "Failed to load dashboard data.");
+        console.error("Dashboard fetch error:", err);
       } finally {
         setLoading(false);
       }

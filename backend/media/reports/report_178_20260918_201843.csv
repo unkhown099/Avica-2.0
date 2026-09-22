@@ -1,0 +1,61 @@
+﻿Business Intelligence Report
+Report Type,dashboard_summary
+Period,monthly
+Scope,global
+Generated At,2026-09-18T20:18:43.542530+00:00
+
+KPI Summary
+Total Revenue,18600.0
+Services Completed,8
+Customers,5
+Conversion Rate (%),72.73
+Payment Rate (%),72.73
+Total Transactions,12
+
+Period-over-Period Comparison
+Revenue Current,18600.0
+Revenue Previous,62800.0
+Revenue Change (%),-70.38
+Conversion Rate Current (%),72.73
+Conversion Rate Previous (%),100.0
+Payment Rate Current (%),72.73
+Payment Rate Previous (%),100.0
+
+Peak Periods
+Peak Hour,00:00,15850.0
+Peak Day,Thursday,16250.0
+Peak Month,Sep,18600.0
+
+Revenue Split
+Appointments,0.0
+Walk-ins,1950.0
+Services,16650.0
+Products,0.0
+
+Reconciliation
+Payment Total,18600.0
+Dashboard Total,17050.0
+Mismatch Amount,1550.0
+Mismatch Threshold,1.0
+Data Mismatch,True
+
+Top Services
+Service,Revenue,Count
+Ceramic Coating,8500.0,1
+Exterior Detailing,3000.0,1
+Interior Detailing,2500.0,1
+Buffing payment,1100.0,1
+POS service sale - Engine Steamed Wash,1000.0,2
+Headlight Restoration payment,750.0,1
+Engine Steamed Wash,650.0,1
+Premium Hand Wax,450.0,1
+POS service sale - Under Wash,400.0,1
+POS service sale - Premium Carwash,150.0,1
+
+Top Customers
+Customer,Revenue,Transactions
+Maria Clara Santos,15100.0,5
+Walk-in Customer,1550.0,4
+Nalang John Emmanuel P,1100.0,1
+Delfin Feleo,750.0,1
+Marky,100.0,1

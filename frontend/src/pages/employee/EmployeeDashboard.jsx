@@ -34,11 +34,22 @@ function toMinutes(t) {
   return Number(h || 0) * 60 + Number(m || 0);
 }
 
+function toDisplayDateISO(isoDate) {
+  if (!isoDate) return "—";
+  const d = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function EmployeeDashboard() {
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [chatQueueId, setChatQueueId] = useState(null);
+  const [jobTab, setJobTab] = useState("today");
 
   const fetchBookings = useCallback(async () => {
     try {
@@ -59,6 +70,24 @@ function EmployeeDashboard() {
       setLoading(false);
     }
   }, []);
+
+  const handleMarkAsDone = async (queueId) => {
+    if (!queueId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/queue/${queueId}/action/`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ status: "done" }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to mark as done.");
+      }
+      await fetchBookings();
+    } catch (e) {
+      alert(e.message || "Failed to mark as done.");
+    }
+  };
 
   useEffect(() => {
     fetchBookings();
@@ -89,6 +118,24 @@ function EmployeeDashboard() {
         vehicle: b.vehicle || "—",
         service: b.service || "—",
         status: normalizeStatus(b.status) === "done" ? "Completed" : "Scheduled",
+        bay: "—",
+        queue_id: b.queue_id,
+      }));
+  }, [approvedBookings, todayISO]);
+
+  const upcomingSchedule = useMemo(() => {
+    return approvedBookings
+      .filter((b) => b.date > todayISO && normalizeStatus(b.status) !== "done")
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date) || toMinutes(a.time) - toMinutes(b.time))
+      .map((b) => ({
+        id: b.id,
+        date: b.date,
+        time: toDisplayTime(b.time),
+        customer: b.customer_name || "Unknown Customer",
+        vehicle: b.vehicle || "—",
+        service: b.service || "—",
+        status: "Upcoming",
         bay: "—",
         queue_id: b.queue_id,
       }));
@@ -236,6 +283,7 @@ function EmployeeDashboard() {
       Completed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
       "In Progress": "bg-blue-500/20 text-blue-400 border-blue-500/30",
       Scheduled: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      Upcoming: "bg-purple-500/20 text-purple-400 border-purple-500/30",
     };
     return styles[status] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
   };
@@ -313,17 +361,31 @@ function EmployeeDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Today's Schedule */}
+          {/* Schedule Section */}
           <div className="lg:col-span-2">
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-                <div>
-                  <h3 className="text-lg font-black text-white">
-                    Today's Schedule
-                  </h3>
-                  <p className="text-gray-500 text-sm mt-0.5">
-                    Approved assigned jobs
-                  </p>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 flex-wrap gap-3">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setJobTab("today")}
+                    className={`text-base sm:text-lg font-black transition-all pb-1 ${
+                      jobTab === "today"
+                        ? "text-white border-b-2 border-red-500"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    Today's Schedule ({todaySchedule.length})
+                  </button>
+                  <button
+                    onClick={() => setJobTab("upcoming")}
+                    className={`text-base sm:text-lg font-black transition-all pb-1 ${
+                      jobTab === "upcoming"
+                        ? "text-white border-b-2 border-red-500"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    Upcoming Appointments ({upcomingSchedule.length})
+                  </button>
                 </div>
                 <button
                   onClick={fetchBookings}
@@ -336,17 +398,24 @@ function EmployeeDashboard() {
               <div className="divide-y divide-white/5">
                 {loading ? (
                   <div className="p-6 text-sm text-gray-400">Loading dashboard data...</div>
-                ) : todaySchedule.length === 0 ? (
-                  <div className="p-6 text-sm text-gray-500">No approved jobs for today.</div>
+                ) : (jobTab === "today" ? todaySchedule : upcomingSchedule).length === 0 ? (
+                  <div className="p-6 text-sm text-gray-500">
+                    {jobTab === "today" ? "No approved jobs for today." : "No upcoming approved appointments."}
+                  </div>
                 ) : (
-                  todaySchedule.map((job, index) => (
+                  (jobTab === "today" ? todaySchedule : upcomingSchedule).map((job, index) => (
                     <div
                       key={job.id ?? index}
                       className="p-6 hover:bg-white/[0.02] transition-colors"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-start justify-between flex-wrap sm:flex-nowrap gap-4">
+                        <div className="flex-1 min-w-[200px]">
+                          <div className="flex items-center gap-3 mb-3 flex-wrap">
+                            {jobTab === "upcoming" && (
+                              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-white/10 text-gray-300">
+                                {toDisplayDateISO(job.date)}
+                              </span>
+                            )}
                             <span className="text-lg font-black text-white">
                               {job.time}
                             </span>
@@ -364,7 +433,7 @@ function EmployeeDashboard() {
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm text-gray-400">
                               <svg
-                                className="w-4 h-4 text-gray-600"
+                                className="w-4 h-4 text-gray-600 shrink-0"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -381,7 +450,7 @@ function EmployeeDashboard() {
 
                             <div className="flex items-center gap-2 text-sm text-gray-400">
                               <svg
-                                className="w-4 h-4 text-gray-600"
+                                className="w-4 h-4 text-gray-600 shrink-0"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -404,7 +473,7 @@ function EmployeeDashboard() {
 
                             <div className="flex items-center gap-2 text-sm text-gray-400">
                               <svg
-                                className="w-4 h-4 text-gray-600"
+                                className="w-4 h-4 text-gray-600 shrink-0"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -427,15 +496,16 @@ function EmployeeDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 ml-4">
-                          {job.status === "Scheduled" && (
-                            <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm shadow-lg shadow-blue-600/30 transition-colors">
-                              Start Job
-                            </button>
-                          )}
-                          {job.status === "In Progress" && (
-                            <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm shadow-lg shadow-emerald-600/30 transition-colors">
-                              Complete
+                        <div className="flex flex-row sm:flex-col gap-2 shrink-0">
+                          {job.queue_id && job.status !== "Completed" && (
+                            <button
+                              onClick={() => handleMarkAsDone(job.queue_id)}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm shadow-lg shadow-emerald-600/30 transition-colors flex items-center justify-center gap-1.5"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Done
                             </button>
                           )}
                           {job.queue_id && (
@@ -443,15 +513,12 @@ function EmployeeDashboard() {
                               onClick={() => setChatQueueId(job.queue_id)}
                               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm shadow-lg shadow-blue-600/30 transition-colors flex justify-center items-center gap-2"
                             >
-                              <svg className="w-4 h-4 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                               </svg>
                               Chat
                             </button>
                           )}
-                          <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg font-semibold text-sm border border-white/5 transition-colors">
-                            View
-                          </button>
                         </div>
                       </div>
                     </div>

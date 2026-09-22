@@ -4,6 +4,7 @@ import Navbar from "../../components/customer/CustomerNavbar.jsx";
 import Footer from "../../components/customer/CustomerFooter.jsx";
 import ChatbotWidget from "../../components/chatbot/ChatbotWidget.jsx";
 import { getUserFromSession } from "../../utils/getUser";
+import { useTheme } from "../../context/ThemeContext.jsx";
 
 const PAGE_TITLES = {
   "/dashboard": "Dashboard",
@@ -17,6 +18,7 @@ const PAGE_TITLES = {
 
 function CustomerLayout({ children, _title = "", _subtitle = "" }) {
   const [user, setUser] = useState(() => getUserFromSession());
+  const { isDark } = useTheme();
   const location = useLocation();
 
   useEffect(() => {
@@ -31,7 +33,7 @@ function CustomerLayout({ children, _title = "", _subtitle = "" }) {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className={`min-h-screen flex flex-col transition-colors duration-200 ${isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900"}`}>
       <Navbar user={user} setUser={setUser} />
 
       <main className="flex-1 pt-20">{children}</main>

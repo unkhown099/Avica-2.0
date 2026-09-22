@@ -40,6 +40,28 @@ function CustomerProfile() {
 
   const [errors, setErrors] = useState({});
   const [isDirty, setIsDirty] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  // Vehicle Section & Stats State
+  const [vehicleData, setVehicleData] = useState({
+    car_make: "",
+    car_model: "",
+    car_year: "",
+    car_color: "",
+    car_plate: "",
+  });
+  const [initialVehicleData, setInitialVehicleData] = useState({
+    car_make: "",
+    car_model: "",
+    car_year: "",
+    car_color: "",
+    car_plate: "",
+  });
+  const [profileStats, setProfileStats] = useState({
+    tasksCompleted: 0,
+    rating: "5.0 ★",
+    yearsExperience: "1 Year",
+  });
 
   // Password Modal State
   const [showPassModal, setShowPassModal] = useState(false);
@@ -63,14 +85,55 @@ function CustomerProfile() {
 
   const fetchUserData = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/me/`, { headers: getHeaders() });
-      setUserData(res.data);
-      setFormData({
-        first_name: res.data.first_name || "",
-        last_name: res.data.last_name || "",
-        email: res.data.email || "",
-        phone: res.data.phone || "",
-      });
+      const [userRes, custRes, bookingsRes] = await Promise.allSettled([
+        axios.get(`${API_BASE}/me/`, { headers: getHeaders() }),
+        axios.get(`${API_BASE}/api/customers/me/`, { headers: getHeaders() }),
+        axios.get(`${API_BASE}/api/bookings/`, { headers: getHeaders() }),
+      ]);
+
+      if (userRes.status === "fulfilled") {
+        const u = userRes.value.data;
+        setUserData(u);
+        setFormData({
+          first_name: u.first_name || "",
+          last_name: u.last_name || "",
+          email: u.email || "",
+          phone: u.phone || "",
+        });
+        const createdDate = new Date(u.created_at || Date.now());
+        const diffYears = Math.max(1, new Date().getFullYear() - createdDate.getFullYear());
+        setProfileStats((prev) => ({
+          ...prev,
+          yearsExperience: `${diffYears} Year${diffYears > 1 ? "s" : ""}`,
+        }));
+      }
+
+      if (custRes.status === "fulfilled" && custRes.value.data) {
+        const c = custRes.value.data;
+        const v = {
+          car_make: c.car_make || "",
+          car_model: c.car_model || "",
+          car_year: c.car_year || "",
+          car_color: c.car_color || "",
+          car_plate: c.car_plate || "",
+        };
+        setVehicleData(v);
+        setInitialVehicleData(v);
+        if (c.avg_rating) {
+          setProfileStats((prev) => ({ ...prev, rating: `${c.avg_rating} ★` }));
+        }
+      }
+
+      if (bookingsRes.status === "fulfilled" && bookingsRes.value.data) {
+        const rows = Array.isArray(bookingsRes.value.data)
+          ? bookingsRes.value.data
+          : bookingsRes.value.data.results || [];
+        const completed = rows.filter((b) => b.status === "done").length;
+        setProfileStats((prev) => ({
+          ...prev,
+          tasksCompleted: completed,
+        }));
+      }
     } catch (err) {
       console.error("Failed to fetch user data:", err);
       Swal.fire({ icon: "error", title: "Error", text: "Failed to load profile data." });
@@ -187,9 +250,15 @@ function CustomerProfile() {
         phone: userData.phone || "",
       });
     }
+    setVehicleData(initialVehicleData);
     setErrors({});
     setIsDirty(false);
     setIsEditing(false);
+  };
+
+  const handleVehicleChange = (field, value) => {
+    setVehicleData((prev) => ({ ...prev, [field]: value }));
+    setIsDirty(true);
   };
 
   const handleUpdateProfile = async (e) => {
@@ -217,20 +286,24 @@ function CustomerProfile() {
 
     setSaving(true);
     try {
-      const res = await axios.put(`${API_BASE}/me/`, {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone: formData.phone,
-      }, { headers: getHeaders() });
+      const [res] = await Promise.all([
+        axios.put(`${API_BASE}/me/`, {
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          phone: formData.phone,
+        }, { headers: getHeaders() }),
+        axios.put(`${API_BASE}/api/customers/me/`, vehicleData, { headers: getHeaders() }),
+      ]);
 
       setUserData(res.data);
+      setInitialVehicleData(vehicleData);
       updateStoredUser(res.data);
       setIsDirty(false);
       setIsEditing(false);
       Swal.fire({
         icon: "success",
         title: "Profile Updated",
-        text: "Your information has been successfully updated.",
+        text: "Your information and vehicle details have been successfully updated.",
         timer: 1500,
         showConfirmButton: false,
         background: "#111827",
@@ -478,7 +551,7 @@ function CustomerProfile() {
 
                 <div className="relative group mb-6 z-10">
                   <div className="w-32 h-32 rounded-[2rem] bg-gradient-to-tr from-gray-800 to-black border-4 border-gray-900 flex items-center justify-center text-5xl font-black text-white shadow-[0_20px_40px_rgba(0,0,0,0.4)] overflow-hidden transition-all group-hover:scale-105 duration-500">
-                    {userData?.profile_picture ? (
+                    {userData?.profile_picture && !imgError ? (
                       <img
                         src={
                           userData.profile_picture.startsWith('http')
@@ -487,6 +560,7 @@ function CustomerProfile() {
                         }
                         alt="Profile"
                         className="w-full h-full object-cover"
+                        onError={() => setImgError(true)}
                       />
                     ) : (
                       (userData?.first_name || "?").charAt(0).toUpperCase()
@@ -550,31 +624,82 @@ function CustomerProfile() {
             {/* Right Content Sections */}
             <div className="lg:w-2/3 space-y-6">
 
+              {/* Profile Stats Overview Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-gray-900/40 border border-white/5 rounded-2xl p-4 backdrop-blur-xl">
+                  <div className="w-8 h-8 rounded-lg bg-red-600/20 text-red-500 flex items-center justify-center mb-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Vehicle</p>
+                  <p className="text-sm font-black text-white truncate mt-0.5">
+                    {vehicleData.car_make ? `${vehicleData.car_make} ${vehicleData.car_model}` : "Not Added"}
+                  </p>
+                  <p className="text-[10px] text-gray-400 font-bold truncate mt-0.5">
+                    {vehicleData.car_plate ? `Plate: ${vehicleData.car_plate}` : "No plate set"}
+                  </p>
+                </div>
+
+                <div className="bg-gray-900/40 border border-white/5 rounded-2xl p-4 backdrop-blur-xl">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center mb-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Tasks Done</p>
+                  <p className="text-xl font-black text-white mt-0.5">{profileStats.tasksCompleted}</p>
+                  <p className="text-[10px] text-gray-400 font-bold truncate mt-0.5">Services Finished</p>
+                </div>
+
+                <div className="bg-gray-900/40 border border-white/5 rounded-2xl p-4 backdrop-blur-xl">
+                  <div className="w-8 h-8 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center mb-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  </div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Rating</p>
+                  <p className="text-xl font-black text-amber-400 mt-0.5">{profileStats.rating}</p>
+                  <p className="text-[10px] text-gray-400 font-bold truncate mt-0.5">Customer Score</p>
+                </div>
+
+                <div className="bg-gray-900/40 border border-white/5 rounded-2xl p-4 backdrop-blur-xl">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center mb-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Experience</p>
+                  <p className="text-xl font-black text-white mt-0.5">{profileStats.yearsExperience}</p>
+                  <p className="text-[10px] text-gray-400 font-bold truncate mt-0.5">Years of Membership</p>
+                </div>
+              </div>
+
               {/* Account Profile Section */}
-              <div className="bg-gray-900/40 border border-white/5 rounded-[2.5rem] p-10 backdrop-blur-xl shadow-2xl">
-                <div className="flex items-center justify-between mb-10">
-                  <div className="flex items-center gap-5">
-                    <div className="p-4 bg-red-600 text-white rounded-[1.25rem] shadow-xl shadow-red-600/20">
-                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-gray-900/40 border border-white/5 rounded-[2.5rem] p-8 sm:p-10 backdrop-blur-xl shadow-2xl">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4 sm:gap-5">
+                    <div className="p-3.5 sm:p-4 bg-red-600 text-white rounded-[1.25rem] shadow-xl shadow-red-600/20">
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black text-white tracking-tight">Personal Information</h3>
+                      <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">Personal Information</h3>
                       <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
                         {isEditing ? "Modify your profile settings" : "View your current account details"}
                       </p>
                     </div>
                   </div>
                   {!isEditing && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 rounded-xl border border-green-500/20">
+                    <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-green-500/10 rounded-xl border border-green-500/20">
                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                       <span className="text-green-500 text-[10px] font-black uppercase tracking-widest">Active Member</span>
                     </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                   <div className="space-y-2 text-left">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">First Name</label>
                     <input
@@ -582,7 +707,7 @@ function CustomerProfile() {
                       value={formData.first_name}
                       disabled={!isEditing}
                       onChange={(e) => handleInputChange("first_name", e.target.value)}
-                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-4 text-white font-bold transition-all outline-none ${!isEditing
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
                         ? "border-transparent text-gray-500 cursor-not-allowed"
                         : errors.first_name
                           ? "border-red-600/50 focus:ring-4 focus:ring-red-600/10"
@@ -599,7 +724,7 @@ function CustomerProfile() {
                       value={formData.last_name}
                       disabled={!isEditing}
                       onChange={(e) => handleInputChange("last_name", e.target.value)}
-                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-4 text-white font-bold transition-all outline-none ${!isEditing
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
                         ? "border-transparent text-gray-500 cursor-not-allowed"
                         : errors.last_name
                           ? "border-red-600/50 focus:ring-4 focus:ring-red-600/10"
@@ -614,7 +739,7 @@ function CustomerProfile() {
                       Email Address
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     </label>
-                    <div className="bg-transparent border-2 border-transparent px-5 py-4 text-gray-500 font-bold cursor-not-allowed">
+                    <div className="bg-transparent border-2 border-transparent px-5 py-3.5 text-gray-500 font-bold cursor-not-allowed">
                       {formData.email}
                     </div>
                   </div>
@@ -627,7 +752,7 @@ function CustomerProfile() {
                         ? "border-red-600/50 focus-within:ring-4 focus-within:ring-red-600/10"
                         : "border-white/5 focus-within:border-red-600 focus-within:ring-4 focus-within:ring-red-600/10"
                       }`}>
-                      <span className="px-5 py-4 text-gray-400 border-r border-white/10 font-bold">+63</span>
+                      <span className="px-5 py-3.5 text-gray-400 border-r border-white/10 font-bold">+63</span>
                       <input
                         type="tel"
                         value={String(formData.phone || "").replace(/^\+63/, "")}
@@ -636,10 +761,106 @@ function CustomerProfile() {
                         inputMode="numeric"
                         maxLength={10}
                         placeholder="9XXXXXXXXX"
-                        className="w-full bg-transparent px-5 py-4 text-white font-bold outline-none placeholder-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed"
+                        className="w-full bg-transparent px-5 py-3.5 text-white font-bold outline-none placeholder-gray-600 disabled:text-gray-500 disabled:cursor-not-allowed"
                       />
                     </div>
                     {isEditing && errors.phone && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.phone}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle Section */}
+              <div className="bg-gray-900/40 border border-white/5 rounded-[2.5rem] p-8 sm:p-10 backdrop-blur-xl shadow-2xl">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4 sm:gap-5">
+                    <div className="p-3.5 sm:p-4 bg-amber-600 text-white rounded-[1.25rem] shadow-xl shadow-amber-600/20">
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">Vehicle Information</h3>
+                      <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
+                        {isEditing ? "Update your registered vehicle details" : "Your primary vehicle for service appointments"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-6">
+                  <div className="space-y-2 text-left">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Car Make / Brand</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Toyota, Honda"
+                      value={vehicleData.car_make}
+                      disabled={!isEditing}
+                      onChange={(e) => handleVehicleChange("car_make", e.target.value)}
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
+                        ? "border-transparent text-gray-500 cursor-not-allowed"
+                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                        }`}
+                    />
+                  </div>
+
+                  <div className="space-y-2 text-left">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Car Model</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Vios, Civic"
+                      value={vehicleData.car_model}
+                      disabled={!isEditing}
+                      onChange={(e) => handleVehicleChange("car_model", e.target.value)}
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
+                        ? "border-transparent text-gray-500 cursor-not-allowed"
+                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                        }`}
+                    />
+                  </div>
+
+                  <div className="space-y-2 text-left">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Year</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2022"
+                      value={vehicleData.car_year}
+                      disabled={!isEditing}
+                      onChange={(e) => handleVehicleChange("car_year", e.target.value)}
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
+                        ? "border-transparent text-gray-500 cursor-not-allowed"
+                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                        }`}
+                    />
+                  </div>
+
+                  <div className="space-y-2 text-left">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Color</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Pearl White"
+                      value={vehicleData.car_color}
+                      disabled={!isEditing}
+                      onChange={(e) => handleVehicleChange("car_color", e.target.value)}
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
+                        ? "border-transparent text-gray-500 cursor-not-allowed"
+                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                        }`}
+                    />
+                  </div>
+
+                  <div className="space-y-2 text-left sm:col-span-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Plate Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ABC 1234"
+                      value={vehicleData.car_plate}
+                      disabled={!isEditing}
+                      onChange={(e) => handleVehicleChange("car_plate", e.target.value)}
+                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
+                        ? "border-transparent text-gray-500 cursor-not-allowed"
+                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
+                        }`}
+                    />
                   </div>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import CustomerLayout from "./CustomerLayout";
+import { useTheme } from "../../context/ThemeContext.jsx";
 
 const faqsData = [
   {
@@ -42,6 +43,7 @@ const faqsData = [
 const CATEGORIES = ["All", "Bookings", "Services", "Payment", "General"];
 
 function HelpPage() {
+  const { isDark } = useTheme();
   const [openFaq, setOpenFaq] = useState(null);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,13 +70,13 @@ function HelpPage() {
 
   return (
     <CustomerLayout>
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-950/30 p-4 sm:p-6 lg:p-8">
+      <div className={`min-h-screen p-4 sm:p-6 lg:p-8 transition-colors duration-200 ${isDark ? "bg-gradient-to-br from-black via-gray-900 to-red-950/30 text-white" : "bg-gray-50 text-gray-900"}`}>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-1">
+          <h1 className={`text-3xl sm:text-4xl font-bold mb-1 ${isDark ? "text-white" : "text-gray-900"}`}>
             Help & <span className="text-red-600">Support</span>
           </h1>
-          <p className="text-gray-400 text-sm sm:text-base">
+          <p className={`text-sm sm:text-base ${isDark ? "text-gray-400" : "text-gray-600"}`}>
             Frequently asked questions, service guides, and customer assistance.
           </p>
         </div>
@@ -103,7 +105,11 @@ function HelpPage() {
           ].map(({ icon, label, value, sub }) => (
             <div
               key={label}
-              className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-5 sm:p-6 border border-white/5 hover:border-red-600/40 transition-all duration-300 hover:-translate-y-1 group cursor-pointer flex sm:flex-col items-center gap-4 sm:gap-0"
+              className={`rounded-2xl p-5 sm:p-6 border transition-all duration-300 hover:-translate-y-1 group cursor-pointer flex sm:flex-col items-center gap-4 sm:gap-0 ${
+                isDark
+                  ? "bg-gradient-to-br from-gray-900 to-red-950/10 border-white/5 hover:border-red-600/40"
+                  : "bg-white border-gray-200 hover:border-red-500/40 shadow-sm"
+              }`}
             >
               <div className="w-12 h-12 bg-red-600/10 group-hover:bg-red-600 rounded-xl flex items-center justify-center shrink-0 sm:mx-auto sm:mb-3 transition-all duration-300">
                 <svg
@@ -116,11 +122,11 @@ function HelpPage() {
                 </svg>
               </div>
               <div className="text-left sm:text-center">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
                   {label}
                 </p>
-                <p className="text-white font-bold text-sm">{value}</p>
-                <p className="text-gray-500 text-xs mt-0.5">{sub}</p>
+                <p className={`font-bold text-sm ${isDark ? "text-white" : "text-gray-900"}`}>{value}</p>
+                <p className={`text-xs mt-0.5 ${isDark ? "text-gray-500" : "text-gray-500"}`}>{sub}</p>
               </div>
             </div>
           ))}
@@ -131,7 +137,7 @@ function HelpPage() {
           {/* FAQ Column */}
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <h2 className="text-xl font-black text-white">
+              <h2 className={`text-xl font-black ${isDark ? "text-white" : "text-gray-900"}`}>
                 Frequently Asked Questions
               </h2>
             </div>
@@ -144,10 +150,14 @@ function HelpPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search questions..."
-                  className="w-full bg-gray-900/80 border border-white/10 rounded-xl px-4 py-2.5 pl-10 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-red-600 transition-colors"
+                  className={`w-full border rounded-xl px-4 py-2.5 pl-10 text-sm focus:outline-none focus:border-red-600 transition-colors ${
+                    isDark
+                      ? "bg-gray-900/80 border-white/10 text-white placeholder-gray-500"
+                      : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 shadow-sm"
+                  }`}
                 />
                 <svg
-                  className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5"
+                  className={`w-4 h-4 absolute left-3.5 top-3.5 ${isDark ? "text-gray-500" : "text-gray-400"}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -164,7 +174,9 @@ function HelpPage() {
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       activeCategory === cat
                         ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
-                        : "bg-gray-900/60 text-gray-400 hover:bg-gray-800 hover:text-white border border-white/5"
+                        : isDark
+                        ? "bg-gray-900/60 text-gray-400 hover:bg-gray-800 hover:text-white border border-white/5"
+                        : "bg-white text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-200 shadow-sm"
                     }`}
                   >
                     {cat}
@@ -176,8 +188,8 @@ function HelpPage() {
             {/* Accordion List */}
             <div className="space-y-2.5">
               {filteredFaqs.length === 0 ? (
-                <div className="py-8 text-center bg-gray-900/40 rounded-xl border border-white/5">
-                  <p className="text-gray-400 text-sm">No matching questions found.</p>
+                <div className={`py-8 text-center rounded-xl border ${isDark ? "bg-gray-900/40 border-white/5" : "bg-white border-gray-200"}`}>
+                  <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>No matching questions found.</p>
                 </div>
               ) : (
                 filteredFaqs.map((faq, idx) => {
@@ -185,8 +197,14 @@ function HelpPage() {
                   return (
                     <div
                       key={idx}
-                      className={`bg-gradient-to-br from-gray-900 to-red-950/10 rounded-xl border transition-all overflow-hidden ${
-                        isOpen ? "border-red-600/40 bg-gray-900" : "border-white/5 hover:border-red-600/20"
+                      className={`rounded-xl border transition-all overflow-hidden ${
+                        isOpen
+                          ? isDark
+                            ? "border-red-600/40 bg-gray-900 shadow-lg shadow-red-950/20"
+                            : "border-red-500/40 bg-white shadow-md"
+                          : isDark
+                          ? "border-white/5 bg-gradient-to-br from-gray-900 to-red-950/10 hover:border-red-600/20"
+                          : "bg-white border-gray-200 hover:border-red-400/40 shadow-sm"
                       }`}
                     >
                       <button
@@ -194,10 +212,10 @@ function HelpPage() {
                         className="w-full flex items-center justify-between p-4 text-left"
                       >
                         <div className="flex items-center gap-2 pr-4">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-600/20 text-red-400 shrink-0">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-600/20 text-red-500 shrink-0">
                             {faq.category}
                           </span>
-                          <span className="text-white font-semibold text-sm">
+                          <span className={`font-semibold text-sm ${isDark ? "text-white" : "text-gray-900"}`}>
                             {faq.q}
                           </span>
                         </div>
@@ -214,7 +232,7 @@ function HelpPage() {
                       </button>
                       {isOpen && (
                         <div className="px-4 pb-4">
-                          <p className="text-gray-300 text-sm leading-relaxed border-t border-white/5 pt-3">
+                          <p className={`text-sm leading-relaxed border-t pt-3 ${isDark ? "text-gray-300 border-white/5" : "text-gray-600 border-gray-100"}`}>
                             {faq.a}
                           </p>
                         </div>
@@ -228,10 +246,10 @@ function HelpPage() {
 
           {/* Contact Form Column */}
           <div>
-            <h2 className="text-xl font-black text-white mb-4">
+            <h2 className={`text-xl font-black mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>
               Send a Message
             </h2>
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/10 rounded-2xl p-4 sm:p-6 border border-white/5">
+            <div className={`rounded-2xl p-4 sm:p-6 border ${isDark ? "bg-gradient-to-br from-gray-900 to-red-950/10 border-white/5" : "bg-white border-gray-200 shadow-sm"}`}>
               {sent ? (
                 <div className="text-center py-10">
                   <div className="w-16 h-16 bg-green-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -244,17 +262,17 @@ function HelpPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <h3 className="text-white font-black text-xl mb-2">
+                  <h3 className={`font-black text-xl mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>
                     Message Sent!
                   </h3>
-                  <p className="text-gray-400 text-sm">
+                  <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
                     We'll get back to you within 24 hours.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${isDark ? "text-gray-400" : "text-gray-700"}`}>
                       Subject
                     </label>
                     <input
@@ -264,11 +282,15 @@ function HelpPage() {
                         setForm((p) => ({ ...p, subject: e.target.value }))
                       }
                       placeholder="What's your concern?"
-                      className="w-full bg-black border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-red-600 transition-colors text-sm"
+                      className={`w-full border rounded-xl px-4 py-2.5 text-sm transition-colors focus:outline-none focus:border-red-600 ${
+                        isDark
+                          ? "bg-black border-white/10 text-white placeholder-gray-600"
+                          : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white"
+                      }`}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${isDark ? "text-gray-400" : "text-gray-700"}`}>
                       Message
                     </label>
                     <textarea
@@ -278,12 +300,16 @@ function HelpPage() {
                         setForm((p) => ({ ...p, message: e.target.value }))
                       }
                       placeholder="Describe your issue in detail…"
-                      className="w-full bg-black border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-red-600 transition-colors text-sm resize-none"
+                      className={`w-full border rounded-xl px-4 py-2.5 text-sm resize-none transition-colors focus:outline-none focus:border-red-600 ${
+                        isDark
+                          ? "bg-black border-white/10 text-white placeholder-gray-600"
+                          : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:bg-white"
+                      }`}
                     />
                   </div>
                   <button
                     onClick={handleSend}
-                    className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition-all duration-300 hover:scale-[1.02] shadow-xl shadow-red-600/30"
+                    className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition-all duration-300 hover:scale-[1.02] shadow-xl shadow-red-600/30 active:scale-95"
                   >
                     Send Message
                   </button>

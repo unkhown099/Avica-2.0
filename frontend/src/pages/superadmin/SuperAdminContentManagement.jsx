@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
 import { apiFetch } from "../../hooks/api.js";
 import { getAuthHeadersAsync, API_BASE } from "../../hooks/useAuth";
+import { useTheme } from "../../context/ThemeContext.jsx";
 
 // ─── Normalize media URLs to always use the correct backend host ──────────────
 const toMediaUrl = (url) => {
@@ -85,9 +86,10 @@ const EMPTY_CONTENT = {
 
 // ─── Reusable UI primitives ───────────────────────────────────────────────────
 function Field({ label, value, onChange, textarea, placeholder }) {
+  const { isDark = true } = useTheme?.() || {};
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] uppercase tracking-[0.25em] text-gray-500 font-bold">
+      <label className={`text-[10px] uppercase tracking-[0.25em] font-bold ${isDark ? "text-gray-500" : "text-gray-600"}`}>
         {label}
       </label>
       {textarea ? (
@@ -96,7 +98,11 @@ function Field({ label, value, onChange, textarea, placeholder }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full rounded-xl bg-gray-950 border border-white/10 text-white text-sm px-3 py-2.5 resize-none focus:outline-none focus:border-red-500/60 transition-colors placeholder-gray-700"
+          className={`w-full rounded-xl border text-sm px-3 py-2.5 resize-none focus:outline-none focus:border-red-500/60 transition-colors ${
+            isDark
+              ? "bg-gray-950 border-white/10 text-white placeholder-gray-700"
+              : "bg-white border-gray-300 text-gray-900 placeholder-gray-400 shadow-sm"
+          }`}
         />
       ) : (
         <input
@@ -104,7 +110,11 @@ function Field({ label, value, onChange, textarea, placeholder }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full rounded-xl bg-gray-950 border border-white/10 text-white text-sm px-3 py-2.5 focus:outline-none focus:border-red-500/60 transition-colors placeholder-gray-700"
+          className={`w-full rounded-xl border text-sm px-3 py-2.5 focus:outline-none focus:border-red-500/60 transition-colors ${
+            isDark
+              ? "bg-gray-950 border-white/10 text-white placeholder-gray-700"
+              : "bg-white border-gray-300 text-gray-900 placeholder-gray-400 shadow-sm"
+          }`}
         />
       )}
     </div>
@@ -112,15 +122,22 @@ function Field({ label, value, onChange, textarea, placeholder }) {
 }
 
 function Card({ title, children, accent }) {
+  const { isDark = true } = useTheme?.() || {};
   return (
-    <div className="rounded-2xl border border-white/10 bg-gray-950 overflow-hidden">
+    <div className={`rounded-2xl border overflow-hidden ${
+      isDark ? "border-white/10 bg-gray-950" : "border-gray-200 bg-white shadow-sm"
+    }`}>
       <div
-        className={`px-5 py-3 border-b border-white/10 flex items-center gap-2.5 ${accent ? "bg-red-600/10" : "bg-white/5"}`}
+        className={`px-5 py-3 border-b flex items-center gap-2.5 ${
+          accent
+            ? "bg-red-600/10 border-red-500/20"
+            : isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"
+        }`}
       >
         {accent && (
           <span className="w-1.5 h-4 rounded-full bg-red-500 inline-block" />
         )}
-        <span className="text-xs font-black uppercase tracking-widest text-white">
+        <span className={`text-xs font-black uppercase tracking-widest ${isDark ? "text-white" : "text-gray-900"}`}>
           {title}
         </span>
       </div>
@@ -1807,9 +1824,11 @@ function MediaLibrary() {
     }
   };
 
+  const { isDark = true } = useTheme?.() || {};
+
   return (
-    <div className="rounded-3xl border border-white/10 bg-gray-900/80 p-6 space-y-6">
-      <div className="text-sm text-gray-400 mb-3">
+    <div className={`rounded-3xl border p-6 space-y-6 ${isDark ? "border-white/10 bg-gray-900/80" : "border-gray-200 bg-white shadow-sm"}`}>
+      <div className={`text-sm mb-3 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
         Browse, upload, and manage your media assets. Use image URLs from here
         in the Hero editor.
       </div>
@@ -1823,7 +1842,11 @@ function MediaLibrary() {
               onChange={setAssetName}
               placeholder="Optional name for the uploaded file"
             />
-            <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-white/20 bg-white/5 px-4 py-3 text-sm font-black text-white hover:border-white/40">
+            <label className={`flex cursor-pointer items-center justify-between rounded-xl border border-dashed px-4 py-3 text-sm font-black transition-colors ${
+              isDark
+                ? "border-white/20 bg-white/5 text-white hover:border-white/40"
+                : "border-gray-300 bg-gray-50 text-gray-800 hover:border-gray-400"
+            }`}>
               <span>{uploading ? "Uploading…" : "Select file to upload"}</span>
               <input
                 type="file"
@@ -1832,25 +1855,25 @@ function MediaLibrary() {
                 onChange={handleUpload}
               />
             </label>
-            <p className="text-xs text-gray-500">
+            <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
               Upload an image asset, then choose it in the Hero editor for the
               landing hero.
             </p>
           </Card>
           {error && (
-            <div className="rounded-2xl border border-red-500/20 bg-red-950/50 p-4 text-sm text-red-300">
+            <div className={`rounded-2xl border p-4 text-sm ${isDark ? "border-red-500/20 bg-red-950/50 text-red-300" : "border-red-200 bg-red-50 text-red-700"}`}>
               {error}
             </div>
           )}
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-gray-950 p-4 min-h-[160px]">
+        <div className={`rounded-3xl border p-4 min-h-[160px] ${isDark ? "border-white/10 bg-gray-950" : "border-gray-200 bg-gray-50/50"}`}>
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <div className="text-xs uppercase tracking-[0.3em] text-gray-500">
+              <div className={`text-xs uppercase tracking-[0.3em] ${isDark ? "text-gray-500" : "text-gray-600"}`}>
                 Media assets
               </div>
-              <div className="text-sm text-gray-300">
+              <div className={`text-sm ${isDark ? "text-gray-300" : "text-gray-800 font-semibold"}`}>
                 {assets.length} item{assets.length === 1 ? "" : "s"}
               </div>
             </div>
@@ -1858,27 +1881,31 @@ function MediaLibrary() {
               type="button"
               onClick={loadAssets}
               disabled={loading}
-              className="rounded-xl bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+              className={`rounded-xl px-3 py-2 text-xs font-semibold disabled:opacity-40 transition-colors ${
+                isDark ? "bg-white/5 text-white hover:bg-white/10" : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 shadow-sm"
+              }`}
             >
               Refresh
             </button>
           </div>
 
           {loading ? (
-            <div className="text-sm text-gray-400">Loading assets…</div>
+            <div className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>Loading assets…</div>
           ) : (
             <div className="space-y-3">
               {assets.length === 0 && (
-                <div className="text-sm text-gray-400">
+                <div className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
                   No media assets yet. Upload a file to get started.
                 </div>
               )}
               {assets.map((asset) => (
                 <div
                   key={asset.id}
-                  className="rounded-3xl border border-white/10 bg-black/40 p-3 flex items-start gap-3"
+                  className={`rounded-3xl border p-3 flex items-start gap-3 ${
+                    isDark ? "border-white/10 bg-black/40" : "border-gray-200 bg-white shadow-sm"
+                  }`}
                 >
-                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/5 flex items-center justify-center">
+                  <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${isDark ? "bg-white/5" : "bg-gray-100"}`}>
                     {asset.media_type === "image" ? (
                       <img
                         src={asset.url}
@@ -1886,30 +1913,32 @@ function MediaLibrary() {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <span className="text-xs text-gray-400 uppercase">
+                      <span className={`text-xs uppercase ${isDark ? "text-gray-400" : "text-gray-600"}`}>
                         {asset.media_type}
                       </span>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-white truncate">
+                    <div className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-gray-900"}`}>
                       {asset.name}
                     </div>
-                    <div className="text-xs text-gray-500 truncate">
+                    <div className={`text-xs truncate ${isDark ? "text-gray-500" : "text-gray-600"}`}>
                       {asset.url}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => handleCopyUrl(asset.url)}
-                        className="rounded-xl bg-white/5 px-2 py-1 text-xs font-semibold text-gray-200 hover:bg-white/10"
+                        className={`rounded-xl px-2 py-1 text-xs font-semibold ${
+                          isDark ? "bg-white/5 text-gray-200 hover:bg-white/10" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
                       >
                         Copy URL
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(asset.id)}
-                        className="rounded-xl bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/20"
+                        className="rounded-xl bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-500 hover:bg-red-500/20"
                       >
                         Delete
                       </button>

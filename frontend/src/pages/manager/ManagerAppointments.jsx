@@ -164,9 +164,18 @@ function ManagerAppointments() {
       const r = await fetch(`${API_BASE}/api/queue/employees/`, {
         headers,
       });
-      if (!r.ok) throw new Error();
       const data = await r.json();
-      setEmployees(Array.isArray(data) ? data : (data.results ?? []));
+      const raw = Array.isArray(data) ? data : (data.results ?? []);
+      const seen = new Set();
+      const unique = raw.filter((emp) => {
+        if (!emp || !emp.id) return false;
+        const normName = (emp.full_name || emp.name || "").trim().toLowerCase();
+        if (seen.has(emp.id) || (normName && seen.has(normName))) return false;
+        seen.add(emp.id);
+        if (normName) seen.add(normName);
+        return true;
+      });
+      setEmployees(unique);
     } catch {
       setEmployees([]);
     }
@@ -224,22 +233,34 @@ function ManagerAppointments() {
           assigned_employee_id: assignedEmployeeId || null,
         }),
       });
+
+      // Always try to parse the response body
+      const body = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Action failed.");
+        // Show a user-friendly error with detail from the server
+        const msg = body?.detail || "Action failed. Please try again.";
+        notify("error", msg);
+        // Always refresh to sync state — the action may have partially applied
+        await fetchBookings();
+        return;
       }
-      const updated = await res.json();
+
+      // Update the single booking from the returned data
       setBookings((prev) =>
-        prev.map((b) => (b.id === updated.id ? updated : b)),
+        prev.map((b) => (b.id === (body.id ?? id) ? body : b)),
       );
       setAssignedByBooking((prev) => ({
         ...prev,
-        [id]: updated.assigned_employee_id
-          ? String(updated.assigned_employee_id)
+        [id]: body.assigned_employee_id
+          ? String(body.assigned_employee_id)
           : "",
       }));
+      notify("success", newStatus === "confirmed" ? "Appointment confirmed!" : newStatus === "done" ? "Marked as done." : newStatus === "cancelled" ? "Appointment cancelled." : "Updated.");
     } catch (e) {
       notify("error", e.message || "Action failed.");
+      // Refresh to resync after any unexpected error
+      await fetchBookings();
     } finally {
       setActionLoading(null);
     }
@@ -632,28 +653,33 @@ function ManagerAppointments() {
                     {(b.status === "pending" || b.status === "confirmed") && (
                       <div className="mb-4 grid grid-cols-1 gap-2">
                         {(() => {
-                          const isAssignmentLocked =
-                            b.status === "confirmed" &&
-                            Boolean(
-                              assignedByBooking[b.id] || b.assigned_employee_id,
-                            );
+                          const currentVal = assignedByBooking[b.id] ?? "";
+                          const serverEmpId = b.assigned_employee_id ? String(b.assigned_employee_id) : "";
+                          const hasChanged = Boolean(currentVal && currentVal !== serverEmpId);
+
                           return (
                             <>
                               <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">
-                                  {isAssignmentLocked
-                                    ? "Assigned Employee (Locked)"
-                                    : "Assign Employee"}
-                                </label>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="block text-xs font-semibold text-gray-400">
+                                    {b.status === "confirmed" && b.assigned_employee_id
+                                      ? "Assigned Employee"
+                                      : "Assign Employee"}
+                                  </label>
+                                  {b.status === "confirmed" && b.assigned_employee_id && (
+                                    <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                      Active
+                                    </span>
+                                  )}
+                                </div>
                                 <select
-                                  value={assignedByBooking[b.id] ?? ""}
+                                  value={currentVal}
                                   onChange={(e) =>
                                     setAssignedByBooking((prev) => ({
                                       ...prev,
                                       [b.id]: e.target.value,
                                     }))
                                   }
-                                  disabled={isAssignmentLocked}
                                   className="w-full bg-gray-900/70 border border-white/10 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500/50"
                                 >
                                   <option value="">Unassigned</option>
@@ -664,22 +690,21 @@ function ManagerAppointments() {
                                   ))}
                                 </select>
                               </div>
-                              {b.status === "confirmed" &&
-                                !isAssignmentLocked && (
-                                  <button
-                                    onClick={() =>
-                                      handleAction(
-                                        b.id,
-                                        "confirmed",
-                                        assignedByBooking[b.id] || null,
-                                      )
-                                    }
-                                    disabled={actionLoading === b.id}
-                                    className="w-full bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
-                                  >
-                                    Save Assignment
-                                  </button>
-                                )}
+                              {b.status === "confirmed" && hasChanged && (
+                                <button
+                                  onClick={() =>
+                                    handleAction(
+                                      b.id,
+                                      "confirmed",
+                                      assignedByBooking[b.id] || null,
+                                    )
+                                  }
+                                  disabled={actionLoading === b.id}
+                                  className="w-full bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-sm font-semibold py-2 rounded-lg transition-all disabled:opacity-50"
+                                >
+                                  {actionLoading === b.id ? "Saving..." : "Save Assignment"}
+                                </button>
+                              )}
                             </>
                           );
                         })()}

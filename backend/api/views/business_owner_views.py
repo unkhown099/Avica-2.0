@@ -228,16 +228,29 @@ class OwnerAppointmentListView(APIView):
             branch_id = request.query_params.get("branch")
             date      = request.query_params.get("date")
             status    = request.query_params.get("status")
+            service   = request.query_params.get("service")
+            search    = (request.query_params.get("search") or "").strip()
 
-            if branch_id:
+            if branch_id and branch_id != "all":
                 qs = qs.filter(branch_id=branch_id)
             if date:
                 qs = qs.filter(date=date)
-            if status:
+            if status and status != "all":
                 qs = qs.filter(status=status)
+            if service and service != "all":
+                qs = qs.filter(service__icontains=service)
+            if search:
+                qs = qs.filter(
+                    Q(user__customer_profile__first_name__icontains=search)
+                    | Q(user__customer_profile__last_name__icontains=search)
+                    | Q(user__email__icontains=search)
+                    | Q(plate_number__icontains=search)
+                    | Q(vehicle__icontains=search)
+                    | Q(service__icontains=search)
+                )
 
-            # Default: current month
-            if not date:
+            # Default: current month if neither date nor search specified
+            if not date and not search:
                 qs = qs.filter(date__gte=_month_start(0))
 
             serializer = OwnerAppointmentSerializer(qs.order_by("date", "time"), many=True)
@@ -366,10 +379,10 @@ class OwnerInventoryView(APIView):
 
             qs = InventoryItem.objects.select_related("branch").filter(is_active=True)
 
-            branch_id = request.query_params.get("branch")
-            category  = request.query_params.get("category")
-            search    = request.query_params.get("search")
-            status    = request.query_params.get("status")  # "low" | "out"
+            branch_id    = request.query_params.get("branch")
+            category     = request.query_params.get("category")
+            search       = request.query_params.get("search")
+            status_param = request.query_params.get("status")  # "low" | "out"
 
             if branch_id:
                 qs = qs.filter(branch_id=branch_id)
@@ -379,24 +392,24 @@ class OwnerInventoryView(APIView):
                 qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search))
 
             serializer = OwnerInventorySerializer(qs.order_by("branch__name", "name"), many=True)
-            data = serializer.data
+            data = list(serializer.data)
 
             # Filter by computed status after serialization
-            if status == "low":
+            if status_param == "low":
                 data = [i for i in data if i["status"] == "Low Stock"]
-            elif status == "out":
+            elif status_param == "out":
                 data = [i for i in data if i["status"] == "Out of Stock"]
-            elif status == "alert":
+            elif status_param == "alert":
                 data = [i for i in data if i["status"] in ("Low Stock", "Out of Stock")]
 
             return Response(data)
-
-    # ── Staff Management ─────────────────────────────────────────────────────────────
 
         except Exception as e:
             import traceback
             traceback.print_exc()
             return Response({"detail": f"Server Error: {str(e)}"}, status=500)
+
+
 class OwnerStaffListView(APIView):
     permission_classes = [IsAuthenticated]
 
