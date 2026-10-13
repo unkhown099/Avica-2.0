@@ -102,6 +102,7 @@ function AdminAppointments() {
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState(today.getDate());
+  const [scheduleView, setScheduleView] = useState("month"); // 'month', 'two_weeks', 'year'
   const [branchFilter, setBranchFilter] = useState("All Branches");
   const [branches, setBranches] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -113,10 +114,21 @@ function AdminAppointments() {
     try {
       setLoading(true);
       setError(null);
+      const params = {};
+      if (scheduleView === "two_weeks") {
+        params.schedule_view = "two_weeks";
+      } else if (scheduleView === "year") {
+        params.schedule_view = "year";
+        params.year = currentYear;
+      } else {
+        params.year = currentYear;
+        params.month = currentMonth + 1;
+      }
+
       const [aptRes, branchRes] = await Promise.all([
         axios.get(`${API}/appointments/`, {
           headers: authHeaders(),
-          params: { year: currentYear, month: currentMonth + 1 },
+          params,
         }).catch(() => ({ data: [] })),
         axios.get(`${API}/branches/`, { headers: authHeaders() }).catch(() => ({ data: [] })),
       ]);
@@ -131,7 +143,7 @@ function AdminAppointments() {
     } finally {
       setLoading(false);
     }
-  }, [currentYear, currentMonth]);
+  }, [currentYear, currentMonth, scheduleView]);
 
   useEffect(() => {
     fetchData();
@@ -156,6 +168,7 @@ function AdminAppointments() {
   }, [branchAppointments]);
 
   const prevMonth = () => {
+    setScheduleView("month");
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear((y) => y - 1);
@@ -163,6 +176,7 @@ function AdminAppointments() {
     setSelectedDay(1);
   };
   const nextMonth = () => {
+    setScheduleView("month");
     if (currentMonth === 11) {
       setCurrentMonth(0);
       setCurrentYear((y) => y + 1);
@@ -172,13 +186,14 @@ function AdminAppointments() {
 
   const selectedDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
 
-  const dayAppointments = useMemo(
-    () =>
-      sortAppointmentsByPriority(
-        branchAppointments.filter((a) => a.date === selectedDateStr),
-      ),
-    [branchAppointments, selectedDateStr],
-  );
+  const displayedAppointments = useMemo(() => {
+    if (scheduleView === "two_weeks" || scheduleView === "year") {
+      return sortAppointmentsByPriority(branchAppointments);
+    }
+    return sortAppointmentsByPriority(
+      branchAppointments.filter((a) => a.date === selectedDateStr),
+    );
+  }, [branchAppointments, scheduleView, selectedDateStr]);
 
   const confirmedCount = useMemo(
     () => branchAppointments.filter((a) => a.status === "confirmed").length,
@@ -262,6 +277,7 @@ function AdminAppointments() {
             <button
               key={day}
               onClick={() => {
+                setScheduleView("month");
                 setSelectedDay(day);
                 setShowCalendar(false);
               }}
@@ -345,7 +361,13 @@ function AdminAppointments() {
                 branchAppointments.length
               )}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Total This Month</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {scheduleView === "two_weeks"
+                ? "Total (2 Weeks)"
+                : scheduleView === "year"
+                ? "Total This Year"
+                : "Total This Month"}
+            </div>
           </div>
           <div className="bg-white dark:bg-gray-900/60 border border-emerald-500/30 dark:border-emerald-500/20 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-sm dark:shadow-none flex flex-col justify-center">
             <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mb-1">
@@ -475,16 +497,55 @@ function AdminAppointments() {
           {/* Appointments Panel */}
           <div className="lg:col-span-2">
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-white">
-                    {MONTH_NAMES[currentMonth]} {selectedDay}, {currentYear}
+                    {scheduleView === "two_weeks"
+                      ? "Previous 2 Weeks"
+                      : scheduleView === "year"
+                      ? `Current Year (${currentYear})`
+                      : `${MONTH_NAMES[currentMonth]} ${selectedDay}, ${currentYear}`}
                   </h2>
                   <p className="text-gray-500 text-sm mt-0.5">
                     {loading
                       ? "Loading..."
-                      : `${dayAppointments.length} appointment${dayAppointments.length !== 1 ? "s" : ""}`}
+                      : `${displayedAppointments.length} appointment${displayedAppointments.length !== 1 ? "s" : ""}`}
                   </p>
+                </div>
+                <div className="flex items-center gap-1.5 bg-gray-800/80 p-1 rounded-xl border border-white/10 text-xs self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleView("month")}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      scheduleView === "month"
+                        ? "bg-red-600 text-white shadow"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Month View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleView("two_weeks")}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      scheduleView === "two_weeks"
+                        ? "bg-red-600 text-white shadow"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Previous 2 Weeks
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleView("year")}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      scheduleView === "year"
+                        ? "bg-red-600 text-white shadow"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    This Year
+                  </button>
                 </div>
               </div>
 
@@ -494,7 +555,7 @@ function AdminAppointments() {
                     <SkeletonCard key={i} />
                   ))}
                 </div>
-              ) : dayAppointments.length === 0 ? (
+              ) : displayedAppointments.length === 0 ? (
                 <div className="py-12 sm:py-16 text-center">
                   <svg
                     className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -511,12 +572,16 @@ function AdminAppointments() {
                   </svg>
                   <p className="text-gray-500 text-lg">No appointments</p>
                   <p className="text-gray-600 text-sm mt-1">
-                    No appointments scheduled for this date
+                    {scheduleView === "two_weeks"
+                      ? "No appointments found in the previous 2 weeks"
+                      : scheduleView === "year"
+                      ? `No appointments found for ${currentYear}`
+                      : "No appointments scheduled for this date"}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
-                  {dayAppointments.map((apt) => {
+                  {displayedAppointments.map((apt) => {
                     const statusKey = apt.status?.toLowerCase();
                     return (
                       <div
@@ -535,7 +600,7 @@ function AdminAppointments() {
                                 {apt.customer_name}
                               </div>
                               <div className="text-gray-500 text-xs">
-                                {apt.time}
+                                {scheduleView !== "month" && apt.date ? `${apt.date} · ` : ""}{apt.time}
                               </div>
                             </div>
                           </div>

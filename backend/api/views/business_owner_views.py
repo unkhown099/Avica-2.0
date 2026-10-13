@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 from calendar import month_abbr
 
 from ..models import Branch, Booking, QueueEntry, Service, InventoryItem, Staff, Rating, PaymentTransaction
@@ -232,16 +232,43 @@ class OwnerAppointmentListView(APIView):
 
             qs = Booking.objects.select_related("branch", "user__customer_profile").all()
 
-            branch_id = request.query_params.get("branch")
-            date      = request.query_params.get("date")
-            status    = request.query_params.get("status")
-            service   = request.query_params.get("service")
-            search    = (request.query_params.get("search") or "").strip()
+            branch_id     = request.query_params.get("branch")
+            schedule_view = request.query_params.get("schedule_view")
+            start_date    = request.query_params.get("start_date")
+            end_date      = request.query_params.get("end_date")
+            date          = request.query_params.get("date")
+            year          = request.query_params.get("year")
+            status        = request.query_params.get("status")
+            service       = request.query_params.get("service")
+            search        = (request.query_params.get("search") or "").strip()
 
             if branch_id and branch_id != "all":
-                qs = qs.filter(branch_id=branch_id)
-            if date:
+                if str(branch_id).isdigit():
+                    qs = qs.filter(branch_id=int(branch_id))
+                else:
+                    qs = qs.filter(branch__name__iexact=str(branch_id))
+
+            today = timezone.localtime().date()
+
+            if schedule_view in ["two_weeks", "previous_two_weeks"]:
+                two_weeks_ago = today - timedelta(days=14)
+                qs = qs.filter(date__gte=two_weeks_ago, date__lte=today)
+            elif schedule_view in ["year", "current_year"]:
+                target_year = int(year) if (year and str(year).isdigit()) else today.year
+                qs = qs.filter(date__year=target_year)
+            elif start_date and end_date:
+                try:
+                    sd = datetime.strptime(start_date, "%Y-%m-%d").date()
+                    ed = datetime.strptime(end_date, "%Y-%m-%d").date()
+                    qs = qs.filter(date__gte=sd, date__lte=ed)
+                except ValueError:
+                    pass
+            elif date:
                 qs = qs.filter(date=date)
+            elif not search:
+                # Default: current month if neither date, schedule_view nor search specified
+                qs = qs.filter(date__gte=_month_start(0))
+
             if status and status != "all":
                 qs = qs.filter(status=status)
             if service and service != "all":
@@ -255,10 +282,6 @@ class OwnerAppointmentListView(APIView):
                     | Q(vehicle__icontains=search)
                     | Q(service__icontains=search)
                 )
-
-            # Default: current month if neither date nor search specified
-            if not date and not search:
-                qs = qs.filter(date__gte=_month_start(0))
 
             serializer = OwnerAppointmentSerializer(qs.order_by("date", "time"), many=True)
             return Response(serializer.data)

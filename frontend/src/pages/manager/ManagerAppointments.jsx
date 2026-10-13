@@ -103,6 +103,7 @@ function ManagerAppointments() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState(now.getDate());
+  const [scheduleView, setScheduleView] = useState("month");
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -130,11 +131,18 @@ function ManagerAppointments() {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDayOfWeek = new Date(year, month, 1).getDay();
 
-  const fetchBookings = useCallback(async () => {
+  const fetchBookings = useCallback(async (view = scheduleView) => {
     setLoading(true);
     try {
       const headers = await getAuthHeadersAsync();
-      const r = await fetch(`${API_BASE}/api/staff/bookings/`, { headers });
+      const params = new URLSearchParams();
+      if (view === "two_weeks") {
+        params.set("schedule_view", "two_weeks");
+      } else if (view === "year") {
+        params.set("schedule_view", "year");
+      }
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const r = await fetch(`${API_BASE}/api/staff/bookings/${qs}`, { headers });
       if (!r.ok) throw new Error(`Error ${r.status}`);
       const data = await r.json();
       const rows = Array.isArray(data) ? data : (data.results ?? []);
@@ -152,11 +160,11 @@ function ManagerAppointments() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scheduleView]);
 
   useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
+    fetchBookings(scheduleView);
+  }, [fetchBookings, scheduleView]);
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -213,6 +221,11 @@ function ManagerAppointments() {
     bookings.filter((b) => b.date === selectedISO),
   );
 
+  const activeBookings =
+    scheduleView === "two_weeks" || scheduleView === "year"
+      ? sortBookingsByPriority(bookings)
+      : dayBookings;
+
   const dotsForDay = (day) => {
     const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     return bookings.filter((b) => b.date === iso).map((b) => b.status);
@@ -242,7 +255,7 @@ function ManagerAppointments() {
         const msg = body?.detail || "Action failed. Please try again.";
         notify("error", msg);
         // Always refresh to sync state — the action may have partially applied
-        await fetchBookings();
+        await fetchBookings(scheduleView);
         return;
       }
 
@@ -256,11 +269,100 @@ function ManagerAppointments() {
           ? String(body.assigned_employee_id)
           : "",
       }));
-      notify("success", newStatus === "confirmed" ? "Appointment confirmed!" : newStatus === "done" ? "Marked as done." : newStatus === "cancelled" ? "Appointment cancelled." : "Updated.");
+      notify("success", newStatus === "confirmed" ? "Appointment confirmed!" : newStatus === "done" ? "Marked as done." : newStatus === "cancelled" ? "Appointment cancelled." : newStatus === "no_show" ? "Marked as no show." : "Updated.");
     } catch (e) {
       notify("error", e.message || "Action failed.");
       // Refresh to resync after any unexpected error
-      await fetchBookings();
+      await fetchBookings(scheduleView);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancel = async (booking) => {
+    const { value: reason } = await Swal.fire({
+      title: "Cancel Appointment",
+      input: "textarea",
+      inputLabel: "Reason for cancellation",
+      inputPlaceholder: "Enter reason for cancellation...",
+      showCancelButton: true,
+      confirmButtonText: "Confirm Cancellation",
+      confirmButtonColor: "#dc2626",
+      cancelButtonText: "Close",
+      background: "#111827",
+      color: "#fff",
+      inputValidator: (val) => {
+        if (!val || !val.trim()) {
+          return "A cancellation reason is required.";
+        }
+      },
+    });
+
+    if (!reason) return;
+
+    setActionLoading(booking.id);
+    try {
+      const headers = await getAuthHeadersAsync();
+      const res = await fetch(`${API_BASE}/api/staff/bookings/${booking.id}/action/`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          status: "cancelled",
+          cancellation_reason: reason.trim(),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.detail || "Failed to cancel appointment.");
+      }
+      setBookings((prev) =>
+        prev.map((b) => (b.id === (body.id ?? booking.id) ? body : b)),
+      );
+      notify("success", "Appointment cancelled.");
+    } catch (e) {
+      notify("error", e.message || "Action failed.");
+      await fetchBookings(scheduleView);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleNoShow = async (booking) => {
+    const result = await Swal.fire({
+      title: "Mark as No Show?",
+      text: `Mark appointment for ${booking.customer_name || "this customer"} as no show?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Mark No Show",
+      confirmButtonColor: "#dc2626",
+      cancelButtonText: "Cancel",
+      background: "#111827",
+      color: "#fff",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setActionLoading(booking.id);
+    try {
+      const headers = await getAuthHeadersAsync();
+      const res = await fetch(`${API_BASE}/api/staff/bookings/${booking.id}/action/`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          status: "no_show",
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.detail || "Failed to mark as no show.");
+      }
+      setBookings((prev) =>
+        prev.map((b) => (b.id === (body.id ?? booking.id) ? body : b)),
+      );
+      notify("success", "Appointment marked as no show.");
+    } catch (e) {
+      notify("error", e.message || "Action failed.");
+      await fetchBookings(scheduleView);
     } finally {
       setActionLoading(null);
     }
@@ -502,14 +604,57 @@ function ManagerAppointments() {
           {/* Appointments Panel */}
           <div className="lg:col-span-2 bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-6 backdrop-blur-sm">
             <div className="mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg font-black text-white">
-                {formatDate(selectedISO)}
-              </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
-                {loading
-                  ? "Loading..."
-                  : `${dayBookings.length} appointment${dayBookings.length !== 1 ? "s" : ""}`}
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-white">
+                    {scheduleView === "two_weeks"
+                      ? "Previous 2 Weeks"
+                      : scheduleView === "year"
+                      ? `Current Year (${year})`
+                      : formatDate(selectedISO)}
+                  </h2>
+                  <p className="text-gray-500 text-sm mt-0.5">
+                    {loading
+                      ? "Loading..."
+                      : `${activeBookings.length} appointment${activeBookings.length !== 1 ? "s" : ""}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 bg-gray-800/80 p-1 rounded-xl border border-white/10 text-xs self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleView("month")}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      scheduleView === "month"
+                        ? "bg-red-600 text-white shadow"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Month View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleView("two_weeks")}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      scheduleView === "two_weeks"
+                        ? "bg-red-600 text-white shadow"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Previous 2 Weeks
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleView("year")}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                      scheduleView === "year"
+                        ? "bg-red-600 text-white shadow"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    This Year
+                  </button>
+                </div>
+              </div>
             </div>
 
             {loading && (
@@ -537,7 +682,7 @@ function ManagerAppointments() {
               </div>
             )}
 
-            {!loading && dayBookings.length === 0 && (
+            {!loading && activeBookings.length === 0 && (
               <div className="py-16 text-center">
                 <svg
                   className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -554,14 +699,14 @@ function ManagerAppointments() {
                 </svg>
                 <p className="text-gray-500 text-lg">No appointments</p>
                 <p className="text-gray-600 text-sm mt-1">
-                  No bookings for this date
+                  No bookings found for this view
                 </p>
               </div>
             )}
 
-            {!loading && dayBookings.length > 0 && (
+            {!loading && activeBookings.length > 0 && (
               <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
-                {dayBookings.map((b) => (
+                {activeBookings.map((b) => (
                   <div
                     key={b.id}
                     className="bg-gray-800/60 border border-white/5 rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all"
@@ -712,64 +857,73 @@ function ManagerAppointments() {
                     )}
 
                     {b.status === "pending" && (
-                      <div className="pt-3 border-t border-white/5 flex gap-2">
-                        <button
-                          onClick={() =>
-                            handleAction(
-                              b.id,
-                              "confirmed",
-                              assignedByBooking[b.id] || null,
-                            )
-                          }
-                          disabled={
-                            actionLoading === b.id ||
-                            !(assignedByBooking[b.id] || "").trim()
-                          }
-                          className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
-                        >
-                          {actionLoading === b.id ? (
-                            <svg
-                              className="w-4 h-4 animate-spin"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
+                      <div className="pt-3 border-t border-white/5 flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() =>
+                              handleAction(
+                                b.id,
+                                "confirmed",
+                                assignedByBooking[b.id] || null,
+                              )
+                            }
+                            disabled={
+                              actionLoading === b.id ||
+                              !(assignedByBooking[b.id] || "").trim()
+                            }
+                            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                          >
+                            {actionLoading === b.id ? (
+                              <svg
+                                className="w-4 h-4 animate-spin"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
                                 stroke="currentColor"
-                                strokeWidth="4"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                              />
-                            </svg>
-                          ) : (
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          )}
-                          Approve
-                        </button>
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRescheduleProposal(b)}
+                            disabled={actionLoading === b.id}
+                            className="flex-1 flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                          >
+                            Reschedule
+                          </button>
+                        </div>
                         <button
-                          onClick={() => handleRescheduleProposal(b)}
+                          onClick={() => handleCancel(b)}
                           disabled={actionLoading === b.id}
-                          className="flex-1 flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                          className="w-full flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
                         >
-                          Reschedule
+                          Reject / Cancel
                         </button>
                       </div>
                     )}
@@ -809,6 +963,22 @@ function ManagerAppointments() {
                         >
                           Propose Reschedule
                         </button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => handleNoShow(b)}
+                            disabled={actionLoading === b.id}
+                            className="flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                          >
+                            Mark No Show
+                          </button>
+                          <button
+                            onClick={() => handleCancel(b)}
+                            disabled={actionLoading === b.id}
+                            className="flex items-center justify-center gap-1.5 bg-gray-700/40 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     )}
 

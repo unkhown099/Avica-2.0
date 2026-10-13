@@ -663,6 +663,184 @@ class CustomerHistoryFilterAndPaginationTests(TestCase):
         self.assertTrue(res_page2.data["has_previous"])
 
 
+class Phase2ManageBookingsAndScheduleTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.branch1 = Branch.objects.create(name="North Branch", address="North Road", hours="9-5")
+        self.branch2 = Branch.objects.create(name="South Branch", address="South Road", hours="9-5")
+
+        # Users & Staff Profiles
+        self.super_admin_user = User.objects.create_user(email="super_p2@test.com", password="password123")
+        Staff.objects.create(user=self.super_admin_user, role="super_admin", first_name="Super", last_name="Admin")
+
+        self.admin_user = User.objects.create_user(email="admin_p2@test.com", password="password123")
+        Staff.objects.create(user=self.admin_user, role="Admin", first_name="Main", last_name="Admin")
+
+        self.owner_user = User.objects.create_user(email="owner_p2@test.com", password="password123")
+        Staff.objects.create(user=self.owner_user, role="Business Owner", first_name="Biz", last_name="Owner")
+
+        self.manager1_user = User.objects.create_user(email="mgr1_p2@test.com", password="password123")
+        Staff.objects.create(user=self.manager1_user, role="Branch Manager", branch=self.branch1, first_name="Mgr", last_name="One")
+
+        self.manager2_user = User.objects.create_user(email="mgr2_p2@test.com", password="password123")
+        Staff.objects.create(user=self.manager2_user, role="Branch Manager", branch=self.branch2, first_name="Mgr", last_name="Two")
+
+        self.employee1_user = User.objects.create_user(email="emp1_p2@test.com", password="password123")
+        self.employee1 = Staff.objects.create(user=self.employee1_user, role="Employee", branch=self.branch1, first_name="John", last_name="Tech")
+
+        self.customer_user = User.objects.create_user(email="customer_p2@test.com", password="password123")
+        self.customer = Customer.objects.create(user=self.customer_user, first_name="Jane", last_name="Doe", phone="09123456789")
+
+        today = timezone.localtime().date()
+        self.booking1 = Booking.objects.create(
+            user=self.customer_user,
+            branch=self.branch1,
+            service="Basic Car Wash",
+            vehicle="Toyota Vios",
+            vehicle_size="small",
+            plate_number="XYZ-123",
+            date=today,
+            time="10:00",
+            status="pending",
+        )
+        self.booking2 = Booking.objects.create(
+            user=self.customer_user,
+            branch=self.branch2,
+            service="Premium Detailing",
+            vehicle="Honda Civic",
+            vehicle_size="medium",
+            plate_number="ABC-456",
+            date=today - timedelta(days=5),
+            time="14:00",
+            status="pending",
+        )
+        self.booking3 = Booking.objects.create(
+            user=self.customer_user,
+            branch=self.branch1,
+            service="Ceramic Coating",
+            vehicle="Ford Everest",
+            vehicle_size="large",
+            plate_number="LMN-789",
+            date=today - timedelta(days=20),
+            time="09:00",
+            status="pending",
+        )
+
+    def test_staff_booking_list_branch_isolation_for_manager(self):
+        self.client.force_authenticate(user=self.manager1_user)
+        res = self.client.get("/api/staff/bookings/")
+        self.assertEqual(res.status_code, 200)
+        ids = [b["id"] for b in res.data]
+        self.assertIn(self.booking1.id, ids)
+        self.assertIn(self.booking3.id, ids)
+        self.assertNotIn(self.booking2.id, ids)
+
+    def test_staff_booking_list_global_roles_can_view_all_and_filter(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get("/api/staff/bookings/")
+        self.assertEqual(res.status_code, 200)
+        ids = [b["id"] for b in res.data]
+        self.assertIn(self.booking1.id, ids)
+        self.assertIn(self.booking2.id, ids)
+        self.assertIn(self.booking3.id, ids)
+
+        # Filter by branch 2
+        res_b2 = self.client.get(f"/api/staff/bookings/?branch={self.branch2.id}")
+        self.assertEqual(res_b2.status_code, 200)
+        b2_ids = [b["id"] for b in res_b2.data]
+        self.assertEqual(b2_ids, [self.booking2.id])
+
+    def test_staff_booking_action_branch_isolation(self):
+        # Manager 1 (Branch 1) attempts to cancel booking in Branch 2 -> 403 Forbidden
+        self.client.force_authenticate(user=self.manager1_user)
+        res = self.client.patch(
+            f"/api/staff/bookings/{self.booking2.id}/action/",
+            {"status": "cancelled", "cancellation_reason": "Not allowed"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+
+    def test_staff_booking_action_confirm_requires_assigned_employee(self):
+        self.client.force_authenticate(user=self.manager1_user)
+        res = self.client.patch(
+            f"/api/staff/bookings/{self.booking1.id}/action/",
+            {"status": "confirmed"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("staff", res.data.get("detail", "").lower())
+
+    def test_staff_booking_action_confirm_success_and_creates_queue(self):
+        self.client.force_authenticate(user=self.manager1_user)
+        res = self.client.patch(
+            f"/api/staff/bookings/{self.booking1.id}/action/",
+            {"status": "confirmed", "assigned_employee_id": self.employee1.id},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.booking1.refresh_from_db()
+        self.assertEqual(self.booking1.status, "confirmed")
+
+        # Verify queue entry was created
+        self.assertTrue(QueueEntry.objects.filter(booking=self.booking1).exists())
+
+    def test_staff_booking_action_terminal_status_protection(self):
+        self.booking1.status = "done"
+        self.booking1.save()
+        self.client.force_authenticate(user=self.manager1_user)
+        res = self.client.patch(
+            f"/api/staff/bookings/{self.booking1.id}/action/",
+            {"status": "cancelled", "cancellation_reason": "Too late"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_staff_booking_action_cancel_with_reason(self):
+        self.client.force_authenticate(user=self.manager1_user)
+        res = self.client.patch(
+            f"/api/staff/bookings/{self.booking3.id}/action/",
+            {"status": "cancelled", "cancellation_reason": "Customer requested cancellation"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.booking3.refresh_from_db()
+        self.assertEqual(self.booking3.status, "cancelled")
+        self.assertEqual(self.booking3.cancellation_reason, "Customer requested cancellation")
+
+    def test_schedule_view_two_weeks_filter(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get("/api/staff/bookings/?schedule_view=two_weeks")
+        self.assertEqual(res.status_code, 200)
+        ids = [b["id"] for b in res.data]
+        self.assertIn(self.booking1.id, ids)  # today
+        self.assertIn(self.booking2.id, ids)  # 5 days ago
+        self.assertNotIn(self.booking3.id, ids)  # 20 days ago
+
+    def test_admin_appointment_list_view_and_read_only(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get("/appointments/")
+        self.assertEqual(res.status_code, 200)
+
+        # Admin appointments endpoint is view-only
+        res_patch = self.client.patch(f"/appointments/{self.booking1.id}/", {"status": "confirmed"})
+        self.assertEqual(res_patch.status_code, 405)
+
+        res_delete = self.client.delete(f"/appointments/{self.booking1.id}/")
+        self.assertEqual(res_delete.status_code, 405)
+
+    def test_customer_cannot_cancel_done_booking(self):
+        self.booking1.status = "done"
+        self.booking1.save()
+        self.client.force_authenticate(user=self.customer_user)
+        res = self.client.patch(
+            f"/api/bookings/{self.booking1.id}/",
+            {"status": "cancelled"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+
+
+
 
 
 

@@ -54,6 +54,7 @@ export default function BranchOwnerAppointments() {
     month: today.getMonth() + 1,
   });
   const [selectedDate, setSelectedDate] = useState(todayStr());
+  const [scheduleView, setScheduleView] = useState("date"); // 'date', 'two_weeks', 'year'
   const [branchFilter, setBranchFilter] = useState("");
   const [serviceFilter, setServiceFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -104,7 +105,15 @@ export default function BranchOwnerAppointments() {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ date: selectedDate });
+      const params = new URLSearchParams();
+      if (scheduleView === "two_weeks") {
+        params.set("schedule_view", "two_weeks");
+      } else if (scheduleView === "year") {
+        params.set("schedule_view", "year");
+        params.set("year", viewMonth.year);
+      } else {
+        params.set("date", selectedDate);
+      }
       if (branchFilter) params.set("branch", branchFilter);
       if (serviceFilter) params.set("service", serviceFilter);
       if (statusFilter) params.set("status", statusFilter);
@@ -120,24 +129,28 @@ export default function BranchOwnerAppointments() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, headers, selectedDate, branchFilter, serviceFilter, statusFilter, searchQuery]);
+  }, [isAuthenticated, headers, scheduleView, selectedDate, viewMonth.year, branchFilter, serviceFilter, statusFilter, searchQuery]);
 
   useEffect(() => {
     fetchAppointments();
   }, [fetchAppointments]);
 
-  const prevMonth = () =>
+  const prevMonth = () => {
+    setScheduleView("date");
     setViewMonth((m) => {
       const mo = m.month === 1 ? 12 : m.month - 1;
       const yr = m.month === 1 ? m.year - 1 : m.year;
       return { year: yr, month: mo };
     });
-  const nextMonth = () =>
+  };
+  const nextMonth = () => {
+    setScheduleView("date");
     setViewMonth((m) => {
       const mo = m.month === 12 ? 1 : m.month + 1;
       const yr = m.month === 12 ? m.year + 1 : m.year;
       return { year: yr, month: mo };
     });
+  };
 
   const totalDays = daysInMonth(viewMonth.year, viewMonth.month);
   const firstDay = new Date(viewMonth.year, viewMonth.month - 1, 1).getDay();
@@ -168,6 +181,7 @@ export default function BranchOwnerAppointments() {
     pageSize: 8,
     resetDeps: [
       appointments.length,
+      scheduleView,
       selectedDate,
       branchFilter,
       serviceFilter,
@@ -246,6 +260,7 @@ export default function BranchOwnerAppointments() {
             <button
               key={day}
               onClick={() => {
+                setScheduleView("date");
                 setSelectedDate(dateStr);
                 setShowCalendar(false);
               }}
@@ -419,7 +434,11 @@ export default function BranchOwnerAppointments() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-white">
-                    {selectedLabel}
+                    {scheduleView === "two_weeks"
+                      ? "Previous 2 Weeks"
+                      : scheduleView === "year"
+                      ? `Current Year (${viewMonth.year})`
+                      : selectedLabel}
                   </h2>
                   <p className="text-gray-500 text-sm mt-0.5">
                     {loading
@@ -427,21 +446,58 @@ export default function BranchOwnerAppointments() {
                       : `${appointments.length} appointment${appointments.length !== 1 ? "s" : ""}`}
                   </p>
                 </div>
-                {(serviceFilter || statusFilter || searchQuery) && (
-                  <button
-                    onClick={() => {
-                      setServiceFilter("");
-                      setStatusFilter("");
-                      setSearchQuery("");
-                    }}
-                    className="self-start sm:self-auto text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Reset Filters
-                  </button>
-                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 bg-gray-800/80 p-1 rounded-xl border border-white/10 text-xs self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setScheduleView("date")}
+                      className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                        scheduleView === "date"
+                          ? "bg-red-600 text-white shadow"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      Selected Date
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleView("two_weeks")}
+                      className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                        scheduleView === "two_weeks"
+                          ? "bg-red-600 text-white shadow"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      Previous 2 Weeks
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleView("year")}
+                      className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                        scheduleView === "year"
+                          ? "bg-red-600 text-white shadow"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      This Year
+                    </button>
+                  </div>
+                  {(serviceFilter || statusFilter || searchQuery) && (
+                    <button
+                      onClick={() => {
+                        setServiceFilter("");
+                        setStatusFilter("");
+                        setSearchQuery("");
+                      }}
+                      className="self-start sm:self-auto text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Reset Filters
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Filters Toolbar */}
@@ -554,7 +610,11 @@ export default function BranchOwnerAppointments() {
                 </svg>
                 <p className="text-gray-500 text-lg">No appointments</p>
                 <p className="text-gray-600 text-sm mt-1">
-                  No appointments for this date
+                  {scheduleView === "two_weeks"
+                    ? "No appointments found in the previous 2 weeks"
+                    : scheduleView === "year"
+                    ? `No appointments found for ${viewMonth.year}`
+                    : "No appointments for this date"}
                 </p>
               </div>
             ) : (
@@ -577,7 +637,7 @@ export default function BranchOwnerAppointments() {
                               {apt.customer_name}
                             </div>
                             <div className="text-gray-500 text-xs">
-                              {apt.time} · {apt.customer_email}
+                              {scheduleView !== "date" && apt.date ? `${apt.date} · ` : ""}{apt.time} · {apt.customer_email}
                             </div>
                           </div>
                         </div>
