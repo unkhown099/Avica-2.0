@@ -17,12 +17,13 @@ class ServiceSerializer(serializers.ModelSerializer):
         queryset=Branch.objects.all(), many=True, write_only=True, source="branches"
     )
     price_display = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
 
     class Meta:
         model  = Service
         fields = [
             "id", "name", "category", "description", "image",
-            "duration", "price", "price_display",
+            "duration", "price", "price_display", "features",
             "price_list", "is_active", "branches", "branch_ids", "created_at",
         ]
 
@@ -73,3 +74,9 @@ class ServiceSerializer(serializers.ModelSerializer):
                 return f"₱{lo:,} - ₱{hi:,}"
         amount = int(obj.price or 0)
         return f"₱{amount:,}"
+
+    def get_features(self, obj):
+        if not obj.description:
+            return []
+        lines = [line.strip().lstrip("•-*– \t").strip() for line in obj.description.splitlines() if line.strip()]
+        return [l for l in lines if l]

@@ -465,6 +465,9 @@ function ServiceModal({
                   value={form.description}
                   onChange={(e) => set("description", e.target.value)}
                 />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Tip: Use bullet points (e.g. • or -) to highlight notable features and service specifications in customer cards.
+                </p>
               </Field>
             </div>
           </div>
@@ -1188,6 +1191,14 @@ function AdminServices() {
                         <span className="italic text-gray-600">No description</span>
                       )}
                     </p>
+
+                    {service.features && service.features.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                          <span>✓</span> {service.features.length} Features Included
+                        </span>
+                      </div>
+                    )}
 
                     <div className="space-y-2 mb-4">
                       {service.duration && (

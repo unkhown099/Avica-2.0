@@ -139,9 +139,75 @@ function ServicesPage() {
     }
   };
 
+  const [activeTab, setActiveTab] = useState("all"); // "all", "top10", "recommended"
+  const [top10Period, setTop10Period] = useState("all"); // "all", "month", "year"
+  const [top10Data, setTop10Data] = useState([]);
+  const [top10Loading, setTop10Loading] = useState(false);
+  const [top10Error, setTop10Error] = useState(null);
+
+  const [recommendations, setRecommendations] = useState([]);
+  const [recMethodology, setRecMethodology] = useState("");
+  const [isAiGenerated, setIsAiGenerated] = useState(false);
+  const [recLoading, setRecLoading] = useState(false);
+  const [recError, setRecError] = useState(null);
+
   const authHeaderValue =
     localStorage.getItem("access_token") ||
     sessionStorage.getItem("access_token");
+
+  useEffect(() => {
+    if (activeTab === "top10") {
+      const fetchTop10 = async () => {
+        try {
+          setTop10Loading(true);
+          setTop10Error(null);
+          const res = await fetch(`${API_BASE}/api/services/top-10/?period=${top10Period}`, {
+            headers: authHeaderValue ? { Authorization: `Bearer ${authHeaderValue}` } : {},
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setTop10Data(data.results || []);
+          } else {
+            setTop10Error("Failed to load Top 10 services");
+          }
+        } catch (err) {
+          console.error("Failed to fetch top-10 services:", err);
+          setTop10Error("Failed to connect to server");
+        } finally {
+          setTop10Loading(false);
+        }
+      };
+      fetchTop10();
+    }
+  }, [activeTab, top10Period, authHeaderValue]);
+
+  useEffect(() => {
+    if (activeTab === "recommended") {
+      const fetchRecs = async () => {
+        try {
+          setRecLoading(true);
+          setRecError(null);
+          const res = await fetch(`${API_BASE}/api/services/recommendations/`, {
+            headers: authHeaderValue ? { Authorization: `Bearer ${authHeaderValue}` } : {},
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setRecommendations(data.recommendations || []);
+            setRecMethodology(data.methodology || "");
+            setIsAiGenerated(data.is_ai_generated || false);
+          } else {
+            setRecError("Failed to load personalized recommendations. Please sign in to view recommendations tailored to your vehicles.");
+          }
+        } catch (err) {
+          console.error("Failed to fetch recommendations:", err);
+          setRecError("Failed to connect to server");
+        } finally {
+          setRecLoading(false);
+        }
+      };
+      fetchRecs();
+    }
+  }, [activeTab, authHeaderValue]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -239,273 +305,589 @@ function ServicesPage() {
           </p>
         </div>
 
-        {/* ── Search ── */}
-        <div className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
-          <div className="relative max-w-2xl">
-            <svg
-              className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search services by name or description…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-gray-900/90 border border-white/10 rounded-2xl pl-11 sm:pl-12 pr-4 py-3 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:border-red-600 transition-colors shadow-inner"
-            />
-          </div>
-        </div>
-
-        {/* ── Category Pills — horizontal scroll on mobile ── */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex gap-2.5 overflow-x-auto no-scrollbar px-4 sm:px-6 lg:px-8 pb-2">
-            {categoryOptions.map((cat) => {
-              const isActive = activeCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`category-pill flex-shrink-0 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
-                    isActive
-                      ? "active bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-600"
-                      : "bg-gray-900/80 text-gray-400 border border-white/10 hover:border-red-600/40 hover:text-white"
-                  }`}
-                >
-                  {cat}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {!categoriesLoading && categoriesError && (
-          <p className="mb-4 text-xs text-yellow-500 px-4 sm:px-6 lg:px-8">
-            {categoriesError} Using detected categories from available services.
-          </p>
-        )}
-
-        {/* ── Loading ── */}
-        {loading && (
-          <div className="flex items-center justify-center py-24">
-            <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-
-        {/* ── Error ── */}
-        {!loading && error && (
-          <div className="text-center py-24 px-4">
-            <p className="text-red-400 font-semibold text-lg">{error}</p>
+        {/* ── View Switcher Tabs ── */}
+        <div className="px-4 sm:px-6 lg:px-8 mb-6">
+          <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 border-b border-white/10">
             <button
-              onClick={() => setSearch("")}
-              className="mt-4 text-sm text-gray-500 hover:text-white transition-colors"
+              onClick={() => setActiveTab("all")}
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "all"
+                  ? "bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-500"
+                  : "bg-gray-900/80 text-gray-400 border border-white/10 hover:border-red-600/40 hover:text-white"
+              }`}
             >
-              Try again
+              <span>All Services</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("top10")}
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "top10"
+                  ? "bg-amber-600 text-white shadow-lg shadow-amber-600/30 border border-amber-500"
+                  : "bg-gray-900/80 text-gray-400 border border-white/10 hover:border-amber-600/40 hover:text-white"
+              }`}
+            >
+              <span>🔥 Top 10 Most Demanded</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("recommended")}
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "recommended"
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-600/30 border border-purple-500"
+                  : "bg-gray-900/80 text-gray-400 border border-white/10 hover:border-purple-600/40 hover:text-white"
+              }`}
+            >
+              <span>✨ Recommended For You</span>
             </button>
           </div>
+        </div>
+
+        {/* ── ALL SERVICES TAB ── */}
+        {activeTab === "all" && (
+          <>
+            {/* Search */}
+            <div className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+              <div className="relative max-w-2xl">
+                <svg
+                  className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400 pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search services by name or description…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-gray-900/90 border border-white/10 rounded-2xl pl-11 sm:pl-12 pr-4 py-3 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:border-red-600 transition-colors shadow-inner"
+                />
+              </div>
+            </div>
+
+            {/* Category Pills */}
+            <div className="mb-6 sm:mb-8">
+              <div className="flex gap-2.5 overflow-x-auto no-scrollbar px-4 sm:px-6 lg:px-8 pb-2">
+                {categoryOptions.map((cat) => {
+                  const isActive = activeCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`category-pill flex-shrink-0 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
+                        isActive
+                          ? "active bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-600"
+                          : "bg-gray-900/80 text-gray-400 border border-white/10 hover:border-red-600/40 hover:text-white"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {!categoriesLoading && categoriesError && (
+              <p className="mb-4 text-xs text-yellow-500 px-4 sm:px-6 lg:px-8">
+                {categoriesError} Using detected categories from available services.
+              </p>
+            )}
+
+            {/* Loading */}
+            {loading && (
+              <div className="flex items-center justify-center py-24">
+                <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {/* Error */}
+            {!loading && error && (
+              <div className="text-center py-24 px-4">
+                <p className="text-red-400 font-semibold text-lg">{error}</p>
+                <button
+                  onClick={() => setSearch("")}
+                  className="mt-4 text-sm text-gray-500 hover:text-white transition-colors"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {/* Service Cards */}
+            {!loading && !error && services.length > 0 && (
+              <div className="px-4 sm:px-6 lg:px-8 pb-10">
+                {/* MOBILE: compact horizontal-strip list */}
+                <div className="flex flex-col gap-3 sm:hidden">
+                  {services.map((service) => (
+                    <div
+                      key={service.id}
+                      onClick={() => handleServiceClick(service)}
+                      className="group bg-gray-900/80 border border-white/5 rounded-2xl overflow-hidden active:scale-[0.98] transition-all duration-150 cursor-pointer"
+                    >
+                      <div className="h-0.5 bg-gradient-to-r from-red-600 to-red-900 w-full" />
+                      <div className="flex items-center gap-4 p-4">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-red-600/10 flex items-center justify-center">
+                          {service.image ? (
+                            <img
+                              src={service.image.startsWith('http') ? service.image : `${API_BASE}${service.image}`}
+                              className="w-full h-full object-cover"
+                              alt={service.name}
+                            />
+                          ) : (
+                            <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={SERVICE_ICON} />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="mb-0.5">
+                            <CategoryBadge category={service.category} />
+                          </div>
+                          <h3 className="text-sm font-black text-white truncate">
+                            {service.name}
+                          </h3>
+                          <p className="text-xs text-gray-400 truncate mt-0.5">
+                            {service.description}
+                          </p>
+                          {service.features && service.features.length > 0 && (
+                            <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium truncate mt-1">
+                              <span>✓</span>
+                              <span className="truncate">{service.features[0]}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <div className="text-base font-black text-white">
+                            {service.price_display}
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {service.duration}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate("/bookings", {
+                                state: {
+                                  openBooking: true,
+                                  prefillServiceId: service.id,
+                                },
+                              });
+                            }}
+                            className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold px-3 py-1 rounded-lg text-xs transition-colors shadow-md shadow-red-600/20"
+                          >
+                            Book
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* TABLET / DESKTOP: original card grid */}
+                <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-6">
+                  {services.map((service) => (
+                    <div
+                      key={service.id}
+                      onClick={() => handleServiceClick(service)}
+                      className="group bg-gray-900 border border-white/5 rounded-3xl overflow-hidden hover:border-red-600/30 transition-all duration-500 hover:-translate-y-2 flex flex-col relative cursor-pointer"
+                    >
+                      <div className="relative aspect-[4/3] w-full bg-gray-800 overflow-hidden">
+                        {service.image ? (
+                          <img
+                            src={service.image.startsWith('http') ? service.image : `${API_BASE}${service.image}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            alt={service.name}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                            <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center">
+                              <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={SERVICE_ICON} />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                        <div className="absolute top-3.5 left-3.5 z-10">
+                          <CategoryBadge category={service.category} />
+                        </div>
+                      </div>
+
+                      <div className="p-6 pt-3 flex flex-col flex-1">
+                        <h3 className="text-xl font-black text-white mb-2 group-hover:text-red-500 transition-colors">
+                          {service.name}
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-3 line-clamp-2 leading-relaxed">
+                          {service.description}
+                        </p>
+                        {service.features && service.features.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            {service.features.slice(0, 2).map((feat, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-gray-300"
+                              >
+                                <span className="text-emerald-400 font-bold">✓</span> {feat}
+                              </span>
+                            ))}
+                            {service.features.length > 2 && (
+                              <span className="text-[10px] text-gray-500 self-center">
+                                +{service.features.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-auto">
+                          <div>
+                            <div className="text-xl font-black text-white">
+                              {service.price_display}
+                            </div>
+                            <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {service.duration}
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate("/bookings", {
+                                state: {
+                                  openBooking: true,
+                                  prefillServiceId: service.id,
+                                },
+                              });
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-red-600/20 text-sm"
+                          >
+                            Book Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && !error && services.length === 0 && (
+              <div className="text-center py-24 text-gray-500 px-4">
+                <svg className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-base sm:text-lg font-semibold">No services found</p>
+              </div>
+            )}
+          </>
         )}
 
-        {/* ── Service Cards ── */}
-        {!loading && !error && services.length > 0 && (
+        {/* ── TOP 10 MOST DEMANDED TAB ── */}
+        {activeTab === "top10" && (
           <div className="px-4 sm:px-6 lg:px-8 pb-10">
-            {/* MOBILE: compact horizontal-strip list */}
-            <div className="flex flex-col gap-3 sm:hidden">
-              {services.map((service) => (
-                <div
-                  key={service.id}
-                  onClick={() => handleServiceClick(service)}
-                  className="group bg-gray-900/80 border border-white/5 rounded-2xl overflow-hidden active:scale-[0.98] transition-all duration-150 cursor-pointer"
-                >
-                  {/* Top accent stripe */}
-                  <div className="h-0.5 bg-gradient-to-r from-red-600 to-red-900 w-full" />
-
-                  <div className="flex items-center gap-4 p-4">
-                    {/* Image/Icon */}
-                    <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-red-600/10 flex items-center justify-center">
-                      {service.image ? (
-                        <img
-                          src={service.image.startsWith('http') ? service.image : `${API_BASE}${service.image}`}
-                          className="w-full h-full object-cover"
-                          alt={service.name}
-                        />
-                      ) : (
-                        <svg
-                          className="w-6 h-6 text-red-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d={SERVICE_ICON}
-                          />
-                        </svg>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-0.5">
-                        <CategoryBadge category={service.category} />
-                      </div>
-                      <h3 className="text-sm font-black text-white truncate">
-                        {service.name}
-                      </h3>
-                      <p className="text-xs text-gray-400 truncate mt-0.5">
-                        {service.description}
-                      </p>
-                    </div>
-
-                    {/* Price + CTA */}
-                    <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      <div className="text-base font-black text-white">
-                        {service.price_display}
-                      </div>
-                      <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                        <svg
-                          className="w-3 h-3"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        {service.duration}
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate("/bookings", {
-                            state: {
-                              openBooking: true,
-                              prefillServiceId: service.id,
-                            },
-                          });
-                        }}
-                        className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold px-3 py-1 rounded-lg text-xs transition-colors shadow-md shadow-red-600/20"
-                      >
-                        Book
-                      </button>
-                    </div>
-                  </div>
+            {/* Header & Period Filters */}
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-amber-500 text-lg">🔥</span>
+                  <h2 className="text-lg sm:text-xl font-black text-white">Top 10 Most Demanded Services</h2>
                 </div>
-              ))}
+                <p className="text-xs sm:text-sm text-gray-400">
+                  Ranked by actual completed and paid customer bookings (excluding cancellations).
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {[
+                  { key: "all", label: "All Time" },
+                  { key: "year", label: "This Year" },
+                  { key: "month", label: "This Month" },
+                ].map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => setTop10Period(p.key)}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                      top10Period === p.key
+                        ? "bg-amber-600 text-white shadow-md shadow-amber-600/30"
+                        : "bg-white/5 text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* TABLET / DESKTOP: original card grid */}
-            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-6">
-              {services.map((service) => (
-                <div
-                  key={service.id}
-                  onClick={() => handleServiceClick(service)}
-                  className="group bg-gray-900 border border-white/5 rounded-3xl overflow-hidden hover:border-red-600/30 transition-all duration-500 hover:-translate-y-2 flex flex-col relative cursor-pointer"
-                >
-                  <div className="relative aspect-[4/3] w-full bg-gray-800 overflow-hidden">
-                    {service.image ? (
-                      <img
-                        src={service.image.startsWith('http') ? service.image : `${API_BASE}${service.image}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        alt={service.name}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                        <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={SERVICE_ICON} />
-                          </svg>
+            {top10Loading && (
+              <div className="flex items-center justify-center py-24">
+                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {!top10Loading && top10Error && (
+              <div className="text-center py-20 px-4">
+                <p className="text-red-400 font-semibold">{top10Error}</p>
+              </div>
+            )}
+
+            {!top10Loading && !top10Error && top10Data.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-6">
+                {top10Data.map((item) => {
+                  const svc = item.service || {};
+                  const rank = item.rank;
+                  const rankBadgeClass =
+                    rank === 1
+                      ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-lg shadow-yellow-500/30"
+                      : rank === 2
+                      ? "bg-gradient-to-r from-slate-200 to-slate-400 text-black shadow-md"
+                      : rank === 3
+                      ? "bg-gradient-to-r from-amber-700 to-orange-600 text-white shadow-md"
+                      : "bg-gray-800 text-white border border-white/10";
+
+                  return (
+                    <div
+                      key={svc.id || item.rank}
+                      onClick={() => handleServiceClick(svc)}
+                      className="group bg-gray-900 border border-white/5 rounded-3xl overflow-hidden hover:border-amber-500/40 transition-all duration-300 flex flex-col relative cursor-pointer"
+                    >
+                      <div className="relative aspect-[4/3] w-full bg-gray-800 overflow-hidden">
+                        {svc.image ? (
+                          <img
+                            src={svc.image.startsWith('http') ? svc.image : `${API_BASE}${svc.image}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            alt={svc.name}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                            <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center">
+                              <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={SERVICE_ICON} />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                        <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider ${rankBadgeClass}`}>
+                            #{rank} Rank
+                          </span>
+                          <CategoryBadge category={svc.category} />
+                        </div>
+                        <div className="absolute bottom-3 right-3 z-10 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[11px] font-bold text-amber-400">
+                          🔥 {item.completed_count} completed
                         </div>
                       </div>
-                    )}
-                    <div className="absolute top-3.5 left-3.5 z-10">
-                      <CategoryBadge category={service.category} />
-                    </div>
-                  </div>
 
-                  <div className="p-6 pt-2 flex flex-col flex-1">
-                    <h3 className="text-xl font-black text-white mb-2 group-hover:text-red-500 transition-colors">
-                      {service.name}
-                    </h3>
-                    <p className="text-gray-400 text-sm mb-6 line-clamp-2 leading-relaxed">
-                      {service.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-xl font-black text-white">
-                          {service.price_display}
-                        </div>
-                        <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                          <svg
-                            className="w-3 h-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                      <div className="p-6 pt-3 flex flex-col flex-1">
+                        <h3 className="text-xl font-black text-white mb-2 group-hover:text-amber-400 transition-colors">
+                          {svc.name}
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-3 line-clamp-2 leading-relaxed">
+                          {svc.description}
+                        </p>
+                        {svc.features && svc.features.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            {svc.features.slice(0, 2).map((feat, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-gray-300"
+                              >
+                                <span className="text-emerald-400 font-bold">✓</span> {feat}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-auto">
+                          <div>
+                            <div className="text-xl font-black text-white">
+                              {svc.price_display}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {svc.duration}
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate("/bookings", {
+                                state: {
+                                  openBooking: true,
+                                  prefillServiceId: svc.id,
+                                },
+                              });
+                            }}
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl transition-all shadow-lg shadow-amber-600/20 text-sm"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          {service.duration}
+                            Book Now
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate("/bookings", {
-                            state: {
-                              openBooking: true,
-                              prefillServiceId: service.id,
-                            },
-                          });
-                        }}
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg shadow-red-600/20 text-sm"
-                      >
-                        Book Now
-                      </button>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!top10Loading && !top10Error && top10Data.length === 0 && (
+              <div className="text-center py-24 text-gray-500 px-4">
+                <p className="text-base sm:text-lg font-semibold">No completed services recorded for this period yet.</p>
+                <p className="text-xs text-gray-600 mt-1">Bookings will automatically be tracked and ranked as transactions complete.</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── Empty state ── */}
-        {!loading && !error && services.length === 0 && (
-          <div className="text-center py-24 text-gray-500 px-4">
-            <svg
-              className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 opacity-30"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <p className="text-base sm:text-lg font-semibold">
-              No services found
-            </p>
+        {/* ── RECOMMENDED FOR YOU TAB ── */}
+        {activeTab === "recommended" && (
+          <div className="px-4 sm:px-6 lg:px-8 pb-10">
+            {/* Methodology & AI Banner */}
+            <div className="mb-6 bg-gradient-to-r from-purple-950/40 via-gray-900 to-purple-950/20 border border-purple-500/20 rounded-2xl p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-purple-400 text-lg">✨</span>
+                    <h2 className="text-lg sm:text-xl font-black text-white">Personalized Recommendations</h2>
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      {isAiGenerated ? "AI Generated" : "Data-Driven Rule Model"}
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                    {recMethodology || "Analyzes vehicle profile, routine maintenance intervals (30+ days), and frequent detailing combinations."}
+                  </p>
+                </div>
+                {!authHeaderValue && (
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="self-start sm:self-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-600/30 shrink-0"
+                  >
+                    Sign In for Personalization
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {recLoading && (
+              <div className="flex items-center justify-center py-24">
+                <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {!recLoading && recError && (
+              <div className="text-center py-20 px-4">
+                <p className="text-purple-300 font-semibold mb-2">{recError}</p>
+                {!authHeaderValue && (
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="mt-2 px-5 py-2.5 bg-red-600 text-white rounded-xl font-bold text-sm"
+                  >
+                    Log In
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!recLoading && !recError && recommendations.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-6">
+                {recommendations.map((item, idx) => {
+                  const svc = item.service || {};
+                  return (
+                    <div
+                      key={svc.id || idx}
+                      onClick={() => handleServiceClick(svc)}
+                      className="group bg-gray-900 border border-white/5 rounded-3xl overflow-hidden hover:border-purple-500/40 transition-all duration-300 flex flex-col relative cursor-pointer"
+                    >
+                      <div className="relative aspect-[4/3] w-full bg-gray-800 overflow-hidden">
+                        {svc.image ? (
+                          <img
+                            src={svc.image.startsWith('http') ? svc.image : `${API_BASE}${svc.image}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            alt={svc.name}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                            <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center">
+                              <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={SERVICE_ICON} />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                        <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-2">
+                          <CategoryBadge category={svc.category} />
+                          {item.badge && (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-600/90 text-white shadow-md">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-6 pt-3 flex flex-col flex-1">
+                        {item.basis && (
+                          <div className="mb-3 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] font-semibold text-purple-300">
+                            💡 {item.basis}
+                          </div>
+                        )}
+                        <h3 className="text-xl font-black text-white mb-2 group-hover:text-purple-400 transition-colors">
+                          {svc.name}
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-3 line-clamp-2 leading-relaxed">
+                          {svc.description}
+                        </p>
+                        {svc.features && svc.features.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            {svc.features.slice(0, 2).map((feat, fIdx) => (
+                              <span
+                                key={fIdx}
+                                className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-gray-300"
+                              >
+                                <span className="text-emerald-400 font-bold">✓</span> {feat}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-auto">
+                          <div>
+                            <div className="text-xl font-black text-white">
+                              {svc.price_display}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {svc.duration}
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate("/bookings", {
+                                state: {
+                                  openBooking: true,
+                                  prefillServiceId: svc.id,
+                                },
+                              });
+                            }}
+                            className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-600/20 text-sm"
+                          >
+                            Book Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!recLoading && !recError && recommendations.length === 0 && (
+              <div className="text-center py-24 text-gray-500 px-4">
+                <p className="text-base sm:text-lg font-semibold">No recommendations found</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -636,6 +1018,33 @@ function ServicesPage() {
                     <div className="flex items-center gap-4 mb-4"><h4 className="text-xs font-black text-red-600 uppercase tracking-[0.2em] whitespace-nowrap">Service Description</h4><div className="h-px w-full bg-white/5" /></div>
                     <p className="text-gray-400 text-lg leading-relaxed whitespace-pre-wrap font-medium">{selectedService.description || "No full description available for this service."}</p>
                   </div>
+                  {selectedService.features && selectedService.features.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-4 mb-4">
+                        <h4 className="text-xs font-black text-emerald-500 uppercase tracking-[0.2em] whitespace-nowrap">
+                          Notable Features & Inclusions
+                        </h4>
+                        <div className="h-px w-full bg-white/5" />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {selectedService.features.map((feature, fIdx) => (
+                          <div
+                            key={fIdx}
+                            className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-emerald-500/30 transition-colors"
+                          >
+                            <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-500/20">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                            <span className="text-sm text-gray-300 font-medium leading-snug">
+                              {feature}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {selectedService.price_list && Object.keys(selectedService.price_list).length > 0 && (
                     <div className="p-4 rounded-xl bg-red-600/5 border border-red-600/10 flex items-start gap-3">
                       <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

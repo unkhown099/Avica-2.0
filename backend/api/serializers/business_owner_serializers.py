@@ -144,14 +144,21 @@ class OwnerAppointmentSerializer(serializers.ModelSerializer):
 class OwnerServiceSerializer(serializers.ModelSerializer):
     branch_names = serializers.SerializerMethodField()
     price_range  = serializers.SerializerMethodField()
+    features     = serializers.SerializerMethodField()
 
     class Meta:
         model  = Service
         fields = [
             "id", "name", "category", "description",
-            "duration", "price",
+            "duration", "price", "features",
             "price_range", "is_active", "branch_names",
         ]
+
+    def get_features(self, obj):
+        if not obj.description:
+            return []
+        lines = [line.strip().lstrip("•-*– \t").strip() for line in obj.description.splitlines() if line.strip()]
+        return [l for l in lines if l]
 
     def get_branch_names(self, obj):
         return list(obj.branches.values_list("name", flat=True))

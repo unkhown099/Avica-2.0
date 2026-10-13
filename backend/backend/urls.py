@@ -25,7 +25,10 @@ from api.views.chatbot_views import chat_with_groq
 from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
 from api.views.dashboard_views import AdminDashboardView, ManagerDashboardView, ManagerScheduleConfigView, StaffDashboardView
-from api.views.service_views import ServiceListCreateView, ServiceDetailView, ServiceCategoryListCreateView
+from api.views.service_views import (
+    ServiceListCreateView, ServiceDetailView, ServiceCategoryListCreateView,
+    Top10ServicesView, RecommendedServicesView
+)
 from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView, CustomerSettingsView, ManagerCustomerHistoryView
 from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
 from api.views.inventory_views import (
@@ -229,6 +232,10 @@ urlpatterns = [
     path('services/',              ServiceListCreateView.as_view(),     name='service-list'),
     path('services/<int:pk>/',     ServiceDetailView.as_view(),         name='service-detail'),
     path('services/categories/',   ServiceCategoryListCreateView.as_view(), name='service-categories'),
+    path('api/services/top-10/',   Top10ServicesView.as_view(),         name='top-10-services'),
+    path('services/top-10/',       Top10ServicesView.as_view()),
+    path('api/services/recommendations/', RecommendedServicesView.as_view(), name='recommended-services'),
+    path('services/recommendations/', RecommendedServicesView.as_view()),
     path('customers/',             AdminCustomerListView.as_view(),     name='admin-customers'),
     path('api/manager/customers/<int:customer_id>/history/', ManagerCustomerHistoryView.as_view(), name='manager-customer-history'),
     path('api/admin/customers/<int:customer_id>/history/', ManagerCustomerHistoryView.as_view(), name='admin-customer-history'),

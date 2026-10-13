@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "./AdminLayout";
 import axios from "axios";
@@ -14,6 +15,7 @@ const roles = [
   "Inventory",
   "Inventory Manager",
 ];
+
 const kpiRoles = [
   "Branch Manager",
   "Staff",
@@ -21,10 +23,12 @@ const kpiRoles = [
   "Inventory",
   "Inventory Manager",
 ];
+
 const createRoles = roles.filter(
-  (r) => r !== "Admin" && r !== "Business Owner",
+  (role) => role !== "Admin" && role !== "Business Owner",
 );
-const editRoles = roles.filter((r) => r !== "Admin");
+
+const editRoles = roles.filter((role) => role !== "Admin");
 
 const roleColors = {
   Admin: "#ef4444",
@@ -48,7 +52,10 @@ const ROLE_BADGE_STYLE = {
 
 const getRoleBadge = (role) => (
   <span
-    className={`inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold border ${ROLE_BADGE_STYLE[role] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+    className={`inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold border ${
+      ROLE_BADGE_STYLE[role] ||
+      "bg-gray-500/20 text-gray-400 border-gray-500/30"
+    }`}
   >
     {role}
   </span>
@@ -56,57 +63,82 @@ const getRoleBadge = (role) => (
 
 const getStatusBadge = (status) => (
   <span
-    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${status === "Active" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+      status === "Active"
+        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+        : "bg-gray-500/20 text-gray-400 border-gray-500/30"
+    }`}
   >
     {status}
   </span>
 );
 
-// ── Mobile Staff Card ─────────────────────────────────────────────────────────
+function EditIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      />
+    </svg>
+  );
+}
+
 function StaffCard({ staff, onEdit }) {
   return (
     <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 hover:border-white/10 transition-all">
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
             style={{
-              backgroundColor: (roleColors[staff.role] ?? "#6b7280") + "33",
-              color: roleColors[staff.role] ?? "#6b7280",
+              backgroundColor: (roleColors[staff.role] || "#6b7280") + "33",
+              color: roleColors[staff.role] || "#6b7280",
             }}
           >
-            {staff.name.charAt(0).toUpperCase()}
+            {staff.name?.charAt(0)?.toUpperCase() || "?"}
           </div>
-          <div>
-            <div className="text-white font-semibold text-sm">{staff.name}</div>
-            <div className="text-gray-500 text-xs">{staff.email}</div>
+
+          <div className="min-w-0">
+            <div className="text-white font-semibold text-sm truncate">
+              {staff.name}
+            </div>
+            <div className="text-gray-500 text-xs truncate">
+              {staff.email}
+            </div>
           </div>
         </div>
+
         {getRoleBadge(staff.role)}
       </div>
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>{staff.branch || "—"}</span>
-        <div className="flex items-center gap-2">
+
+      <div className="flex items-center justify-between text-xs text-gray-500 gap-2">
+        <span className="truncate">{staff.branch || "—"}</span>
+
+        <div className="flex items-center gap-2 shrink-0">
           {getStatusBadge(staff.status)}
+
           <button
             type="button"
-            onClick={() => onEdit(staff)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEdit(staff);
+            }}
             disabled={staff.role === "Admin"}
+            aria-label={`Edit ${staff.name}'s account`}
+            title="Edit staff account"
             className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
+            <EditIcon />
           </button>
         </div>
       </div>
@@ -124,19 +156,25 @@ function AdminStaffAccounts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchStaff = async () => {
       const accessToken =
         localStorage.getItem("access_token") ||
         sessionStorage.getItem("access_token");
+
       if (!accessToken) {
-        Swal.fire({
-          icon: "error",
-          title: "Unauthorized",
-          text: "Please login first",
-        });
-        setLoading(false);
+        if (!cancelled) {
+          Swal.fire({
+            icon: "error",
+            title: "Unauthorized",
+            text: "Please login first",
+          });
+          setLoading(false);
+        }
         return;
       }
+
       try {
         const [staffRes, branchRes] = await Promise.all([
           axios.get(`${API_BASE}/staff/`, {
@@ -146,33 +184,57 @@ function AdminStaffAccounts() {
             headers: { Authorization: `Bearer ${accessToken}` },
           }),
         ]);
-        const visibleStaff = (Array.isArray(staffRes.data) ? staffRes.data : []).filter((item) => {
+
+        if (cancelled) return;
+
+        const visibleStaff = (
+          Array.isArray(staffRes.data) ? staffRes.data : []
+        ).filter((item) => {
           const role = String(item?.role || "").trim().toLowerCase();
-          return role !== "business owner" && role !== "super_admin" && role !== "super admin";
+          return (
+            role !== "business owner" &&
+            role !== "super_admin" &&
+            role !== "super admin"
+          );
         });
+
         setStaffAccounts(visibleStaff);
-        setBranches(branchRes.data);
+        setBranches(Array.isArray(branchRes.data) ? branchRes.data : []);
       } catch (err) {
-        if (err.response?.status === 401)
+        if (cancelled) return;
+
+        if (err.response?.status === 401) {
           Swal.fire({
             icon: "error",
             title: "Unauthorized",
             text: "Your session has expired. Please login again.",
           });
+        } else {
+          console.error("Failed to load staff accounts:", err);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
+
     fetchStaff();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredStaff = staffAccounts.filter((staff) => {
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
+
     const matchesSearch =
-      staff.name.toLowerCase().includes(q) ||
-      staff.email.toLowerCase().includes(q) ||
-      String(staff.id).includes(q);
-    const matchesRole = roleFilter === "All Roles" || staff.role === roleFilter;
+      String(staff.name || "").toLowerCase().includes(q) ||
+      String(staff.email || "").toLowerCase().includes(q) ||
+      String(staff.id || "").includes(q);
+
+    const matchesRole =
+      roleFilter === "All Roles" || staff.role === roleFilter;
+
     return matchesSearch && matchesRole;
   });
 
@@ -190,7 +252,7 @@ function AdminStaffAccounts() {
   });
 
   const roleCounts = roles.reduce((acc, role) => {
-    acc[role] = staffAccounts.filter((s) => s.role === role).length;
+    acc[role] = staffAccounts.filter((staff) => staff.role === role).length;
     return acc;
   }, {});
 
@@ -198,6 +260,7 @@ function AdminStaffAccounts() {
     const accessToken =
       localStorage.getItem("access_token") ||
       sessionStorage.getItem("access_token");
+
     if (!accessToken) {
       await Swal.fire({
         icon: "error",
@@ -206,25 +269,36 @@ function AdminStaffAccounts() {
       });
       return false;
     }
+
     const { value: password } = await Swal.fire({
       title: "Verify Password",
       input: "password",
       inputLabel: "Enter your password to continue",
       inputPlaceholder: "Current password",
-      inputAttributes: { autocapitalize: "off", autocorrect: "off" },
+      inputAttributes: {
+        name: "staffAccessVerification",
+        id: "staff-access-verification",
+        autocomplete: "current-password",
+        autocapitalize: "off",
+        autocorrect: "off",
+        spellcheck: "false",
+      },
       showCancelButton: true,
       confirmButtonText: "Verify",
       confirmButtonColor: "#dc2626",
       background: "#111827",
       color: "#f9fafb",
     });
+
     if (!password) return false;
+
     try {
       await axios.post(
         `${API_BASE}/staff/verify-password/`,
         { password },
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
+
       return true;
     } catch {
       await Swal.fire({
@@ -234,13 +308,14 @@ function AdminStaffAccounts() {
         background: "#111827",
         color: "#f9fafb",
       });
+
       return false;
     }
   };
 
   const openCreateModal = async () => {
-    const verified = await verifyAccessPassword();
-    if (!verified) return;
+    if (!(await verifyAccessPassword())) return;
+
     setEditStaff(null);
     setShowCreateModal(true);
   };
@@ -256,8 +331,9 @@ function AdminStaffAccounts() {
       });
       return;
     }
-    const verified = await verifyAccessPassword();
-    if (!verified) return;
+
+    if (!(await verifyAccessPassword())) return;
+
     setEditStaff(staff);
     setShowCreateModal(true);
   };
@@ -278,7 +354,6 @@ function AdminStaffAccounts() {
   return (
     <AdminLayout title="" subtitle="">
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-4 sm:p-8">
-        {/* ── Header: title + button stacked on the left ── */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Staff Accounts
@@ -286,27 +361,17 @@ function AdminStaffAccounts() {
           <p className="text-gray-400 mt-1 text-sm sm:text-base">
             Manage your team members and access levels
           </p>
+
           <button
+            type="button"
             onClick={openCreateModal}
-className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
+            className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
+          >
+            <span aria-hidden="true">+</span>
             Add Staff
           </button>
         </div>
 
-        {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6 sm:mb-8">
           {kpiRoles.map((role) => (
             <div
@@ -334,61 +399,38 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
           ))}
         </div>
 
-        {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="relative flex-1">
-            <svg
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search by name, email, or ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm"
-            />
-          </div>
+          <input
+            type="search"
+            name="staffAccountSearch"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="Search by name, email, or ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 text-sm"
+          />
+
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer text-sm"
+            className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-4 py-3 text-sm"
           >
             <option value="All Roles">All Roles</option>
-            {roles.map((r) => (
-              <option key={r}>{r}</option>
+            {roles.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
             ))}
           </select>
         </div>
 
-        {/* Mobile Cards */}
         <div className="md:hidden space-y-3 mb-4">
           {filteredStaff.length === 0 ? (
-            <div className="py-16 text-center">
-              <svg
-                className="w-12 h-12 text-gray-700 mx-auto mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-              <p className="text-gray-500">No staff accounts found</p>
-            </div>
+            <p className="py-16 text-center text-gray-500">
+              No staff accounts found
+            </p>
           ) : (
             paginatedItems.map((staff, index) => (
               <div key={staff.id} className="relative">
@@ -401,8 +443,7 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
           )}
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+        <div className="hidden md:block bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden">
           <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <div className="col-span-1">#</div>
             <div className="col-span-2">Name</div>
@@ -415,24 +456,8 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
           </div>
 
           {filteredStaff.length === 0 ? (
-            <div className="py-20 text-center">
-              <svg
-                className="w-12 h-12 text-gray-700 mx-auto mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-              <p className="text-gray-500 text-lg">No staff accounts found</p>
-              <p className="text-gray-600 text-sm mt-1">
-                Try adjusting your search or filters
-              </p>
+            <div className="py-20 text-center text-gray-500">
+              No staff accounts found. Try adjusting your search or filters.
             </div>
           ) : (
             paginatedItems.map((staff, index) => (
@@ -443,54 +468,43 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
                 <div className="col-span-1 text-xs text-gray-500">
                   #{startItem + index}
                 </div>
-                <div className="col-span-2">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
-                      style={{
-                        backgroundColor:
-                          (roleColors[staff.role] ?? "#6b7280") + "33",
-                        color: roleColors[staff.role] ?? "#6b7280",
-                      }}
-                    >
-                      {staff.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="text-white font-semibold text-sm truncate">
-                      {staff.name}
-                    </div>
-                  </div>
+
+                <div className="col-span-2 text-white font-semibold text-sm truncate">
+                  {staff.name}
                 </div>
+
                 <div className="col-span-2 text-gray-400 text-sm truncate">
                   {staff.email}
                 </div>
+
                 <div className="col-span-2 text-gray-400 text-sm">
                   {staff.phone}
                 </div>
+
                 <div className="col-span-1 text-gray-400 text-sm truncate">
                   {staff.branch || "—"}
                 </div>
+
                 <div className="col-span-2">{getRoleBadge(staff.role)}</div>
-                <div className="col-span-1">{getStatusBadge(staff.status)}</div>
+
+                <div className="col-span-1">
+                  {getStatusBadge(staff.status)}
+                </div>
+
                 <div className="col-span-1 flex justify-end">
                   <button
                     type="button"
-                    onClick={() => openEditModal(staff)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openEditModal(staff);
+                    }}
                     disabled={staff.role === "Admin"}
+                    aria-label={`Edit ${staff.name}'s account`}
+                    title="Edit staff account"
                     className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
+                    <EditIcon />
                   </button>
                 </div>
               </div>
@@ -512,6 +526,7 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
               </p>
             </div>
           )}
+
           <Pagination
             current={currentPage}
             total={totalPages}
@@ -520,18 +535,10 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
           />
         </div>
 
-        {/* Mobile pagination */}
         {filteredStaff.length > 0 && (
           <div className="md:hidden mt-2">
             <p className="text-gray-500 text-sm mb-3">
-              Showing{" "}
-              <span className="text-white font-semibold">
-                {startItem}-{endItem}
-              </span>{" "}
-              of{" "}
-              <span className="text-white font-semibold">
-                {filteredStaff.length}
-              </span>
+              Showing {startItem}-{endItem} of {filteredStaff.length}
             </p>
             <Pagination
               current={currentPage}
@@ -553,14 +560,16 @@ className="mt-4 ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text
           setShowCreateModal(false);
           setEditStaff(null);
         }}
-        onCreated={(newStaff) =>
-          setStaffAccounts((prev) => [...prev, newStaff])
-        }
-        onUpdated={(updatedStaff) =>
+        onCreated={(newStaff) => {
+          setStaffAccounts((prev) => [...prev, newStaff]);
+        }}
+        onUpdated={(updatedStaff) => {
           setStaffAccounts((prev) =>
-            prev.map((s) => (s.id === updatedStaff.id ? updatedStaff : s)),
-          )
-        }
+            prev.map((staff) =>
+              staff.id === updatedStaff.id ? updatedStaff : staff,
+            ),
+          );
+        }}
       />
     </AdminLayout>
   );
@@ -578,51 +587,72 @@ function CreateStaffModal({
   onUpdated,
 }) {
   const isEdit = mode === "edit";
-  const validateName = (value) => /^[A-Za-z]+(?: [A-Za-z]+)*$/.test(String(value || "").trim());
-  const validatePhone = (value) => {
-    const trimmed = String(value || "").trim();
-    if (!/^\+63\d+$/.test(trimmed)) return false;
-    return trimmed.length <= 13;
-  };
+
+  const validateName = (value) =>
+    /^[A-Za-z]+(?: [A-Za-z]+)*$/.test(String(value || "").trim());
+
+  const validatePhone = (value) =>
+    /^\+63\d{10}$/.test(String(value || "").trim());
+
   const sanitizeNameInput = (value) =>
     String(value || "")
       .replace(/[^A-Za-z\s]/g, "")
       .replace(/\s{2,}/g, " ");
+
   const sanitizePhoneInput = (value) => {
-    const raw = String(value || "");
-    let digits = raw.replace(/[^\d]/g, "");
-    if (digits.startsWith("63")) digits = digits.slice(2);
-    return `+63${digits.slice(0, 10)}`;
+    let digits = String(value || "").replace(/\D/g, "");
+
+    if (digits.startsWith("63")) {
+      digits = digits.slice(2);
+    }
+
+    if (digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
+
+    return digits.slice(0, 10);
   };
-  const createDraftRef = useRef({
+
+  const getInitialDraft = () => ({
     firstName: "",
     lastName: "",
     email: "",
-    phone: "",
+    phone: "+63",
     role: roles[0] || "",
     branch: "",
     status: "Active",
     password: "",
     confirmPassword: "",
   });
-  const contextRef = useRef("create");
 
   const buildEditForm = (staff) => {
-    const initialName = (staff?.name || "").trim();
+    const initialName = String(staff?.name || "").trim();
+
     const parsedFirstName =
       staff?.first_name ||
       initialName.split(" ").slice(0, -1).join(" ") ||
       initialName;
+
     const parsedLastName =
-      staff?.last_name || initialName.split(" ").slice(-1).join(" ") || "";
+      staff?.last_name ||
+      initialName.split(" ").slice(-1).join(" ") ||
+      "";
+
+    const existingPhone = String(staff?.phone || "").trim();
+
+    const normalizedPhone = `+63${sanitizePhoneInput(existingPhone)}`;
+
     const branchMatch = branches.find(
-      (branch) => String(branch.id) === String(staff?.branch_id) || branch.name === staff?.branch,
+      (branch) =>
+        String(branch.id) === String(staff?.branch_id) ||
+        branch.name === staff?.branch,
     );
+
     return {
       firstName: parsedFirstName || "",
       lastName: parsedLastName || "",
       email: staff?.email || "",
-      phone: staff?.phone || "",
+      phone: normalizedPhone,
       role: staff?.role || roles[0] || "",
       branch: branchMatch ? String(branchMatch.id) : "",
       status: staff?.status || "Active",
@@ -631,28 +661,24 @@ function CreateStaffModal({
     };
   };
 
-  const getInitialDraft = () => ({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    role: roles[0] || "",
-    branch: "",
-    status: "Active",
-    password: "",
-    confirmPassword: "",
-  });
+  const createDraftRef = useRef(getInitialDraft());
+  const contextRef = useRef("create");
 
   const [form, setForm] = useState(() =>
     isEdit ? buildEditForm(initialStaff) : getInitialDraft(),
   );
 
   useEffect(() => {
-    if (!isEdit) createDraftRef.current = form;
+    if (!isEdit) {
+      createDraftRef.current = form;
+    }
   }, [form, isEdit]);
 
   useEffect(() => {
-    const nextContext = isEdit ? `edit:${initialStaff?.id ?? "new"}` : "create";
+    const nextContext = isEdit
+      ? `edit:${initialStaff?.id ?? "new"}`
+      : "create";
+
     if (contextRef.current === nextContext) return;
 
     if (nextContext === "create") {
@@ -660,37 +686,44 @@ function CreateStaffModal({
     } else {
       setForm(buildEditForm(initialStaff));
     }
+
     contextRef.current = nextContext;
   }, [isEdit, initialStaff, roles, branches]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let nextValue = value;
-    if (name === "firstName" || name === "lastName") nextValue = sanitizeNameInput(value);
-    if (name === "phone") {
-      const local = sanitizePhoneInput(value);
-      nextValue = local ? `+63${local}` : "";
+
+    if (name === "firstName" || name === "lastName") {
+      nextValue = sanitizeNameInput(value);
     }
-    setForm({ ...form, [name]: nextValue });
+
+    if (name === "phone") {
+      nextValue = `+63${sanitizePhoneInput(value)}`;
+    }
+
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const managerBranchNames = new Set(
     staffAccounts
       .filter(
-        (s) =>
-          s.role === "Branch Manager" && (!isEdit || s.id !== initialStaff?.id),
+        (staff) =>
+          staff.role === "Branch Manager" &&
+          (!isEdit || staff.id !== initialStaff?.id),
       )
-      .map((s) => s.branch?.trim())
+      .map((staff) => staff.branch?.trim())
       .filter(Boolean),
   );
 
   const availableBranches =
     form.role === "Branch Manager"
-      ? branches.filter((b) => !managerBranchNames.has(b.name))
+      ? branches.filter((branch) => !managerBranchNames.has(branch.name))
       : branches;
 
   const submit = async (e) => {
     e.preventDefault();
+
     if (!isEdit && form.password !== form.confirmPassword) {
       await Swal.fire({
         icon: "error",
@@ -699,10 +732,12 @@ function CreateStaffModal({
       });
       return;
     }
+
     if (form.role === "Branch Manager") {
       const selectedBranch = branches.find(
-        (b) => String(b.id) === String(form.branch),
+        (branch) => String(branch.id) === String(form.branch),
       );
+
       if (!selectedBranch) {
         await Swal.fire({
           icon: "error",
@@ -711,6 +746,7 @@ function CreateStaffModal({
         });
         return;
       }
+
       if (managerBranchNames.has(selectedBranch.name)) {
         await Swal.fire({
           icon: "error",
@@ -720,6 +756,7 @@ function CreateStaffModal({
         return;
       }
     }
+
     if (!validateName(form.firstName)) {
       await Swal.fire({
         icon: "error",
@@ -728,6 +765,7 @@ function CreateStaffModal({
       });
       return;
     }
+
     if (!validateName(form.lastName)) {
       await Swal.fire({
         icon: "error",
@@ -736,6 +774,7 @@ function CreateStaffModal({
       });
       return;
     }
+
     if (!validatePhone(form.phone)) {
       await Swal.fire({
         icon: "error",
@@ -744,10 +783,12 @@ function CreateStaffModal({
       });
       return;
     }
+
     try {
       const accessToken =
         localStorage.getItem("access_token") ||
         sessionStorage.getItem("access_token");
+
       const payload = {
         email: form.email,
         first_name: form.firstName,
@@ -756,18 +797,33 @@ function CreateStaffModal({
         role: form.role,
         branch: form.branch,
       };
-      if (isEdit) payload.status = form.status;
-      else payload.password = form.password;
+
+      if (isEdit) {
+        payload.status = form.status;
+      } else {
+        payload.password = form.password;
+      }
+
       const res = isEdit
-        ? await axios.patch(`${API_BASE}/staff/${initialStaff.id}/`, payload, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
+        ? await axios.patch(
+            `${API_BASE}/staff/${initialStaff.id}/`,
+            payload,
+            {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            },
+          )
         : await axios.post(`${API_BASE}/staff/`, payload, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
-      if (isEdit) onUpdated(res.data);
-      else onCreated(res.data);
+
+      if (isEdit) {
+        onUpdated(res.data);
+      } else {
+        onCreated(res.data);
+      }
+
       onClose();
+
       await Swal.fire({
         icon: "success",
         title: isEdit ? "Staff updated" : "Staff created",
@@ -776,15 +832,20 @@ function CreateStaffModal({
         timerProgressBar: true,
       });
     } catch (err) {
+      console.error("Staff save failed:", err.response?.data || err);
+
+      const responseData = err.response?.data || {};
+
       const msg =
-        err.response?.data?.email?.[0] ||
-        err.response?.data?.first_name?.[0] ||
-        err.response?.data?.last_name?.[0] ||
-        err.response?.data?.phone?.[0] ||
-        err.response?.data?.role?.[0] ||
-        err.response?.data?.branch?.[0] ||
-        err.response?.data?.detail ||
+        responseData.email?.[0] ||
+        responseData.first_name?.[0] ||
+        responseData.last_name?.[0] ||
+        responseData.phone?.[0] ||
+        responseData.role?.[0] ||
+        responseData.branch?.[0] ||
+        responseData.detail ||
         (isEdit ? "Failed to update staff" : "Failed to create staff");
+
       await Swal.fire({
         icon: "error",
         title: isEdit ? "Update failed" : "Creation failed",
@@ -812,28 +873,22 @@ function CreateStaffModal({
                 : "Add a new team member"}
             </p>
           </div>
+
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close modal"
             className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            ✕
           </button>
         </div>
 
-        <form onSubmit={submit} className="p-4 sm:p-6 space-y-4">
+        <form
+          onSubmit={submit}
+          autoComplete="off"
+          className="p-4 sm:p-6 space-y-4"
+        >
           <div className="grid grid-cols-2 gap-4">
             {[
               {
@@ -848,11 +903,16 @@ function CreateStaffModal({
               },
             ].map(({ label, name, placeholder }) => (
               <div key={name}>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">
+                <label
+                  htmlFor={`staff-${name}`}
+                  className="block text-sm font-semibold text-gray-400 mb-2"
+                >
                   {label}
                 </label>
                 <input
+                  id={`staff-${name}`}
                   name={name}
+                  autoComplete="off"
                   placeholder={placeholder}
                   value={form[name]}
                   onChange={handleChange}
@@ -864,12 +924,17 @@ function CreateStaffModal({
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-400 mb-2">
+            <label
+              htmlFor="staff-email"
+              className="block text-sm font-semibold text-gray-400 mb-2"
+            >
               Email
             </label>
             <input
-              name="email"
+              id="staff-email"
+              name="staffEmail"
               type="email"
+              autoComplete="off"
               placeholder="Enter email address"
               value={form.email}
               onChange={handleChange}
@@ -879,13 +944,23 @@ function CreateStaffModal({
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-400 mb-2">
+            <label
+              htmlFor="staff-phone"
+              className="block text-sm font-semibold text-gray-400 mb-2"
+            >
               Phone
             </label>
+
             <div className="flex items-center rounded-xl border border-white/10 bg-gray-800 focus-within:border-red-500/50 focus-within:ring-1 focus-within:ring-red-500/30 transition-all">
-              <span className="px-4 text-gray-300 border-r border-white/10">+63</span>
+              <span className="px-4 text-gray-300 border-r border-white/10">
+                +63
+              </span>
+
               <input
+                id="staff-phone"
                 name="phone"
+                type="tel"
+                autoComplete="off"
                 placeholder="9XXXXXXXXX"
                 value={form.phone.replace(/^\+63/, "")}
                 onChange={handleChange}
@@ -895,22 +970,33 @@ function CreateStaffModal({
                 className="w-full bg-transparent text-white placeholder-gray-600 rounded-r-xl px-4 py-3 focus:outline-none text-sm"
               />
             </div>
+
+            <p className="text-gray-500 text-xs mt-1">
+              Enter 10 digits beginning with 9.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-400 mb-2">
+              <label
+                htmlFor="staff-role"
+                className="block text-sm font-semibold text-gray-400 mb-2"
+              >
                 Role
               </label>
+
               <select
+                id="staff-role"
                 name="role"
                 value={form.role}
                 onChange={(e) => {
                   const nextRole = e.target.value;
+
                   if (nextRole === "Branch Manager") {
                     const selectedBranch = branches.find(
-                      (b) => String(b.id) === String(form.branch),
+                      (branch) => String(branch.id) === String(form.branch),
                     );
+
                     if (
                       selectedBranch &&
                       managerBranchNames.has(selectedBranch.name)
@@ -923,20 +1009,29 @@ function CreateStaffModal({
                       return;
                     }
                   }
+
                   setForm((prev) => ({ ...prev, role: nextRole }));
                 }}
                 className={inputCls}
               >
-                {roles.map((r) => (
-                  <option key={r}>{r}</option>
+                {roles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
                 ))}
               </select>
             </div>
+
             <div>
-              <label className="block text-sm font-semibold text-gray-400 mb-2">
+              <label
+                htmlFor="staff-branch"
+                className="block text-sm font-semibold text-gray-400 mb-2"
+              >
                 Branch
               </label>
+
               <select
+                id="staff-branch"
                 name="branch"
                 value={form.branch}
                 onChange={handleChange}
@@ -946,6 +1041,7 @@ function CreateStaffModal({
                 <option value="" disabled>
                   Select branch
                 </option>
+
                 {availableBranches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
@@ -957,10 +1053,15 @@ function CreateStaffModal({
 
           {isEdit && (
             <div>
-              <label className="block text-sm font-semibold text-gray-400 mb-2">
+              <label
+                htmlFor="staff-status"
+                className="block text-sm font-semibold text-gray-400 mb-2"
+              >
                 Status
               </label>
+
               <select
+                id="staff-status"
                 name="status"
                 value={form.status}
                 onChange={handleChange}
@@ -987,12 +1088,17 @@ function CreateStaffModal({
                 },
               ].map(({ label, name, placeholder }) => (
                 <div key={name}>
-                  <label className="block text-sm font-semibold text-gray-400 mb-2">
+                  <label
+                    htmlFor={`staff-${name}`}
+                    className="block text-sm font-semibold text-gray-400 mb-2"
+                  >
                     {label}
                   </label>
                   <input
+                    id={`staff-${name}`}
                     type="password"
                     name={name}
+                    autoComplete="new-password"
                     placeholder={placeholder}
                     value={form[name]}
                     onChange={handleChange}
@@ -1012,6 +1118,7 @@ function CreateStaffModal({
             >
               Cancel
             </button>
+
             <button
               type="submit"
               className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-red-600/30"

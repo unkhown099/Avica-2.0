@@ -35,7 +35,7 @@ const categoryColors = {
 function BranchOwnerServices() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [branchFilter, setBranchFilter] = useState("All Branches");
+  const [branchFilter, setBranchFilter] = useState("");
   const [services, setServices] = useState([]);
   const [branches, setBranches] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -68,7 +68,7 @@ function BranchOwnerServices() {
         if (searchQuery) params.append("search", searchQuery);
         if (categoryFilter !== "All Categories")
           params.append("category", categoryFilter);
-        if (branchFilter !== "All Branches")
+        if (branchFilter && branchFilter !== "All Branches")
           params.append("branch", branchFilter);
         const response = await fetch(
           `${API_BASE}/owner/services/?${params.toString()}`,
@@ -246,9 +246,9 @@ function BranchOwnerServices() {
               onChange={(e) => setBranchFilter(e.target.value)}
               className="bg-gray-900/60 border border-white/10 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-red-500/50 transition-all cursor-pointer text-sm"
             >
-              <option value="All Branches">All Branches</option>
+              <option value="">All Branches</option>
               {branches.map((b) => (
-                <option key={b.id}>{b.name}</option>
+                <option key={b.id} value={b.id}>{b.name}</option>
               ))}
             </select>
           </div>

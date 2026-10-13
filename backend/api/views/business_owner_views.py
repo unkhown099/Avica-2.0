@@ -2,6 +2,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
 from django.db.models import Sum, Avg, Count, Q
 from django.utils import timezone
 from datetime import timedelta, date
@@ -16,21 +17,27 @@ from ..serializers.business_owner_serializers import (
     OwnerStaffSerializer,
 )
 
-OWNER_ROLES = ["Admin", "Business Owner", "business_owner", "owner"]
+OWNER_ROLES = ["Admin", "Business Owner", "business_owner", "owner", "super_admin"]
 
 
 def _require_owner(request):
+    """
+    Validates that the authenticated user is an authorized owner or administrator:
+    Allowed: 'Admin', 'Business Owner', 'super_admin' (or user.is_superuser).
+    Denied (403): Branch Manager, Staff (Cashier), Employee, Inventory, Customer.
+    """
+    if not request.user or not request.user.is_authenticated:
+        return False, None
+    if getattr(request.user, "is_superuser", False):
+        return True, "superuser"
     try:
         if not hasattr(request.user, "staff_profile"):
-            print(f"[_require_owner] user {request.user.email} has no staff_profile")
             return False, None
         role = str(request.user.staff_profile.role or "").strip()
         normalized = role.lower().replace(" ", "_")
-        allowed = normalized in {"admin", "business_owner", "owner"}
-        print(f"[_require_owner] checking role {role} ({normalized})")
+        allowed = normalized in {"admin", "business_owner", "owner", "super_admin"}
         return allowed, role
-    except Exception as e:
-        print(f"[_require_owner] Exception: {e}")
+    except Exception:
         return False, None
 
 
@@ -322,12 +329,33 @@ class OwnerServiceListView(APIView):
             if not ok:
                 return Response({"detail": "Permission denied."}, status=403)
 
+            branch_param = request.query_params.get("branch")
+            validated_branch_id = None
+
+            if branch_param and branch_param.strip() not in {"", "All Branches", "all"}:
+                try:
+                    validated_branch_id = int(branch_param.strip())
+                    if validated_branch_id <= 0:
+                        return Response(
+                            {"detail": "Branch ID must be a positive integer."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    if not Branch.objects.filter(id=validated_branch_id).exists():
+                        return Response(
+                            {"detail": f"Branch with id {validated_branch_id} does not exist."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                except (ValueError, TypeError):
+                    return Response(
+                        {"detail": f"Invalid branch ID '{branch_param}'. Expected a numeric ID."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
             performance_mode = str(request.query_params.get("performance", "")).lower() in {"1", "true", "yes"}
             if performance_mode:
-                branch_id = request.query_params.get("branch")
                 perf_qs = PaymentTransaction.objects.all()
-                if branch_id:
-                    perf_qs = perf_qs.filter(branch_id=branch_id)
+                if validated_branch_id is not None:
+                    perf_qs = perf_qs.filter(branch_id=validated_branch_id)
 
                 top_services = (
                     perf_qs.values("transaction_type", "description")
@@ -347,14 +375,13 @@ class OwnerServiceListView(APIView):
 
             qs = Service.objects.prefetch_related("branches").filter(is_active=True)
 
-            category  = request.query_params.get("category")
-            branch_id = request.query_params.get("branch")
-            search    = request.query_params.get("search")
+            category = request.query_params.get("category")
+            search   = request.query_params.get("search")
 
             if category:
                 qs = qs.filter(category=category)
-            if branch_id:
-                qs = qs.filter(branches__id=branch_id)
+            if validated_branch_id is not None:
+                qs = qs.filter(branches__id=validated_branch_id)
             if search:
                 qs = qs.filter(Q(name__icontains=search) | Q(description__icontains=search))
 

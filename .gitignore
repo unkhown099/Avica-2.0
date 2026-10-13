@@ -35,3 +35,5 @@ __pycache__/
 env/
 venv/
 .venv/
+
+report_*.csv

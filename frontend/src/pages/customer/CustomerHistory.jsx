@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import CustomerLayout from "./CustomerLayout";
 import { API_BASE, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 import { useNavigate } from "react-router-dom";
@@ -359,29 +359,80 @@ function HistoryPage() {
   const [reviewItem, setReviewItem] = useState(null);
   const [receiptItem, setReceiptItem] = useState(null);
 
+  // Filters & Pagination state
+  const [search, setSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
+  const [branches, setBranches] = useState([]);
+
   useEffect(() => {
-    setLoading(true);
     (async () => {
       try {
         const headers = await authHeaders();
-        const response = await fetch(`${API_BASE}/api/customer/history/`, {
-          headers: headers,
-        });
-        if (!response.ok) throw new Error(`Error ${response.status}: Failed to load history.`);
-        const data = await response.json();
-        setHistory(data.history || []);
-        setStats({
-          total_services: data.total_services || 0,
-          total_spent: data.total_spent || 0,
-          avg_rating: data.avg_rating,
-        });
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        const res = await fetch(`${API_BASE}/branches/`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setBranches(Array.isArray(data) ? data : []);
+        }
+      } catch (e) {
+        // Fallback gracefully
       }
     })();
   }, []);
+
+  const fetchHistory = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const headers = await authHeaders();
+      const params = new URLSearchParams();
+      if (search.trim()) params.append("search", search.trim());
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      if (selectedBranch && selectedBranch !== "all") params.append("branch", selectedBranch);
+      params.append("page", page);
+      params.append("page_size", pageSize);
+
+      const response = await fetch(`${API_BASE}/api/customer/history/?${params.toString()}`, {
+        headers,
+      });
+      if (!response.ok) throw new Error(`Error ${response.status}: Failed to load history.`);
+      const data = await response.json();
+      setHistory(data.history || []);
+      setStats({
+        total_services: data.total_services || 0,
+        total_spent: data.total_spent || 0,
+        avg_rating: data.avg_rating,
+      });
+      setTotalPages(data.total_pages || 1);
+      setHasNext(data.has_next || false);
+      setHasPrev(data.has_previous || false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, startDate, endDate, selectedBranch, page, pageSize]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchHistory, 250);
+    return () => clearTimeout(timer);
+  }, [fetchHistory]);
+
+  const resetFilters = () => {
+    setSearch("");
+    setStartDate("");
+    setEndDate("");
+    setSelectedBranch("");
+    setPage(1);
+  };
+  const hasActiveFilters = !!(search || startDate || endDate || selectedBranch);
 
   const handleReviewSubmitted = (queueId, rating, review) => {
     setHistory((prev) =>
@@ -434,6 +485,100 @@ function HistoryPage() {
             </div>
           </div>
         )}
+
+        {/* Filter Toolbar */}
+        <div className="bg-gray-900/80 border border-white/5 rounded-2xl p-4 sm:p-5 mb-8 backdrop-blur-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Search */}
+            <div className="relative">
+              <svg
+                className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search service, vehicle, plate…"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full bg-black/60 border border-white/10 rounded-xl pl-10 pr-3 py-2.5 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-red-600 transition-colors"
+              />
+            </div>
+
+            {/* Branch */}
+            <div>
+              <select
+                value={selectedBranch}
+                onChange={(e) => {
+                  setSelectedBranch(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors cursor-pointer"
+              >
+                <option value="">All Branches</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Start Date */}
+            <div>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setPage(1);
+                }}
+                title="Filter by completion date from"
+                className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors"
+              />
+            </div>
+
+            {/* End Date */}
+            <div>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setPage(1);
+                }}
+                title="Filter by completion date to"
+                className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-red-600 transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Active filters summary & Clear */}
+          {hasActiveFilters && (
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5 text-xs">
+              <span className="text-gray-400">
+                Filtering results by active search/date criteria
+              </span>
+              <button
+                onClick={resetFilters}
+                className="text-red-400 hover:text-red-300 font-semibold transition-colors cursor-pointer"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Loading */}
         {loading && (
@@ -506,7 +651,8 @@ function HistoryPage() {
 
         {/* History List */}
         {!loading && !error && history.length > 0 && (
-          <div className="space-y-4">
+          <>
+            <div className="space-y-4">
             {history.map((item) => (
               <div
                 key={item.id}
@@ -634,6 +780,34 @@ function HistoryPage() {
               </div>
             ))}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-white/5 mt-6">
+              <div className="text-xs sm:text-sm text-gray-400">
+                Showing Page <span className="font-bold text-white">{page}</span> of{" "}
+                <span className="font-bold text-white">{totalPages}</span>{" "}
+                ({stats.total_services} total records)
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={!hasPrev || loading}
+                  className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-gray-900 border border-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  ← Previous
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={!hasNext || loading}
+                  className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-gray-900 border border-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
 
