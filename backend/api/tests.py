@@ -9,7 +9,7 @@ from datetime import timedelta
 from api.models import (
     Branch, PaymentTransaction, QueueEntry, Staff, User, Service,
     ServiceCategory, Customer, Booking, InventoryItem, RestockRequest,
-    InventoryTransaction, Notification
+    InventoryTransaction, Notification, Rating
 )
 from api.serializers.service_serializer import ServiceSerializer
 from api.serializers.business_owner_serializers import OwnerServiceSerializer
@@ -1085,6 +1085,305 @@ class Phase3InventoryManagerTests(TestCase):
         self.assertEqual(res_sort_qty.status_code, 200)
         qtys = [item["quantity"] for item in res_sort_qty.data]
         self.assertEqual(qtys, sorted(qtys, reverse=True))
+
+
+class Phase4BusinessOwnerTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        # Business Owner
+        self.owner_user = User.objects.create_user(email="owner@avica.com", password="password123")
+        self.owner_staff = Staff.objects.create(
+            user=self.owner_user,
+            first_name="Boss",
+            last_name="Owner",
+            phone="09111111111",
+            role="Business Owner",
+            status="Active",
+        )
+
+        # Unauthorized Employee
+        self.employee_user = User.objects.create_user(email="emp@avica.com", password="password123")
+        self.employee_staff = Staff.objects.create(
+            user=self.employee_user,
+            first_name="Regular",
+            last_name="Worker",
+            phone="09222222222",
+            role="Employee",
+            status="Active",
+        )
+
+        # Customer User
+        self.cust_user = User.objects.create_user(email="client@avica.com", password="password123")
+        self.customer = Customer.objects.create(
+            user=self.cust_user,
+            first_name="Client",
+            last_name="One",
+            phone="09333333333",
+        )
+
+        # Branches
+        self.branch_makati = Branch.objects.create(
+            name="Makati Central",
+            address="Makati City",
+            hours="8AM-8PM",
+            slots=5,
+            is_active=True,
+        )
+        self.branch_bgc = Branch.objects.create(
+            name="BGC Branch",
+            address="Taguig City",
+            hours="9AM-7PM",
+            slots=4,
+            is_active=True,
+        )
+
+        # Branch Manager & Employee for Makati
+        self.mgr_user = User.objects.create_user(email="mgr@avica.com", password="password123")
+        self.mgr_staff = Staff.objects.create(
+            user=self.mgr_user,
+            first_name="Carlos",
+            last_name="Mendoza",
+            phone="09444444444",
+            role="Branch Manager",
+            branch=self.branch_makati,
+            status="Active",
+        )
+        self.tech_user = User.objects.create_user(email="tech@avica.com", password="password123")
+        self.tech_staff = Staff.objects.create(
+            user=self.tech_user,
+            first_name="Dave",
+            last_name="Technician",
+            phone="09555555555",
+            role="Employee",
+            branch=self.branch_makati,
+            status="Active",
+        )
+
+        # Services
+        self.service1 = Service.objects.create(
+            name="Ceramic Coating",
+            category="Detailing",
+            description="Complete ceramic paint protection\n• 9H Hardness\n• 3-Year Warranty",
+            duration=120,
+            price=8000.00,
+            price_list={"Small": 8000, "Medium": 9500, "Large": 11000},
+            is_active=True,
+        )
+        self.service1.branches.set([self.branch_makati, self.branch_bgc])
+
+        self.service2 = Service.objects.create(
+            name="Express Wash",
+            category="Wash",
+            description="Quick exterior wash and tire shine\n• High pressure rinse",
+            duration=30,
+            price=350.00,
+            is_active=True,
+        )
+        self.service2.branches.set([self.branch_makati])
+
+        # Inventory Items for Makati
+        self.item1 = InventoryItem.objects.create(
+            name="Ceramic Liquid",
+            category="Lubricants",
+            sku="CER-01",
+            price=1500.00,
+            quantity=25,
+            minimum_qty=10,
+            branch=self.branch_makati,
+            is_active=True,
+        )
+        self.item2 = InventoryItem.objects.create(
+            name="Microfiber Towels",
+            category="Other",
+            sku="TOW-01",
+            price=120.00,
+            quantity=5,
+            minimum_qty=15,  # Low stock!
+            branch=self.branch_makati,
+            is_active=True,
+        )
+
+        now = timezone.now()
+        today = now.date()
+
+        # Booking for Makati
+        self.booking1 = Booking.objects.create(
+            user=self.cust_user,
+            branch=self.branch_makati,
+            service="Ceramic Coating",
+            price=8000.00,
+            date=today,
+            time="10:00:00",
+            status="confirmed",
+        )
+        self.booking2 = Booking.objects.create(
+            user=self.cust_user,
+            branch=self.branch_makati,
+            service="Express Wash",
+            price=350.00,
+            date=today,
+            time="14:00:00",
+            status="done",
+        )
+
+        # Rating for Makati
+        Rating.objects.create(
+            booking=self.booking2,
+            customer=self.customer,
+            branch=self.branch_makati,
+            score=5,
+            comment="Excellent service!",
+        )
+
+        # Payment for Makati
+        PaymentTransaction.objects.create(
+            branch=self.branch_makati,
+            staff=self.mgr_staff,
+            amount=8000.00,
+            transaction_type="service",
+            description="Ceramic Coating Payment",
+            paid_at=now,
+        )
+
+    def test_owner_dashboard_stats_endpoint(self):
+        self.client.force_authenticate(user=self.owner_user)
+        response = self.client.get("/owner/dashboard/stats/")
+        self.assertEqual(response.status_code, 200)
+
+        self.assertIn("total_revenue", response.data)
+        self.assertIn("total_branches", response.data)
+        self.assertIn("total_customers", response.data)
+        self.assertIn("services_completed", response.data)
+        self.assertIn("avg_satisfaction", response.data)
+
+        self.assertEqual(response.data["total_revenue"], 8000.0)
+        self.assertEqual(response.data["total_branches"], 2)
+        self.assertEqual(response.data["total_customers"], 1)
+        self.assertGreaterEqual(response.data["services_completed"], 1)
+        self.assertEqual(response.data["avg_satisfaction"], 100.0)
+
+    def test_owner_dashboard_permissions(self):
+        # Regular employee denied (403)
+        self.client.force_authenticate(user=self.employee_user)
+        res_emp = self.client.get("/owner/dashboard/stats/")
+        self.assertEqual(res_emp.status_code, 403)
+
+        # Customer denied (403)
+        self.client.force_authenticate(user=self.cust_user)
+        res_cust = self.client.get("/owner/dashboard/stats/")
+        self.assertEqual(res_cust.status_code, 403)
+
+    def test_owner_revenue_trend_and_branch_revenue(self):
+        self.client.force_authenticate(user=self.owner_user)
+
+        # Revenue trend
+        res_trend = self.client.get("/owner/dashboard/trend/")
+        self.assertEqual(res_trend.status_code, 200)
+        self.assertIsInstance(res_trend.data, list)
+        self.assertGreaterEqual(len(res_trend.data), 1)
+
+        current_month_label = timezone.now().strftime("%b %Y")
+        current_pt = next((p for p in res_trend.data if p["label"] == current_month_label), None)
+        self.assertIsNotNone(current_pt)
+        self.assertEqual(current_pt["revenue"], 8000.0)
+
+        # Branch revenue distribution
+        res_brev = self.client.get("/owner/dashboard/branch-revenue/")
+        self.assertEqual(res_brev.status_code, 200)
+        makati_rev = next((b for b in res_brev.data if b["name"] == "Makati Central"), None)
+        bgc_rev = next((b for b in res_brev.data if b["name"] == "BGC Branch"), None)
+
+        self.assertIsNotNone(makati_rev)
+        self.assertEqual(makati_rev["revenue"], 8000.0)
+        self.assertIsNotNone(bgc_rev)
+        self.assertEqual(bgc_rev["revenue"], 0.0)
+
+    def test_owner_branches_list_and_breakdown(self):
+        self.client.force_authenticate(user=self.owner_user)
+        response = self.client.get("/owner/branches/")
+        self.assertEqual(response.status_code, 200)
+
+        makati_branch = next((b for b in response.data if b["name"] == "Makati Central"), None)
+        bgc_branch = next((b for b in response.data if b["name"] == "BGC Branch"), None)
+
+        self.assertIsNotNone(makati_branch)
+        self.assertEqual(makati_branch["manager_name"], "Carlos Mendoza")
+        self.assertEqual(makati_branch["staff_count"], 2)
+        self.assertEqual(makati_branch["employee_count"], 1)
+        self.assertEqual(makati_branch["monthly_revenue"], 8000.0)
+        self.assertEqual(makati_branch["satisfaction_pct"], 100)
+        self.assertEqual(makati_branch["inventory_count"], 2)
+        self.assertEqual(makati_branch["low_stock_count"], 1)
+        self.assertEqual(makati_branch["bookings_count"], 2)
+        self.assertGreater(makati_branch["bay_utilization"], 0)
+
+        self.assertIsNotNone(bgc_branch)
+        self.assertEqual(bgc_branch["manager_name"], "Unassigned")
+        self.assertEqual(bgc_branch["staff_count"], 0)
+        self.assertEqual(bgc_branch["monthly_revenue"], 0.0)
+        self.assertIsNone(bgc_branch["satisfaction_pct"])
+        self.assertEqual(bgc_branch["inventory_count"], 0)
+        self.assertEqual(bgc_branch["low_stock_count"], 0)
+
+    def test_owner_services_branch_filtering(self):
+        self.client.force_authenticate(user=self.owner_user)
+
+        # All services
+        res_all = self.client.get("/owner/services/")
+        self.assertEqual(res_all.status_code, 200)
+        self.assertEqual(len(res_all.data), 2)
+
+        # Filter by BGC Branch -> only Ceramic Coating
+        res_bgc = self.client.get(f"/owner/services/?branch={self.branch_bgc.id}")
+        self.assertEqual(res_bgc.status_code, 200)
+        self.assertEqual(len(res_bgc.data), 1)
+        self.assertEqual(res_bgc.data[0]["name"], "Ceramic Coating")
+        self.assertEqual(res_bgc.data[0]["price_range"], "₱8,000 – ₱11,000")
+        self.assertEqual(len(res_bgc.data[0]["features"]), 3)
+
+        # Filter by category Wash -> only Express Wash
+        res_cat = self.client.get("/owner/services/?category=Wash")
+        self.assertEqual(res_cat.status_code, 200)
+        self.assertEqual(len(res_cat.data), 1)
+        self.assertEqual(res_cat.data[0]["name"], "Express Wash")
+
+        # Search filter
+        res_search = self.client.get("/owner/services/?search=Ceramic")
+        self.assertEqual(res_search.status_code, 200)
+        self.assertEqual(len(res_search.data), 1)
+        self.assertEqual(res_search.data[0]["name"], "Ceramic Coating")
+
+        # Invalid and non-existent branch ID handling
+        res_inv = self.client.get("/owner/services/?branch=invalid")
+        self.assertEqual(res_inv.status_code, 400)
+        res_nonexist = self.client.get("/owner/services/?branch=99999")
+        self.assertEqual(res_nonexist.status_code, 400)
+
+    def test_owner_appointments_filtering_and_calendar(self):
+        self.client.force_authenticate(user=self.owner_user)
+
+        # Filter by branch
+        res_app = self.client.get(f"/owner/appointments/?branch={self.branch_makati.id}")
+        self.assertEqual(res_app.status_code, 200)
+        self.assertEqual(len(res_app.data), 2)
+
+        # Filter by status
+        res_done = self.client.get(f"/owner/appointments/?branch={self.branch_makati.id}&status=done")
+        self.assertEqual(res_done.status_code, 200)
+        self.assertEqual(len(res_done.data), 1)
+        self.assertEqual(res_done.data[0]["service"], "Express Wash")
+
+        # Calendar endpoint
+        res_cal = self.client.get(f"/owner/appointments/calendar/?branch={self.branch_makati.id}")
+        self.assertEqual(res_cal.status_code, 200)
+        self.assertIsInstance(res_cal.data, dict)
+        today_day = timezone.now().day
+        self.assertTrue(today_day in res_cal.data or str(today_day) in res_cal.data)
+        cal_entries = res_cal.data.get(today_day) or res_cal.data.get(str(today_day))
+        self.assertIn("confirmed", cal_entries)
+        self.assertIn("done", cal_entries)
+
 
 
 

@@ -108,6 +108,15 @@ function BranchOwnerBranches() {
               <div><span class="text-[11px] text-gray-500 uppercase">Satisfaction</span><p class="text-sm text-amber-400 font-medium">${branch.satisfaction_pct ? branch.satisfaction_pct + "%" : "No ratings yet"}</p></div>
             </div>
           </div>
+          <div class="bg-gray-800/50 p-4 rounded-xl border border-white/5">
+            <h4 class="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Inventory & Operations</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div><span class="text-[11px] text-gray-500 uppercase">Inventory Items</span><p class="text-sm text-white font-medium">${branch.inventory_count || 0}</p></div>
+              <div><span class="text-[11px] text-gray-500 uppercase">Low Stock Alerts</span><p class="text-sm ${branch.low_stock_count > 0 ? "text-amber-400 font-bold" : "text-emerald-400 font-medium"}">${branch.low_stock_count || 0}</p></div>
+              <div><span class="text-[11px] text-gray-500 uppercase">Monthly Bookings</span><p class="text-sm text-white font-medium">${branch.bookings_count || 0}</p></div>
+              <div><span class="text-[11px] text-gray-500 uppercase">Completed Services</span><p class="text-sm text-white font-medium">${branch.services_completed || 0}</p></div>
+            </div>
+          </div>
         </div>`,
         background: "linear-gradient(to bottom right, #1f2937, #111827)",
         color: "#fff",
@@ -378,6 +387,17 @@ function BranchOwnerBranches() {
                       <span className="text-gray-500">Monthly Revenue</span>
                       <span className="text-emerald-400 font-bold">
                         {formatRevenue(branch.monthly_revenue)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Inventory Items</span>
+                      <span className="text-white font-medium">
+                        {branch.inventory_count ?? 0}
+                        {branch.low_stock_count > 0 && (
+                          <span className="text-amber-400 text-xs ml-1 font-semibold">
+                            ({branch.low_stock_count} low)
+                          </span>
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">

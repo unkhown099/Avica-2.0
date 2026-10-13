@@ -25,6 +25,9 @@ class BranchSummarySerializer(serializers.ModelSerializer):
     monthly_revenue   = serializers.SerializerMethodField()
     satisfaction_pct  = serializers.SerializerMethodField()
     bay_utilization   = serializers.SerializerMethodField()
+    inventory_count   = serializers.SerializerMethodField()
+    low_stock_count   = serializers.SerializerMethodField()
+    bookings_count    = serializers.SerializerMethodField()
 
     class Meta:
         model  = Branch
@@ -33,6 +36,7 @@ class BranchSummarySerializer(serializers.ModelSerializer):
             "manager_name", "staff_count", "employee_count",
             "services_completed", "monthly_revenue",
             "satisfaction_pct", "bay_utilization",
+            "inventory_count", "low_stock_count", "bookings_count",
         ]
 
     def _month_start(self):
@@ -52,9 +56,31 @@ class BranchSummarySerializer(serializers.ModelSerializer):
         return obj.staff_members.filter(role="Employee").count()
 
     def get_services_completed(self, obj):
-        return Booking.objects.filter(
+        booking_done = Booking.objects.filter(
             branch=obj,
             status="done",
+            date__gte=self._month_start(),
+        ).count()
+        queue_done = QueueEntry.objects.filter(
+            branch=obj,
+            status="done",
+            completed_at__date__gte=self._month_start(),
+        ).exclude(booking__status="done", booking__date__gte=self._month_start()).count()
+        return booking_done + queue_done
+
+    def get_inventory_count(self, obj):
+        return obj.inventory_items.filter(is_active=True).count()
+
+    def get_low_stock_count(self, obj):
+        from django.db.models import F
+        return obj.inventory_items.filter(
+            is_active=True,
+            quantity__lte=F("minimum_qty"),
+        ).count()
+
+    def get_bookings_count(self, obj):
+        return Booking.objects.filter(
+            branch=obj,
             date__gte=self._month_start(),
         ).count()
 

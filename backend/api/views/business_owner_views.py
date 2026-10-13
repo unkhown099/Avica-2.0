@@ -52,6 +52,12 @@ def _month_start(offset=0):
     return today.replace(year=year, month=month, day=1)
 
 
+def _month_start_dt(offset=0):
+    """Return the start of month as a timezone-aware datetime."""
+    d = _month_start(offset)
+    return timezone.make_aware(datetime(d.year, d.month, d.day, 0, 0, 0))
+
+
 # ── Dashboard Stats ───────────────────────────────────────────────────────────
 class OwnerDashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -62,43 +68,74 @@ class OwnerDashboardStatsView(APIView):
             if not ok:
                 return Response({"detail": "Permission denied."}, status=403)
 
-            this_month  = _month_start(0)
-            last_month  = _month_start(1)
+            this_month_dt = _month_start_dt(0)
+            last_month_dt = _month_start_dt(1)
+            this_month_date = this_month_dt.date()
+            last_month_date = last_month_dt.date()
+
             payment_scope = PaymentTransaction.objects.all()
             rev_total = payment_scope.aggregate(t=Sum("amount"))["t"] or 0
+            if not rev_total:
+                rev_total = QueueEntry.objects.filter(payment_status="paid").aggregate(t=Sum("price"))["t"] or 0
 
             rev_this = payment_scope.filter(
-                paid_at__date__gte=this_month,
+                paid_at__gte=this_month_dt,
             ).aggregate(t=Sum("amount"))["t"] or 0
+            if not rev_this:
+                rev_this = QueueEntry.objects.filter(
+                    payment_status="paid",
+                    completed_at__gte=this_month_dt,
+                ).aggregate(t=Sum("price"))["t"] or 0
 
             rev_last = payment_scope.filter(
-                paid_at__date__gte=last_month,
-                paid_at__date__lt=this_month,
+                paid_at__gte=last_month_dt,
+                paid_at__lt=this_month_dt,
             ).aggregate(t=Sum("amount"))["t"] or 0
+            if not rev_last:
+                rev_last = QueueEntry.objects.filter(
+                    payment_status="paid",
+                    completed_at__gte=last_month_dt,
+                    completed_at__lt=this_month_dt,
+                ).aggregate(t=Sum("price"))["t"] or 0
 
             rev_change = (
                 round(((float(rev_this) - float(rev_last)) / float(rev_last)) * 100, 1)
                 if rev_last else 0
             )
 
-            # Services completed (align with admin: total done queue entries)
+            # Services completed (align with done queue entries + done bookings without double-counting)
             svc_total = QueueEntry.objects.filter(status="done").count()
-            svc_this = QueueEntry.objects.filter(status="done", completed_at__date__gte=this_month).count()
-            svc_last = QueueEntry.objects.filter(
-                status="done", completed_at__date__gte=last_month, completed_at__date__lt=this_month
+            svc_total += Booking.objects.filter(status="done").exclude(queue_entry__status="done").count()
+
+            svc_this = QueueEntry.objects.filter(status="done", completed_at__gte=this_month_dt).count()
+            svc_this += Booking.objects.filter(status="done", date__gte=this_month_date).exclude(
+                queue_entry__status="done",
+                queue_entry__completed_at__gte=this_month_dt,
             ).count()
+
+            svc_last = QueueEntry.objects.filter(
+                status="done", completed_at__gte=last_month_dt, completed_at__lt=this_month_dt
+            ).count()
+            svc_last += Booking.objects.filter(status="done", date__gte=last_month_date, date__lt=this_month_date).exclude(
+                queue_entry__status="done",
+                queue_entry__completed_at__gte=last_month_dt,
+                queue_entry__completed_at__lt=this_month_dt,
+            ).count()
+
             svc_change = (
                 round(((svc_this - svc_last) / svc_last) * 100, 1)
                 if svc_last else 0
             )
 
             # Satisfaction (1-5 → %)
-            sat_this_qs = Rating.objects.filter(created_at__date__gte=this_month)
+            sat_this_qs = Rating.objects.filter(created_at__gte=this_month_dt)
             sat_last_qs = Rating.objects.filter(
-                created_at__date__gte=last_month,
-                created_at__date__lt=this_month,
+                created_at__gte=last_month_dt,
+                created_at__lt=this_month_dt,
             )
             sat_this = sat_this_qs.aggregate(a=Avg("score"))["a"]
+            if sat_this is None:
+                sat_this = Rating.objects.all().aggregate(a=Avg("score"))["a"]
             sat_last = sat_last_qs.aggregate(a=Avg("score"))["a"]
 
             sat_pct  = float(round((float(sat_this) / 5) * 100, 1)) if sat_this else None
@@ -141,26 +178,41 @@ class OwnerRevenueTrendView(APIView):
             current_month = now.month
             points = []
             for month in range(1, current_month + 1):
-                start = date(current_year, month, 1)
+                start_dt = timezone.make_aware(datetime(current_year, month, 1, 0, 0, 0))
                 if month == 12:
-                    end = date(current_year + 1, 1, 1)
+                    end_dt = timezone.make_aware(datetime(current_year + 1, 1, 1, 0, 0, 0))
                 else:
-                    end = date(current_year, month + 1, 1)
+                    end_dt = timezone.make_aware(datetime(current_year, month + 1, 1, 0, 0, 0))
 
                 rev = PaymentTransaction.objects.filter(
-                    paid_at__date__gte=start,
-                    paid_at__date__lt=end,
-                ).aggregate(t=Sum("amount"))["t"] or 0
+                    paid_at__gte=start_dt,
+                    paid_at__lt=end_dt,
+                ).aggregate(t=Sum("amount"))["t"]
+                if rev is None or rev == 0:
+                    rev = QueueEntry.objects.filter(
+                        payment_status="paid",
+                        completed_at__gte=start_dt,
+                        completed_at__lt=end_dt,
+                    ).aggregate(t=Sum("price"))["t"] or 0
 
                 cnt = QueueEntry.objects.filter(
                     status="done",
-                    completed_at__date__gte=start,
-                    completed_at__date__lt=end,
+                    completed_at__gte=start_dt,
+                    completed_at__lt=end_dt,
+                ).count()
+                cnt += Booking.objects.filter(
+                    status="done",
+                    date__gte=start_dt.date(),
+                    date__lt=end_dt.date(),
+                ).exclude(
+                    queue_entry__status="done",
+                    queue_entry__completed_at__gte=start_dt,
+                    queue_entry__completed_at__lt=end_dt,
                 ).count()
 
                 points.append({
                     "label":    f"{month_abbr[month]} {current_year}",
-                    "revenue":  float(rev),
+                    "revenue":  float(rev or 0),
                     "services": cnt,
                 })
 
@@ -187,8 +239,13 @@ class OwnerBranchRevenueView(APIView):
             for b in branches:
                 rev = PaymentTransaction.objects.filter(
                     branch=b,
-                ).aggregate(t=Sum("amount"))["t"] or 0
-                data.append({"id": b.id, "name": b.name, "revenue": float(rev)})
+                ).aggregate(t=Sum("amount"))["t"]
+                if rev is None or rev == 0:
+                    rev = QueueEntry.objects.filter(
+                        branch=b,
+                        payment_status="paid",
+                    ).aggregate(t=Sum("price"))["t"] or 0
+                data.append({"id": b.id, "name": b.name, "revenue": float(rev or 0)})
 
             return Response(data)
 
@@ -401,8 +458,8 @@ class OwnerServiceListView(APIView):
             category = request.query_params.get("category")
             search   = request.query_params.get("search")
 
-            if category:
-                qs = qs.filter(category=category)
+            if category and category.strip() not in {"", "All Categories", "all"}:
+                qs = qs.filter(category=category.strip())
             if validated_branch_id is not None:
                 qs = qs.filter(branches__id=validated_branch_id)
             if search:

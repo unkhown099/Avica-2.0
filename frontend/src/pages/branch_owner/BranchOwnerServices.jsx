@@ -127,6 +127,54 @@ function BranchOwnerServices() {
     resetDeps: [searchQuery, categoryFilter, branchFilter, services],
   });
 
+  const handleViewDetails = (service) => {
+    import("sweetalert2").then((m) => {
+      const Swal = m.default;
+      const branchesList = (service.branch_names && service.branch_names.length > 0)
+        ? service.branch_names.map((b) => `<span class="px-2.5 py-1 bg-white/5 border border-white/10 text-gray-300 text-xs rounded-lg">${b}</span>`).join(" ")
+        : `<span class="text-xs text-gray-500">All Branches</span>`;
+
+      const featuresList = (service.features && service.features.length > 0)
+        ? `<div class="bg-gray-800/50 p-4 rounded-xl border border-white/5">
+            <h4 class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Features & Inclusions</h4>
+            <ul class="space-y-1.5 text-xs text-gray-300">
+              ${service.features.map((f) => `<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>${f}</li>`).join("")}
+            </ul>
+          </div>`
+        : "";
+
+      Swal.fire({
+        title: `<span class="text-2xl font-black text-white">${service.name}</span>`,
+        html: `<div class="text-left space-y-4 mt-4">
+          <div class="bg-gray-800/50 p-4 rounded-xl border border-white/5">
+            <h4 class="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Service Overview</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div><span class="text-[11px] text-gray-500 uppercase">Category</span><p class="text-sm text-white font-medium">${service.category || "General"}</p></div>
+              <div><span class="text-[11px] text-gray-500 uppercase">Duration</span><p class="text-sm text-white font-medium">${service.duration || 0} mins</p></div>
+              <div><span class="text-[11px] text-gray-500 uppercase">Price Range</span><p class="text-sm text-emerald-400 font-bold">${service.price_range || `₱${service.price}`}</p></div>
+              <div><span class="text-[11px] text-gray-500 uppercase">Status</span><p class="text-sm ${service.is_active ? "text-emerald-400" : "text-gray-400"} font-medium">${service.is_active ? "Active" : "Inactive"}</p></div>
+            </div>
+          </div>
+          ${service.description ? `
+          <div class="bg-gray-800/50 p-4 rounded-xl border border-white/5">
+            <h4 class="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Description</h4>
+            <p class="text-xs text-gray-300 leading-relaxed">${service.description}</p>
+          </div>` : ""}
+          ${featuresList}
+          <div class="bg-gray-800/50 p-4 rounded-xl border border-white/5">
+            <h4 class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Available at Branches</h4>
+            <div class="flex flex-wrap gap-1.5">${branchesList}</div>
+          </div>
+        </div>`,
+        background: "linear-gradient(to bottom right, #1f2937, #111827)",
+        color: "#fff",
+        confirmButtonColor: "#dc2626",
+        confirmButtonText: "Close",
+        width: "520px",
+      });
+    });
+  };
+
   if (!isAuthenticated && !loading) {
     return (
       <BranchOwnerLayout title="" subtitle="">
@@ -390,7 +438,10 @@ function BranchOwnerServices() {
                       </div>
                     </div>
                     <div className="mt-auto pt-4 border-t border-white/5">
-                      <button className="w-full text-center text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all">
+                      <button
+                        onClick={() => handleViewDetails(service)}
+                        className="w-full text-center text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all"
+                      >
                         View Details
                       </button>
                     </div>
