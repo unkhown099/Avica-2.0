@@ -34,6 +34,7 @@ from api.serializers.queue_serializer import (
     BookingToQueueSerializer,
     AssignEmployeeSerializer,
 )
+from api.views.inventory_views import check_and_notify_low_stock
 
 logger = logging.getLogger(__name__)
 VEHICLE_TYPE_KEYS = {"motor", "small", "medium", "large", "xl"}
@@ -1132,6 +1133,10 @@ def queue_add_products(request, pk):
 
             inv.quantity -= qty
             inv.save(update_fields=["quantity", "updated_at"])
+            try:
+                check_and_notify_low_stock(inv)
+            except Exception:
+                pass
 
             line_total = (inv.price or Decimal("0.00")) * qty
             added_total += line_total

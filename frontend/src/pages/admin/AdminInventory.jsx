@@ -470,9 +470,10 @@ function StockTransferModal({
   branches,
   authHeaders,
   onNotify,
+  initialItemId = "",
 }) {
   const [form, setForm] = useState({
-    source_item_id: "",
+    source_item_id: initialItemId ? String(initialItemId) : "",
     target_branch_id: "",
     quantity: "",
     note: "",
@@ -642,7 +643,25 @@ function AdminInventory({
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferInitialItemId, setTransferInitialItemId] = useState("");
+  const [sortField, setSortField] = useState("name");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [distributionData, setDistributionData] = useState(null);
+  const [loadingDistribution, setLoadingDistribution] = useState(false);
   const notify = useCallback((icon, title) => toast(icon, title), []);
+
+  const fetchDistribution = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      setLoadingDistribution(true);
+      const res = await axios.get(`${API_BASE}/inventory/distribution/`, { headers: authHeaders });
+      setDistributionData(res.data);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingDistribution(false);
+    }
+  }, [isAuthenticated, authHeaders]);
 
   const fetchData = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -676,6 +695,12 @@ function AdminInventory({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (activeTab === "distribution") {
+      fetchDistribution();
+    }
+  }, [activeTab, fetchDistribution]);
 
   const toggleItemActive = async (item, nextActive) => {
     const result = await Swal.fire({
@@ -800,6 +825,40 @@ function AdminInventory({
     return matchSearch && matchCat && matchStatus;
   });
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const sortedItems = React.useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+
+      if (sortField === "branch") {
+        valA = getItemBranchLabel(a);
+        valB = getItemBranchLabel(b);
+      } else if (sortField === "status") {
+        valA = getInventoryStatusKey(a);
+        valB = getInventoryStatusKey(b);
+      } else if (sortField === "quantity" || sortField === "price") {
+        valA = Number(valA || 0);
+        valB = Number(valB || 0);
+      } else {
+        valA = String(valA || "").toLowerCase();
+        valB = String(valB || "").toLowerCase();
+      }
+
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortField, sortDirection]);
+
   const {
     currentPage,
     setCurrentPage,
@@ -808,7 +867,7 @@ function AdminInventory({
     endItem,
     paginatedItems,
   } = usePagination({
-    items: filtered,
+    items: sortedItems,
     pageSize: 10,
     resetDeps: [
       searchQuery,
@@ -817,6 +876,8 @@ function AdminInventory({
       statusFilter,
       archiveFilter,
       activeTab,
+      sortField,
+      sortDirection,
       items.length,
     ],
   });
@@ -867,6 +928,7 @@ function AdminInventory({
             <div className="flex gap-1 bg-gray-900/60 p-1 rounded-xl border border-white/5 w-full sm:w-fit overflow-x-auto">
               {[
                 { key: "inventory", label: "Inventory" },
+                { key: "distribution", label: "Distribution Matrix" },
                 { key: "transactions", label: "Transactions" },
               ].map((tab) => (
                 <button
@@ -886,10 +948,13 @@ function AdminInventory({
               ))}
             </div>
           )}
-          {(!showTransactionsTab || activeTab === "inventory") && (
+          {(!showTransactionsTab || activeTab === "inventory" || activeTab === "distribution") && (
             <div className="flex gap-2 sm:ml-auto">
               <button
-                onClick={() => setShowTransferModal(true)}
+                onClick={() => {
+                  setTransferInitialItemId("");
+                  setShowTransferModal(true);
+                }}
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/30 text-sm"
               >
                 Send Stock
@@ -1239,7 +1304,7 @@ function AdminInventory({
                   className="w-full bg-gray-900/60 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all text-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 {[
                   {
                     value: categoryFilter,
@@ -1268,6 +1333,25 @@ function AdminInventory({
                     options: [
                       { value: "active", label: "Active" },
                       { value: "archived", label: "Archived" },
+                    ],
+                  },
+                  {
+                    value: `${sortField}_${sortDirection}`,
+                    onChange: (val) => {
+                      const [f, d] = val.split("_");
+                      setSortField(f);
+                      setSortDirection(d);
+                    },
+                    options: [
+                      { value: "name_asc", label: "Sort: Name (A-Z)" },
+                      { value: "name_desc", label: "Sort: Name (Z-A)" },
+                      { value: "quantity_asc", label: "Sort: Qty (Low-High)" },
+                      { value: "quantity_desc", label: "Sort: Qty (High-Low)" },
+                      { value: "price_asc", label: "Sort: Price (Low-High)" },
+                      { value: "price_desc", label: "Sort: Price (High-Low)" },
+                      { value: "category_asc", label: "Sort: Category" },
+                      { value: "branch_asc", label: "Sort: Branch" },
+                      { value: "status_asc", label: "Sort: Status" },
                     ],
                   },
                 ].map((sel, i) => (
@@ -1344,14 +1428,30 @@ function AdminInventory({
             {/* Desktop Table */}
             <div className="hidden md:block bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
               <div className="grid grid-cols-12 gap-3 px-6 py-4 border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                <div className="col-span-2">Name</div>
-                <div className="col-span-1">Category</div>
-                <div className="col-span-1">SKU</div>
-                <div className="col-span-1">Qty</div>
-                <div className="col-span-1">Price</div>
-                <div className="col-span-2">Branch</div>
-                <div className="col-span-1">Supplier</div>
-                <div className="col-span-2 text-right">Status</div>
+                <div onClick={() => handleSort("name")} className="col-span-2 cursor-pointer hover:text-white transition-colors flex items-center gap-1 select-none">
+                  Name {sortField === "name" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                </div>
+                <div onClick={() => handleSort("category")} className="col-span-1 cursor-pointer hover:text-white transition-colors flex items-center gap-1 select-none">
+                  Category {sortField === "category" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                </div>
+                <div onClick={() => handleSort("sku")} className="col-span-1 cursor-pointer hover:text-white transition-colors flex items-center gap-1 select-none">
+                  SKU {sortField === "sku" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                </div>
+                <div onClick={() => handleSort("quantity")} className="col-span-1 cursor-pointer hover:text-white transition-colors flex items-center gap-1 select-none">
+                  Qty {sortField === "quantity" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                </div>
+                <div onClick={() => handleSort("price")} className="col-span-1 cursor-pointer hover:text-white transition-colors flex items-center gap-1 select-none">
+                  Price {sortField === "price" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                </div>
+                <div onClick={() => handleSort("branch")} className="col-span-2 cursor-pointer hover:text-white transition-colors flex items-center gap-1 select-none">
+                  Branch {sortField === "branch" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                </div>
+                <div onClick={() => handleSort("supplier")} className="col-span-1 cursor-pointer hover:text-white transition-colors flex items-center gap-1 select-none">
+                  Supplier {sortField === "supplier" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                </div>
+                <div onClick={() => handleSort("status")} className="col-span-2 text-right cursor-pointer hover:text-white transition-colors flex items-center justify-end gap-1 select-none">
+                  Status {sortField === "status" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                </div>
                 <div className="col-span-1 text-right">Actions</div>
               </div>
 
@@ -1513,6 +1613,207 @@ function AdminInventory({
           </>
         )}
 
+        {activeTab === "distribution" && (
+          <div className="space-y-6 mb-8">
+            {/* Distribution Summary Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 backdrop-blur-sm">
+                <div className="text-xl sm:text-2xl font-black text-white mb-1">
+                  {loadingDistribution ? (
+                    <div className="h-7 w-16 bg-gray-800 rounded animate-pulse" />
+                  ) : (
+                    distributionData?.summary?.total_products ?? 0
+                  )}
+                </div>
+                <div className="text-sm text-gray-400 font-medium">Tracked Products</div>
+                <div className="text-xs text-gray-500 mt-0.5">Across Central & Branches</div>
+              </div>
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 backdrop-blur-sm">
+                <div className="text-xl sm:text-2xl font-black text-emerald-400 mb-1">
+                  {loadingDistribution ? (
+                    <div className="h-7 w-16 bg-gray-800 rounded animate-pulse" />
+                  ) : (
+                    distributionData?.summary?.balanced_count ?? 0
+                  )}
+                </div>
+                <div className="text-sm text-gray-400 font-medium">Balanced Allocation</div>
+                <div className="text-xs text-emerald-500/80 mt-0.5">Stock meets branch minimums</div>
+              </div>
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 backdrop-blur-sm">
+                <div className="text-xl sm:text-2xl font-black text-amber-400 mb-1">
+                  {loadingDistribution ? (
+                    <div className="h-7 w-16 bg-gray-800 rounded animate-pulse" />
+                  ) : (
+                    distributionData?.summary?.low_stock_count ?? 0
+                  )}
+                </div>
+                <div className="text-sm text-gray-400 font-medium">Low Stock Products</div>
+                <div className="text-xs text-amber-500/80 mt-0.5">Branches needing replenishment</div>
+              </div>
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 backdrop-blur-sm">
+                <div className="text-xl sm:text-2xl font-black text-rose-400 mb-1">
+                  {loadingDistribution ? (
+                    <div className="h-7 w-16 bg-gray-800 rounded animate-pulse" />
+                  ) : (
+                    distributionData?.summary?.imbalanced_count ?? 0
+                  )}
+                </div>
+                <div className="text-sm text-gray-400 font-medium">Imbalanced Allocation</div>
+                <div className="text-xs text-rose-500/80 mt-0.5">Surplus/Central available while low</div>
+              </div>
+            </div>
+
+            {/* Distribution Matrix Card */}
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="p-4 sm:p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-white">
+                    Branch Stock Allocation Matrix
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
+                    Monitor product levels across Central and branches to ensure balanced stock distribution.
+                  </p>
+                </div>
+                <button
+                  onClick={fetchDistribution}
+                  className="self-start sm:self-auto text-xs px-3 py-1.5 rounded-lg font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 transition-all flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh Matrix
+                </button>
+              </div>
+
+              {loadingDistribution ? (
+                <div className="p-8 text-center text-gray-400 text-sm animate-pulse">
+                  Loading stock distribution matrix...
+                </div>
+              ) : !distributionData || (distributionData.distributions || []).length === 0 ? (
+                <div className="py-16 text-center text-gray-500 text-sm">
+                  No active inventory items found for distribution monitoring.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/[0.01]">
+                        <th className="px-5 py-3.5">Product</th>
+                        <th className="px-4 py-3.5">Category</th>
+                        <th className="px-4 py-3.5 text-center">Central Warehouse</th>
+                        {(distributionData.branches || []).map((b) => (
+                          <th key={b.id} className="px-4 py-3.5 text-center">
+                            {b.name}
+                          </th>
+                        ))}
+                        <th className="px-4 py-3.5 text-center">Total Stock</th>
+                        <th className="px-4 py-3.5 text-center">Balance Status</th>
+                        <th className="px-5 py-3.5 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {(distributionData.distributions || []).map((prod, idx) => {
+                        const statusBadge =
+                          prod.balance_status === "balanced" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Balanced
+                            </span>
+                          ) : prod.balance_status === "imbalanced" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                              Imbalanced
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                              Low Stock
+                            </span>
+                          );
+
+                        return (
+                          <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="px-5 py-3.5">
+                              <div className="font-semibold text-white">{prod.name}</div>
+                              <div className="text-xs text-gray-500 font-mono mt-0.5">{prod.sku || "—"}</div>
+                            </td>
+                            <td className="px-4 py-3.5 text-gray-400">{prod.category}</td>
+                            <td className="px-4 py-3.5 text-center">
+                              <span className={`font-bold ${prod.central_stock > 0 ? "text-blue-400" : "text-gray-500"}`}>
+                                {prod.central_stock}
+                              </span>
+                            </td>
+                            {(distributionData.branches || []).map((b) => {
+                              const bStock = prod.branch_stocks?.[String(b.id)];
+                              const qty = bStock?.quantity ?? 0;
+                              const minQ = bStock?.minimum_qty ?? 0;
+                              const isNotStocked = bStock?.status === "not_stocked";
+
+                              return (
+                                <td key={b.id} className="px-4 py-3.5 text-center">
+                                  {isNotStocked ? (
+                                    <span className="text-xs text-gray-600 italic">Not Stocked</span>
+                                  ) : (
+                                    <div className="inline-flex flex-col items-center">
+                                      <span
+                                        className={`font-semibold text-xs px-2 py-0.5 rounded-lg ${
+                                          qty <= 0
+                                            ? "bg-red-500/15 text-red-400 border border-red-500/20"
+                                            : qty <= minQ
+                                            ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                                            : "bg-white/5 text-gray-200"
+                                        }`}
+                                      >
+                                        {qty} pcs
+                                      </span>
+                                      {minQ > 0 && (
+                                        <span className="text-[10px] text-gray-500 mt-0.5">
+                                          min: {minQ}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="px-4 py-3.5 text-center font-bold text-gray-200">
+                              {prod.total_stock}
+                            </td>
+                            <td className="px-4 py-3.5 text-center">{statusBadge}</td>
+                            <td className="px-5 py-3.5 text-right">
+                              {prod.central_item_id ? (
+                                <button
+                                  onClick={() => {
+                                    setTransferInitialItemId(String(prod.central_item_id));
+                                    setShowTransferModal(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600/80 hover:bg-blue-600 text-white transition-all shadow-sm"
+                                >
+                                  Distribute
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setTransferInitialItemId("");
+                                    setShowTransferModal(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                >
+                                  Send Stock
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === "transactions" && (
           <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -1579,12 +1880,19 @@ function AdminInventory({
       )}
       {showTransferModal && (
         <StockTransferModal
-          onClose={() => setShowTransferModal(false)}
-          onTransferred={fetchData}
+          onClose={() => {
+            setShowTransferModal(false);
+            setTransferInitialItemId("");
+          }}
+          onTransferred={() => {
+            fetchData();
+            fetchDistribution();
+          }}
           items={centralItems}
           branches={branches}
           authHeaders={authHeaders}
           onNotify={notify}
+          initialItemId={transferInitialItemId}
         />
       )}
     </LayoutComponent>

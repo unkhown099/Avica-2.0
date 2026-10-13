@@ -123,8 +123,8 @@ export default function InventoryDashboard({
         const itemsData = await itemsRes.json();
         setItems(itemsData ?? []);
 
-        if (isAdmin) {
-          // Admin: full transaction history across all branches
+        if (isAdmin || isInventoryManager || role === "Inventory Manager" || role === "super_admin") {
+          // Admin & Inventory Manager: full transaction history across all branches
           const txRes = await fetch(
             `${API_BASE}/inventory/transactions/?limit=10`,
             { headers, credentials: "include" }

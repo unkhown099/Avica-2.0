@@ -6,7 +6,11 @@ from unittest.mock import patch, MagicMock
 import json
 from datetime import timedelta
 
-from api.models import Branch, PaymentTransaction, QueueEntry, Staff, User, Service, ServiceCategory, Customer, Booking
+from api.models import (
+    Branch, PaymentTransaction, QueueEntry, Staff, User, Service,
+    ServiceCategory, Customer, Booking, InventoryItem, RestockRequest,
+    InventoryTransaction, Notification
+)
 from api.serializers.service_serializer import ServiceSerializer
 from api.serializers.business_owner_serializers import OwnerServiceSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -838,6 +842,249 @@ class Phase2ManageBookingsAndScheduleTests(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
+
+
+class Phase3InventoryManagerTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        # Branches
+        self.branch1 = Branch.objects.create(name="BGC Branch", address="Taguig", hours="8-6")
+        self.branch2 = Branch.objects.create(name="Makati Branch", address="Makati", hours="8-6")
+
+        # Users and Staff
+        # Inventory Manager (Central)
+        self.inv_manager_user = User.objects.create_user(email="inv_mgr@test.com", password="password123")
+        self.inv_manager_staff = Staff.objects.create(
+            user=self.inv_manager_user,
+            first_name="Inv",
+            last_name="Manager",
+            role="Inventory Manager",
+            status="Active",
+            branch=None,
+            branch_name="Central Warehouse",
+        )
+
+        # Branch 1 Inventory Staff
+        self.inv_staff1_user = User.objects.create_user(email="inv_staff1@test.com", password="password123")
+        self.inv_staff1 = Staff.objects.create(
+            user=self.inv_staff1_user,
+            first_name="Staff",
+            last_name="BGC",
+            role="Inventory",
+            status="Active",
+            branch=self.branch1,
+            branch_name="BGC Branch",
+        )
+
+        # Central Inventory Item
+        self.central_item = InventoryItem.objects.create(
+            name="Premium Wax",
+            category="Other",
+            sku="PW-001",
+            price=500.00,
+            quantity=100,
+            minimum_qty=20,
+            unit="Pieces",
+            supplier="Chemical Guys",
+            branch=None,
+            is_active=True,
+        )
+
+        # Branch 1 Inventory Item
+        self.branch1_item = InventoryItem.objects.create(
+            name="Premium Wax",
+            category="Other",
+            sku="PW-001-B1",
+            price=500.00,
+            quantity=10,
+            minimum_qty=15,
+            unit="Pieces",
+            supplier="Chemical Guys",
+            branch=self.branch1,
+            is_active=True,
+        )
+
+    def test_product_distribution_to_new_branch_auto_creates_item(self):
+        # Branch 2 does not have Premium Wax
+        self.assertFalse(InventoryItem.objects.filter(branch=self.branch2, name="Premium Wax").exists())
+
+        self.client.force_authenticate(user=self.inv_manager_user)
+        res = self.client.post(
+            "/inventory/transfer/",
+            {
+                "source_item_id": self.central_item.id,
+                "target_branch_id": self.branch2.id,
+                "quantity": 25,
+                "immediate": True,
+                "note": "Initial distribution to Makati Branch",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+
+        # Central item deducted
+        self.central_item.refresh_from_db()
+        self.assertEqual(self.central_item.quantity, 75)
+
+        # Branch 2 item auto-created with 25 quantity
+        b2_item = InventoryItem.objects.filter(branch=self.branch2, name="Premium Wax").first()
+        self.assertIsNotNone(b2_item)
+        self.assertEqual(b2_item.quantity, 25)
+        self.assertEqual(b2_item.category, "Other")
+
+        # Transactions recorded
+        self.assertTrue(InventoryTransaction.objects.filter(action_type="transfer_out", inventory_item=self.central_item).exists())
+        self.assertTrue(InventoryTransaction.objects.filter(action_type="transfer_in", inventory_item=b2_item).exists())
+
+    def test_product_distribution_staged_and_branch_receipt(self):
+        self.client.force_authenticate(user=self.inv_manager_user)
+        res = self.client.post(
+            "/inventory/transfer/",
+            {
+                "source_item_id": self.central_item.id,
+                "target_branch_id": self.branch1.id,
+                "quantity": 10,
+                "note": "Stock transfer to BGC",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        req_id = res.data["request_id"]
+
+        rr = RestockRequest.objects.get(pk=req_id)
+        self.assertEqual(rr.status, "approved")
+        self.assertEqual(rr.request_type, "transfer")
+
+        # Now BGC branch inventory receives the transfer
+        self.client.force_authenticate(user=self.inv_staff1_user)
+        receive_res = self.client.patch(
+            f"/inventory/restock-requests/{req_id}/action/",
+            {"action": "receive"},
+            format="json",
+        )
+        self.assertEqual(receive_res.status_code, 200)
+
+        self.central_item.refresh_from_db()
+        self.branch1_item.refresh_from_db()
+        self.assertEqual(self.central_item.quantity, 90)
+        self.assertEqual(self.branch1_item.quantity, 20)
+
+    def test_restock_request_approval_and_rejection(self):
+        # Branch 1 requests restock
+        rr = RestockRequest.objects.create(
+            inventory_item=self.branch1_item,
+            branch=self.branch1,
+            requested_by=self.inv_staff1,
+            quantity_requested=30,
+            notes="Running low on wax",
+            status="pending",
+        )
+
+        # Inventory manager rejects request
+        self.client.force_authenticate(user=self.inv_manager_user)
+        res = self.client.patch(
+            f"/inventory/restock-requests/{rr.id}/action/",
+            {"action": "reject", "reviewer_note": "Postponed until next month"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        rr.refresh_from_db()
+        self.assertEqual(rr.status, "rejected")
+        self.assertEqual(rr.reviewer_note, "Postponed until next month")
+
+        # Duplicate review rejected
+        dup_res = self.client.patch(
+            f"/inventory/restock-requests/{rr.id}/action/",
+            {"action": "approve"},
+            format="json",
+        )
+        self.assertEqual(dup_res.status_code, 400)
+
+    def test_automated_low_stock_alerts_and_deduplication(self):
+        self.client.force_authenticate(user=self.inv_manager_user)
+
+        # Drop central item to 10 (minimum_qty is 20)
+        res = self.client.patch(
+            f"/inventory/{self.central_item.id}/",
+            {"quantity": 10},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+
+        # Check notification was created
+        notifs = Notification.objects.filter(notification_type="inventory", title__icontains="Premium Wax")
+        self.assertTrue(notifs.exists())
+        initial_count = notifs.count()
+
+        # Update again within 24h to 5 (still low stock)
+        res2 = self.client.patch(
+            f"/inventory/{self.central_item.id}/",
+            {"quantity": 5},
+            format="json",
+        )
+        self.assertEqual(res2.status_code, 200)
+
+        # Deduplication must prevent duplicate alerts
+        after_count = Notification.objects.filter(notification_type="inventory", title__icontains="Premium Wax").count()
+        self.assertEqual(initial_count, after_count)
+
+    def test_inventory_distribution_endpoint(self):
+        self.client.force_authenticate(user=self.inv_manager_user)
+        res = self.client.get("/inventory/distribution/")
+        self.assertEqual(res.status_code, 200)
+
+        self.assertIn("summary", res.data)
+        self.assertIn("branches", res.data)
+        self.assertIn("distributions", res.data)
+
+        dists = res.data["distributions"]
+        self.assertGreaterEqual(len(dists), 1)
+
+        wax_dist = next((d for d in dists if d["name"] == "Premium Wax"), None)
+        self.assertIsNotNone(wax_dist)
+        self.assertEqual(wax_dist["central_stock"], 100)
+        self.assertIn(str(self.branch1.id), wax_dist["branch_stocks"])
+        self.assertIn("balance_status", wax_dist)
+
+    def test_inventory_filters_and_sorting(self):
+        # Create second item with different price and quantity
+        InventoryItem.objects.create(
+            name="Air Freshener",
+            category="Accessories",
+            sku="AF-001",
+            price=150.00,
+            quantity=200,
+            minimum_qty=10,
+            branch=self.branch1,
+            is_active=True,
+        )
+
+        self.client.force_authenticate(user=self.inv_manager_user)
+
+        # Filter by branch_id
+        res_branch = self.client.get(f"/inventory/?branch_id={self.branch1.id}")
+        self.assertEqual(res_branch.status_code, 200)
+        for item in res_branch.data:
+            self.assertEqual(item["branch_name"], "BGC Branch")
+
+        # Filter by Central
+        res_central = self.client.get("/inventory/?branch=Central")
+        self.assertEqual(res_central.status_code, 200)
+        for item in res_central.data:
+            self.assertIsNone(item["branch_name"])
+
+        # Sort by price ascending
+        res_sort_price = self.client.get("/inventory/?ordering=price")
+        self.assertEqual(res_sort_price.status_code, 200)
+        prices = [float(item["price"]) for item in res_sort_price.data]
+        self.assertEqual(prices, sorted(prices))
+
+        # Sort by quantity descending
+        res_sort_qty = self.client.get("/inventory/?ordering=-quantity")
+        self.assertEqual(res_sort_qty.status_code, 200)
+        qtys = [item["quantity"] for item in res_sort_qty.data]
+        self.assertEqual(qtys, sorted(qtys, reverse=True))
 
 
 

@@ -3,11 +3,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated  # ← changed
 from rest_framework import status
+from datetime import timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.db import transaction
+from django.db.models import Q
 from collections import defaultdict
-from ..models import InventoryItem, RestockRequest, InventoryTransaction, Staff, Notification
+from ..models import InventoryItem, RestockRequest, InventoryTransaction, Staff, Notification, Branch
 from ..serializers.inventory_serializer import InventoryItemSerializer
 from ..serializers.restock_serializer import RestockRequestSerializer
 from ..serializers.inventory_transaction_serializer import InventoryTransactionSerializer
@@ -103,6 +105,52 @@ def _notify_roles(*, roles, title, message, branch_id=None, notification_type="i
         Notification.objects.bulk_create(notifications)
 
 
+def check_and_notify_low_stock(item):
+    """
+    Checks if an inventory item has reached or dropped below minimum_qty (or <= 0).
+    Alerts Inventory Manager, Central Inventory, and Super Admin.
+    Deduplicates to prevent duplicate spam within 24 hours for the same item.
+    """
+    if not item or not getattr(item, "is_active", True):
+        return False
+
+    qty = item.quantity or 0
+    min_qty = item.minimum_qty or 0
+
+    if qty > min_qty and qty > 0:
+        return False
+
+    # Check for duplicate unread alert within 24 hours
+    since = timezone.now() - timedelta(hours=24)
+    already_notified = Notification.objects.filter(
+        notification_type="inventory",
+        is_read=False,
+        title__icontains=item.name,
+        created_at__gte=since,
+    ).exists()
+
+    if already_notified:
+        return False
+
+    branch_name = item.branch.name if item.branch else "Central Warehouse"
+    is_out_of_stock = qty <= 0
+    status_label = "OUT OF STOCK" if is_out_of_stock else "LOW STOCK"
+    title = f"{'Out of Stock' if is_out_of_stock else 'Low Stock'}: {item.name} ({branch_name})"
+    message = (
+        f"Inventory alert: '{item.name}' (SKU: {item.sku}) at {branch_name} has {qty} units remaining "
+        f"(minimum reorder level: {min_qty}). Status: {status_label}."
+    )
+
+    _notify_roles(
+        roles=["Inventory Manager", "Inventory", "super_admin"],
+        title=title,
+        message=message,
+        notification_type="inventory",
+        target_path="/inventory/alerts" if item.branch_id else "/inventory-manager/inventory",
+    )
+    return True
+
+
 class InventoryListCreateView(APIView):
     permission_classes = [IsAuthenticated]  # ← was IsAdminUser
 
@@ -113,9 +161,11 @@ class InventoryListCreateView(APIView):
 
         category   = request.query_params.get("category")
         branch     = request.query_params.get("branch")
+        branch_id  = request.query_params.get("branch_id")
         search     = request.query_params.get("search")
         inv_status = request.query_params.get("status")
         archived   = request.query_params.get("archived")
+        ordering   = request.query_params.get("ordering") or request.query_params.get("sort_by")
 
         requester_staff = getattr(request.user, "staff_profile", None)
         qs = InventoryItem.objects.select_related("branch").all()
@@ -134,17 +184,43 @@ class InventoryListCreateView(APIView):
                 qs = qs.none()
         if category:
             qs = qs.filter(category=category)
+        if branch_id:
+            if str(branch_id).lower() in ["central", "0", "null", "none"]:
+                qs = qs.filter(branch__isnull=True)
+            elif str(branch_id).isdigit():
+                qs = qs.filter(branch_id=int(branch_id))
         if branch:
             if branch in ["Central", "Central Warehouse", "Central Inventory"]:
                 qs = qs.filter(branch__isnull=True)
+            elif str(branch).isdigit():
+                qs = qs.filter(branch_id=int(branch))
             else:
                 qs = qs.filter(branch__name=branch)
         if search:
-            qs = qs.filter(name__icontains=search) | qs.filter(sku__icontains=search)
+            qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search) | Q(category__icontains=search))
         if archived == "true":
             qs = qs.filter(is_active=False)
         else:
             qs = qs.filter(is_active=True)
+
+        allowed_orderings = {
+            "name": "name",
+            "-name": "-name",
+            "quantity": "quantity",
+            "-quantity": "-quantity",
+            "price": "price",
+            "-price": "-price",
+            "category": "category",
+            "-category": "-category",
+            "sku": "sku",
+            "-sku": "-sku",
+            "created_at": "created_at",
+            "-created_at": "-created_at",
+        }
+        if ordering and ordering in allowed_orderings:
+            qs = qs.order_by(allowed_orderings[ordering])
+        else:
+            qs = qs.order_by("name")
 
         serializer = InventoryItemSerializer(qs, many=True)
         data = serializer.data
@@ -193,6 +269,7 @@ class InventoryListCreateView(APIView):
                 performed_by=getattr(request.user, "staff_profile", None),
                 notes=f"Created inventory item ({item.sku})",
             )
+            check_and_notify_low_stock(item)
             return Response(InventoryItemSerializer(item).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -241,6 +318,7 @@ class InventoryDetailView(APIView):
                     notes=notes,
                 )
 
+            check_and_notify_low_stock(item)
             return Response(InventoryItemSerializer(item).data)
         return Response(serializer.errors, status=400)
 
@@ -404,10 +482,9 @@ class RestockRequestActionView(APIView):
             rr.reviewed_at = timezone.now()
 
             if action == "approve":
-                central_item = InventoryItem.objects.filter(
-                    branch__isnull=True,
-                    name=rr.inventory_item.name,
-                    category=rr.inventory_item.category,
+                base_sku = rr.inventory_item.sku.split("-B")[0] if rr.inventory_item.sku else ""
+                central_item = InventoryItem.objects.filter(branch__isnull=True).filter(
+                    Q(sku=base_sku) | Q(name__iexact=rr.inventory_item.name, category=rr.inventory_item.category)
                 ).first()
                 if not central_item:
                     return Response(
@@ -484,30 +561,30 @@ class RestockRequestActionView(APIView):
         if rr.status != "approved":
             return Response({"detail": "Only approved requests can be marked as received."}, status=400)
 
-        central_item = InventoryItem.objects.filter(
-            branch__isnull=True,
-            name=rr.inventory_item.name,
-            category=rr.inventory_item.category,
-        ).first()
-        if not central_item:
-            return Response(
-                {"detail": "No central stock found for this item."},
-                status=400,
-            )
-        if (central_item.quantity or 0) < rr.quantity_requested:
-            return Response(
-                {"detail": "Insufficient central stock for this transfer."},
-                status=400,
-            )
-
+        base_sku = rr.inventory_item.sku.split("-B")[0] if rr.inventory_item.sku else ""
         with transaction.atomic():
+            central_item = InventoryItem.objects.select_for_update().filter(branch__isnull=True).filter(
+                Q(sku=base_sku) | Q(name__iexact=rr.inventory_item.name, category=rr.inventory_item.category)
+            ).first()
+            if not central_item:
+                return Response(
+                    {"detail": "No central stock found for this item."},
+                    status=400,
+                )
+            if (central_item.quantity or 0) < rr.quantity_requested:
+                return Response(
+                    {"detail": "Insufficient central stock for this transfer."},
+                    status=400,
+                )
+
+            target_item = InventoryItem.objects.select_for_update().get(pk=rr.inventory_item_id)
             source_before = central_item.quantity or 0
-            central_item.quantity = (central_item.quantity or 0) - rr.quantity_requested
+            central_item.quantity = source_before - rr.quantity_requested
             central_item.save(update_fields=["quantity", "updated_at"])
 
-            target_before = rr.inventory_item.quantity or 0
-            rr.inventory_item.quantity = (rr.inventory_item.quantity or 0) + rr.quantity_requested
-            rr.inventory_item.save(update_fields=["quantity", "updated_at"])
+            target_before = target_item.quantity or 0
+            target_item.quantity = target_before + rr.quantity_requested
+            target_item.save(update_fields=["quantity", "updated_at"])
 
             rr.status = "received"
             rr.save(update_fields=["status", "updated_at"])
@@ -524,10 +601,10 @@ class RestockRequestActionView(APIView):
                 notes=f"Received {'transfer' if rr.request_type == 'transfer' else 'restock'} request #{rr.id}",
             )
             _log_inventory_transaction(
-                inventory_item=rr.inventory_item,
+                inventory_item=target_item,
                 action_type="transfer_in",
                 quantity_before=target_before,
-                quantity_after=rr.inventory_item.quantity or 0,
+                quantity_after=target_item.quantity or 0,
                 quantity_changed=rr.quantity_requested or 0,
                 branch_name=rr.branch.name if rr.branch else "",
                 target_branch_name="Central",
@@ -535,15 +612,16 @@ class RestockRequestActionView(APIView):
                 notes=f"Received {'transfer' if rr.request_type == 'transfer' else 'restock'} request #{rr.id}",
             )
             _log_inventory_transaction(
-                inventory_item=rr.inventory_item,
+                inventory_item=target_item,
                 action_type="restock_received",
                 quantity_before=target_before,
-                quantity_after=rr.inventory_item.quantity or 0,
+                quantity_after=target_item.quantity or 0,
                 quantity_changed=rr.quantity_requested or 0,
                 branch_name=rr.branch.name if rr.branch else "",
                 performed_by=actor,
                 notes=f"Inventory confirmed {'transfer' if rr.request_type == 'transfer' else 'restock'} receipt for request #{rr.id}",
             )
+            check_and_notify_low_stock(central_item)
 
         _notify_roles(
             roles=["Inventory Manager"],
@@ -577,6 +655,7 @@ class DirectStockTransferView(APIView):
         target_branch_id = request.data.get("target_branch_id")
         quantity = request.data.get("quantity")
         note = request.data.get("note", "")
+        immediate = bool(request.data.get("immediate", False) or request.data.get("direct_distribution", False))
 
         if not source_item_id or not target_branch_id or not quantity:
             return Response({"detail": "source_item_id, target_branch_id, and quantity are required."}, status=400)
@@ -593,21 +672,111 @@ class DirectStockTransferView(APIView):
         except InventoryItem.DoesNotExist:
             return Response({"detail": "Source inventory item not found."}, status=404)
 
-        if source.branch_id is not None:
-            return Response({"detail": "Source item must be from central inventory (no branch)."}, status=400)
+        try:
+            target_branch = Branch.objects.get(pk=target_branch_id)
+        except Branch.DoesNotExist:
+            return Response({"detail": "Target branch not found."}, status=404)
+
+        if source.branch_id is not None and source.branch_id == target_branch.id:
+            return Response({"detail": "Source and target branch cannot be the same."}, status=400)
 
         if (source.quantity or 0) < quantity:
-            return Response({"detail": "Insufficient central stock for transfer."}, status=400)
+            return Response(
+                {"detail": f"Insufficient stock for transfer. Available: {source.quantity or 0}."},
+                status=400,
+            )
 
         target = InventoryItem.objects.filter(
-            branch_id=target_branch_id,
-            name=source.name,
+            branch_id=target_branch.id,
+            name__iexact=source.name,
             category=source.category,
         ).first()
+
+        # If item does not exist at target branch yet, automatically create it for product distribution
         if not target:
+            target = InventoryItem.objects.create(
+                name=source.name,
+                category=source.category,
+                price=source.price,
+                minimum_qty=source.minimum_qty,
+                unit=source.unit,
+                supplier=source.supplier,
+                branch=target_branch,
+                quantity=0,
+                sku=_next_branch_sku(source.sku, target_branch.id),
+                is_active=True,
+            )
+
+        actor = getattr(request.user, "staff_profile", None)
+        source_branch_name = source.branch.name if source.branch else "Central"
+        target_branch_name = target_branch.name
+
+        if immediate:
+            with transaction.atomic():
+                source_before = source.quantity or 0
+                source.quantity = source_before - quantity
+                source.save(update_fields=["quantity", "updated_at"])
+
+                target_before = target.quantity or 0
+                target.quantity = target_before + quantity
+                target.save(update_fields=["quantity", "updated_at"])
+
+                rr = RestockRequest.objects.create(
+                    inventory_item=target,
+                    branch=target_branch,
+                    requested_by=actor,
+                    reviewed_by=actor,
+                    quantity_requested=quantity,
+                    notes=note,
+                    request_type="transfer",
+                    status="received",
+                    reviewed_at=timezone.now(),
+                )
+                _log_inventory_transaction(
+                    inventory_item=source,
+                    action_type="transfer_out",
+                    quantity_before=source_before,
+                    quantity_after=source.quantity,
+                    quantity_changed=-quantity,
+                    branch_name=source_branch_name,
+                    target_branch_name=target_branch_name,
+                    performed_by=actor,
+                    notes=f"Distribution #{rr.id}: {note}".strip(),
+                )
+                _log_inventory_transaction(
+                    inventory_item=target,
+                    action_type="transfer_in",
+                    quantity_before=target_before,
+                    quantity_after=target.quantity,
+                    quantity_changed=quantity,
+                    branch_name=target_branch_name,
+                    target_branch_name=source_branch_name,
+                    performed_by=actor,
+                    notes=f"Distribution #{rr.id}: {note}".strip(),
+                )
+                check_and_notify_low_stock(source)
+
+            requester_name = f"{actor.first_name} {actor.last_name}".strip() if actor else "Inventory Manager"
+            _notify_roles(
+                roles=["Inventory"],
+                branch_id=target_branch.id,
+                title="Stock Distributed",
+                message=(
+                    f"{requester_name} distributed {quantity} units of {source.name} to {target_branch_name}."
+                ),
+                notification_type="inventory",
+                target_path="/inventory/stock-overview",
+            )
             return Response(
-                {"detail": "Target branch item not found. Create the branch inventory item first."},
-                status=400,
+                {
+                    "detail": "Product distributed successfully. Inventory updated.",
+                    "request_id": rr.id,
+                    "source_item_id": source.id,
+                    "target_item_id": target.id,
+                    "quantity": quantity,
+                    "immediate": True,
+                },
+                status=200,
             )
 
         existing_pending = RestockRequest.objects.filter(
@@ -621,10 +790,9 @@ class DirectStockTransferView(APIView):
                 status=400,
             )
 
-        actor = getattr(request.user, "staff_profile", None)
         rr = RestockRequest.objects.create(
             inventory_item=target,
-            branch_id=target_branch_id,
+            branch=target_branch,
             requested_by=actor,
             quantity_requested=quantity,
             notes=note,
@@ -637,15 +805,15 @@ class DirectStockTransferView(APIView):
             quantity_before=source.quantity or 0,
             quantity_after=source.quantity or 0,
             quantity_changed=quantity or 0,
-            branch_name="Central",
-            target_branch_name=target.branch.name if target.branch else "",
+            branch_name=source_branch_name,
+            target_branch_name=target_branch_name,
             performed_by=actor,
             notes=f"Transfer request #{rr.id}: {note}".strip(),
         )
         requester_name = f"{actor.first_name} {actor.last_name}".strip() if actor else "A staff member"
         _notify_roles(
             roles=["Inventory"],
-            branch_id=target_branch_id,
+            branch_id=target_branch.id,
             title="Incoming Transfer",
             message=(
                 f"{requester_name} sent transfer #{rr.id} for {source.name} "
@@ -659,7 +827,7 @@ class DirectStockTransferView(APIView):
             title="Transfer Sent",
             message=(
                 f"Transfer #{rr.id} for {source.name} "
-                f"(qty {quantity}) to {target.branch.name if target.branch else 'branch'} was sent."
+                f"(qty {quantity}) to {target_branch_name} was sent."
             ),
             notification_type="inventory",
             target_path="/inventory-manager/inventory",
@@ -885,3 +1053,131 @@ class InventoryDemandForecastView(APIView):
                 },
             }
         )
+
+
+class InventoryDistributionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        role = get_staff_role(request)
+        if role not in READ_ROLES:
+            return Response({"detail": "Permission denied."}, status=403)
+
+        branches = list(Branch.objects.filter(is_active=True).order_by("name"))
+        items = list(InventoryItem.objects.filter(is_active=True).select_related("branch").order_by("name"))
+
+        # Group items by base product identity: (name.lower(), category.lower())
+        products = defaultdict(lambda: {
+            "name": "",
+            "category": "",
+            "sku": "",
+            "price": 0,
+            "central_stock": 0,
+            "central_item_id": None,
+            "branch_stocks": {},
+            "total_stock": 0,
+        })
+
+        for item in items:
+            key = (item.name.strip().lower(), (item.category or "").strip().lower())
+            p = products[key]
+            if not p["name"]:
+                p["name"] = item.name
+                p["category"] = item.category or "General"
+                p["price"] = float(item.price or 0)
+                base_sku = item.sku.split("-B")[0] if item.sku else ""
+                p["sku"] = base_sku
+
+            qty = item.quantity or 0
+            p["total_stock"] += qty
+
+            if item.branch_id is None:
+                p["central_stock"] += qty
+                p["central_item_id"] = item.id
+            else:
+                p["branch_stocks"][str(item.branch_id)] = {
+                    "branch_id": item.branch_id,
+                    "branch_name": item.branch.name if item.branch else "Unknown",
+                    "item_id": item.id,
+                    "quantity": qty,
+                    "minimum_qty": item.minimum_qty or 0,
+                    "status": "in_stock" if qty > (item.minimum_qty or 0) else ("low_stock" if qty > 0 else "out_of_stock"),
+                }
+
+        distributions = []
+        balanced_count = 0
+        low_stock_count = 0
+        imbalanced_count = 0
+
+        for key, p in sorted(products.items(), key=lambda x: x[1]["name"].lower()):
+            has_low_or_out = False
+            has_surplus = False
+
+            for b in branches:
+                b_stock = p["branch_stocks"].get(str(b.id))
+                if not b_stock:
+                    p["branch_stocks"][str(b.id)] = {
+                        "branch_id": b.id,
+                        "branch_name": b.name,
+                        "item_id": None,
+                        "quantity": 0,
+                        "minimum_qty": 0,
+                        "status": "not_stocked",
+                    }
+                else:
+                    b_qty = b_stock["quantity"]
+                    min_q = b_stock["minimum_qty"]
+                    if b_qty <= min_q:
+                        has_low_or_out = True
+                    if min_q > 0 and b_qty >= (min_q * 3):
+                        has_surplus = True
+
+            if has_low_or_out and (has_surplus or p["central_stock"] > 0):
+                balance_status = "imbalanced"
+                imbalanced_count += 1
+            elif has_low_or_out:
+                balance_status = "low_stock"
+                low_stock_count += 1
+            else:
+                balance_status = "balanced"
+                balanced_count += 1
+
+            p["balance_status"] = balance_status
+            distributions.append(p)
+
+        return Response({
+            "summary": {
+                "total_products": len(distributions),
+                "total_stock": sum(d["total_stock"] for d in distributions),
+                "balanced_count": balanced_count,
+                "low_stock_count": low_stock_count,
+                "imbalanced_count": imbalanced_count,
+            },
+            "branches": [{"id": b.id, "name": b.name} for b in branches],
+            "distributions": distributions,
+        })
+
+
+class InventoryCheckAlertsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        role = get_staff_role(request)
+        if role not in READ_ROLES:
+            return Response({"detail": "Permission denied."}, status=403)
+
+        items = InventoryItem.objects.filter(is_active=True).select_related("branch")
+        alerts_sent = 0
+        low_stock_count = 0
+
+        for item in items:
+            if (item.quantity or 0) <= (item.minimum_qty or 0) or (item.quantity or 0) <= 0:
+                low_stock_count += 1
+                if check_and_notify_low_stock(item):
+                    alerts_sent += 1
+
+        return Response({
+            "checked_items": items.count(),
+            "low_stock_items": low_stock_count,
+            "alerts_created": alerts_sent,
+        })

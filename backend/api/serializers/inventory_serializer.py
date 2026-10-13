@@ -4,7 +4,7 @@ from ..models import InventoryItem, Branch
 
 class InventoryItemSerializer(serializers.ModelSerializer):
     status      = serializers.ReadOnlyField()
-    branch_name = serializers.CharField(source="branch.name", read_only=True)
+    branch_name = serializers.CharField(source="branch.name", read_only=True, default=None, allow_null=True)
     branch      = serializers.PrimaryKeyRelatedField(
         queryset=Branch.objects.all(), allow_null=True, required=False
     )
@@ -27,6 +27,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["unit"] = "Pieces"
+        data["branch_name"] = instance.branch.name if instance.branch else None
         return data
 
     def _generate_sku(self, category):
