@@ -5,6 +5,7 @@ from rest_framework.test import APIClient
 from unittest.mock import patch, MagicMock
 import json
 from datetime import timedelta
+from decimal import Decimal
 
 from api.models import (
     Branch, PaymentTransaction, QueueEntry, Staff, User, Service,
@@ -1383,6 +1384,94 @@ class Phase4BusinessOwnerTests(TestCase):
         cal_entries = res_cal.data.get(today_day) or res_cal.data.get(str(today_day))
         self.assertIn("confirmed", cal_entries)
         self.assertIn("done", cal_entries)
+
+
+class EmployeeLoginAndRoleRedirectionTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.branch = Branch.objects.create(name="Central Branch", address="123 Main St", hours="8AM-6PM")
+
+        # Employee (technician / detailer / worker)
+        self.emp_user = User.objects.create_user(email="worker@test.com", password="password123")
+        self.emp_staff = Staff.objects.create(
+            user=self.emp_user, first_name="Juan", last_name="Worker", phone="09111111111", role="Employee", branch=self.branch
+        )
+
+        # Staff (Cashier)
+        self.cashier_user = User.objects.create_user(email="cashier2@test.com", password="password123")
+        self.cashier_staff = Staff.objects.create(
+            user=self.cashier_user, first_name="Maria", last_name="Cashier", phone="09222222222", role="Staff", branch=self.branch
+        )
+
+        # Inventory Manager
+        self.im_user = User.objects.create_user(email="im@test.com", password="password123")
+        self.im_staff = Staff.objects.create(
+            user=self.im_user, first_name="Carlos", last_name="Inventory", phone="09333333333", role="Inventory Manager", branch=self.branch
+        )
+
+        # Super Admin
+        self.root_user = User.objects.create_superuser(email="root_admin@test.com", password="password123")
+
+    def test_employee_login_returns_normalized_employee_role(self):
+        res = self.client.post("/login/", {"email": "worker@test.com", "password": "password123"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data.get("success"))
+        self.assertEqual(res.data["user"]["role"], "employee")
+        self.assertIn("tokens", res.data)
+
+    def test_staff_login_returns_normalized_staff_role(self):
+        res = self.client.post("/login/", {"email": "cashier2@test.com", "password": "password123"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data.get("success"))
+        self.assertEqual(res.data["user"]["role"], "staff")
+
+    def test_inventory_manager_login_returns_normalized_role(self):
+        res = self.client.post("/login/", {"email": "im@test.com", "password": "password123"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data.get("success"))
+        self.assertEqual(res.data["user"]["role"], "inventory_manager")
+
+    def test_superuser_login_returns_super_admin_role(self):
+        res = self.client.post("/login/", {"email": "root_admin@test.com", "password": "password123"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data.get("success"))
+        self.assertEqual(res.data["user"]["role"], "super_admin")
+
+
+class VehicleAnalysisTop10RecommendationsTests(TestCase):
+    def setUp(self):
+        # Create 12 distinct services to verify Top 10 limit
+        self.services = []
+        for i in range(1, 13):
+            svc = Service.objects.create(
+                name=f"Service Option {i}",
+                category="Wash" if i <= 3 else ("Detailing" if i <= 6 else "Protection"),
+                price=Decimal(f"{100 * i}.00"),
+                price_list={"small": 100 * i, "medium": 120 * i, "large": 150 * i},
+                duration=30 + i * 5,
+                description=f"Description for service option {i}",
+                is_active=True,
+            )
+            self.services.append(svc)
+
+    def test_match_recommended_services_returns_up_to_10_ranked_services(self):
+        from api.services.ai_vehicle_service import _match_recommended_services
+        recs = _match_recommended_services(self.services, "small", "Good", ["Service Option 1"])
+        self.assertEqual(len(recs), 10)
+
+        # Check ranking 1..10
+        ranks = [r["rank"] for r in recs]
+        self.assertEqual(ranks, list(range(1, 11)))
+
+        # Check fields
+        first = recs[0]
+        self.assertIn("name", first)
+        self.assertIn("price", first)
+        self.assertIn("basePrice", first)
+        self.assertIn("duration", first)
+        self.assertIn("matchReason", first)
+        self.assertIn("suitability", first)
+
 
 
 

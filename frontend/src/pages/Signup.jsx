@@ -25,6 +25,13 @@ const ROLE_ROUTES = {
 };
 
 const storeSession = (tokens, user, remember) => {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("user");
+  sessionStorage.removeItem("access_token");
+  sessionStorage.removeItem("refresh_token");
+  sessionStorage.removeItem("user");
+
   const store = remember ? localStorage : sessionStorage;
   store.setItem("access_token", tokens.access);
   store.setItem("refresh_token", tokens.refresh);

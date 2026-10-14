@@ -35,6 +35,18 @@ const MAINTENANCE_ALLOWED_ROLES = [
 ];
 
 function normalizeRole(rawRole) {
+  if (!rawRole) return null;
+  const str = String(rawRole).trim().toLowerCase().replace(/[- ]+/g, "_");
+  if (str.includes("super_admin") || str.includes("superadmin")) return "super_admin";
+  if (str.includes("business_owner") || str.includes("branch_owner") || str === "owner") return "business_owner";
+  if (str.includes("branch_manager") || (str.includes("manager") && !str.includes("inventory"))) return "branch_manager";
+  if (str.includes("inventory_manager")) return "inventory_manager";
+  if (str.includes("inventory")) return "inventory_manager";
+  if (str.includes("admin")) return "admin";
+  if (str.includes("cashier") || str.includes("staff")) return "staff";
+  if (str.includes("employee") || str.includes("technician") || str.includes("worker") || str.includes("mechanic") || str.includes("detailer")) return "employee";
+  if (str.includes("customer") || str.includes("client")) return "customer";
+
   const map = {
     "Admin": "admin",
     "Business Owner": "business_owner",
@@ -45,7 +57,7 @@ function normalizeRole(rawRole) {
     "Inventory Manager": "inventory_manager",
     "Super Admin": "super_admin",
   };
-  return map[rawRole] ?? rawRole ?? null;
+  return map[rawRole] ?? str;
 }
 
 async function getMaintenanceStatus(token) {
@@ -115,6 +127,14 @@ function SignIn() {
   };
 
   const storeSession = (tokens, user, remember) => {
+    // Clear both storages first to prevent stale collision (e.g. employee logging in on a machine with stale customer data)
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("access_token");
+    sessionStorage.removeItem("refresh_token");
+    sessionStorage.removeItem("user");
+
     const store = remember ? localStorage : sessionStorage;
     store.setItem("access_token", tokens.access);
     store.setItem("refresh_token", tokens.refresh);
@@ -321,6 +341,23 @@ function SignIn() {
     }
   };
 
+  // If already authenticated with a valid session, navigate to the role dashboard
+  useEffect(() => {
+    try {
+      const token = sessionStorage.getItem("access_token") || localStorage.getItem("access_token");
+      const userRaw = sessionStorage.getItem("user") || localStorage.getItem("user");
+      if (token && userRaw) {
+        const u = JSON.parse(userRaw);
+        const normRole = normalizeRole(u?.role);
+        if (normRole && ROLE_ROUTES[normRole]) {
+          navigate(ROLE_ROUTES[normRole], { replace: true });
+        }
+      }
+    } catch {
+      // ignore parse error
+    }
+  }, [navigate]);
+
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
@@ -383,10 +420,13 @@ function SignIn() {
                 <div className="whitespace-nowrap animate-[ticker_20s_linear_infinite] py-3 hover:animation-pause">
                   {[...Array(6)].map((_, i) => (
                     <span key={i} className="inline-flex items-center mx-8">
-                      <span className="text-sm text-yellow-100 font-semibold">
-                        ⚠️ {maintenanceMessage || "System is under maintenance. Only administrators can access after login."} ⚠️
+                      <span className="text-sm text-yellow-100 font-semibold inline-flex items-center gap-2">
+                        <svg className="w-4 h-4 text-yellow-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>{maintenanceMessage || "System is under maintenance. Only administrators can access after login."}</span>
                       </span>
-                      <span className="text-yellow-400 mx-4 text-lg">✦</span>
+                      <span className="text-yellow-400/60 mx-4 text-xs">•</span>
                     </span>
                   ))}
                 </div>

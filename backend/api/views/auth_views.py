@@ -217,25 +217,39 @@ def send_google_signup_email(user, temp_password):
     except Exception as e:
         logger.error("Failed to send Google signup email to %s: %s", user.email, e)
 
+def _normalize_role(raw_role):
+    """Normalize any role string into a standard lowercase snake_case role identifier."""
+    if not raw_role:
+        return "customer"
+    r = str(raw_role).strip().lower().replace("-", "_").replace(" ", "_")
+    if "super_admin" in r or "superadmin" in r:
+        return "super_admin"
+    if "business_owner" in r or "branch_owner" in r or r == "owner":
+        return "business_owner"
+    if "branch_manager" in r or (("manager" in r or "mgmt" in r) and "inventory" not in r):
+        return "branch_manager"
+    if "inventory_manager" in r:
+        return "inventory_manager"
+    if "inventory" in r:
+        return "inventory"
+    if "admin" in r:
+        return "admin"
+    if "cashier" in r or "staff" in r:
+        return "staff"
+    if "employee" in r or "technician" in r or "worker" in r or "mechanic" in r or "detailer" in r:
+        return "employee"
+    if "customer" in r or "client" in r:
+        return "customer"
+    return r
+
+
 def _get_profile_data(user):
     """
-    Returns (role, first_name, last_name, suffix, phone) for any user.
+    Returns (role, first_name, last_name, suffix, phone, profile_picture) for any user.
     Uses explicit Manager queries instead of reverse accessors to avoid
     'User has no attribute customer/staff_profile' errors regardless of
     how the FK/OneToOne related_name is defined on the model.
     """
-    ROLE_MAP = {
-        "Admin":          "admin",
-        "Business Owner": "business_owner",
-        "Branch Manager": "branch_manager",
-        "Staff":          "staff",
-        "Employee":       "employee",
-        "Inventory":      "inventory",
-        "Inventory Manager": "inventory_manager",
-        "Super Admin":    "super_admin",
-        "super_admin":    "super_admin",
-    }
-
     def get_pic_url(pic):
         if not pic:
             return ""
@@ -254,8 +268,9 @@ def _get_profile_data(user):
     try:
         staff = Staff.objects.get(user=user)
         pic = getattr(staff, "profile_picture", None)
+        resolved_role = _normalize_role(staff.role) if staff.role else ("super_admin" if getattr(user, "is_superuser", False) else "staff")
         return (
-            ROLE_MAP.get(staff.role, "staff"),
+            resolved_role,
             getattr(staff, "first_name", "") or "",
             getattr(staff, "last_name",  "") or "",
             getattr(staff, "suffix",     "") or "",
@@ -269,8 +284,14 @@ def _get_profile_data(user):
     try:
         customer = Customer.objects.get(user=user)
         pic = getattr(customer, "profile_picture", None)
+        if getattr(user, "is_superuser", False):
+            resolved_role = "super_admin"
+        elif getattr(user, "is_staff", False):
+            resolved_role = "admin"
+        else:
+            resolved_role = "customer"
         return (
-            "customer",
+            resolved_role,
             customer.first_name or "",
             customer.last_name  or "",
             customer.suffix     or "",
@@ -281,6 +302,10 @@ def _get_profile_data(user):
         pass
 
     # No profile found at all
+    if getattr(user, "is_superuser", False):
+        return "super_admin", getattr(user, "first_name", "") or "", getattr(user, "last_name", "") or "", "", "", ""
+    if getattr(user, "is_staff", False):
+        return "admin", getattr(user, "first_name", "") or "", getattr(user, "last_name", "") or "", "", "", ""
     return "customer", "", "", "", "", ""
 
 

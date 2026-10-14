@@ -326,7 +326,11 @@ function ServicesPage() {
                   : "bg-gray-900/80 text-gray-400 border border-white/10 hover:border-amber-600/40 hover:text-white"
               }`}
             >
-              <span>🔥 Top 10 Most Demanded</span>
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+              </svg>
+              <span>Top 10 Most Demanded</span>
             </button>
             <button
               onClick={() => setActiveTab("recommended")}
@@ -336,7 +340,10 @@ function ServicesPage() {
                   : "bg-gray-900/80 text-gray-400 border border-white/10 hover:border-purple-600/40 hover:text-white"
               }`}
             >
-              <span>✨ Recommended For You</span>
+              <svg className="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              <span>Recommended For You</span>
             </button>
           </div>
         </div>
@@ -597,7 +604,10 @@ function ServicesPage() {
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-amber-500 text-lg">🔥</span>
+                  <svg className="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+                  </svg>
                   <h2 className="text-lg sm:text-xl font-black text-white">Top 10 Most Demanded Services</h2>
                 </div>
                 <p className="text-xs sm:text-sm text-gray-400">
@@ -679,8 +689,11 @@ function ServicesPage() {
                           </span>
                           <CategoryBadge category={svc.category} />
                         </div>
-                        <div className="absolute bottom-3 right-3 z-10 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[11px] font-bold text-amber-400">
-                          🔥 {item.completed_count} completed
+                        <div className="absolute bottom-3 right-3 z-10 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                          </svg>
+                          <span>{item.completed_count} completed</span>
                         </div>
                       </div>
 
@@ -751,7 +764,9 @@ function ServicesPage() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-purple-400 text-lg">✨</span>
+                    <svg className="w-5 h-5 text-purple-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
                     <h2 className="text-lg sm:text-xl font-black text-white">Personalized Recommendations</h2>
                     <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
                       {isAiGenerated ? "AI Generated" : "Data-Driven Rule Model"}
@@ -830,8 +845,11 @@ function ServicesPage() {
 
                       <div className="p-6 pt-3 flex flex-col flex-1">
                         {item.basis && (
-                          <div className="mb-3 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] font-semibold text-purple-300">
-                            💡 {item.basis}
+                          <div className="mb-3 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] font-semibold text-purple-300 flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-purple-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                            <span>{item.basis}</span>
                           </div>
                         )}
                         <h3 className="text-xl font-black text-white mb-2 group-hover:text-purple-400 transition-colors">

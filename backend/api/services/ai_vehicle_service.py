@@ -46,40 +46,45 @@ def _get_active_services():
         return []
 
 def _match_recommended_services(services, vehicle_size: str, condition: str, raw_recommendations=None):
-    """Filter and calculate pricing for services based on vehicle size and condition."""
+    """Filter and calculate pricing for services based on vehicle size and condition, returning up to 10 top recommendations."""
     if not services:
         return []
 
-    matched = []
     condition_lower = (condition or "good").lower()
     is_rough = "fair" in condition_lower or "poor" in condition_lower
 
     # Preferred keywords based on vehicle condition
     if is_rough:
-        preferred_keywords = ["detail", "buffing", "wax", "polish", "steamed", "under wash", "paint"]
+        preferred_keywords = ["detail", "buffing", "wax", "polish", "steamed", "under wash", "paint", "restoration", "scratch"]
     else:
-        preferred_keywords = ["carwash", "wash", "wax", "interior", "treatment", "coat"]
+        preferred_keywords = ["carwash", "wash", "wax", "interior", "treatment", "coat", "ceramic", "shine", "protect"]
 
     scored_services = []
     for svc in services:
         name_lower = svc.name.lower()
         cat_lower = (svc.category or "").lower()
         score = 0
+        match_reasons = []
 
         # Check against preferred condition keywords
         for kw in preferred_keywords:
             if kw in name_lower or kw in cat_lower:
                 score += 3
+                if not match_reasons:
+                    match_reasons.append(f"Recommended for {condition.lower()} condition")
 
         # If AI gave raw recommendations, check if matches
         if raw_recommendations:
             for rec in raw_recommendations:
                 if isinstance(rec, str) and (rec.lower() in name_lower or name_lower in rec.lower()):
                     score += 5
+                    match_reasons.append("AI Vision Highlight")
 
         # Always include a basic wash service if available
         if "carwash" in name_lower or "wash" in name_lower:
             score += 2
+            if not match_reasons:
+                match_reasons.append("Essential Maintenance")
 
         # Calculate exact price for the detected vehicle size
         final_price = float(svc.price)
@@ -89,27 +94,31 @@ def _match_recommended_services(services, vehicle_size: str, condition: str, raw
             except (ValueError, TypeError):
                 final_price = float(svc.price)
 
-        scored_services.append((score, svc, final_price))
+        reason = match_reasons[0] if match_reasons else f"Suited for {vehicle_size} vehicles"
+        scored_services.append((score, svc, final_price, reason))
 
     # Sort descending by score
     scored_services.sort(key=lambda x: x[0], reverse=True)
 
-    # Pick top 3-4 distinct services
+    # Pick up to 10 distinct services
     chosen = []
     seen_ids = set()
-    for score, svc, resolved_price in scored_services:
+    for score, svc, resolved_price, reason in scored_services:
         if svc.id not in seen_ids:
             seen_ids.add(svc.id)
             chosen.append({
                 "id": svc.id,
+                "rank": len(chosen) + 1,
                 "name": svc.name,
                 "category": svc.category or "Service",
                 "price": resolved_price,
                 "basePrice": float(svc.price),
                 "duration": svc.duration or 30,
                 "description": svc.description or "",
+                "matchReason": reason,
+                "suitability": f"{vehicle_size.capitalize()} • {condition.capitalize()}",
             })
-            if len(chosen) >= 4:
+            if len(chosen) >= 10:
                 break
 
     return chosen

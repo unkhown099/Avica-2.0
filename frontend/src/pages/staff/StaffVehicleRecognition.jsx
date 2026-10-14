@@ -30,15 +30,15 @@ const SIZE_LABELS = {
 };
 
 // ── Walk-In Quick Modal ───────────────────────────────────────────────────────
-function WalkInModal({ analysisResult, onClose }) {
+function WalkInModal({ analysisResult, initialService = null, onClose }) {
   const [form, setForm] = useState({
     customerName: "",
     phone: "",
-    service: analysisResult?.recommendedServices?.[0]?.name || "",
+    service: initialService?.name || analysisResult?.recommendedServices?.[0]?.name || "",
     notes: "",
   });
   const [selectedService, setSelectedService] = useState(
-    analysisResult?.recommendedServices?.[0] || null
+    initialService || analysisResult?.recommendedServices?.[0] || null
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -198,11 +198,11 @@ function WalkInModal({ analysisResult, onClose }) {
               {/* Service Selection */}
               {analysisResult.recommendedServices?.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-widest">Select Service</p>
-                  <div className="space-y-2">
-                    {analysisResult.recommendedServices.map((svc) => (
+                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-widest">Select Recommended Service ({analysisResult.recommendedServices.length})</p>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {analysisResult.recommendedServices.map((svc, idx) => (
                       <button
-                        key={svc.id}
+                        key={svc.id || idx}
                         type="button"
                         onClick={() => {
                           setSelectedService(svc);
@@ -215,7 +215,10 @@ function WalkInModal({ analysisResult, onClose }) {
                         }`}
                       >
                         <div>
-                          <p className="font-semibold text-sm">{svc.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-gray-500 font-mono">#{svc.rank || idx + 1}</span>
+                            <p className="font-semibold text-sm">{svc.name}</p>
+                          </div>
                           <p className="text-xs text-gray-500">{svc.category} · {svc.duration} mins</p>
                         </div>
                         <div className="text-right shrink-0 ml-4">
@@ -425,11 +428,11 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
 
             {analysisResult.recommendedServices?.length > 0 && (
               <>
-                <p className="section-title">Recommended Services</p>
+                <p className="section-title">Top 10 AI Recommended Services</p>
                 <div className="grid">
                   {analysisResult.recommendedServices.map((s, i) => (
                     <div className="field" key={i}>
-                      <div className="label">{s.category}</div>
+                      <div className="label">#{s.rank || i + 1} {s.category}</div>
                       <div className="value">{s.name}</div>
                       <div style={{ fontSize: 13, color: "#059669", fontWeight: 700 }}>
                         ₱{Number(s.price).toLocaleString()}
@@ -465,6 +468,7 @@ function StaffVehicleRecognition() {
 
   // Modals
   const [showWalkIn, setShowWalkIn] = useState(false);
+  const [walkInService, setWalkInService] = useState(null);
   const [showPrint, setShowPrint] = useState(false);
 
   // Toast
@@ -648,8 +652,10 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
       {showWalkIn && analysisResult && (
         <WalkInModal
           analysisResult={analysisResult}
+          initialService={walkInService}
           onClose={(created) => {
             setShowWalkIn(false);
+            setWalkInService(null);
             if (created) showToast("Walk-in queue ticket created!");
           }}
         />
@@ -1028,32 +1034,110 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
                   )}
                 </div>
 
-                {/* Recommended Services */}
+                {/* Top 10 AI Recommended Services */}
                 {!isEditing && R?.recommendedServices?.length > 0 && (
                   <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                    <h3 className="font-black text-white mb-4 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      Recommended Services
-                      <span className="text-xs text-gray-500 font-normal">based on vehicle size & condition</span>
-                    </h3>
-                    <div className="space-y-2">
-                      {R.recommendedServices.map((svc) => (
-                        <div key={svc.id} className="flex items-center justify-between bg-gray-800/40 border border-white/5 rounded-xl px-4 py-3">
-                          <div>
-                            <p className="text-white font-semibold text-sm">{svc.name}</p>
-                            <p className="text-gray-500 text-xs">{svc.category}{svc.duration ? ` · ${svc.duration} mins` : ""}</p>
-                            {svc.description && <p className="text-gray-600 text-xs mt-0.5 line-clamp-1">{svc.description}</p>}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                      <div>
+                        <h3 className="font-black text-white text-base flex items-center gap-2">
+                          <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          Top 10 AI Recommended Services
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Tailored for <span className="text-white font-semibold">{R.make} {R.model}</span> ({R.vehicleSizeLabel || R.vehicleSize}) • <span className="text-white font-semibold">{R.condition}</span> condition
+                        </p>
+                      </div>
+                      <span className="self-start sm:self-auto text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        {R.recommendedServices.length} Matches Found
+                      </span>
+                    </div>
+
+                    {/* Scrollable list of Top 10 Services */}
+                    <div className="max-h-[500px] overflow-y-auto space-y-2.5 pr-2">
+                      {R.recommendedServices.map((svc, idx) => {
+                        const rank = svc.rank || (idx + 1);
+                        const isTop3 = rank <= 3;
+                        const rankBadgeColor =
+                          rank === 1
+                            ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                            : rank === 2
+                            ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                            : rank === 3
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                            : "bg-white/5 text-gray-400 border-white/10";
+
+                        return (
+                          <div
+                            key={svc.id || idx}
+                            className={`group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all ${
+                              isTop3
+                                ? "bg-gray-800/60 border-white/10 hover:border-red-500/40"
+                                : "bg-gray-800/30 border-white/5 hover:border-white/20"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3 min-w-0">
+                              <span
+                                className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black border ${rankBadgeColor}`}
+                              >
+                                #{rank}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                  <p className="text-white font-semibold text-sm group-hover:text-red-400 transition-colors">
+                                    {svc.name}
+                                  </p>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/5 text-gray-400 border border-white/5">
+                                    {svc.category}
+                                  </span>
+                                  {svc.duration && (
+                                    <span className="text-[10px] text-gray-500">
+                                      • {svc.duration} mins
+                                    </span>
+                                  )}
+                                </div>
+                                {svc.description && (
+                                  <p className="text-gray-400 text-xs line-clamp-1 mb-1">
+                                    {svc.description}
+                                  </p>
+                                )}
+                                {svc.matchReason && (
+                                  <div className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400/90 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>{svc.matchReason}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                              <div className="text-left sm:text-right">
+                                <p className="text-emerald-400 font-black text-sm">
+                                  ₱{Number(svc.price).toLocaleString()}
+                                </p>
+                                {svc.basePrice && svc.basePrice !== svc.price && (
+                                  <p className="text-gray-500 text-[11px] line-through">
+                                    ₱{Number(svc.basePrice).toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWalkInService(svc);
+                                  setShowWalkIn(true);
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold transition-all shadow-md shadow-red-600/20 shrink-0"
+                              >
+                                Select for Walk-In
+                              </button>
+                            </div>
                           </div>
-                          <div className="text-right shrink-0 ml-4">
-                            <p className="text-emerald-400 font-black text-sm">₱{Number(svc.price).toLocaleString()}</p>
-                            {svc.basePrice !== svc.price && (
-                              <p className="text-gray-600 text-xs line-through">₱{Number(svc.basePrice).toLocaleString()}</p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

@@ -647,7 +647,7 @@ function Layout() {
           <Route
             path="/employee/vehicle-recognition"
             element={
-              <ProtectedRoute allowedRoles={["employee"]}>
+              <ProtectedRoute allowedRoles={["employee", "staff"]}>
                 <StaffVehicleRecognition />
               </ProtectedRoute>
             }

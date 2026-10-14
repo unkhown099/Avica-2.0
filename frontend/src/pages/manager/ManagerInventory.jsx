@@ -113,9 +113,9 @@ function ManagerInventory() {
 
   const getInventoryStatusLabel = (item) => {
     const key = getInventoryStatusKey(item);
-    if (key === "available") return "Available 🟢";
-    if (key === "running_low") return "Running Low 🟡";
-    return "Out of Stock ⚫";
+    if (key === "available") return "Available";
+    if (key === "running_low") return "Running Low";
+    return "Out of Stock";
   };
 
   const handleApiError = (err, defaultMessage) => {
@@ -784,9 +784,9 @@ function ManagerInventory() {
               >
                 {[
                   { value: "all", label: "All Status" },
-                  { value: "available", label: "Available 🟢" },
-                  { value: "running_low", label: "Running Low 🟡" },
-                  { value: "out_of_stock", label: "Out of Stock ⚫" },
+                  { value: "available", label: "Available" },
+                  { value: "running_low", label: "Running Low" },
+                  { value: "out_of_stock", label: "Out of Stock" },
                 ].map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}

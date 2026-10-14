@@ -67,19 +67,19 @@ const getInventoryStatusKey = (item) => {
 
 const STATUS_UI = {
   available: {
-    label: "Available 🟢",
+    label: "Available",
     className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   },
   running_low: {
-    label: "Running Low 🟡",
+    label: "Running Low",
     className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   },
   reorder_now: {
-    label: "Reorder Now 🔴",
+    label: "Reorder Now",
     className: "bg-red-500/20 text-red-400 border-red-500/30",
   },
   out_of_stock: {
-    label: "Out of Stock ⚫",
+    label: "Out of Stock",
     className: "bg-gray-500/20 text-gray-300 border-gray-500/30",
   },
 };
@@ -428,8 +428,11 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
           </Field>
           {/* Helper hint */}
           {!isEdit && (
-            <p className="text-xs text-gray-600 bg-white/3 border border-white/5 rounded-lg px-3 py-2">
-              💡 SKU is auto-generated based on category. Item will be added to Central inventory.
+            <p className="text-xs text-gray-400 bg-white/5 border border-white/5 rounded-lg px-3 py-2 flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>SKU is auto-generated based on category. Item will be added to Central inventory.</span>
             </p>
           )}
           <div className="flex gap-3 pt-1">
@@ -1321,10 +1324,10 @@ function AdminInventory({
                     onChange: setStatusFilter,
                     options: [
                       { value: "all", label: "All Status" },
-                      { value: "available", label: "Available 🟢" },
-                      { value: "running_low", label: "Running Low 🟡" },
-                      { value: "reorder_now", label: "Reorder Now 🔴" },
-                      { value: "out_of_stock", label: "Out of Stock ⚫" },
+                      { value: "available", label: "Available" },
+                      { value: "running_low", label: "Running Low" },
+                      { value: "reorder_now", label: "Reorder Now" },
+                      { value: "out_of_stock", label: "Out of Stock" },
                     ],
                   },
                   {
