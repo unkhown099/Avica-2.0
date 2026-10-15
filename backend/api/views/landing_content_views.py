@@ -68,12 +68,12 @@ DEFAULT_CONTENT = {
         {"name": "SIR MIGS ONG",       "city": "South Caloocan",      "text": "Thanks heaps for the top-notch service, Otokwikk! Highly recommended! Pogi na ulit si Sky!"},
     ],
     "fbPages": [
-        {"name": "Otokwikk - North Caloocan",  "url": "https://www.facebook.com/profile.php?id=100090897126761"},
-        {"name": "Otokwikk - Tanza Cavite",    "url": "https://www.facebook.com/otokwikk.tanzacavite"},
-        {"name": "Otokwikk - Camarin",         "url": "https://www.facebook.com/profile.php?id=61586571534281"},
-        {"name": "Otokwikk - Quezon City",     "url": "https://www.facebook.com/profile.php?id=61577247173903"},
-        {"name": "Otokwikk - South Caloocan",  "url": "https://www.facebook.com/profile.php?id=61572528405228"},
-        {"name": "Otokwikk - San Mateo Rizal", "url": "https://www.facebook.com/profile.php?id=61556323569842"},
+        {"name": "Otokwikk - Saranay Branch (North Caloocan)", "url": "https://www.facebook.com/profile.php?id=100090897126761"},
+        {"name": "Otokwikk - Tanza Cavite Branch",             "url": "https://www.facebook.com/otokwikk.tanzacavite"},
+        {"name": "Otokwikk - Camarin Branch",                  "url": "https://www.facebook.com/profile.php?id=61586571534281"},
+        {"name": "Otokwikk - South Caloocan Branch",           "url": "https://www.facebook.com/profile.php?id=61572528405228"},
+        {"name": "Otokwikk - San Mateo Rizal Branch",          "url": "https://www.facebook.com/profile.php?id=61556323569842"},
+        {"name": "Otokwikk - Quezon City Branch",              "url": "https://www.facebook.com/profile.php?id=61577247173903"},
     ],
     "posts": [
         {
@@ -119,7 +119,7 @@ DEFAULT_CONTENT = {
             {"label": "Services",      "href": "#services"},
             {"label": "Branches",      "href": "#branches"},
             {"label": "Client Reviews","href": "#reviews"},
-            {"label": "Facebook Pages","href": "#facebook-pages"},
+            {"label": "Facebook Pages","href": "#branches"},
             {"label": "Sign In",       "href": "/signin"},
             {"label": "Sign Up",       "href": "/signup"},
         ],
@@ -164,13 +164,13 @@ def _get_or_create_row():
         if changed:
             obj.save()
 
-    # ── One-time patch: fix stale siteMapLinks that still use bare "#" hrefs ──
+    # ── One-time patch: fix stale siteMapLinks that still use bare "#" hrefs or old facebook anchor ──
     ANCHOR_MAP = {
         "Homepage":      "#hero",
         "Services":      "#services",
         "Branches":      "#branches",
         "Client Reviews":"#reviews",
-        "Facebook Pages":"#facebook-pages",
+        "Facebook Pages":"#branches",
     }
     footer = obj.content.get("footer", {})
     site_map = footer.get("siteMapLinks", [])
