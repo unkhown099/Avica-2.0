@@ -1088,7 +1088,7 @@ function LandingPage() {
             </p>
 
             {/* Branch Dropdown */}
-            <div className="mt-8 relative w-full sm:w-96 max-w-md mx-auto z-30">
+            <div className="mt-8 relative w-full max-w-xl sm:max-w-2xl mx-auto z-30 px-3 sm:px-0">
               <select
                 value={activeBranch?.id ?? ""}
                 onChange={(e) =>
@@ -1098,7 +1098,7 @@ function LandingPage() {
                   )
                 }
                 aria-label="Select Branch Location"
-                className={`w-full font-black text-xs sm:text-sm uppercase tracking-[0.15em] px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl border appearance-none focus:outline-none focus:border-red-600 transition-all cursor-pointer shadow-xl backdrop-blur-xl truncate pr-10 ${
+                className={`w-full font-black text-xs sm:text-sm uppercase tracking-[0.08em] sm:tracking-[0.12em] pl-5 sm:pl-7 pr-14 sm:pr-16 py-3.5 sm:py-4 rounded-2xl border appearance-none focus:outline-none focus:border-red-600 transition-all cursor-pointer shadow-xl backdrop-blur-xl truncate ${
                   isDark 
                     ? "bg-black/80 text-white border-white/20 hover:border-red-500/50" 
                     : "bg-white text-gray-900 border-gray-300 hover:border-red-400 shadow-md"
@@ -1110,7 +1110,7 @@ function LandingPage() {
                   </option>
                 ))}
               </select>
-              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-red-600">
+              <div className="absolute right-5 sm:right-6 top-1/2 -translate-y-1/2 pointer-events-none text-red-600">
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -1380,8 +1380,8 @@ function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className={`landing-footer relative overflow-hidden text-white transition-colors duration-300 ${
-        isDark ? "bg-[#09090b] border-t border-white/15" : "bg-neutral-950 border-t-2 border-red-600 shadow-2xl"
+      <footer className={`landing-footer relative overflow-hidden transition-colors duration-300 ${
+        isDark ? "bg-[#09090b] text-white border-t border-white/15" : "bg-slate-50 text-gray-900 border-t-2 border-red-600 shadow-2xl"
       }`}>
         <div className="pointer-events-none absolute inset-0 hidden sm:block">
           <div className="absolute -right-16 -top-28 h-[420px] w-[420px] rotate-[24deg] border border-red-500/20" />
@@ -1398,7 +1398,7 @@ function LandingPage() {
                 className="h-10 sm:h-12 w-auto object-contain drop-shadow-[0_0_22px_rgba(220,38,38,0.25)]"
               />
             </div>
-            <p className="max-w-sm text-base sm:text-xl font-medium leading-relaxed text-gray-200">
+            <p className={`max-w-sm text-base sm:text-xl font-medium leading-relaxed ${isDark ? "text-gray-200" : "text-gray-600"}`}>
               {footer.tagline || "Your trusted automotive companion"}
             </p>
             <button
@@ -1426,11 +1426,13 @@ function LandingPage() {
 
           <div className="grid grid-cols-2 gap-8 sm:gap-12 lg:gap-20">
             <div className="footer-col">
-              <h3 className="mb-5 sm:mb-6 text-base sm:text-lg font-black text-white tracking-wide uppercase flex items-center gap-2">
+              <h3 className={`mb-5 sm:mb-6 text-base sm:text-lg font-black tracking-wide uppercase flex items-center gap-2 ${
+                isDark ? "text-white" : "text-gray-900"
+              }`}>
                 <span className="w-1.5 h-4 bg-red-600 rounded-full inline-block" />
                 Site Map
               </h3>
-              <ul className="space-y-3 sm:space-y-4 text-sm sm:text-base text-gray-200">
+              <ul className={`space-y-3 sm:space-y-4 text-sm sm:text-base ${isDark ? "text-gray-200" : "text-gray-600"}`}>
                 {footer.siteMapLinks && footer.siteMapLinks.length > 0 ? (
                   footer.siteMapLinks.map((item, index) => {
                     const targetHref = item.href === "#facebook-pages" ? "#branches" : item.href;
@@ -1439,7 +1441,11 @@ function LandingPage() {
                         <a
                           href={targetHref}
                           onClick={(e) => scrollToSection(e, targetHref)}
-                          className="font-medium underline-offset-4 transition hover:text-red-400 hover:underline"
+                          className={`font-medium underline-offset-4 transition ${
+                            isDark 
+                              ? "hover:text-red-400 hover:underline" 
+                              : "text-gray-700 hover:text-red-600 hover:underline"
+                          }`}
                         >
                           {item.label}
                         </a>
@@ -1447,16 +1453,18 @@ function LandingPage() {
                     );
                   })
                 ) : (
-                  <li className="text-gray-400">No links available</li>
+                  <li className={isDark ? "text-gray-400" : "text-gray-500"}>No links available</li>
                 )}
               </ul>
             </div>
             <div className="footer-col">
-              <h3 className="mb-5 sm:mb-6 text-base sm:text-lg font-black text-white tracking-wide uppercase flex items-center gap-2">
+              <h3 className={`mb-5 sm:mb-6 text-base sm:text-lg font-black tracking-wide uppercase flex items-center gap-2 ${
+                isDark ? "text-white" : "text-gray-900"
+              }`}>
                 <span className="w-1.5 h-4 bg-red-600 rounded-full inline-block" />
                 Legal
               </h3>
-              <ul className="space-y-3 sm:space-y-4 text-sm sm:text-base text-gray-200">
+              <ul className={`space-y-3 sm:space-y-4 text-sm sm:text-base ${isDark ? "text-gray-200" : "text-gray-600"}`}>
                 {footer.legalLinks && footer.legalLinks.length > 0 ? (
                   footer.legalLinks.map((item, index) => {
                     // Map the label to the post key
@@ -1475,7 +1483,11 @@ function LandingPage() {
                       <li key={index}>
                         <button
                           onClick={() => openModal(postKey)}
-                          className="font-medium underline-offset-4 transition hover:text-red-400 hover:underline cursor-pointer"
+                          className={`font-medium underline-offset-4 transition cursor-pointer text-left ${
+                            isDark 
+                              ? "hover:text-red-400 hover:underline" 
+                              : "text-gray-700 hover:text-red-600 hover:underline"
+                          }`}
                         >
                           {item.label}
                         </button>
@@ -1483,7 +1495,7 @@ function LandingPage() {
                     );
                   })
                 ) : (
-                  <li className="text-gray-400">No links available</li>
+                  <li className={isDark ? "text-gray-400" : "text-gray-500"}>No links available</li>
                 )}
               </ul>
             </div>

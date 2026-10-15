@@ -13,7 +13,7 @@ function Pagination({ current, total, onChange, className = "" }) {
       <button
         onClick={() => onChange(current - 1)}
         disabled={current === 1}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:text-red-600 dark:hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm dark:shadow-none"
       >
         <svg
           className="w-4 h-4"
@@ -39,7 +39,7 @@ function Pagination({ current, total, onChange, className = "" }) {
           return (
             <span
               key={`dots-${p}`}
-              className="w-9 h-9 flex items-center justify-center text-gray-600 text-sm"
+              className="w-9 h-9 flex items-center justify-center text-gray-500 dark:text-gray-500 text-sm"
             >
               ...
             </span>
@@ -55,7 +55,7 @@ function Pagination({ current, total, onChange, className = "" }) {
             className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
               p === current
                 ? "bg-red-600 text-white shadow-lg shadow-red-600/30 border border-red-500"
-                : "border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50"
+                : "border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:text-red-600 dark:hover:text-white hover:border-red-500/50 shadow-sm dark:shadow-none"
             }`}
           >
             {p}
@@ -66,7 +66,7 @@ function Pagination({ current, total, onChange, className = "" }) {
       <button
         onClick={() => onChange(current + 1)}
         disabled={current === total}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:text-red-600 dark:hover:text-white hover:border-red-500/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm dark:shadow-none"
       >
         <svg
           className="w-4 h-4"

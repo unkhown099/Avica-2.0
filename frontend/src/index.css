@@ -48,30 +48,28 @@ html:not([data-theme="light"]) section.fb-pages-section a.fb-page-card:hover .fb
   color: #ffffff !important;
 }
 
-/* ── Landing Footer — always dark in both modes ─────────────────────────────
-   The footer is designed to be dark regardless of the user's theme preference.
-   We override ALL light-mode rewrites so text/links remain readable.            */
+/* ── Landing Footer (Light Mode Adaptability) ─────────────────────────────── */
 html[data-theme="light"] footer.landing-footer,
 html[data-theme="light"] footer.landing-footer * {
   transition: color 0.15s ease, background-color 0.15s ease !important;
 }
 
 html[data-theme="light"] footer.landing-footer {
-  background-color: #0a0a0a !important;
+  background-color: #f8fafc !important;
   background-image: none !important;
-  color: #ffffff !important;
-  border-color: rgba(255,255,255,0.1) !important;
+  color: #111827 !important;
+  border-color: #dc2626 !important;
 }
 
 /* Heading columns: "Site Map", "Legal" */
 html[data-theme="light"] footer.landing-footer h3 {
-  color: #ffffff !important;
+  color: #111827 !important;
 }
 
 /* Link / list items */
 html[data-theme="light"] footer.landing-footer ul li a,
 html[data-theme="light"] footer.landing-footer ul li button {
-  color: #9ca3af !important;
+  color: #374151 !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -79,47 +77,48 @@ html[data-theme="light"] footer.landing-footer ul li button {
 
 html[data-theme="light"] footer.landing-footer ul li a:hover,
 html[data-theme="light"] footer.landing-footer ul li button:hover {
-  color: #f87171 !important;
+  color: #dc2626 !important;
 }
 
 /* Tagline paragraph */
-html[data-theme="light"] footer.landing-footer p {
-  color: #9ca3af !important;
+html[data-theme="light"] footer.landing-footer p:not(.footer-bottom) {
+  color: #4b5563 !important;
 }
 
 /* "No links available" fallback */
+html[data-theme="light"] footer.landing-footer .text-gray-400,
 html[data-theme="light"] footer.landing-footer .text-gray-500 {
   color: #6b7280 !important;
 }
 
 /* BACK TO TOP button */
-html[data-theme="light"] footer.landing-footer button.border-red-500\/60 {
-  background-color: rgba(220,38,38,0.1) !important;
-  border-color: rgba(239,68,68,0.6) !important;
+html[data-theme="light"] footer.landing-footer button.bg-red-600 {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
   color: #ffffff !important;
 }
 
-html[data-theme="light"] footer.landing-footer button.border-red-500\/60:hover {
-  background-color: rgba(220,38,38,0.2) !important;
+html[data-theme="light"] footer.landing-footer button.bg-red-600:hover {
+  background-color: #b91c1c !important;
 }
 
 /* Red copyright strip */
 html[data-theme="light"] footer.landing-footer .footer-bottom {
   background-color: #7f1d1d !important;
-  color: rgba(255,255,255,0.9) !important;
+  color: rgba(255,255,255,0.95) !important;
 }
 
 /* Decorative border lines in the footer */
 html[data-theme="light"] footer.landing-footer .border-white\/10 {
-  border-color: rgba(255,255,255,0.1) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
 }
 
 html[data-theme="light"] footer.landing-footer .border-red-500\/20 {
-  border-color: rgba(239,68,68,0.2) !important;
+  border-color: rgba(239, 68, 68, 0.15) !important;
 }
 
 html[data-theme="light"] footer.landing-footer .border-red-500\/15 {
-  border-color: rgba(239,68,68,0.15) !important;
+  border-color: rgba(239, 68, 68, 0.1) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -307,7 +306,7 @@ html[data-theme="light"] h6:not(.landing-hero *):not(.landing-footer *) {
   color: #0f172a !important;
 }
 
-html[data-theme="light"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-green"]):not([class*="bg-green"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-primary"]):not([class*="bg-primary"] *):not(.category-badge):not(.category-badge *):not([class*="category-badge"]):not([class*="category-badge"] *):not([class*="bg-black/60"]):not([class*="bg-black/60"] *):not([class*="bg-black/70"]):not([class*="bg-black/70"] *):not([class*="bg-black/75"]):not([class*="bg-black/75"] *):not([class*="bg-black/80"]):not([class*="bg-black/80"] *):not([class*="bg-black/90"]):not([class*="bg-black/90"] *):not(.landing-hero *):not(.landing-footer):not(.landing-footer *) {
+html[data-theme="light"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-green"]):not([class*="bg-green"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-primary"]):not([class*="bg-primary"] *):not(.category-badge):not(.category-badge *):not([class*="category-badge"]):not([class*="category-badge"] *):not(.landing-hero *):not(.landing-footer):not(.landing-footer *) {
   color: #0f172a !important;
 }
 
@@ -315,25 +314,24 @@ html[data-theme="light"] .text-white:not([class*="bg-red"]):not([class*="bg-red"
 html[data-theme="light"] .category-badge,
 html[data-theme="light"] [class*="category-badge"],
 html[data-theme="light"] span.category-badge,
-html[data-theme="light"] [class*="bg-black/60"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
-html[data-theme="light"] [class*="bg-black/70"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
-html[data-theme="light"] [class*="bg-black/75"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
-html[data-theme="light"] [class*="bg-black/80"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
-html[data-theme="light"] [class*="bg-black/90"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box) {
+html[data-theme="light"] span[class*="bg-black/60"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
+html[data-theme="light"] span[class*="bg-black/70"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
+html[data-theme="light"] span[class*="bg-black/75"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
+html[data-theme="light"] span[class*="bg-black/80"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box),
+html[data-theme="light"] span[class*="bg-black/90"]:not(.map-badge):not(.map-control-btn):not(.map-skin-box) {
   background-color: rgba(15, 23, 42, 0.85) !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
 }
 
-html[data-theme="light"] .category-badge,
 html[data-theme="light"] .category-badge *,
-html[data-theme="light"] [class*="category-badge"],
 html[data-theme="light"] [class*="category-badge"] *,
-html[data-theme="light"] span.category-badge,
-html[data-theme="light"] [class*="bg-black/60"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn),
-html[data-theme="light"] [class*="bg-black/70"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn),
-html[data-theme="light"] [class*="bg-black/75"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn),
-html[data-theme="light"] [class*="bg-black/80"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn),
-html[data-theme="light"] [class*="bg-black/90"]:not([class*="text-red"]):not(.text-red-500):not(.map-badge):not(.map-control-btn):not(.map-skin-box):not(.map-skin-btn) {
+html[data-theme="light"] span.category-badge *,
+html[data-theme="light"] span[class*="bg-black/60"] *:not([class*="text-red"]):not(.text-red-500),
+html[data-theme="light"] span[class*="bg-black/70"] *:not([class*="text-red"]):not(.text-red-500),
+html[data-theme="light"] span[class*="bg-black/75"] *:not([class*="text-red"]):not(.text-red-500),
+html[data-theme="light"] span[class*="bg-black/80"] *:not([class*="text-red"]):not(.text-red-500),
+html[data-theme="light"] span[class*="bg-black/90"] *:not([class*="text-red"]):not(.text-red-500) {
   color: #ffffff !important;
 }
 
@@ -393,8 +391,8 @@ html[data-theme="light"] button:not([class*="bg-red"]):not([class*="bg-red"] *):
 html[data-theme="light"] button[class*="backdrop-blur"]:not([class*="bg-red"]):not([class*="bg-red"] *) .text-white:not(.category-badge):not(.category-badge *),
 html[data-theme="light"] button[class*="rounded-2xl"]:not([class*="bg-red"]):not([class*="bg-red"] *) .text-white:not(.category-badge):not(.category-badge *),
 html[data-theme="light"] button[class*="rounded-xl"]:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *) .text-white:not(.category-badge):not(.category-badge *),
-html[data-theme="light"] div[class*="rounded-2xl"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not(.category-badge):not(.category-badge *):not([class*="bg-black/60"] *):not([class*="bg-black/70"] *):not([class*="bg-black/75"] *):not([class*="bg-black/80"] *):not([class*="bg-black/90"] *),
-html[data-theme="light"] div[class*="backdrop-blur"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not(.category-badge):not(.category-badge *):not([class*="bg-black/60"] *):not([class*="bg-black/70"] *):not([class*="bg-black/75"] *):not([class*="bg-black/80"] *):not([class*="bg-black/90"] *) {
+html[data-theme="light"] div[class*="rounded-2xl"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not(.category-badge):not(.category-badge *),
+html[data-theme="light"] div[class*="backdrop-blur"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not(.category-badge):not(.category-badge *) {
   color: #0f172a !important;
 }
 
@@ -441,9 +439,19 @@ html[data-theme="light"] textarea:not(.landing-hero *) {
   border: 1px solid #cbd5e1 !important;
 }
 
+html[data-theme="light"] label:not(.landing-hero *):not([class*="text-red"]) {
+  color: #1e293b !important;
+}
+
 html[data-theme="light"] select option:not(.landing-hero *) {
   background-color: #ffffff !important;
   color: #0f172a !important;
+}
+
+html[data-theme="dark"] select option,
+html:not([data-theme="light"]) select option {
+  background-color: #171717 !important;
+  color: #ffffff !important;
 }
 
 html[data-theme="light"] input::placeholder:not(.landing-hero *),
@@ -458,7 +466,7 @@ html[data-theme="light"] textarea:focus:not(.landing-hero *) {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
 }
 
-/* â”€â”€ 8. Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── 8. Tables ───────────────────────────────────────────────────────────── */
 html[data-theme="light"] table:not(.landing-hero *) {
   color: #1e293b !important;
 }
@@ -481,6 +489,15 @@ html[data-theme="light"] tbody tr:hover:not(.landing-hero *) {
 html[data-theme="light"] td:not(.landing-hero *) {
   border-color: #f1f5f9 !important;
   color: #334155 !important;
+}
+
+html[data-theme="light"] td .text-white:not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not(.category-badge) {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] td .text-gray-400,
+html[data-theme="light"] td .text-gray-300 {
+  color: #475569 !important;
 }
 
 /* â”€â”€ 9. Status Badges & Accents â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -575,10 +592,78 @@ html[data-theme="light"] button.bg-gray-800:hover:not(.landing-hero *) {
   color: #0f172a !important;
 }
 
-/* â”€â”€ 11. Modal, Dialogs & SweetAlert2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-html[data-theme="light"] .fixed.inset-0.bg-black\/60:not(.landing-hero *),
-html[data-theme="light"] .fixed.inset-0.bg-black\/75:not(.landing-hero *) {
-  background-color: rgba(15, 23, 42, 0.4) !important;
+/* ── 11. Modal, Dialogs & SweetAlert2 ────────────────────────────────── */
+html[data-theme="light"] .fixed.inset-0[class*="bg-black"],
+html[data-theme="light"] .fixed.inset-0.bg-black\/50,
+html[data-theme="light"] .fixed.inset-0.bg-black\/60,
+html[data-theme="light"] .fixed.inset-0.bg-black\/70,
+html[data-theme="light"] .fixed.inset-0.bg-black\/75,
+html[data-theme="light"] .fixed.inset-0.bg-black\/80,
+html[data-theme="light"] .fixed.inset-0.bg-black\/90,
+html[data-theme="light"] .fixed.inset-0.bg-black\/95 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  color: #0f172a;
+}
+
+/* Modal dialog cards inside fixed overlays */
+html[data-theme="light"] .fixed.inset-0 .bg-gray-900:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0 .bg-neutral-900:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0 .bg-gray-800:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0 .bg-neutral-950:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0 div[role="dialog"],
+html[data-theme="light"] div[role="dialog"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Modal Headers */
+html[data-theme="light"] .fixed.inset-0 h1:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0 h2:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0 h3:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0 h4:not(.landing-hero *),
+html[data-theme="light"] .fixed.inset-0 h5:not(.landing-hero *),
+html[data-theme="light"] div[role="dialog"] h1,
+html[data-theme="light"] div[role="dialog"] h2,
+html[data-theme="light"] div[role="dialog"] h3,
+html[data-theme="light"] div[role="dialog"] h4 {
+  color: #0f172a !important;
+}
+
+/* Modal Form Labels */
+html[data-theme="light"] .fixed.inset-0 label:not([class*="text-red"]),
+html[data-theme="light"] div[role="dialog"] label:not([class*="text-red"]) {
+  color: #1e293b !important;
+  font-weight: 600 !important;
+}
+
+/* Modal Paragraphs & Subtitles */
+html[data-theme="light"] .fixed.inset-0 p:not([class*="text-red"]):not(.text-red-500):not(.text-red-600),
+html[data-theme="light"] div[role="dialog"] p:not([class*="text-red"]):not(.text-red-500):not(.text-red-600) {
+  color: #475569 !important;
+}
+
+/* Modal Secondary Cancel/Close Buttons */
+html[data-theme="light"] .fixed.inset-0 button:not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-primary"]):not(.bg-red-600):not(.bg-red-500):not(.bg-red-700),
+html[data-theme="light"] div[role="dialog"] button:not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-primary"]):not(.bg-red-600):not(.bg-red-500):not(.bg-red-700) {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+html[data-theme="light"] .fixed.inset-0 button:not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-primary"]):not(.bg-red-600):not(.bg-red-500):not(.bg-red-700):hover,
+html[data-theme="light"] div[role="dialog"] button:not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-primary"]):not(.bg-red-600):not(.bg-red-500):not(.bg-red-700):hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Close icon buttons inside modals */
+html[data-theme="light"] .fixed.inset-0 button.text-gray-400:hover,
+html[data-theme="light"] .fixed.inset-0 button.text-gray-300:hover,
+html[data-theme="light"] div[role="dialog"] button.text-gray-400:hover,
+html[data-theme="light"] div[role="dialog"] button.text-gray-300:hover {
+  color: #0f172a !important;
 }
 
 html[data-theme="light"] .swal2-popup {

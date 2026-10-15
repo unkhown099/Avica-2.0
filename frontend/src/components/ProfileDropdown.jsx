@@ -143,10 +143,10 @@ const ProfileDropdown = () => {
     const dropdownBg = isDark
         ? "bg-gray-900 border border-white/10"
         : "bg-white border border-gray-200 shadow-xl";
-    const itemText = isDark ? "text-gray-400" : "text-gray-600";
+    const itemText = isDark ? "text-gray-300" : "text-gray-700";
     const itemHover = isDark ? "hover:text-white hover:bg-white/5" : "hover:text-gray-900 hover:bg-gray-100";
     const headingColor = isDark ? "text-white" : "text-gray-900";
-    const subTextColor = isDark ? "text-gray-500" : "text-gray-400";
+    const subTextColor = isDark ? "text-gray-400" : "text-gray-600";
     const headerBg = isDark ? "bg-black/20 border-white/5" : "bg-gray-50 border-gray-100";
     const dividerColor = isDark ? "border-white/5" : "border-gray-100";
 
