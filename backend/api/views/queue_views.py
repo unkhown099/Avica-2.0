@@ -421,7 +421,7 @@ def _booking_to_queue_entry(booking):
         print(f"ERROR details: {traceback.format_exc()}")
         raise
 
-    print(f"✅ Queue entry #{entry.id} created at position #{entry.position}")
+    print(f"[QUEUE] [SUCCESS] Queue entry #{entry.id} created at position #{entry.position}")
     print("="*50 + "\n")
     return entry
 

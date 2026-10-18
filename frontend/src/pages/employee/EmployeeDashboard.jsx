@@ -46,6 +46,7 @@ function toDisplayDateISO(isoDate) {
 }
 
 function EmployeeDashboard() {
+  const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState("");
   const [chatQueueId, setChatQueueId] = useState(null);

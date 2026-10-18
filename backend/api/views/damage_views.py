@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from ..models import Service
+from api.models import Service
 
 
 class AnalyzeDamageView(APIView):
@@ -153,7 +153,7 @@ OTHER STRICT RULES:
                                 svc = active_svc
                                 break
 
-                    print(f"  Matching '{name}' → {'FOUND: ' + svc.name if svc else 'NOT FOUND'}")
+                    print(f"  Matching '{name}' -> {'FOUND: ' + svc.name if svc else 'NOT FOUND'}")
 
                     if svc:
                         matched_services.append({

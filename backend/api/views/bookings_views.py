@@ -10,12 +10,12 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from ..models import Branch, Booking, BranchScheduleConfig, Staff, Notification
+from api.models import Branch, Booking, BranchScheduleConfig, Staff, Notification
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils.html import strip_tags
-from ..serializers.bookings_serializer import BranchSerializer, BookingSerializer
-from .queue_views import _booking_to_queue_entry
+from api.serializers.bookings_serializer import BranchSerializer, BookingSerializer
+from api.views.queue_views import _booking_to_queue_entry
 
 logger = logging.getLogger(__name__)
 
@@ -1134,7 +1134,7 @@ class StaffBookingActionView(APIView):
                 
                 # Validate branch exists before attempting to create queue entry
                 if booking.branch is None:
-                    print(f"[QUEUE] ❌ FAILED for booking #{booking.id}: No branch assigned to this booking")
+                    print(f"[QUEUE] [FAILED] for booking #{booking.id}: No branch assigned to this booking")
                     return Response(
                         {"detail": "Booking confirmed but cannot add to queue: No branch assigned."},
                         status=status.HTTP_400_BAD_REQUEST,
@@ -1151,13 +1151,13 @@ class StaffBookingActionView(APIView):
                     except Exception:
                         logger.exception("Failed to notify employee of task assignment")
 
-                print(f"[QUEUE] ✅ Success — queue entry #{entry.id} at position #{entry.position}")
+                print(f"[QUEUE] [SUCCESS] queue entry #{entry.id} at position #{entry.position}")
                 try:
                     _notify_customer_booking_status(booking, "confirmed")
                 except Exception:
                     logger.exception("Failed to send customer booking confirmation notification")
             except Exception as e:
-                print(f"[QUEUE] ❌ FAILED for booking #{booking.id}: {e}")
+                print(f"[QUEUE] [FAILED] for booking #{booking.id}: {e}")
                 print(traceback.format_exc())
                 # Return error response so the frontend knows queue creation failed
                 return Response(
