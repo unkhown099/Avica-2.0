@@ -29,6 +29,50 @@ const SIZE_LABELS = {
   motor: "Motorcycle",
 };
 
+// 5 Standard Vehicle Inspection Photo Angles
+const PHOTO_SLOTS = [
+  {
+    id: "front",
+    label: "Front View",
+    tag: "Front",
+    required: true,
+    hint: "Headlights, bumper, and visible license plate",
+    guide: "Capture directly from the front. Ensure full bumper, headlights, and front license plate are visible.",
+  },
+  {
+    id: "back",
+    label: "Rear View",
+    tag: "Rear",
+    required: true,
+    hint: "Taillights, trunk, and visible rear license plate",
+    guide: "Capture directly from the back. Ensure taillights and rear license plate are clearly visible for AI recognition.",
+  },
+  {
+    id: "side",
+    label: "Side Profile",
+    tag: "Side",
+    required: true,
+    hint: "Full side profile (Sedan, SUV, Pickup, or Van)",
+    guide: "Capture the full side profile so AI can determine vehicle body type and size class.",
+  },
+  {
+    id: "angle",
+    label: "Quarter Angle (45°)",
+    tag: "45° Angle",
+    required: false,
+    hint: "Diagonal angle from front or rear",
+    guide: "3/4 perspective for overall body lines and paint condition.",
+  },
+  {
+    id: "detail",
+    label: "Minor Issues / Damage",
+    tag: "Damage",
+    required: false,
+    hint: "Scratches, dents, paint chips, or damage",
+    guide: "Capture close-up photos of visible minor issues, scratches, dents, paint chips, or defects for AI condition assessment.",
+  },
+];
+
 // ── Walk-In Quick Modal ───────────────────────────────────────────────────────
 function WalkInModal({ analysisResult, initialService = null, onClose }) {
   const [form, setForm] = useState({
@@ -146,53 +190,38 @@ function WalkInModal({ analysisResult, initialService = null, onClose }) {
                   </div>
                   <div>
                     <span className="text-gray-500">Plate:</span>{" "}
-                    <span className="text-white font-bold">{analysisResult.plateNumber || "—"}</span>
+                    <span className="text-white font-bold font-mono">{analysisResult.plateNumber || "—"}</span>
                   </div>
                   <div>
                     <span className="text-gray-500">Size:</span>{" "}
-                    <span className="text-white font-bold">{SIZE_LABELS[analysisResult.vehicleSize] || analysisResult.vehicleSizeLabel || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Color:</span>{" "}
-                    <span className="inline-flex items-center gap-1.5 font-bold text-white">
-                      {analysisResult.colorHex && (
-                        <span className="w-3 h-3 rounded-full inline-block border border-white/20" style={{ backgroundColor: analysisResult.colorHex }} />
-                      )}
-                      {analysisResult.color}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Condition:</span>{" "}
-                    <span className="font-bold" style={{ color: conditionColor(analysisResult.condition) }}>
-                      {analysisResult.condition}
-                    </span>
+                    <span className="text-white font-bold capitalize">{analysisResult.vehicleSize || "small"}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Customer Info */}
-              <div className="space-y-3">
-                <p className="text-xs text-gray-500 font-semibold uppercase tracking-widest">Customer Info</p>
-                <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Customer Name *</label>
-                  <input
-                    type="text"
-                    value={form.customerName}
-                    onChange={(e) => setForm((f) => ({ ...f, customerName: e.target.value }))}
-                    placeholder="e.g. Juan dela Cruz"
-                    className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/60 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={form.phone}
-                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    placeholder="e.g. 09XX XXX XXXX"
-                    className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/60 transition-all"
-                  />
-                </div>
+              {/* Customer Name */}
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Customer Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={form.customerName}
+                  onChange={(e) => setForm((f) => ({ ...f, customerName: e.target.value }))}
+                  placeholder="e.g. Juan dela Cruz"
+                  className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/60 transition-all"
+                />
+              </div>
+
+              {/* Contact Number */}
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Phone / Mobile (optional)</label>
+                <input
+                  type="text"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="0912 345 6789"
+                  className="w-full bg-gray-800/60 border border-white/10 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/60 transition-all"
+                />
               </div>
 
               {/* Service Selection */}
@@ -296,7 +325,7 @@ function WalkInModal({ analysisResult, initialService = null, onClose }) {
 }
 
 // ── Print Preview Modal ───────────────────────────────────────────────────────
-function PrintModal({ analysisResult, imageUrl, onClose }) {
+function PrintModal({ analysisResult, photos, onClose }) {
   const printRef = useRef(null);
 
   const handlePrint = () => {
@@ -305,7 +334,7 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
     w.document.write(`
       <!DOCTYPE html><html>
       <head>
-        <title>Vehicle Inspection Sheet</title>
+        <title>Vehicle Inspection Sheet - ${analysisResult.plateNumber || "AVICA"}</title>
         <style>
           @page { size: A4 portrait; margin: 10mm; }
           body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 10px; margin: 0; }
@@ -321,9 +350,10 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
           .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; font-weight: 700; margin-bottom: 8px; border-bottom: 1px solid #f3f4f6; padding-bottom: 4px; }
           .signature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 32px; }
           .sig-box { border-top: 2px solid #000; padding-top: 8px; text-align: center; font-size: 11px; color: #555; }
-          img.vehicle { max-width: 100%; border-radius: 10px; margin-bottom: 18px; max-height: 200px; object-fit: cover; }
-          .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-          .badge { background: #000; color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700; padding: 4px 12px; letter-spacing: 0.05em; }
+          .photos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+          .photo-box img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid #ccc; }
+          .photo-caption { font-size: 9px; text-align: center; font-weight: bold; margin-top: 4px; text-transform: uppercase; }
+          .plate-box { display: inline-block; border: 2px solid #000; padding: 4px 14px; border-radius: 6px; font-family: monospace; font-size: 18px; font-weight: 900; }
         </style>
       </head>
       <body>${content}</body></html>`);
@@ -335,6 +365,8 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
   const today = new Date().toLocaleDateString("en-PH", {
     year: "numeric", month: "long", day: "numeric",
   });
+
+  const photoList = Object.entries(photos || {}).filter(([_, v]) => Boolean(v?.dataUrl));
 
   return (
     <>
@@ -353,10 +385,7 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
                 </svg>
                 Print Sheet
               </button>
-              <button
-                onClick={onClose}
-                className="text-gray-500 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all"
-              >
+              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -364,22 +393,31 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
             </div>
           </div>
 
-          {/* Print Content */}
-          <div ref={printRef} className="p-6">
-            <div className="header-bar">
+          <div ref={printRef} className="p-8 text-black bg-white">
+            <div className="flex justify-between items-start mb-4 border-b pb-4">
               <div>
-                <h1 style={{ color: "#000", margin: 0, fontWeight: 900, fontSize: 20 }}>
-                  Vehicle Inspection Sheet
-                </h1>
-                <h2 style={{ color: "#888", margin: 0, fontWeight: 400, fontSize: 13 }}>
-                  Date: {today}
-                </h2>
+                <h1 className="text-2xl font-black text-red-600">AVICA AUTO CARE</h1>
+                <p className="text-xs text-gray-500">Official Multi-Angle AI Vehicle Inspection Report</p>
+                <p className="text-xs text-gray-500">Date: {today}</p>
               </div>
-              <span className="badge">AI-POWERED ANALYSIS</span>
+              <div className="text-right">
+                <div className="border-2 border-black rounded-lg px-4 py-1 text-center font-mono">
+                  <div className="text-[9px] text-gray-600 font-bold uppercase">License Plate</div>
+                  <div className="text-lg font-black">{analysisResult.plateNumber || "NO PLATE"}</div>
+                </div>
+              </div>
             </div>
 
-            {imageUrl && (
-              <img className="vehicle" src={imageUrl} alt="Inspected Vehicle" />
+            {/* Photos Strip */}
+            {photoList.length > 0 && (
+              <div className="photos-grid mb-4">
+                {photoList.map(([key, item]) => (
+                  <div key={key} className="photo-box">
+                    <img src={item.dataUrl} alt={key} />
+                    <div className="photo-caption">{key} Angle</div>
+                  </div>
+                ))}
+              </div>
             )}
 
             <p className="section-title">Vehicle Identification</p>
@@ -419,18 +457,11 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
               </>
             )}
 
-            {analysisResult.additionalNotes && (
-              <>
-                <p className="section-title">AI Notes</p>
-                <div className="notes">{analysisResult.additionalNotes}</div>
-              </>
-            )}
-
             {analysisResult.recommendedServices?.length > 0 && (
               <>
-                <p className="section-title">Top 10 AI Recommended Services</p>
+                <p className="section-title">Recommended Care Services</p>
                 <div className="grid">
-                  {analysisResult.recommendedServices.map((s, i) => (
+                  {analysisResult.recommendedServices.slice(0, 6).map((s, i) => (
                     <div className="field" key={i}>
                       <div className="label">#{s.rank || i + 1} {s.category}</div>
                       <div className="value">{s.name}</div>
@@ -456,7 +487,16 @@ function PrintModal({ analysisResult, imageUrl, onClose }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 function StaffVehicleRecognition() {
-  const [uploadedImage, setUploadedImage] = useState(null);
+  // Multi-image state: 5 slots
+  const [photos, setPhotos] = useState({
+    front: null,
+    back: null,
+    side: null,
+    angle: null,
+    detail: null,
+  });
+
+  const [activeSlotForUpload, setActiveSlotForUpload] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
@@ -478,11 +518,22 @@ function StaffVehicleRecognition() {
   const cameraRef = useRef(null);
   const streamRef = useRef(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [cameraTargetSlot, setCameraTargetSlot] = useState("front");
+
+  // File Input Refs
+  const multiFileInputRef = useRef(null);
+  const singleFileInputRef = useRef(null);
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3500);
   }, []);
+
+  // Compute uploaded count & required status
+  const uploadedEntries = Object.entries(photos).filter(([_, v]) => Boolean(v?.dataUrl));
+  const uploadedCount = uploadedEntries.length;
+  const hasRequiredAngles = Boolean(photos.front && photos.back && photos.side);
+  const canAnalyze = uploadedCount >= 3;
 
   // ── Drag & Drop ──────────────────────────────────────────────────────────
   const handleDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
@@ -490,80 +541,108 @@ function StaffVehicleRecognition() {
   const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); };
   const handleDrop = (e) => {
     e.preventDefault(); e.stopPropagation(); setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files && files[0]) handleFile(files[0]);
-  };
-  const handleFileInput = (e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); };
-
-  const handleFile = (file) => {
-    if (!file.type.startsWith("image/")) { alert("Please upload an image file"); return; }
-    if (file.size > 5 * 1024 * 1024) { alert("File size too large. Max 5MB."); return; }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setUploadedImage(e.target.result);
-      setIsEditing(false);
-      setEditForm(null);
-      analyzeVehicleWithAI(file);
-    };
-    reader.readAsDataURL(file);
+    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
+    if (files.length > 0) handleMultipleFiles(files);
   };
 
-  const imageToBase64 = (file) =>
+  // Convert File to base64
+  const readFileAsDataUrl = (file) =>
     new Promise((res, rej) => {
       const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => res(reader.result.split(",")[1]);
+      reader.onload = () => res(reader.result);
       reader.onerror = (err) => rej(err);
     });
 
-  const analyzeVehicleWithAI = async (file) => {
-    setIsProcessing(true);
+  // Handle batch selection of 1 to 5 files
+  const handleMultipleFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    const validFiles = files.slice(0, 5);
+
+    const slotOrder = ["front", "back", "side", "angle", "detail"];
+    const updated = { ...photos };
+
+    let fileIdx = 0;
+    for (const slotId of slotOrder) {
+      if (fileIdx >= validFiles.length) break;
+      const file = validFiles[fileIdx];
+      if (file.size > 8 * 1024 * 1024) {
+        showToast(`Skipped ${file.name}: file exceeds 8MB limit.`, "error");
+        fileIdx++;
+        continue;
+      }
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        updated[slotId] = { dataUrl, file, name: file.name };
+        fileIdx++;
+      } catch (err) {
+        console.error("Error reading file:", err);
+      }
+    }
+
+    setPhotos(updated);
     setAnalysisResult(null);
     setApiError(null);
     setIsEditing(false);
-    try {
-      const base64Image = await imageToBase64(file);
-      const token =
-        localStorage.getItem("access_token") ??
-        sessionStorage.getItem("access_token");
-      const response = await fetch(`${API_BASE}/api/analyze-vehicle/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ image: base64Image }),
-      });
-      if (!response.ok) throw new Error(await response.text());
-      const data = await response.json();
-      setAnalysisResult(data);
-    } catch (error) {
-      console.error(error);
-      setApiError("Error analyzing vehicle. Please try again.");
-    } finally {
-      setIsProcessing(false);
-    }
+    showToast(`Loaded ${fileIdx} photo(s). Ready for multi-angle AI inspection!`);
   };
 
-  const handleClear = () => {
-    setUploadedImage(null);
+  // Handle single slot upload
+  const handleSlotFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeSlotForUpload) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert("File size exceeds 8MB.");
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setPhotos((prev) => ({
+        ...prev,
+        [activeSlotForUpload]: { dataUrl, file, name: file.name },
+      }));
+      setAnalysisResult(null);
+      setApiError(null);
+      showToast(`Updated ${activeSlotForUpload.toUpperCase()} photo.`);
+    } catch (err) {
+      console.error(err);
+    }
+    setActiveSlotForUpload(null);
+    if (singleFileInputRef.current) singleFileInputRef.current.value = "";
+  };
+
+  const removePhotoSlot = (slotId) => {
+    setPhotos((prev) => ({ ...prev, [slotId]: null }));
     setAnalysisResult(null);
-    setIsProcessing(false);
+  };
+
+  const clearAllPhotos = () => {
+    setPhotos({
+      front: null,
+      back: null,
+      side: null,
+      angle: null,
+      detail: null,
+    });
+    setAnalysisResult(null);
     setApiError(null);
     setIsEditing(false);
     setEditForm(null);
     stopCamera();
+    showToast("Cleared all uploaded photos.");
   };
 
   // ── Camera ────────────────────────────────────────────────────────────────
-  const startCamera = async () => {
+  const startCamera = async (targetSlot = "front") => {
+    setCameraTargetSlot(targetSlot);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
       streamRef.current = stream;
       if (cameraRef.current) cameraRef.current.srcObject = stream;
       setShowCamera(true);
     } catch {
-      alert("Camera access denied or unavailable.");
+      alert("Camera access denied or unavailable on this device.");
     }
   };
 
@@ -579,16 +658,71 @@ function StaffVehicleRecognition() {
     const video = cameraRef.current;
     if (!video) return;
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
     canvas.getContext("2d").drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+
     canvas.toBlob((blob) => {
-      const file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
-      const url = URL.createObjectURL(blob);
-      setUploadedImage(url);
+      const file = new File([blob], `${cameraTargetSlot}-capture.jpg`, { type: "image/jpeg" });
+      setPhotos((prev) => ({
+        ...prev,
+        [cameraTargetSlot]: { dataUrl, file, name: `${cameraTargetSlot}.jpg` },
+      }));
       stopCamera();
-      analyzeVehicleWithAI(file);
+      showToast(`Captured ${cameraTargetSlot.toUpperCase()} angle photo.`);
     }, "image/jpeg", 0.92);
+  };
+
+  // ── AI Vehicle Analysis (Sends 3 to 5 images) ─────────────────────────────
+  const analyzeVehicleWithAI = async () => {
+    const imageList = Object.values(photos)
+      .filter((p) => Boolean(p?.dataUrl))
+      .map((p) => p.dataUrl);
+
+    if (imageList.length < 3) {
+      alert("Please upload at least 3 photos (Front, Rear, and Side) for accurate AI recognition.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setAnalysisResult(null);
+    setApiError(null);
+    setIsEditing(false);
+
+    try {
+      const token =
+        localStorage.getItem("access_token") ??
+        sessionStorage.getItem("access_token");
+
+      const response = await fetch(`${API_BASE}/api/analyze-vehicle/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ images: imageList }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Vehicle analysis failed");
+      }
+
+      const data = await response.json();
+      setAnalysisResult(data);
+
+      if (data.is_vehicle === false || data.success === false) {
+        showToast("No vehicle detected. Please check the photos.", "error");
+      } else {
+        showToast(`Vehicle recognized: ${data.make} ${data.model}!`);
+      }
+    } catch (error) {
+      console.error(error);
+      setApiError("Error connecting to AI Vehicle Analysis. Please check your network and retry.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // ── Edit Mode ─────────────────────────────────────────────────────────────
@@ -624,12 +758,12 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
     navigator.clipboard.writeText(text).then(() => showToast("Copied to clipboard!"));
   };
 
-  // ── Result display value (supports edit mode) ─────────────────────────────
+  // Result display value (supports edit mode)
   const R = isEditing ? editForm : analysisResult;
 
   return (
     <EmployeeLayout title="" subtitle="">
-      {/* Toast */}
+      {/* Toast Alert */}
       {toast && (
         <div
           className={`fixed bottom-6 right-6 z-[9999] px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-semibold transition-all ${
@@ -639,17 +773,35 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
           }`}
         >
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {toast.type === "success"
-              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            }
+            {toast.type === "success" ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            )}
           </svg>
           {toast.msg}
         </div>
       )}
 
+      {/* Hidden file inputs */}
+      <input
+        type="file"
+        ref={multiFileInputRef}
+        multiple
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleMultipleFiles(Array.from(e.target.files || []))}
+      />
+      <input
+        type="file"
+        ref={singleFileInputRef}
+        accept="image/*"
+        className="hidden"
+        onChange={handleSlotFileChange}
+      />
+
       {/* Walk-In Modal */}
-      {showWalkIn && analysisResult && (
+      {showWalkIn && analysisResult && analysisResult.is_vehicle && (
         <WalkInModal
           analysisResult={analysisResult}
           initialService={walkInService}
@@ -662,198 +814,476 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
       )}
 
       {/* Print Modal */}
-      {showPrint && analysisResult && (
+      {showPrint && analysisResult && analysisResult.is_vehicle && (
         <PrintModal
           analysisResult={analysisResult}
-          imageUrl={uploadedImage}
+          photos={photos}
           onClose={() => setShowPrint(false)}
         />
       )}
 
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">AI Vehicle Analysis</h1>
-          <p className="text-gray-400 mt-1">Upload or capture a vehicle image for AI-powered analysis and identification</p>
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                <span>AI Vehicle Recognition</span>
+                <span className="text-xs px-3 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-bold uppercase tracking-wider">
+                  Multi-Angle 3–5 Photos
+                </span>
+              </h1>
+              <p className="text-gray-400 mt-1 text-sm">
+                Upload 3 to 5 vehicle angles (Front, Rear, Side) for high-accuracy AI recognition.
+              </p>
+            </div>
+
+            {uploadedCount > 0 && (
+              <button
+                onClick={clearAllPhotos}
+                className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-xs font-bold transition-all"
+              >
+                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Clear All Photos
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ── Left Panel: Upload / Camera ── */}
-          <div className="space-y-5">
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-black text-white">Upload Vehicle Image</h2>
-                {/* Camera Button */}
-                {!uploadedImage && !showCamera && (
+        {/* ── Photography Guide / Instructions Banner ── */}
+        <div className="bg-gradient-to-r from-gray-900/90 via-red-950/20 to-gray-900/90 border border-red-500/30 rounded-2xl p-5 mb-6 backdrop-blur-sm shadow-xl">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="p-1.5 bg-red-500/20 rounded-lg text-red-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </span>
+            <h2 className="text-base font-black text-white uppercase tracking-wider">
+              Vehicle Photography Instructions
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+              <div className="flex items-center gap-2 text-red-400 font-bold mb-1">
+                <span className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center text-[10px]">1</span>
+                <span>Front Angle</span>
+              </div>
+              <p className="text-gray-300 leading-relaxed">
+                Capture directly from the front. Ensure <strong className="text-white">bumper, headlights</strong>, and <strong className="text-amber-300">front license plate</strong> are clearly visible.
+              </p>
+            </div>
+
+            <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+              <div className="flex items-center gap-2 text-red-400 font-bold mb-1">
+                <span className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center text-[10px]">2</span>
+                <span>Rear Angle</span>
+              </div>
+              <p className="text-gray-300 leading-relaxed">
+                Capture directly from the back. Ensure <strong className="text-white">taillights, trunk</strong>, and <strong className="text-amber-300">rear license plate</strong> are clearly visible for plate detection.
+              </p>
+            </div>
+
+            <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+              <div className="flex items-center gap-2 text-red-400 font-bold mb-1">
+                <span className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center text-[10px]">3</span>
+                <span>Side Profile</span>
+              </div>
+              <p className="text-gray-300 leading-relaxed">
+                Full silhouette to determine vehicle body shape: <strong className="text-white">Sedan, SUV, Pickup, or Van</strong>. Ensure good lighting and avoid cropped shots or people.
+              </p>
+            </div>
+
+            <div className="bg-gray-800/60 border border-amber-500/25 rounded-xl p-3">
+              <div className="flex items-center gap-2 text-amber-400 font-bold mb-1">
+                <span className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[10px]">4</span>
+                <span>Minor Issues & Damage</span>
+              </div>
+              <p className="text-gray-300 leading-relaxed">
+                Close-ups of <strong className="text-amber-300">scratches, dents, paint chips</strong>, or dirty panels so AI can assess condition and suggest services.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* ── Left 7 Cols: Multi-Photo Slots & Upload ── */}
+          <div className="lg:col-span-7 space-y-5">
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                <div>
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <span>Vehicle Inspection Photos</span>
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                      canAnalyze
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                        : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    }`}>
+                      {uploadedCount} / 5 Uploaded {canAnalyze ? "(Ready)" : "(Requires 3)"}
+                    </span>
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Upload 3 to 5 photos. Click each slot or drag and drop files together.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={startCamera}
-                    className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+                    onClick={() => multiFileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-lg shadow-red-600/20"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
-                    Use Camera
+                    Upload Multiple Files
                   </button>
-                )}
+                  <button
+                    onClick={() => startCamera("front")}
+                    className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-xs font-semibold px-3 py-2 rounded-xl transition-all"
+                  >
+                    <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    </svg>
+                    Camera
+                  </button>
+                </div>
               </div>
 
-              {/* Camera View */}
+              {/* Camera Modal / Viewfinder */}
               {showCamera && (
-                <div className="space-y-3">
-                  <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-black">
-                    <video ref={cameraRef} autoPlay playsInline className="w-full h-auto" />
-                    <div className="absolute inset-0 pointer-events-none border-2 border-red-500/30 rounded-2xl" />
+                <div className="mb-5 p-4 bg-gray-950 border border-red-500/40 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-red-400 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                      Capturing angle: <strong className="text-white uppercase">{cameraTargetSlot}</strong>
+                    </span>
+                    <div className="flex gap-1.5">
+                      {PHOTO_SLOTS.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setCameraTargetSlot(s.id)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            cameraTargetSlot === s.id ? "bg-red-600 text-white" : "bg-white/5 text-gray-400"
+                          }`}
+                        >
+                          {s.tag}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black">
+                    <video ref={cameraRef} autoPlay playsInline className="w-full h-64 object-cover" />
+                    <div className="absolute inset-0 pointer-events-none border-2 border-red-500/20 rounded-xl flex items-center justify-center">
+                      <div className="w-48 h-32 border border-white/20 rounded-lg" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
                     <button
                       onClick={stopCamera}
-                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold px-4 py-2.5 rounded-xl text-sm transition-all"
+                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold px-4 py-2 rounded-xl text-xs transition-all"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={captureFromCamera}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-600/20"
+                      className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-lg shadow-red-600/30"
                     >
-                      Capture & Analyze
+                      Capture Photo ({cameraTargetSlot.toUpperCase()})
                     </button>
                   </div>
                 </div>
               )}
 
-              {!showCamera && !uploadedImage && (
-                <div
-                  onDragEnter={handleDragEnter}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
-                    isDragging ? "border-red-500 bg-red-500/10" : "border-white/10 hover:border-white/20"
-                  }`}
-                >
-                  <svg className="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <h3 className="text-base font-black text-white mb-1">
-                    {isDragging ? "Drop image here" : "Drag & drop vehicle image here"}
-                  </h3>
-                  <p className="text-gray-500 text-sm mb-5">or</p>
-                  <label className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-3 rounded-xl cursor-pointer transition-all shadow-lg shadow-red-600/20">
-                    Browse Files
-                    <input type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
-                  </label>
-                  <p className="text-xs text-gray-600 mt-4">Supported: JPG, PNG, HEIC (Max 5MB)</p>
-                </div>
-              )}
-
-              {!showCamera && uploadedImage && (
-                <div className="space-y-4">
-                  <div className="relative rounded-2xl overflow-hidden border border-white/10">
-                    <img src={uploadedImage} alt="Uploaded vehicle" className="w-full h-auto" />
-                    {isProcessing && (
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                        <div className="text-center">
-                          <svg className="animate-spin w-10 h-10 text-red-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                          </svg>
-                          <p className="text-white font-black text-sm">AI Analyzing Vehicle...</p>
-                          <p className="text-gray-400 text-xs mt-1">Identifying make, model, condition & more</p>
+              {/* ── 5 Photo Slots Grid ── */}
+              <div
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`grid grid-cols-2 sm:grid-cols-3 gap-3.5 p-3 rounded-2xl border-2 border-dashed transition-all ${
+                  isDragging ? "border-red-500 bg-red-500/10" : "border-white/10 bg-gray-950/40"
+                }`}
+              >
+                {PHOTO_SLOTS.map((slot, idx) => {
+                  const photoItem = photos[slot.id];
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`relative group rounded-xl border overflow-hidden flex flex-col justify-between transition-all ${
+                        photoItem
+                          ? "border-emerald-500/40 bg-gray-900/90 shadow-md"
+                          : slot.required
+                          ? "border-white/15 bg-gray-900/40 hover:border-red-500/40"
+                          : "border-white/10 bg-gray-900/20 hover:border-white/30"
+                      } min-h-[170px]`}
+                    >
+                      {/* Slot Header */}
+                      <div className="p-2.5 flex items-center justify-between border-b border-white/5 bg-gray-900/60 z-10">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-4 h-4 rounded-full bg-white/5 text-[10px] text-gray-400 font-bold flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <span className="text-xs font-bold text-white truncate">{slot.label}</span>
                         </div>
+                        <span
+                          className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                            slot.required
+                              ? photoItem
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-red-500/20 text-red-400"
+                              : "bg-white/5 text-gray-400"
+                          }`}
+                        >
+                          {photoItem ? "✓ Done" : slot.required ? "Req" : "Opt"}
+                        </span>
                       </div>
-                    )}
-                  </div>
 
-                  {apiError && (
-                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm">{apiError}</div>
-                  )}
+                      {/* Photo Content or Upload Area */}
+                      {photoItem ? (
+                        <div className="relative flex-1 group/img overflow-hidden">
+                          <img
+                            src={photoItem.dataUrl}
+                            alt={slot.label}
+                            className="w-full h-28 object-cover group-hover/img:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveSlotForUpload(slot.id);
+                                singleFileInputRef.current?.click();
+                              }}
+                              title="Replace Photo"
+                              className="p-1.5 bg-white/20 hover:bg-white/40 rounded-lg text-white"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removePhotoSlot(slot.id)}
+                              title="Delete Photo"
+                              className="p-1.5 bg-red-600/80 hover:bg-red-600 rounded-lg text-white"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => {
+                            setActiveSlotForUpload(slot.id);
+                            singleFileInputRef.current?.click();
+                          }}
+                          className="flex-1 flex flex-col items-center justify-center p-3 text-center cursor-pointer hover:bg-white/5 transition-colors"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-white/5 group-hover:bg-red-500/20 text-gray-500 group-hover:text-red-400 flex items-center justify-center mb-1.5 transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </div>
+                          <span className="text-[11px] font-bold text-gray-300 group-hover:text-white transition-colors">
+                            Click to add {slot.tag}
+                          </span>
+                          <span className="text-[10px] text-gray-500 line-clamp-2 mt-0.5">
+                            {slot.hint}
+                          </span>
+                        </div>
+                      )}
 
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleClear}
-                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold px-4 py-2.5 rounded-xl text-sm transition-all"
-                    >
-                      Clear & Upload New
-                    </button>
-                    {!isProcessing && !analysisResult && (
-                      <button
-                        onClick={() => fetch(uploadedImage).then(r => r.blob()).then(blob =>
-                          analyzeVehicleWithAI(new File([blob], "image.jpg", { type: "image/jpeg" }))
-                        )}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-red-600/20"
-                      >
-                        Retry Analysis
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Tips */}
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-              <h3 className="font-black text-white mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Tips for Best Results
-              </h3>
-              <ul className="space-y-2.5">
-                {[
-                  "Take clear photos showing the entire vehicle side or front",
-                  "Include front, 3/4, and side views for better accuracy",
-                  "Ensure good lighting — avoid harsh shadows",
-                  "Include the license plate if you want plate detection",
-                  "Avoid blurry, obstructed, or dark images",
-                ].map((tip, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-gray-400">
-                    <svg className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {tip}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* ── Right Panel: Results ── */}
-          <div>
-            {!analysisResult && !isProcessing && (
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-16 text-center backdrop-blur-sm h-full flex flex-col items-center justify-center">
-                <svg className="w-20 h-20 text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="text-xl font-black text-white mb-2">No Analysis Yet</h3>
-                <p className="text-gray-500 text-sm">Upload or capture a vehicle image to see AI analysis results</p>
-              </div>
-            )}
-
-            {analysisResult && (
-              <div className="space-y-4">
-                {/* Results Header */}
-                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-purple-500/20 p-2.5 rounded-xl">
-                        <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="text-base font-black text-white">Vehicle Analysis Results</h3>
-                        {analysisResult.confidence && (
-                          <p className="text-xs mt-0.5" style={{ color: confidenceColor(analysisResult.confidence) }}>
-                            Confidence: {analysisResult.confidence}
-                          </p>
+                      {/* Slot Footer info */}
+                      <div className="px-2.5 py-1.5 bg-gray-950/80 border-t border-white/5 text-[10px] text-gray-500 flex items-center justify-between">
+                        <span>{slot.tag}</span>
+                        {!photoItem && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startCamera(slot.id);
+                            }}
+                            className="text-red-400 hover:text-red-300 font-semibold inline-flex items-center gap-1"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>Snap</span>
+                          </button>
                         )}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* Action Buttons */}
+              {/* Action Bar */}
+              <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-white/5">
+                <div className="text-xs text-gray-400">
+                  {canAnalyze ? (
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {uploadedCount} photos ready. Click analyze to start multi-angle AI recognition.
+                    </span>
+                  ) : (
+                    <span className="text-amber-400 font-semibold flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Upload {3 - uploadedCount} more photo(s) (Required: Front, Rear, Side).
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!canAnalyze || isProcessing}
+                  onClick={analyzeVehicleWithAI}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:hover:bg-red-600 text-white font-black text-sm px-7 py-3 rounded-xl transition-all shadow-xl shadow-red-600/30"
+                >
+                  {isProcessing ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      AI Analysis (Scanning {uploadedCount} Angles)...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Start AI Vehicle Recognition ({uploadedCount} Photos)
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {apiError && (
+                <div className="mt-4 bg-red-500/10 border border-red-500/30 text-red-400 p-3.5 rounded-xl text-xs">
+                  {apiError}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Right 5 Cols: AI Results OR Non-Vehicle Rejection ── */}
+          <div className="lg:col-span-5 space-y-5">
+            {/* Initial Blank State */}
+            {!analysisResult && !isProcessing && (
+              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-12 text-center backdrop-blur-sm h-full flex flex-col items-center justify-center min-h-[400px]">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-gray-600 mb-4">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-black text-white mb-1">Ready for Inspection</h3>
+                <p className="text-gray-500 text-xs max-w-xs leading-relaxed">
+                  Upload 3 to 5 vehicle photos and click &quot;Start AI Vehicle Recognition&quot; to inspect make, model, body type, plate number, and recommended services.
+                </p>
+              </div>
+            )}
+
+            {/* Processing State */}
+            {isProcessing && (
+              <div className="bg-gray-900/60 border border-red-500/30 rounded-2xl p-12 text-center backdrop-blur-sm min-h-[400px] flex flex-col items-center justify-center">
+                <div className="relative mb-5">
+                  <div className="w-16 h-16 rounded-full border-4 border-red-500/20 border-t-red-500 animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-red-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className="text-lg font-black text-white mb-1">AI Analyzing Photos...</h3>
+                <p className="text-gray-400 text-xs max-w-xs">
+                  Scanning front, rear, and side angles. Verifying vehicle presence, reading license plate, and determining vehicle class.
+                </p>
+              </div>
+            )}
+
+            {/* ── CASE 1: NON-VEHICLE DETECTED (REJECTION BANNER) ── */}
+            {analysisResult && (analysisResult.is_vehicle === false || analysisResult.success === false) && (
+              <div className="bg-gradient-to-b from-red-950/40 to-gray-900/90 border-2 border-red-500/50 rounded-2xl p-6 backdrop-blur-sm shadow-2xl text-center space-y-4 animate-in fade-in duration-300">
+                <div className="w-16 h-16 rounded-full bg-red-500/20 border-2 border-red-500/40 text-red-400 mx-auto flex items-center justify-center shadow-lg shadow-red-500/20">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-red-400 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
+                    Non-Vehicle Detected
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-2">
+                    No Vehicle Detected in Photos
+                  </h3>
+                  <p className="text-red-300 text-xs mt-2 font-medium leading-relaxed max-w-sm mx-auto">
+                    {analysisResult.rejection_reason || "The uploaded image was not identified as a vehicle (e.g., person, selfie, object, or blurry image)."}
+                  </p>
+                </div>
+
+                {/* Explanation Box */}
+                <div className="bg-gray-950/80 border border-white/5 rounded-xl p-4 text-left text-xs space-y-2 text-gray-300">
+                  <p className="font-bold text-white flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Why is there no Sedan or Pickup category result?
+                  </p>
+                  <p className="text-gray-400 text-[11px] leading-relaxed">
+                    Our AI strictly verifies vehicle presence first. If non-vehicle images (such as people or selfies) are provided, <strong className="text-red-400">it will not output any car category</strong>.
+                  </p>
+                  <p className="text-gray-400 text-[11px] leading-relaxed">
+                    Please follow the instructions above and upload authentic vehicle photos (Front, Rear, and Side).
+                  </p>
+                </div>
+
+                {/* Prominent Retry Button */}
+                <button
+                  type="button"
+                  onClick={clearAllPhotos}
+                  className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white font-black px-6 py-3.5 rounded-xl text-sm transition-all shadow-xl shadow-red-600/30"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Retry / Upload New Photos
+                </button>
+              </div>
+            )}
+
+            {/* ── CASE 2: VALID VEHICLE RECOGNIZED ── */}
+            {analysisResult && analysisResult.is_vehicle && (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                {/* Result Card */}
+                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm shadow-xl">
+                  {/* Top Bar with Plate & Controls */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                        Vehicle Verified ({analysisResult.imageCount || uploadedCount} Photos)
+                      </span>
+                      <h3 className="text-xl font-black text-white mt-1">
+                        {R?.make} {R?.model}
+                      </h3>
+                      {R?.confidence && (
+                        <p className="text-xs font-semibold mt-0.5" style={{ color: confidenceColor(R.confidence) }}>
+                          AI Confidence: {R.confidence}
+                        </p>
+                      )}
+                    </div>
+
                     {!isEditing && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={startEdit}
                           title="Edit Details"
@@ -874,7 +1304,7 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
                         </button>
                         <button
                           onClick={() => setShowPrint(true)}
-                          title="Print Inspection Sheet"
+                          title="Print Sheet"
                           className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white rounded-lg transition-all"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -885,10 +1315,32 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
                     )}
                   </div>
 
-                  {/* Edit Mode Form */}
+                  {/* ── Philippine License Plate Display Badge ── */}
+                  <div className="mb-5 p-4 rounded-xl bg-gray-950/80 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5">
+                        Detected License Plate (Plaka)
+                      </span>
+                      <p className="text-xs text-gray-500">Extracted from front & rear photos</p>
+                    </div>
+
+                    <div className="inline-flex flex-col items-center justify-center bg-white text-gray-950 font-black rounded-lg border-2 border-gray-300 shadow-md px-5 py-2 min-w-[170px] select-all">
+                      <span className="text-[9px] uppercase tracking-widest text-blue-700 font-bold -mb-0.5">
+                        PILIPINAS
+                      </span>
+                      <span className="text-xl tracking-wider font-extrabold font-mono text-gray-950">
+                        {R?.plateNumber || <span className="text-gray-400 font-sans text-xs">NOT VISIBLE</span>}
+                      </span>
+                      <span className="text-[8px] uppercase tracking-widest text-emerald-700 font-bold -mt-0.5">
+                        MATATAG NA REPUBLIKA
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ── Edit Form OR Specs Grid ── */}
                   {isEditing && editForm ? (
                     <div className="space-y-3">
-                      <p className="text-xs text-amber-400 font-semibold">Edit Mode — correct any detected fields</p>
+                      <p className="text-xs text-amber-400 font-semibold">Edit Mode — ayusin ang detalye bago mag-book</p>
                       <div className="grid grid-cols-2 gap-3">
                         {[
                           { key: "make", label: "Make" },
@@ -899,111 +1351,75 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
                           { key: "plateNumber", label: "Plate Number" },
                         ].map(({ key, label }) => (
                           <div key={key}>
-                            <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+                            <label className="text-[10px] text-gray-400 block mb-1 uppercase font-bold">{label}</label>
                             <input
                               type="text"
                               value={editForm[key] || ""}
                               onChange={(e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))}
-                              className="w-full bg-gray-800/80 border border-white/10 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-red-500/60 transition-all"
+                              className="w-full bg-gray-800 border border-white/10 text-white rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-red-500"
                             />
                           </div>
                         ))}
-                        <div className="col-span-2">
-                          <label className="text-xs text-gray-500 mb-1 block">Vehicle Size</label>
-                          <select
-                            value={editForm.vehicleSize || "small"}
-                            onChange={(e) => setEditForm((f) => ({ ...f, vehicleSize: e.target.value }))}
-                            className="w-full bg-gray-800/80 border border-white/10 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-red-500/60 transition-all"
-                          >
-                            {Object.entries(SIZE_LABELS).map(([k, v]) => (
-                              <option key={k} value={k}>{v}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="text-xs text-gray-500 mb-1 block">Condition</label>
-                          <select
-                            value={editForm.condition || "Good"}
-                            onChange={(e) => setEditForm((f) => ({ ...f, condition: e.target.value }))}
-                            className="w-full bg-gray-800/80 border border-white/10 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-red-500/60 transition-all"
-                          >
-                            {["Excellent", "Good", "Fair", "Poor"].map((c) => (
-                              <option key={c} value={c}>{c}</option>
-                            ))}
-                          </select>
-                        </div>
                       </div>
-                      <div className="flex gap-3 pt-1">
-                        <button
-                          onClick={cancelEdit}
-                          className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold px-4 py-2.5 rounded-xl text-sm transition-all"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={saveEdit}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-emerald-600/20"
-                        >
+                      <div className="flex gap-2 pt-2">
+                        <button onClick={saveEdit} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-lg">
                           Save Changes
+                        </button>
+                        <button onClick={cancelEdit} className="flex-1 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-semibold py-2 rounded-lg">
+                          Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
-                    /* Results Grid */
                     <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: "Make", value: R?.make },
-                        { label: "Model", value: R?.model },
-                        { label: "Year", value: R?.year },
-                        { label: "Body Type", value: R?.bodyType },
-                      ].map((field) => (
-                        <div key={field.label} className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
-                          <div className="text-xs text-gray-500 mb-1">{field.label}</div>
-                          <div className="text-white font-bold text-sm">{field.value || "—"}</div>
-                        </div>
-                      ))}
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Make</div>
+                        <div className="text-white font-black text-sm">{R?.make || "—"}</div>
+                      </div>
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Model</div>
+                        <div className="text-white font-black text-sm">{R?.model || "—"}</div>
+                      </div>
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Year Model</div>
+                        <div className="text-white font-black text-sm">{R?.year || "—"}</div>
+                      </div>
+                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Body Type</div>
+                        <div className="text-red-400 font-black text-sm">{R?.bodyType || "—"}</div>
+                      </div>
 
                       {/* Color */}
                       <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
-                        <div className="text-xs text-gray-500 mb-1">Color</div>
-                        <div className="flex items-center gap-2">
-                          {R?.colorHex ? (
-                            <div className="w-4 h-4 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: R.colorHex }} />
-                          ) : R?.color ? (
-                            <div className="w-4 h-4 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: R.color.toLowerCase() }} />
-                          ) : null}
-                          <span className="text-white font-bold text-sm">{R?.color || "—"}</span>
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Dominant Color</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {R?.colorHex && (
+                            <span className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: R.colorHex }} />
+                          )}
+                          <span className="text-white font-bold text-xs">{R?.color || "—"}</span>
                         </div>
                       </div>
 
-                      {/* Plate Number */}
+                      {/* Size Class */}
                       <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
-                        <div className="text-xs text-gray-500 mb-1">Plate Number</div>
-                        <div className="text-white font-bold text-sm font-mono tracking-wider">
-                          {R?.plateNumber || <span className="text-gray-600 font-sans font-normal text-xs">Not visible</span>}
-                        </div>
-                      </div>
-
-                      {/* Vehicle Size */}
-                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                        <div className="text-xs text-gray-500 mb-1">Vehicle Size Class</div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-semibold">
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Vehicle Size Class</div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[10px] font-bold">
                             {(R?.vehicleSize || "small").toUpperCase()}
                           </span>
-                          <span className="text-white font-bold text-sm">
-                            {SIZE_LABELS[R?.vehicleSize] || R?.vehicleSizeLabel || "—"}
+                          <span className="text-white font-bold text-xs truncate">
+                            {SIZE_LABELS[R?.vehicleSize] || R?.vehicleSizeLabel || "Small"}
                           </span>
                         </div>
                       </div>
 
                       {/* Condition */}
                       <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                        <div className="text-xs text-gray-500 mb-1">Estimated Condition</div>
-                        <div className="flex items-start gap-2">
-                          <div className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: conditionColor(R?.condition) }} />
+                        <div className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Estimated Condition</div>
+                        <div className="flex items-start gap-2 mt-1">
+                          <div className="w-3 h-3 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: conditionColor(R?.condition) }} />
                           <div>
-                            <span className="text-white font-bold text-sm">{R?.condition || "—"}</span>
+                            <span className="text-white font-bold text-xs">{R?.condition || "Good"}</span>
                             {R?.conditionDetails && (
                               <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{R.conditionDetails}</p>
                             )}
@@ -1011,143 +1427,88 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
                         </div>
                       </div>
 
-                      {/* Features */}
+                      {/* Notable Features */}
                       {R?.features?.length > 0 && (
                         <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                          <div className="text-xs text-gray-500 mb-2">Notable Features</div>
+                          <div className="text-[10px] text-gray-500 uppercase font-bold mb-1.5">Notable Features Identified</div>
                           <div className="flex flex-wrap gap-1.5">
                             {R.features.map((f, i) => (
-                              <span key={i} className="px-2.5 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded-full text-xs font-semibold">{f}</span>
+                              <span key={i} className="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-md text-[11px] font-semibold">
+                                {f}
+                              </span>
                             ))}
                           </div>
-                        </div>
-                      )}
-
-                      {/* Additional Notes */}
-                      {R?.additionalNotes && (
-                        <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                          <div className="text-xs text-gray-500 mb-1">AI Notes</div>
-                          <p className="text-gray-300 text-sm leading-relaxed">{R.additionalNotes}</p>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
 
-                {/* Top 10 AI Recommended Services */}
+                {/* ── Top 10 Recommended Services with Exact Size Pricing ── */}
                 {!isEditing && R?.recommendedServices?.length > 0 && (
-                  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 backdrop-blur-sm shadow-xl">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="font-black text-white text-base flex items-center gap-2">
-                          <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <h3 className="font-black text-white text-sm flex items-center gap-2">
+                          <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
-                          Top 10 AI Recommended Services
+                          Top Recommended Services
                         </h3>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Tailored for <span className="text-white font-semibold">{R.make} {R.model}</span> ({R.vehicleSizeLabel || R.vehicleSize}) • <span className="text-white font-semibold">{R.condition}</span> condition
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          Tugma sa <strong className="text-white">{R.make} {R.model}</strong> ({R.vehicleSizeLabel || R.vehicleSize})
                         </p>
                       </div>
-                      <span className="self-start sm:self-auto text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {R.recommendedServices.length} Matches Found
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        {R.recommendedServices.length} Matches
                       </span>
                     </div>
 
-                    {/* Scrollable list of Top 10 Services */}
-                    <div className="max-h-[500px] overflow-y-auto space-y-2.5 pr-2">
-                      {R.recommendedServices.map((svc, idx) => {
-                        const rank = svc.rank || (idx + 1);
-                        const isTop3 = rank <= 3;
-                        const rankBadgeColor =
-                          rank === 1
-                            ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                            : rank === 2
-                            ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                            : rank === 3
-                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                            : "bg-white/5 text-gray-400 border-white/10";
-
-                        return (
-                          <div
-                            key={svc.id || idx}
-                            className={`group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all ${
-                              isTop3
-                                ? "bg-gray-800/60 border-white/10 hover:border-red-500/40"
-                                : "bg-gray-800/30 border-white/5 hover:border-white/20"
-                            }`}
-                          >
-                            <div className="flex items-start gap-3 min-w-0">
-                              <span
-                                className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black border ${rankBadgeColor}`}
-                              >
-                                #{rank}
+                    <div className="max-h-[360px] overflow-y-auto space-y-2 pr-1">
+                      {R.recommendedServices.map((svc, idx) => (
+                        <div
+                          key={svc.id || idx}
+                          className="flex items-center justify-between p-3 rounded-xl bg-gray-800/40 border border-white/5 hover:border-red-500/40 transition-all text-xs"
+                        >
+                          <div className="min-w-0 pr-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-5 h-5 rounded-md bg-white/5 text-[10px] text-gray-400 font-black flex items-center justify-center">
+                                #{svc.rank || idx + 1}
                               </span>
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                  <p className="text-white font-semibold text-sm group-hover:text-red-400 transition-colors">
-                                    {svc.name}
-                                  </p>
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/5 text-gray-400 border border-white/5">
-                                    {svc.category}
-                                  </span>
-                                  {svc.duration && (
-                                    <span className="text-[10px] text-gray-500">
-                                      • {svc.duration} mins
-                                    </span>
-                                  )}
-                                </div>
-                                {svc.description && (
-                                  <p className="text-gray-400 text-xs line-clamp-1 mb-1">
-                                    {svc.description}
-                                  </p>
-                                )}
-                                {svc.matchReason && (
-                                  <div className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400/90 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    <span>{svc.matchReason}</span>
-                                  </div>
-                                )}
-                              </div>
+                              <p className="text-white font-bold truncate">{svc.name}</p>
                             </div>
-
-                            <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
-                              <div className="text-left sm:text-right">
-                                <p className="text-emerald-400 font-black text-sm">
-                                  ₱{Number(svc.price).toLocaleString()}
-                                </p>
-                                {svc.basePrice && svc.basePrice !== svc.price && (
-                                  <p className="text-gray-500 text-[11px] line-through">
-                                    ₱{Number(svc.basePrice).toLocaleString()}
-                                  </p>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setWalkInService(svc);
-                                  setShowWalkIn(true);
-                                }}
-                                className="px-3 py-1.5 rounded-lg bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold transition-all shadow-md shadow-red-600/20 shrink-0"
-                              >
-                                Select for Walk-In
-                              </button>
-                            </div>
+                            <p className="text-[10px] text-gray-500 mt-0.5">{svc.category} • {svc.duration} mins</p>
                           </div>
-                        );
-                      })}
+
+                          <div className="text-right shrink-0 flex items-center gap-2">
+                            <div>
+                              <p className="text-emerald-400 font-black text-sm">
+                                ₱{Number(svc.price).toLocaleString()}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWalkInService(svc);
+                                setShowWalkIn(true);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] transition-all shadow"
+                            >
+                              Add to Queue
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
 
-                {/* Action Buttons */}
+                {/* Bottom Action Buttons */}
                 {!isEditing && (
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setShowWalkIn(true)}
-                      className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-3 rounded-xl transition-all shadow-lg shadow-red-600/20 text-sm"
+                      className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-3 rounded-xl transition-all shadow-lg shadow-red-600/30 text-xs"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1156,28 +1517,13 @@ Notes: ${analysisResult.additionalNotes || "—"}`;
                     </button>
                     <button
                       onClick={() => setShowPrint(true)}
-                      className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold px-4 py-3 rounded-xl transition-all text-sm"
+                      className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold px-4 py-3 rounded-xl transition-all text-xs"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                       </svg>
                       Print Inspection Sheet
                     </button>
-                  </div>
-                )}
-
-                {/* AI Badge */}
-                {!isEditing && (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
-                    <div className="flex items-start gap-3">
-                      <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <p className="text-sm text-red-300">
-                        <span className="font-black">AI-Powered Analysis:</span>{" "}
-                        Results are generated by AI based on the uploaded image. Use the edit button to correct any details before creating a ticket.
-                      </p>
-                    </div>
                   </div>
                 )}
               </div>

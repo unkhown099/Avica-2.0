@@ -567,8 +567,8 @@ html[data-theme="light"] button.bg-red-700 *:not(.landing-hero *),
 html[data-theme="light"] button.bg-red-500 *:not(.landing-hero *),
 html[data-theme="light"] a.bg-red-600 *:not(.landing-hero *),
 html[data-theme="light"] a.bg-red-700 *:not(.landing-hero *),
-html[data-theme="light"] .bg-red-600 *:not(.landing-hero *),
-html[data-theme="light"] .bg-red-700 *:not(.landing-hero *) {
+html[data-theme="light"] .bg-red-600:not(#reviews):not(#reviews *) *:not(.landing-hero *),
+html[data-theme="light"] .bg-red-700:not(#reviews):not(#reviews *) *:not(.landing-hero *) {
   color: #ffffff !important;
 }
 
@@ -1120,6 +1120,20 @@ html {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75) !important;
 }
 
+/* ── Leaflet Custom Branch Map Marker Styles ── */
+.custom-div-icon,
+.leaflet-div-icon.custom-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.branch-map-marker-wrapper:hover .branch-label-pill {
+  transform: scale(1.08);
+  background: rgba(15, 23, 42, 0.98) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85) !important;
+}
+
 /* ── 19. User Profile Avatar & Navbar Icon Contrast ─────────────────────── */
 .user-profile-avatar,
 html[data-theme="light"] .user-profile-avatar,
@@ -1345,5 +1359,28 @@ html[data-theme="light"] button.hover\:bg-white\/8:hover:not(.landing-hero *):no
 html[data-theme="light"] .bg-black\/60.backdrop-blur-md {
   background-color: rgba(15, 23, 42, 0.75) !important;
   color: #ffffff !important;
+}
+
+/* ── 29. Client Reviews Location & Name Visibility (Light & Dark Mode) ────── */
+#reviews .review-card-city,
+html[data-theme="light"] #reviews .review-card-city,
+html:not([data-theme="dark"]) #reviews .review-card-city,
+html[data-theme="light"] #reviews p.text-red-600,
+html:not([data-theme="dark"]) #reviews p.text-red-600 {
+  color: #dc2626 !important;
+  font-weight: 900 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] #reviews .review-card-name,
+html:not([data-theme="dark"]) #reviews .review-card-name {
+  color: #111827 !important;
+}
+
+html[data-theme="light"] #reviews .review-card-text,
+html:not([data-theme="dark"]) #reviews .review-card-text {
+  color: #1f2937 !important;
 }
 

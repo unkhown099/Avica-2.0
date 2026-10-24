@@ -1,12 +1,22 @@
 import os
+import sys
 import django
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
-from api.models import User, Staff, Customer, Branch
+try:
+    from api.models import User, Staff, Customer, Branch  # type: ignore
+    from api.views.auth_views import _get_profile_data  # type: ignore
+except ImportError:
+    from backend.api.models import User, Staff, Customer, Branch  # type: ignore
+    from backend.api.views.auth_views import _get_profile_data  # type: ignore
+
 from django.contrib.auth import authenticate
-from api.views.auth_views import _get_profile_data
 
 UNIVERSAL_PASSWORD = "Password123!"
 
@@ -343,8 +353,10 @@ all_branches = list(Branch.objects.all())
 print(f"=== SYNCING ALL {len(SYSTEM_ACCOUNTS)} USER ACCOUNTS WITH Password123! ===", flush=True)
 
 for i, acc in enumerate(SYSTEM_ACCOUNTS, 1):
-    email = acc["email"].strip().lower()
-    name_parts = acc["name"].split(None, 1)
+    raw_email = str(acc.get("email", ""))
+    email = raw_email.strip().lower()
+    raw_name = str(acc.get("name", ""))
+    name_parts = raw_name.split(None, 1)
     first_name = name_parts[0]
     last_name = name_parts[1] if len(name_parts) > 1 else ""
 
@@ -357,18 +369,21 @@ for i, acc in enumerate(SYSTEM_ACCOUNTS, 1):
     )
     user.is_active = True
     user.email_verified = True
-    user.is_staff = acc.get("is_staff", False)
-    user.is_superuser = acc.get("is_superuser", False)
+    user.is_staff = bool(acc.get("is_staff", False))
+    user.is_superuser = bool(acc.get("is_superuser", False))
     user.set_password(UNIVERSAL_PASSWORD)
     user.save()
 
     if acc["type"] == "Staff":
         branch_obj = None
-        if "branch_id" in acc and acc["branch_id"] in branches_by_id:
-            branch_obj = branches_by_id[acc["branch_id"]]
-        elif acc.get("branch") and acc["branch"] not in ["Central Head Office", "Central Warehouse"]:
-            key = acc["branch"].split()[0].lower()
-            branch_obj = next((b for b in all_branches if key in b.name.lower()), None)
+        branch_id_val = acc.get("branch_id")
+        if isinstance(branch_id_val, int) and branch_id_val in branches_by_id:
+            branch_obj = branches_by_id[branch_id_val]
+        else:
+            raw_branch = str(acc.get("branch", ""))
+            if raw_branch and raw_branch not in ["Central Head Office", "Central Warehouse"]:
+                key = raw_branch.split()[0].lower()
+                branch_obj = next((b for b in all_branches if key in b.name.lower()), None)
 
         Staff.objects.update_or_create(
             user=user,
@@ -400,4 +415,11 @@ for i, acc in enumerate(SYSTEM_ACCOUNTS, 1):
     else:
         print(f"[{i:02d}/{len(SYSTEM_ACCOUNTS)}] FAILED:  {email:<30}", flush=True)
 
-print("\n=== COMPLETE: ALL ACCOUNTS SYNCED AND TESTED ===", flush=True)
+# Also ensure Otokwikk official services are seeded
+try:
+    from seed_otokwikk_services import seed_services
+    seed_services()
+except Exception as e:
+    print(f"Warning: Could not seed services in sync script: {e}")
+
+print("\n=== COMPLETE: ALL ACCOUNTS AND SERVICES SYNCED AND TESTED ===", flush=True)

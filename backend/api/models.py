@@ -60,6 +60,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+    @property
+    def role(self):
+        if hasattr(self, "staff_profile") and self.staff_profile:
+            return self.staff_profile.role
+        if hasattr(self, "customer_profile") and self.customer_profile:
+            return "customer"
+        if self.is_superuser:
+            return "super_admin"
+        if self.is_staff:
+            return "Admin"
+        return "customer"
+
 
 # ── Customer ──────────────────────────────────────────────────────────────────
 class Customer(models.Model):

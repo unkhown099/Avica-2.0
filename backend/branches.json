@@ -1,13 +1,77 @@
 [
-  {
-    "model": "api.branch",
-    "pk": 1,
-    "fields": {
-      "name": "Caloocan Branch",
-      "address": "123 Rizal Ave Extension, Caloocan City, Metro Manila",
-      "hours": "Monï¿½Sat 8AMï¿½6PM",
-      "slots": 5,
-      "is_active": true
-    }
+{
+  "model": "api.branch",
+  "pk": 1,
+  "fields": {
+    "name": "South Caloocan",
+    "address": "77 General Tinio Street, Barangay 132 Bagong Barrio West Metro Manila · Caloocan City",
+    "hours": "Mon-Sat 8:00 AM - 6:00 PM",
+    "phone": "",
+    "fb_url": "https://www.facebook.com/profile.php?id=61572528405228",
+    "latitude": "14.662410000",
+    "longitude": "120.990040000",
+    "slots": 5,
+    "is_active": true
   }
+},
+{
+  "model": "api.branch",
+  "pk": 2,
+  "fields": {
+    "name": "Tanza Cavite",
+    "address": "141 De Roman Subd. Daang Amaya 1 , Tanza, Philippines, 4108",
+    "hours": "Mon-Sat 8:00 AM - 6:00 PM",
+    "phone": "",
+    "fb_url": "https://www.facebook.com/otokwikk.tanzacavite",
+    "latitude": "14.395179200",
+    "longitude": "120.872726400",
+    "slots": 5,
+    "is_active": true
+  }
+},
+{
+  "model": "api.branch",
+  "pk": 3,
+  "fields": {
+    "name": "Saranay North Caloocan",
+    "address": "Malapitan rd Saranay, Caloocan, Philippines, 1400",
+    "hours": "Mon-Sat 8:00 AM - 6:00 PM",
+    "phone": "",
+    "fb_url": "https://www.facebook.com/profile.php?id=100090897126761",
+    "latitude": "14.751751000",
+    "longitude": "121.023191000",
+    "slots": 5,
+    "is_active": true
+  }
+},
+{
+  "model": "api.branch",
+  "pk": 4,
+  "fields": {
+    "name": "San Mateo Rizal",
+    "address": "0186 B General Luna Street Guitnang Bayan 2 San Mateo Rizal",
+    "hours": "Mon-Sat 8:00 AM - 6:00 PM",
+    "phone": "",
+    "fb_url": "https://www.facebook.com/profile.php?id=61556323569842",
+    "latitude": "14.700973000",
+    "longitude": "121.126532000",
+    "slots": 5,
+    "is_active": true
+  }
+},
+{
+  "model": "api.branch",
+  "pk": 5,
+  "fields": {
+    "name": "Camarin North Caloocan",
+    "address": "B15 L5 Camarin Rd, Caloocan, Metro Manila",
+    "hours": "Mon-Sat 8:00 AM - 6:00 PM",
+    "phone": "",
+    "fb_url": "https://www.facebook.com/profile.php?id=61586571534281",
+    "latitude": "14.756690000",
+    "longitude": "121.048450000",
+    "slots": 5,
+    "is_active": true
+  }
+}
 ]

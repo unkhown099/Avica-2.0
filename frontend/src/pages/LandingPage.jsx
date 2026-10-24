@@ -280,7 +280,14 @@ function normalizeLandingContent(content) {
       ? data.branches
       : EMPTY_LANDING_CONTENT.branches,
     reviews: Array.isArray(data.reviews) && data.reviews.length > 0
-      ? data.reviews
+      ? data.reviews.map((r, idx) => {
+          const fallback = EMPTY_LANDING_CONTENT.reviews[idx] || EMPTY_LANDING_CONTENT.reviews[0] || {};
+          return {
+            name: r.name || fallback.name || "Valued Client",
+            city: r.city || r.location || r.branch || fallback.city || "Metro Manila",
+            text: r.text || fallback.text || "",
+          };
+        })
       : EMPTY_LANDING_CONTENT.reviews,
     fbPages: Array.isArray(data.fbPages) && data.fbPages.length > 0
       ? data.fbPages
@@ -624,12 +631,65 @@ function LandingPage() {
     branches.forEach((b) => {
       if (b.latitude && b.longitude) {
         const isActive = activeBranch?.id === b.id;
+        const branchName = b.name || "Branch";
         const marker = window.L.marker([b.latitude, b.longitude], {
+          zIndexOffset: isActive ? 1000 : 100,
           icon: window.L.divIcon({
             className: "custom-div-icon",
-            html: `<div style="background-color:${isActive ? "#ef4444" : "#ffffff"};width:14px;height:14px;border-radius:50%;border:3px solid ${isActive ? "white" : "#ef4444"};box-shadow:0 0 15px ${isActive ? "rgba(239,68,68,0.6)" : "rgba(0,0,0,0.3)"};transition:all 0.3s ease;"></div>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
+            html: `
+              <div class="branch-map-marker-wrapper" style="position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;transform:translate(-50%, -100%) translateY(7px);pointer-events:auto;cursor:pointer;user-select:none;">
+                <!-- Branch Label Badge -->
+                <div class="branch-label-pill" style="
+                  background:${isActive ? "linear-gradient(135deg, #ef4444, #b91c1c)" : "rgba(15, 23, 42, 0.88)"};
+                  color:#ffffff;
+                  font-size:11px;
+                  font-weight:800;
+                  font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                  padding:3px 9px;
+                  border-radius:9999px;
+                  border:1.5px solid ${isActive ? "#ffffff" : "rgba(255, 255, 255, 0.3)"};
+                  box-shadow:0 4px 14px ${isActive ? "rgba(239, 68, 68, 0.75)" : "rgba(0, 0, 0, 0.65)"};
+                  white-space:nowrap;
+                  display:flex;
+                  align-items:center;
+                  gap:4.5px;
+                  transition:all 0.2s ease;
+                ">
+                  <span style="
+                    width:6px;
+                    height:6px;
+                    border-radius:50%;
+                    background:${isActive ? "#ffffff" : "#ef4444"};
+                    box-shadow:0 0 6px ${isActive ? "#ffffff" : "rgba(239, 68, 68, 0.8)"};
+                    display:inline-block;
+                  "></span>
+                  <span>${branchName}</span>
+                </div>
+
+                <!-- Downward Arrow pointer -->
+                <div style="
+                  width:0;
+                  height:0;
+                  border-left:5px solid transparent;
+                  border-right:5px solid transparent;
+                  border-top:5px solid ${isActive ? "#b91c1c" : "rgba(15, 23, 42, 0.88)"};
+                  margin-bottom:2px;
+                "></div>
+
+                <!-- Circular Pin Dot -->
+                <div style="
+                  background-color:${isActive ? "#ef4444" : "#ffffff"};
+                  width:14px;
+                  height:14px;
+                  border-radius:50%;
+                  border:3px solid ${isActive ? "#ffffff" : "#ef4444"};
+                  box-shadow:0 0 16px ${isActive ? "rgba(239, 68, 68, 0.95)" : "rgba(0, 0, 0, 0.6)"};
+                  transition:all 0.3s ease;
+                "></div>
+              </div>
+            `,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
           }),
         }).addTo(map);
 
@@ -1356,19 +1416,22 @@ function LandingPage() {
                     ? "bg-black text-white border-white/10" 
                     : "bg-white text-gray-900 border-red-200 shadow-xl"
                 }`}>
-                  <p className={`text-base sm:text-xl italic font-bold leading-relaxed mb-5 sm:mb-6 ${isDark ? "text-white" : "text-gray-800"}`}>
+                  <p className={`review-card-text text-base sm:text-xl italic font-bold leading-relaxed mb-5 sm:mb-6 ${isDark ? "text-white" : "text-gray-800"}`}>
                     "{f.text}"
                   </p>
                   <div className="flex items-center gap-3 sm:gap-4">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600 text-white rounded-full flex items-center justify-center font-black text-base sm:text-lg flex-shrink-0 shadow-md">
-                      {f.name[0]}
+                      {(f.name || "C")[0]}
                     </div>
-                    <div>
-                      <h4 className={`font-black uppercase tracking-tight text-sm sm:text-base ${isDark ? "text-white" : "text-gray-900"}`}>
+                    <div className="flex flex-col justify-center text-left">
+                      <h4 className={`review-card-name font-black uppercase tracking-tight text-sm sm:text-base leading-snug ${isDark ? "text-white" : "text-gray-900"}`}>
                         {f.name}
                       </h4>
-                      <p className="text-red-600 text-xs sm:text-sm font-black tracking-widest">
-                        {f.city}
+                      <p 
+                        className="review-card-city text-xs sm:text-sm font-black tracking-widest text-red-600 !text-red-600 uppercase"
+                        style={{ color: "#dc2626", display: "block", visibility: "visible", opacity: 1 }}
+                      >
+                        {f.city || f.location || f.branch || "Metro Manila"}
                       </p>
                     </div>
                   </div>

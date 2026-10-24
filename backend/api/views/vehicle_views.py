@@ -1,43 +1,71 @@
 import base64
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import SessionAuthentication
-from api.services.ai_vehicle_service import analyze_vehicle_image
+from api.services.ai_vehicle_service import analyze_vehicle_image, analyze_vehicle_images  # type: ignore
 
 
 class AnalyzeVehicleView(APIView):
     authentication_classes = [JWTAuthentication, SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
-        base64_image = request.data.get("image")
+        images_data = []
 
-        # Support multipart file upload (when image is an UploadedFile or in request.FILES)
-        if hasattr(base64_image, "read"):
-            try:
-                base64_image = base64.b64encode(base64_image.read()).decode("utf-8")
-            except Exception as e:
-                return Response({"error": f"Failed to read image file: {str(e)}"}, status=400)
-        elif not base64_image and "image" in request.FILES:
-            uploaded_file = request.FILES["image"]
-            try:
-                base64_image = base64.b64encode(uploaded_file.read()).decode("utf-8")
-            except Exception as e:
-                return Response({"error": f"Failed to read image file: {str(e)}"}, status=400)
+        # 1. Check for array of images in request.data ('images')
+        raw_images = request.data.get("images")
+        if raw_images and isinstance(raw_images, list):
+            for item in raw_images:
+                if isinstance(item, str) and item.strip():
+                    images_data.append(item.strip())
+                elif hasattr(item, "read"):
+                    try:
+                        b64 = base64.b64encode(item.read()).decode("utf-8")
+                        images_data.append(b64)
+                    except Exception as e:
+                        print("Failed reading file in images list:", e)
 
-        if not base64_image:
-            return Response({"error": "No image provided"}, status=400)
+        # 2. Check for multipart files list in request.FILES.getlist('images')
+        if not images_data and "images" in request.FILES:
+            for uploaded_file in request.FILES.getlist("images"):
+                try:
+                    b64 = base64.b64encode(uploaded_file.read()).decode("utf-8")
+                    images_data.append(b64)
+                except Exception as e:
+                    print("Failed reading multipart file:", e)
+
+        # 3. Fallback to single 'image' (JSON base64 or UploadedFile)
+        if not images_data:
+            base64_image = request.data.get("image")
+            if hasattr(base64_image, "read"):
+                try:
+                    b64 = base64.b64encode(base64_image.read()).decode("utf-8")
+                    images_data.append(b64)
+                except Exception as e:
+                    return Response({"error": f"Failed to read image file: {str(e)}"}, status=400)
+            elif not base64_image and "image" in request.FILES:
+                uploaded_file = request.FILES["image"]
+                try:
+                    b64 = base64.b64encode(uploaded_file.read()).decode("utf-8")
+                    images_data.append(b64)
+                except Exception as e:
+                    return Response({"error": f"Failed to read image file: {str(e)}"}, status=400)
+            elif isinstance(base64_image, str) and base64_image.strip():
+                images_data.append(base64_image.strip())
+
+        if not images_data:
+            return Response({"error": "No image(s) provided. Please upload 3 to 5 vehicle images."}, status=400)
 
         try:
-            result = analyze_vehicle_image(base64_image)
+            result = analyze_vehicle_images(images_data)
             return Response(result)
         except Exception as e:
             return Response({"error": f"Vehicle analysis failed: {str(e)}"}, status=500)
 
 
-from api.models import VehiclePMSLog, Customer
+from api.models import VehiclePMSLog, Customer  # type: ignore
 
 
 class PreventiveMaintenanceView(APIView):

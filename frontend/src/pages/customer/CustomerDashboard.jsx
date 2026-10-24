@@ -1,17 +1,74 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import CustomerLayout from "./CustomerLayout.jsx";
-import { API_BASE } from "../../hooks/useAuth.js";
+import { API_BASE, getAuthHeadersAsync } from "../../hooks/useAuth.js";
 import { getUserFromSession } from "../../utils/getUser";
 import { useNavigate } from "react-router-dom";
 import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 import CustomDatePicker from "../../components/common/CustomDatePicker.jsx";
+import { useTheme } from "../../context/ThemeContext.jsx";
+
+const VEHICLE_ID_STEPS = [
+  {
+    key: "front",
+    stepNum: 1,
+    title: "Front View",
+    badge: "Required",
+    required: true,
+    instruction: "Capture the front of your vehicle. Ensure the bumper, headlights, and front license plate are visible and centered.",
+    placeholderTip: "Position the front bumper & license plate inside the frame",
+  },
+  {
+    key: "rear",
+    stepNum: 2,
+    title: "Rear View",
+    badge: "Required",
+    required: true,
+    instruction: "Capture the rear of your vehicle. Ensure taillights, trunk, and rear license plate are clearly readable.",
+    placeholderTip: "Position the rear bumper & license plate inside the frame",
+  },
+  {
+    key: "side",
+    stepNum: 3,
+    title: "Side Profile",
+    badge: "Required",
+    required: true,
+    instruction: "Step back to capture the full side profile from wheel to wheel so AI can identify vehicle size (Sedan, SUV, Pickup, Van).",
+    placeholderTip: "Fit the full vehicle silhouette from wheel to wheel",
+  },
+  {
+    key: "damage",
+    stepNum: 4,
+    title: "Damage & Condition",
+    badge: "Recommended",
+    required: false,
+    instruction: "Capture a close-up of any existing scratches, dents, swirl marks, or paint chips. If none, capture another clear angle.",
+    placeholderTip: "Capture close-up of scratches or vehicle condition",
+  },
+];
 
 function CustomerDashboard() {
   const [user] = useState(() => getUserFromSession());
+  const { isDark = true } = useTheme?.() || {};
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
-  const [previewImage, setPreviewImage] = useState(null);
+
+  // Sequential ID-style vehicle capture states (Front -> Rear -> Side -> Damage -> Review)
+  const [currentIdStep, setCurrentIdStep] = useState(0); // 0 = Front, 1 = Rear, 2 = Side, 3 = Damage, 4 = Review
+  const [vehiclePhotos, setVehiclePhotos] = useState({
+    front: null,
+    rear: null,
+    side: null,
+    damage: null,
+  });
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState("environment");
+  const [cameraError, setCameraError] = useState(null);
+
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const stepFileInputRef = useRef(null);
+  const stepMobileCameraInputRef = useRef(null);
 
   const [stats, setStats] = useState({ upcoming: 0, completed: 0 });
   const [upcomingBookings, setUpcomingBookings] = useState([]);
@@ -110,42 +167,230 @@ function CustomerDashboard() {
     [hasActiveBookingState, upcomingBookings],
   );
 
-  const handleCarImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setPreviewImage(URL.createObjectURL(file));
-      await performCarAnalysis(file);
+  // ── Sequential ID-Style Photo Handlers ─────────────────────────────────────
+  const stopLiveCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+    setCameraError(null);
+  };
+
+  const startLiveCamera = async (facing = cameraFacingMode) => {
+    setCameraError(null);
+    setIsCameraActive(true);
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error("Live camera is not supported by your browser. Please choose an image file instead.");
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.warn("Camera access failed:", err);
+      setCameraError("Camera permission denied or camera is unavailable. Please choose an image file instead.");
     }
   };
 
-  const performCarAnalysis = async (file) => {
+  const toggleCameraFacingMode = () => {
+    const nextMode = cameraFacingMode === "environment" ? "user" : "environment";
+    setCameraFacingMode(nextMode);
+    startLiveCamera(nextMode);
+  };
+
+  const compressImageFile = (fileOrBlob, maxDimension = 960, quality = 0.82) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          resolve(dataUrl);
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(fileOrBlob);
+    });
+  };
+
+  const capturePhotoFromCamera = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement("canvas");
+    const maxDim = 960;
+    let w = video.videoWidth || 1280;
+    let h = video.videoHeight || 720;
+    if (w > maxDim || h > maxDim) {
+      if (w > h) {
+        h = Math.round((h * maxDim) / w);
+        w = maxDim;
+      } else {
+        w = Math.round((w * maxDim) / h);
+        h = maxDim;
+      }
+    }
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+
+    const stepKey = VEHICLE_ID_STEPS[currentIdStep]?.key;
+    if (!stepKey) return;
+
+    setVehiclePhotos((prev) => ({
+      ...prev,
+      [stepKey]: {
+        url: dataUrl,
+        dataUrl,
+        name: `${stepKey}-photo.jpg`,
+      },
+    }));
+    stopLiveCamera();
+    showToast(`${VEHICLE_ID_STEPS[currentIdStep]?.shortLabel} captured.`);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isCameraActive]);
+
+  const handleStepFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const stepKey = VEHICLE_ID_STEPS[currentIdStep]?.key;
+    if (!stepKey) return;
+
+    const dataUrl = await compressImageFile(file, 960, 0.82);
+    if (!dataUrl) {
+      showToast("Could not read image file. Please try another.", "error");
+      return;
+    }
+
+    setVehiclePhotos((prev) => ({
+      ...prev,
+      [stepKey]: {
+        url: dataUrl,
+        dataUrl,
+        name: file.name,
+      },
+    }));
+    showToast(`${VEHICLE_ID_STEPS[currentIdStep]?.shortLabel} photo added.`);
+    e.target.value = "";
+  };
+
+  const handleRetakeStep = (stepIdx) => {
+    stopLiveCamera();
+    const targetKey = VEHICLE_ID_STEPS[stepIdx]?.key;
+    if (targetKey) {
+      setVehiclePhotos((prev) => ({
+        ...prev,
+        [targetKey]: null,
+      }));
+    }
+    setCurrentIdStep(stepIdx);
+  };
+
+  const handleClearAllIdPhotos = () => {
+    stopLiveCamera();
+    setVehiclePhotos({
+      front: null,
+      rear: null,
+      side: null,
+      damage: null,
+    });
+    setAnalysisResult(null);
+    setCurrentIdStep(0);
+    showToast("Reset all photos.");
+  };
+
+  const completedPhotosCount = Object.values(vehiclePhotos).filter(Boolean).length;
+  const canRunAIAnalysis = Boolean(vehiclePhotos.front && vehiclePhotos.rear && vehiclePhotos.side);
+
+  const runVehicleAIAnalysis = async () => {
+    const photosToAnalyze = VEHICLE_ID_STEPS.map((s) => vehiclePhotos[s.key]).filter(Boolean);
+    if (photosToAnalyze.length < 3) {
+      alert("Please ensure Front, Rear, and Side photos are captured.");
+      return;
+    }
+
     setIsAnalyzing(true);
     setAnalysisResult(null);
+
     try {
-      const token =
-        localStorage.getItem("access_token") ??
-        sessionStorage.getItem("access_token");
-      const base64Image = await new Promise((res, rej) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => res(reader.result.split(",")[1]);
-        reader.onerror = (err) => rej(err);
-      });
+      const headers = await getAuthHeadersAsync();
+
+      const base64List = photosToAnalyze
+        .map((item) => {
+          if (item?.dataUrl && item.dataUrl.includes(",")) {
+            return item.dataUrl.split(",")[1];
+          }
+          return null;
+        })
+        .filter(Boolean);
+
       const response = await fetch(`${API_BASE}/api/analyze-vehicle/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ image: base64Image }),
+        headers,
+        body: JSON.stringify({ images: base64List }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Analysis failed");
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        throw new Error(data?.error || data?.detail || `Analysis request failed (Status ${response.status})`);
+      }
       setAnalysisResult(data);
+
+      if (data.is_vehicle === false || data.success === false) {
+        showToast(data.rejection_reason || "No vehicle detected. Please check the photos.", "error");
+      } else {
+        showToast(`Vehicle recognized: ${data.make} ${data.model}!`);
+      }
     } catch (error) {
       console.error("Analysis Error:", error);
-      alert("Failed to analyze vehicle. Please try again.");
-      setPreviewImage(null);
+      alert(error.message || "Failed to analyze vehicle. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -284,14 +529,20 @@ function CustomerDashboard() {
   return (
     <CustomerLayout>
       {/* ── Hero ── */}
-      <div className="relative bg-gradient-to-b from-red-950/20 via-gray-900 to-gray-950 py-10 sm:py-14 md:py-16 border-b border-white/5">
+      <div className={`relative py-10 sm:py-14 md:py-16 border-b transition-colors ${
+        isDark
+          ? "bg-gradient-to-b from-red-950/20 via-gray-900 to-gray-950 border-white/5"
+          : "bg-gradient-to-b from-red-50/50 via-white to-gray-50 border-gray-200"
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 sm:mb-4 tracking-tight leading-tight">
+              <h1 className={`text-3xl sm:text-4xl md:text-5xl font-black mb-2 sm:mb-4 tracking-tight leading-tight ${
+                isDark ? "text-white" : "text-gray-900"
+              }`}>
                 Welcome back,&nbsp;{displayFirst}!
               </h1>
-              <p className="text-base sm:text-lg md:text-xl text-gray-400">
+              <p className={`text-base sm:text-lg md:text-xl ${isDark ? "text-gray-400" : "text-gray-600"}`}>
                 Ready to keep your vehicle looking its best?
               </p>
             </div>
@@ -378,7 +629,7 @@ function CustomerDashboard() {
 
         {/* ── Quick Actions ── */}
         <div className="mb-8 sm:mb-10 md:mb-12">
-          <h2 className="text-xl sm:text-2xl font-black text-white mb-3 sm:mb-4">Quick Actions</h2>
+          <h2 className={`text-xl sm:text-2xl font-black mb-3 sm:mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>Quick Actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
             {[
               {
@@ -415,10 +666,10 @@ function CustomerDashboard() {
                   <button
                     disabled={blocked}
                     onClick={() => { if (!blocked) navigate(path, state ? { state } : {}); }}
-                    className={`group w-full bg-gray-900/60 border border-white/5 rounded-xl p-3 sm:p-4 backdrop-blur-sm transition-all duration-200 text-left flex items-center gap-3 sm:gap-4 ${blocked
+                    className={`group w-full rounded-xl p-3 sm:p-4 backdrop-blur-sm transition-all duration-200 text-left flex items-center gap-3 sm:gap-4 border ${blocked
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:border-red-500/30 hover:scale-[1.02]"
-                      }`}
+                      } ${isDark ? "bg-gray-900/60 border-white/5" : "bg-white border-gray-200 shadow-sm"}`}
                   >
                     <div
                       className={`w-9 h-9 sm:w-10 sm:h-10 bg-red-500/10 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-300 ${blocked ? "" : "group-hover:scale-110"}`}
@@ -429,8 +680,8 @@ function CustomerDashboard() {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-xs sm:text-sm font-bold text-white">{title}</h3>
-                      <p className="text-xs text-gray-400">{desc}</p>
+                      <h3 className={`text-xs sm:text-sm font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{title}</h3>
+                      <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>{desc}</p>
                     </div>
                   </button>
                 </BookingBlockedTooltip>
@@ -441,61 +692,421 @@ function CustomerDashboard() {
 
         {/* ── Car AI Analysis ── */}
         <div className="mb-8 sm:mb-10 md:mb-12">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-black text-white">Vehicle AI Analysis</h2>
+          <div className="flex items-center justify-between mb-4 sm:mb-5">
+            <h2 className={`text-xl sm:text-2xl font-black ${isDark ? "text-white" : "text-gray-900"}`}>Vehicle AI Analysis</h2>
             <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 bg-red-500/10 rounded-full border border-red-500/30">
               <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full animate-pulse" />
               <span className="text-[10px] sm:text-xs font-bold text-red-400 uppercase tracking-widest">Powered by AI</span>
             </div>
           </div>
 
+          {/* Hidden input for step capture */}
+          <input
+            type="file"
+            ref={stepFileInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleStepFileSelected}
+          />
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-stretch">
-            {/* Upload panel */}
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 backdrop-blur-sm flex flex-col items-center justify-center text-center relative overflow-hidden group min-h-[240px]">
-              <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-              {!previewImage ? (
-                <>
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-500/10 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-500">
-                    <svg className="w-8 h-8 sm:w-10 sm:h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-black text-white mb-2">Identify Your Vehicle</h3>
-                  <p className="text-xs sm:text-sm text-gray-400 mb-6 sm:mb-8 max-w-xs">
-                    Upload a photo of your vehicle for AI-powered identification and analysis
-                  </p>
-                  <label className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl cursor-pointer transition-all duration-200 shadow-lg shadow-red-600/30 text-sm sm:text-base">
-                    Upload Vehicle Photo
-                    <input type="file" className="hidden" accept="image/*" onChange={handleCarImageUpload} />
-                  </label>
-                </>
+            {/* ── Left Column: Sequential ID-Style Photo Capture ── */}
+            <div className={`rounded-2xl p-5 sm:p-6 backdrop-blur-sm flex flex-col justify-between shadow-xl min-h-[500px] border transition-colors ${
+              isDark ? "bg-gray-900/60 border-white/5" : "bg-white border-gray-200 shadow-sm"
+            }`}>
+              {currentIdStep < 4 ? (
+                /* ── STEPS 1 TO 4: ACTIVE ID STEP ── */
+                <div>
+                  {(() => {
+                    const step = VEHICLE_ID_STEPS[currentIdStep];
+                    const photo = vehiclePhotos[step.key];
+
+                    return (
+                      <div>
+                        {/* Step Header with Segmented Progress */}
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between text-xs mb-2">
+                            <span className="font-bold text-red-500 uppercase tracking-wider flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                              <span>Step {step.stepNum} of 4: {step.title}</span>
+                            </span>
+                            <span className={`${isDark ? "text-gray-400" : "text-gray-500"} font-semibold`}>
+                              {completedPhotosCount} of 4 Completed
+                            </span>
+                          </div>
+
+                          {/* 4-Segmented Progress Bar */}
+                          <div className="grid grid-cols-4 gap-1.5 mb-3">
+                            {VEHICLE_ID_STEPS.map((s, idx) => (
+                              <div
+                                key={s.key}
+                                className={`h-1.5 rounded-full transition-all duration-300 ${
+                                  vehiclePhotos[s.key]
+                                    ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
+                                    : idx === currentIdStep
+                                    ? "bg-red-600 shadow-sm shadow-red-600/50"
+                                    : isDark
+                                    ? "bg-gray-800"
+                                    : "bg-gray-200"
+                                }`}
+                              />
+                            ))}
+                          </div>
+
+                          <h3 className={`text-base sm:text-lg font-black ${isDark ? "text-white" : "text-gray-900"}`}>
+                            {step.title}
+                          </h3>
+                          <p className={`text-xs mt-0.5 leading-relaxed ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                            {step.instruction}
+                          </p>
+                        </div>
+
+                        {/* Scanner Viewport with ID Corner Brackets */}
+                        <div className={`relative rounded-2xl overflow-hidden border-2 border-dashed p-3 sm:p-4 my-3 min-h-[270px] sm:min-h-[300px] flex flex-col items-center justify-center text-center transition-colors ${
+                          isDark ? "border-red-500/30 bg-gray-950/80" : "border-red-300 bg-red-50/40"
+                        }`}>
+                          {/* Corner Brackets */}
+                          <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-red-500 pointer-events-none" />
+                          <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-red-500 pointer-events-none" />
+                          <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-red-500 pointer-events-none" />
+                          <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-red-500 pointer-events-none" />
+                          <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-red-500 pointer-events-none" />
+
+                          {/* Case A: Camera Active */}
+                          {isCameraActive ? (
+                            <div className="w-full space-y-3">
+                              {cameraError ? (
+                                <div className="p-4 text-center text-xs space-y-2">
+                                  <p className="text-amber-400 font-semibold">{cameraError}</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      stopLiveCamera();
+                                      stepFileInputRef.current?.click();
+                                    }}
+                                    className="px-4 py-2 bg-red-600 text-white font-bold rounded-xl text-xs"
+                                  >
+                                    Choose File Instead
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="relative rounded-xl overflow-hidden bg-black">
+                                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-56 sm:h-64 object-cover" />
+                                    <div className="absolute inset-3 border border-dashed border-white/40 rounded-lg pointer-events-none flex items-center justify-center">
+                                      <span className="text-[10px] text-white/70 bg-black/50 px-2 py-0.5 rounded font-mono uppercase tracking-wider">
+                                        Align {step.shortLabel}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-center gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={toggleCameraFacingMode}
+                                      className="px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-xs font-bold border border-white/10 transition-all"
+                                      title="Switch Front/Rear Camera"
+                                    >
+                                      Flip Camera
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={capturePhotoFromCamera}
+                                      className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-red-600/40 transition-all flex items-center gap-2"
+                                    >
+                                      <span className="w-3 h-3 rounded-full bg-white animate-ping" />
+                                      <span>Capture Photo</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={stopLiveCamera}
+                                      className="px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl text-xs font-bold transition-all"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ) : photo ? (
+                            /* Case B: Photo Captured for this Step */
+                            <div className="w-full space-y-3">
+                              <div className="relative rounded-xl overflow-hidden border border-emerald-500/40">
+                                <img
+                                  src={photo.url}
+                                  alt={step.title}
+                                  className="w-full h-56 sm:h-64 object-cover"
+                                />
+                                <div className="absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-emerald-500/50 flex items-center gap-1.5 text-emerald-400 text-xs font-bold">
+                                  <span>✓</span>
+                                  <span>{step.title} Captured</span>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetakeStep(currentIdStep)}
+                                  className="w-full sm:w-auto px-4 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-xs font-bold border border-white/10 transition-all"
+                                >
+                                  Retake Photo
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCurrentIdStep((prev) => prev + 1)}
+                                  className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <span>
+                                    {currentIdStep === 3
+                                      ? "Review All 4 Photos →"
+                                      : `Confirm & Proceed to Step ${currentIdStep + 2} →`}
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* Case C: Waiting for Photo */
+                            <div className="space-y-4 max-w-sm">
+                              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto ${
+                                isDark ? "bg-red-500/10 text-red-400" : "bg-red-100 text-red-600"
+                              }`}>
+                                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className={`text-sm font-bold mb-0.5 ${isDark ? "text-white" : "text-gray-900"}`}>
+                                  Capture {step.shortLabel}
+                                </p>
+                                <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                                  {step.placeholderTip}
+                                </p>
+                              </div>
+
+                              {/* Two Clear Action Buttons */}
+                              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                                <button
+                                  type="button"
+                                  onClick={() => startLiveCamera()}
+                                  className="w-full sm:w-auto px-5 py-3 bg-red-600 hover:bg-red-500 text-white !text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-red-600/30 flex items-center justify-center gap-2"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                  </svg>
+                                  <span>Take Photo with Camera</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => stepFileInputRef.current?.click()}
+                                  className={`w-full sm:w-auto px-5 py-3 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 border ${
+                                    isDark
+                                      ? "bg-white/5 hover:bg-white/10 text-white border-white/10"
+                                      : "bg-white hover:bg-gray-50 text-gray-800 border-gray-300 shadow-sm"
+                                  }`}
+                                >
+                                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                  </svg>
+                                  <span>Choose from Files</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Navigation Footer */}
+                        <div className="flex items-center justify-between text-xs pt-1">
+                          {currentIdStep > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                stopLiveCamera();
+                                setCurrentIdStep((prev) => Math.max(0, prev - 1));
+                              }}
+                              className={`font-bold transition-colors ${
+                                isDark ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
+                              }`}
+                            >
+                              ← Back to Step {currentIdStep}
+                            </button>
+                          ) : (
+                            <span />
+                          )}
+
+                          {completedPhotosCount >= 3 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                stopLiveCamera();
+                                setCurrentIdStep(4);
+                              }}
+                              className="text-red-500 hover:text-red-600 font-bold transition-colors"
+                            >
+                              Skip to Review Screen →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
               ) : (
-                <div className="w-full h-full relative group/preview">
-                  <img src={previewImage} alt="Vehicle preview" className="w-full h-48 sm:h-64 object-cover rounded-xl border border-white/10" />
-                  {isAnalyzing && (
-                    <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-3 sm:mb-4" />
-                      <p className="text-white font-bold animate-pulse uppercase tracking-widest text-xs sm:text-sm">Analysing Vehicle…</p>
+                /* ── STEP 5: REVIEW ALL 4 PHOTOS BEFORE SCANNING ── */
+                <div>
+                  <div className={`flex items-center justify-between mb-3 pb-2 border-b ${isDark ? "border-white/5" : "border-gray-200"}`}>
+                    <div>
+                      <h3 className={`text-base sm:text-lg font-black flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <span>Review Vehicle Photos</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                          isDark ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                        }`}>
+                          {completedPhotosCount} / 4 Captured
+                        </span>
+                      </h3>
+                      <p className={`text-xs mt-0.5 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                        Verify all 4 angles are clearly visible before running the AI vehicle scan.
+                      </p>
                     </div>
-                  )}
-                  <button
-                    onClick={() => { setPreviewImage(null); setAnalysisResult(null); }}
-                    className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-gray-900/60 hover:bg-red-600 p-1.5 sm:p-2 rounded-lg text-white border border-white/10 transition-all duration-200 opacity-0 group-hover/preview:opacity-100"
-                  >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  </div>
+
+                  {/* 2x2 Photos Grid */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    {VEHICLE_ID_STEPS.map((step, idx) => {
+                      const photo = vehiclePhotos[step.key];
+                      return (
+                        <div
+                          key={step.key}
+                          className={`rounded-xl overflow-hidden p-2 flex flex-col justify-between border ${
+                            isDark ? "bg-gray-950/80 border-white/10" : "bg-gray-50 border-gray-200"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-[11px] font-bold mb-1.5 px-0.5">
+                            <span className={`truncate ${isDark ? "text-white" : "text-gray-800"}`}>#{step.stepNum} {step.shortLabel}</span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded ${
+                              photo
+                                ? isDark ? "text-emerald-400 bg-emerald-500/20" : "text-emerald-700 bg-emerald-100"
+                                : isDark ? "text-amber-400 bg-amber-500/20" : "text-amber-700 bg-amber-100"
+                            }`}>
+                              {photo ? "Ready" : step.badge}
+                            </span>
+                          </div>
+
+                          {photo ? (
+                            <div className="relative rounded-lg overflow-hidden group">
+                              <img src={photo.url} alt={step.title} className="w-full h-24 sm:h-28 object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => handleRetakeStep(idx)}
+                                className="absolute bottom-1.5 right-1.5 bg-black/80 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-md transition-all shadow"
+                              >
+                                Retake
+                              </button>
+                            </div>
+                          ) : (
+                            <div className={`h-24 sm:h-28 rounded-lg border border-dashed flex flex-col items-center justify-center p-2 text-center ${
+                              isDark ? "border-white/10 bg-gray-900/50" : "border-gray-300 bg-white"
+                            }`}>
+                              <span className={`text-xs font-medium mb-1.5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>No photo added</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRetakeStep(idx)}
+                                className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold rounded-lg transition-all"
+                              >
+                                Take Photo
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentIdStep(0)}
+                      className={`font-bold transition-colors ${
+                        isDark ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
+                      }`}
+                    >
+                      ← Back to Step 1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearAllIdPhotos}
+                      className="text-red-500 hover:text-red-600 font-bold transition-colors"
+                    >
+                      Reset All Photos
+                    </button>
+                  </div>
                 </div>
               )}
+
+              {/* Bottom Submit Action */}
+              <div className={`pt-4 border-t mt-3 space-y-2 ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                <button
+                  type="button"
+                  disabled={!canRunAIAnalysis || isAnalyzing}
+                  onClick={runVehicleAIAnalysis}
+                  className={`w-full py-3.5 px-6 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 ${
+                    canRunAIAnalysis && !isAnalyzing
+                      ? "bg-red-600 hover:bg-red-500 text-white shadow-xl shadow-red-600/40 hover:scale-[1.01]"
+                      : isDark
+                      ? "bg-gray-800 text-gray-500 border border-white/5 cursor-not-allowed"
+                      : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                  }`}
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Analyzing Vehicle Photos with AI…</span>
+                    </>
+                  ) : (
+                    <span>Submit Photos & Scan Vehicle with AI</span>
+                  )}
+                </button>
+                <p className={`text-[10px] text-center font-medium ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                  {canRunAIAnalysis
+                    ? "Front, Rear, and Side photos confirmed. Ready to identify make, model, year, body type, plate, and condition."
+                    : "Complete Front, Rear, and Side photos to enable AI vehicle recognition."}
+                </p>
+              </div>
             </div>
 
             {/* Results panel */}
-            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 backdrop-blur-sm flex flex-col min-h-[240px]">
-              {analysisResult ? (
+            <div className={`rounded-2xl p-6 sm:p-8 backdrop-blur-sm flex flex-col min-h-[240px] border transition-colors ${
+              isDark ? "bg-gray-900/60 border-white/5" : "bg-white border-gray-200 shadow-sm"
+            }`}>
+              {analysisResult && (analysisResult.is_vehicle === false || analysisResult.success === false) ? (
+                <div className="flex flex-col items-center justify-center text-center my-auto p-4 space-y-3">
+                  <div className={`w-14 h-14 rounded-full flex items-center justify-center border ${
+                    isDark ? "bg-red-500/20 text-red-400 border-red-500/40" : "bg-red-100 text-red-600 border-red-200"
+                  }`}>
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h3 className={`text-base font-black ${isDark ? "text-white" : "text-gray-900"}`}>No Vehicle Detected</h3>
+                  <p className={`text-xs max-w-xs leading-relaxed ${isDark ? "text-red-300" : "text-red-600"}`}>
+                    {analysisResult.rejection_reason || "The uploaded image is a person or not a vehicle. Please upload clear photos of your vehicle."}
+                  </p>
+                  <button
+                    onClick={() => { setPreviewImage(null); setAnalysisResult(null); }}
+                    className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all"
+                  >
+                    Retry / Upload Vehicle Photos
+                  </button>
+                </div>
+              ) : analysisResult ? (
                 <div className="space-y-3">
-                  <h3 className="text-lg font-black text-white mb-2">Vehicle Analysis Results</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className={`text-lg font-black ${isDark ? "text-white" : "text-gray-900"}`}>Vehicle Analysis Results</h3>
+                    {analysisResult.plateNumber && (
+                      <span className="px-2.5 py-0.5 bg-white text-black font-mono font-black text-xs rounded border border-gray-400">
+                        {analysisResult.plateNumber}
+                      </span>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     {[
                       { label: "Make", value: analysisResult.make },
@@ -504,91 +1115,115 @@ function CustomerDashboard() {
                       { label: "Body Type", value: analysisResult.bodyType },
                       { label: "Confidence", value: analysisResult.confidence },
                     ].map((field) => (
-                      <div key={field.label} className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
-                        <div className="text-xs text-gray-500 mb-1">{field.label}</div>
-                        <div className="text-white font-bold text-sm">{field.value || "Not detected"}</div>
+                      <div key={field.label} className={`rounded-xl p-3 border ${
+                        isDark ? "bg-gray-800/60 border-white/5" : "bg-gray-50 border-gray-200"
+                      }`}>
+                        <div className={`text-xs mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>{field.label}</div>
+                        <div className={`font-bold text-sm ${isDark ? "text-white" : "text-gray-900"}`}>{field.value || "Not detected"}</div>
                       </div>
                     ))}
                     {/* Color with hex swatch */}
-                    <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
-                      <div className="text-xs text-gray-500 mb-1">Color</div>
+                    <div className={`rounded-xl p-3 border ${
+                      isDark ? "bg-gray-800/60 border-white/5" : "bg-gray-50 border-gray-200"
+                    }`}>
+                      <div className={`text-xs mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Color</div>
                       <div className="flex items-center gap-2">
                         {(analysisResult.colorHex || analysisResult.color) && (
                           <div className="w-4 h-4 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: analysisResult.colorHex || analysisResult.color.toLowerCase() }} />
                         )}
-                        <span className="text-white font-bold text-sm">{analysisResult.color || "Not detected"}</span>
+                        <span className={`font-bold text-sm ${isDark ? "text-white" : "text-gray-900"}`}>{analysisResult.color || "Not detected"}</span>
                       </div>
                     </div>
                     {/* Plate Number */}
                     {analysisResult.plateNumber ? (
-                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
-                        <div className="text-xs text-gray-500 mb-1">Plate Number</div>
-                        <div className="text-white font-bold text-sm font-mono tracking-wider">{analysisResult.plateNumber}</div>
+                      <div className={`rounded-xl p-3 border ${
+                        isDark ? "bg-gray-800/60 border-white/5" : "bg-gray-50 border-gray-200"
+                      }`}>
+                        <div className={`text-xs mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Plate Number</div>
+                        <div className={`font-bold text-sm font-mono tracking-wider ${isDark ? "text-white" : "text-gray-900"}`}>{analysisResult.plateNumber}</div>
                       </div>
                     ) : null}
                     {/* Vehicle Size */}
                     {(analysisResult.vehicleSizeLabel || analysisResult.vehicleSize) && (
-                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                        <div className="text-xs text-gray-500 mb-1">Vehicle Size Class</div>
+                      <div className={`rounded-xl p-3 col-span-2 border ${
+                        isDark ? "bg-gray-800/60 border-white/5" : "bg-blue-50/50 border-blue-100"
+                      }`}>
+                        <div className={`text-xs mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Vehicle Size Class</div>
                         <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-semibold">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                            isDark ? "bg-blue-500/20 text-blue-400 border-blue-500/30" : "bg-blue-100 text-blue-700 border-blue-200"
+                          }`}>
                             {(analysisResult.vehicleSize || "SMALL").toUpperCase()}
                           </span>
-                          <span className="text-white font-bold text-sm">{analysisResult.vehicleSizeLabel || analysisResult.vehicleSize}</span>
+                          <span className={`font-bold text-sm ${isDark ? "text-white" : "text-gray-900"}`}>{analysisResult.vehicleSizeLabel || analysisResult.vehicleSize}</span>
                         </div>
                       </div>
                     )}
                     {/* Condition with details */}
-                    <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                      <div className="text-xs text-gray-500 mb-1">Estimated Condition</div>
+                    <div className={`rounded-xl p-3 col-span-2 border ${
+                      isDark ? "bg-gray-800/60 border-white/5" : "bg-gray-50 border-gray-200"
+                    }`}>
+                      <div className={`text-xs mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Estimated Condition</div>
                       <div className="flex items-start gap-2">
                         <div className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: conditionColor(analysisResult.condition) }} />
                         <div>
-                          <span className="text-white font-bold text-sm">{analysisResult.condition || "Not detected"}</span>
+                          <span className={`font-bold text-sm ${isDark ? "text-white" : "text-gray-900"}`}>{analysisResult.condition || "Not detected"}</span>
                           {analysisResult.conditionDetails && (
-                            <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{analysisResult.conditionDetails}</p>
+                            <p className={`text-xs mt-0.5 leading-relaxed ${isDark ? "text-gray-400" : "text-gray-600"}`}>{analysisResult.conditionDetails}</p>
                           )}
                         </div>
                       </div>
                     </div>
                     {/* Features */}
                     {analysisResult.features?.length > 0 && (
-                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                        <div className="text-xs text-gray-500 mb-2">Notable Features</div>
+                      <div className={`rounded-xl p-3 col-span-2 border ${
+                        isDark ? "bg-gray-800/60 border-white/5" : "bg-gray-50 border-gray-200"
+                      }`}>
+                        <div className={`text-xs mb-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Notable Features</div>
                         <div className="flex flex-wrap gap-1.5">
                           {analysisResult.features.map((f, i) => (
-                            <span key={i} className="px-2.5 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-semibold">{f}</span>
+                            <span key={i} className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                              isDark ? "bg-blue-500/20 text-blue-400 border-blue-500/30" : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}>{f}</span>
                           ))}
                         </div>
                       </div>
                     )}
                     {/* AI Notes */}
                     {analysisResult.additionalNotes && (
-                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3 col-span-2">
-                        <div className="text-xs text-gray-500 mb-1">AI Notes</div>
-                        <p className="text-gray-300 text-sm leading-relaxed">{analysisResult.additionalNotes}</p>
+                      <div className={`rounded-xl p-3 col-span-2 border ${
+                        isDark ? "bg-gray-800/60 border-white/5" : "bg-gray-50 border-gray-200"
+                      }`}>
+                        <div className={`text-xs mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>AI Notes</div>
+                        <p className={`text-sm leading-relaxed ${isDark ? "text-gray-300" : "text-gray-700"}`}>{analysisResult.additionalNotes}</p>
                       </div>
                     )}
                     {/* Recommended Services */}
                     {analysisResult.recommendedServices?.length > 0 && (
-                      <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3.5 col-span-2 space-y-2">
-                        <div className="flex items-center justify-between text-xs font-bold text-gray-400">
+                      <div className={`rounded-xl p-3.5 col-span-2 space-y-2 border ${
+                        isDark ? "bg-gray-800/60 border-white/5" : "bg-gray-50 border-gray-200"
+                      }`}>
+                        <div className={`flex items-center justify-between text-xs font-bold ${isDark ? "text-gray-400" : "text-gray-600"}`}>
                           <span>AI Recommended Services</span>
-                          <span className="text-[10px] text-red-400 font-semibold uppercase tracking-wider">Click to book</span>
+                          <span className="text-[10px] text-red-500 font-semibold uppercase tracking-wider">Click to book</span>
                         </div>
                         <div className="space-y-2">
                           {analysisResult.recommendedServices.slice(0, 3).map((svc, i) => (
                             <div
                               key={i}
-                              className="flex items-center justify-between p-2.5 bg-black/20 hover:bg-white/5 border border-white/5 rounded-xl transition-all gap-3"
+                              className={`flex items-center justify-between p-2.5 rounded-xl transition-all gap-3 border ${
+                                isDark
+                                  ? "bg-black/20 hover:bg-white/5 border-white/5"
+                                  : "bg-white hover:bg-gray-100 border-gray-200 shadow-sm"
+                              }`}
                             >
                               <div className="min-w-0 flex-1">
-                                <div className="text-white text-xs sm:text-sm font-bold truncate">{svc.name}</div>
-                                {svc.category && <div className="text-gray-400 text-[10px]">{svc.category}</div>}
+                                <div className={`text-xs sm:text-sm font-bold truncate ${isDark ? "text-white" : "text-gray-900"}`}>{svc.name}</div>
+                                {svc.category && <div className={`text-[10px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>{svc.category}</div>}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 {svc.price && (
-                                  <span className="text-emerald-400 font-black text-xs sm:text-sm">₱{Number(svc.price).toLocaleString()}</span>
+                                  <span className="text-emerald-500 font-black text-xs sm:text-sm">₱{Number(svc.price).toLocaleString()}</span>
                                 )}
                                 <button
                                   type="button"
@@ -617,12 +1252,14 @@ function CustomerDashboard() {
                     </svg>
                     <span>Book {analysisResult.recommendedServices?.[0]?.name ? `"${analysisResult.recommendedServices[0].name}"` : "Recommended Service"}</span>
                   </button>
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                  <div className={`rounded-xl p-3 border ${
+                    isDark ? "bg-blue-500/10 border-blue-500/20 text-blue-300" : "bg-blue-50 border-blue-200 text-blue-900"
+                  }`}>
                     <div className="flex items-start gap-2">
-                      <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      <svg className={`w-4 h-4 mt-0.5 shrink-0 ${isDark ? "text-blue-400" : "text-blue-600"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <p className="text-xs text-blue-300">
+                      <p className={`text-xs ${isDark ? "text-blue-300" : "text-blue-800"}`}>
                         <span className="font-black">AI-Powered Analysis:</span>{" "}
                         Results are generated by AI based on the uploaded image and may vary based on image quality.
                       </p>
@@ -631,10 +1268,10 @@ function CustomerDashboard() {
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
-                  <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mb-3 sm:mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4 ${isDark ? "text-gray-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <p className="text-gray-500 italic text-sm">Analysis results will appear here after upload</p>
+                  <p className={`italic text-sm ${isDark ? "text-gray-500" : "text-gray-500"}`}>Analysis results will appear here after upload</p>
                 </div>
               )}
             </div>
@@ -644,8 +1281,8 @@ function CustomerDashboard() {
         {/* ── Upcoming Bookings ── */}
         <div className="mb-8 sm:mb-10 md:mb-12">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-black text-white">Upcoming Bookings</h2>
-            <button onClick={() => navigate("/bookings")} className="text-xs sm:text-sm text-red-400 hover:text-red-300 font-semibold transition-colors duration-200">
+            <h2 className={`text-xl sm:text-2xl font-black ${isDark ? "text-white" : "text-gray-900"}`}>Upcoming Bookings</h2>
+            <button onClick={() => navigate("/bookings")} className="text-xs sm:text-sm text-red-500 hover:text-red-600 font-semibold transition-colors duration-200">
               View All →
             </button>
           </div>

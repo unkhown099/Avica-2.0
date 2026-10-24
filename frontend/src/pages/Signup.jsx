@@ -94,6 +94,22 @@ const BirthdayInput = React.forwardRef(({ value, onClick, onChange, placeholder,
   );
 });
 
+export const checkPasswordCriteria = (pwd = "") => ({
+  length: pwd.length >= 8 && pwd.length <= 15,
+  hasUpper: /[A-Z]/.test(pwd),
+  hasLower: /[a-z]/.test(pwd),
+  hasSpecial: /[!@#$%^&*(),.?":{}|<>\-_+=~`\\/\[\]]/.test(pwd),
+});
+
+export const calculatePasswordStrength = (pwd = "") => {
+  if (!pwd) return { score: 0, text: "", color: "" };
+  const crit = checkPasswordCriteria(pwd);
+  const metCount = [crit.length, crit.hasUpper && crit.hasLower, crit.hasSpecial].filter(Boolean).length;
+  if (metCount === 3) return { score: 3, text: "Strong", color: "bg-emerald-500" };
+  if (metCount === 2) return { score: 2, text: "Moderate", color: "bg-yellow-500" };
+  return { score: 1, text: "Weak", color: "bg-red-500" };
+};
+
 function SignUpPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -173,10 +189,15 @@ function SignUpPage() {
 
       // Password real-time validation
       if (password) {
+        const crit = checkPasswordCriteria(password);
         if (password.length < 8) {
           newErrors.password = "Password must be at least 8 characters";
-        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(password)) {
-          newErrors.password = "Must include uppercase, lowercase, and number";
+        } else if (password.length > 15) {
+          newErrors.password = "Password must not exceed 15 characters";
+        } else if (!crit.hasUpper || !crit.hasLower) {
+          newErrors.password = "Must include uppercase and lowercase letters";
+        } else if (!crit.hasSpecial) {
+          newErrors.password = "Must include a special character (!@#$%^&*...)";
         } else {
           delete newErrors.password;
         }
@@ -307,9 +328,18 @@ function SignUpPage() {
       if (errors.phone) setErrors((prev) => ({ ...prev, phone: "" }));
       return;
     }
-    if (name === "password") {
-      const strength = calculatePasswordStrength(value);
-      setPasswordStrength(strength);
+    if (name === "password" || name === "confirmPassword") {
+      const truncated = String(value || "").slice(0, 15);
+      if (name === "password") {
+        const strength = calculatePasswordStrength(truncated);
+        setPasswordStrength(strength);
+      }
+      setFormData((prev) => ({
+        ...prev,
+        [name]: truncated,
+      }));
+      if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+      return;
     }
     setFormData((prev) => ({
       ...prev,
@@ -382,26 +412,27 @@ function SignUpPage() {
           newErrors.phone = "Phone number must be exactly 10 digits";
       }
     } else if (step === 3) {
-      if (!formData.password) newErrors.password = "Password is required";
-      else if (formData.password.length < 8)
-        newErrors.password = "Password must be at least 8 characters";
-      else if (!/(?=.*[a-z])/.test(formData.password))
-        newErrors.password =
-          "Password must contain at least one lowercase letter";
-      else if (!/(?=.*[A-Z])/.test(formData.password))
-        newErrors.password =
-          "Password must contain at least one uppercase letter";
-      else if (!/(?=.*\d)/.test(formData.password))
-        newErrors.password = "Password must contain at least one number";
-      else if (passwordStrength.score < 2)
-        newErrors.password =
-          "Password is too weak. Please create a stronger password";
-      if (!formData.confirmPassword)
+      const pwd = formData.password || "";
+      const crit = checkPasswordCriteria(pwd);
+
+      if (!pwd) {
+        newErrors.password = "Password is required";
+      } else if (!crit.length) {
+        newErrors.password = "Password must be between 8 and 15 characters";
+      } else if (!crit.hasUpper || !crit.hasLower) {
+        newErrors.password = "Password must contain both uppercase and lowercase letters";
+      } else if (!crit.hasSpecial) {
+        newErrors.password = "Password must contain at least one special character (!@#$%^&*...)";
+      }
+
+      if (!formData.confirmPassword) {
         newErrors.confirmPassword = "Please confirm your password";
-      else if (formData.password !== formData.confirmPassword)
+      } else if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = "Passwords do not match";
-      if (!formData.agreeToTerms)
+      }
+      if (!formData.agreeToTerms) {
         newErrors.agreeToTerms = "You must agree to the Terms and Conditions";
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -1066,6 +1097,7 @@ function SignUpPage() {
                           type={showPassword ? "text" : "password"}
                           id="password"
                           name="password"
+                          maxLength={15}
                           value={formData.password}
                           onChange={handleChange}
                           autoComplete="new-password"
@@ -1085,29 +1117,110 @@ function SignUpPage() {
                           {errors.password}
                         </p>
                       )}
-                      {formData.password && (
-                        <div className="mt-2">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full transition-all duration-300 ${passwordStrength.color}`}
-                                style={{
-                                  width: `${(passwordStrength.score / 3) * 100}%`,
-                                }}
-                              />
+                      {/* Realtime Password Requirements Checklist */}
+                      {(() => {
+                        const crit = checkPasswordCriteria(formData.password || "");
+                        return (
+                          <div className="mt-3 p-3.5 bg-gray-950/80 border border-white/10 rounded-xl space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                                Password Requirements
+                              </span>
+                              {formData.password && (
+                                <span
+                                  className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                    passwordStrength.score === 3
+                                      ? "bg-emerald-500/20 text-emerald-400"
+                                      : passwordStrength.score === 2
+                                      ? "bg-yellow-500/20 text-yellow-400"
+                                      : "bg-red-500/20 text-red-400"
+                                  }`}
+                                >
+                                  {passwordStrength.text || "Weak"}
+                                </span>
+                              )}
                             </div>
-                            <span
-                              className={`text-sm font-semibold ${passwordStrength.score === 1 ? "text-red-600" : passwordStrength.score === 2 ? "text-yellow-500" : "text-green-600"}`}
-                            >
-                              {passwordStrength.text}
-                            </span>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              {/* 1. 8-15 characters */}
+                              <div
+                                className={`flex items-center gap-2 transition-colors ${
+                                  crit.length ? "text-emerald-400 font-semibold" : "text-gray-400"
+                                }`}
+                              >
+                                <span
+                                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black ${
+                                    crit.length
+                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                                      : "bg-gray-800 text-gray-500 border border-gray-700"
+                                  }`}
+                                >
+                                  {crit.length ? "✓" : "○"}
+                                </span>
+                                <span>8–15 characters</span>
+                              </div>
+
+                              {/* 2. Uppercase & lowercase */}
+                              <div
+                                className={`flex items-center gap-2 transition-colors ${
+                                  crit.hasUpper && crit.hasLower
+                                    ? "text-emerald-400 font-semibold"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                <span
+                                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black ${
+                                    crit.hasUpper && crit.hasLower
+                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                                      : "bg-gray-800 text-gray-500 border border-gray-700"
+                                  }`}
+                                >
+                                  {crit.hasUpper && crit.hasLower ? "✓" : "○"}
+                                </span>
+                                <span>Uppercase & lowercase</span>
+                              </div>
+
+                              {/* 3. Special character */}
+                              <div
+                                className={`flex items-center gap-2 transition-colors ${
+                                  crit.hasSpecial ? "text-emerald-400 font-semibold" : "text-gray-400"
+                                }`}
+                              >
+                                <span
+                                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black ${
+                                    crit.hasSpecial
+                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                                      : "bg-gray-800 text-gray-500 border border-gray-700"
+                                  }`}
+                                >
+                                  {crit.hasSpecial ? "✓" : "○"}
+                                </span>
+                                <span>Special character (!@#$...)</span>
+                              </div>
+
+                              {/* 4. Passwords match */}
+                              <div
+                                className={`flex items-center gap-2 transition-colors ${
+                                  formData.confirmPassword && formData.password === formData.confirmPassword
+                                    ? "text-emerald-400 font-semibold"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                <span
+                                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black ${
+                                    formData.confirmPassword && formData.password === formData.confirmPassword
+                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                                      : "bg-gray-800 text-gray-500 border border-gray-700"
+                                  }`}
+                                >
+                                  {formData.confirmPassword && formData.password === formData.confirmPassword ? "✓" : "○"}
+                                </span>
+                                <span>Passwords match</span>
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-gray-500 text-sm">
-                            Use 8+ characters with uppercase, lowercase, numbers
-                            & symbols
-                          </p>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     <div>
@@ -1122,6 +1235,7 @@ function SignUpPage() {
                           type={showConfirmPassword ? "text" : "password"}
                           id="confirmPassword"
                           name="confirmPassword"
+                          maxLength={15}
                           value={formData.confirmPassword}
                           onChange={handleChange}
                           autoComplete="new-password"

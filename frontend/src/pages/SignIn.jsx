@@ -107,9 +107,10 @@ function SignIn() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const finalValue = name === "password" ? String(value || "").slice(0, 15) : (type === "checkbox" ? checked : value);
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: finalValue,
     }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
@@ -568,6 +569,7 @@ function SignIn() {
                       type={showPassword ? "text" : "password"}
                       id="password"
                       name="password"
+                      maxLength={15}
                       value={formData.password}
                       onChange={handleChange}
                       autoComplete="off"
