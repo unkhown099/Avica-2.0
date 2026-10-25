@@ -417,15 +417,22 @@ for i, acc in enumerate(SYSTEM_ACCOUNTS, 1):
 
 # Also ensure Otokwikk official services are seeded
 try:
-    from seed_otokwikk_services import seed_services
+    try:
+        from seed_otokwikk_services import seed_services  # type: ignore
+    except ImportError:
+        from backend.seed_otokwikk_services import seed_services  # type: ignore
     seed_services()
 except Exception as e:
     print(f"Warning: Could not seed services in sync script: {e}")
 
 # Also ensure inventory items and movement records are seeded
 try:
-    from seed_products import seed_products
-    from seed_inventory_data import seed_inventory_data
+    try:
+        from seed_products import seed_products  # type: ignore
+        from seed_inventory_data import seed_inventory_data  # type: ignore
+    except ImportError:
+        from backend.seed_products import seed_products  # type: ignore
+        from backend.seed_inventory_data import seed_inventory_data  # type: ignore
     seed_products()
     seed_inventory_data()
 except Exception as e:
