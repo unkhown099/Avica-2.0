@@ -107,55 +107,57 @@ function CustomerDashboard() {
 
   const [hasActiveBookingState, setHasActiveBookingState] = useState(false);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      setIsDashboardLoading(true);
-      setDashboardError(null);
-      try {
-        const [dashRes, bookingsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/customer/dashboard/`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-          }),
-          fetch(`${API_BASE}/api/bookings/`, {
-            method: "GET",
-            headers: getAuthHeaders(),
-          }).catch(() => null),
-        ]);
+  const fetchDashboardData = async () => {
+    setIsDashboardLoading(true);
+    setDashboardError(null);
+    try {
+      const headers = await getAuthHeadersAsync();
+      const [dashRes, bookingsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/customer/dashboard/`, {
+          method: "GET",
+          headers,
+        }),
+        fetch(`${API_BASE}/api/bookings/`, {
+          method: "GET",
+          headers,
+        }).catch(() => null),
+      ]);
 
-        if (!dashRes.ok)
-          throw new Error(`Failed to fetch dashboard data (${dashRes.status})`);
-        const data = await dashRes.json();
+      if (!dashRes.ok)
+        throw new Error(`Failed to fetch dashboard data (${dashRes.status})`);
+      const data = await dashRes.json();
 
-        let allBookings = [];
-        if (bookingsRes && bookingsRes.ok) {
-          const bData = await bookingsRes.json();
-          allBookings = Array.isArray(bData) ? bData : (bData.results ?? []);
-        }
-
-        const activeStatuses = ["pending", "confirmed", "rescheduled"];
-        const activeInDashboard = Boolean(data.has_active_booking);
-        const activeInAllBookings = allBookings.some((b) => activeStatuses.includes(b.status));
-        const activeInUpcoming = (data.upcoming_bookings || []).some((b) => activeStatuses.includes(b.status));
-        const isActive = activeInDashboard || activeInAllBookings || activeInUpcoming;
-
-        setHasActiveBookingState(isActive);
-
-        const rawUpcoming = data.upcoming_bookings || [];
-        const activeFromAll = allBookings.filter((b) => activeStatuses.includes(b.status));
-        const mergedUpcoming = rawUpcoming.length > 0 ? rawUpcoming : activeFromAll;
-
-        setStats(data.stats || { upcoming: mergedUpcoming.length, completed: 0 });
-        setUpcomingBookings(mergedUpcoming);
-        setActiveSessions(data.active_sessions || []);
-        setServiceHistory(data.service_history || []);
-      } catch (error) {
-        console.error("Dashboard fetch error:", error);
-        setDashboardError("Failed to load dashboard data. Please refresh.");
-      } finally {
-        setIsDashboardLoading(false);
+      let allBookings = [];
+      if (bookingsRes && bookingsRes.ok) {
+        const bData = await bookingsRes.json();
+        allBookings = Array.isArray(bData) ? bData : (bData.results ?? []);
       }
-    };
+
+      const activeStatuses = ["pending", "confirmed", "rescheduled"];
+      const activeInDashboard = Boolean(data.has_active_booking);
+      const activeInAllBookings = allBookings.some((b) => activeStatuses.includes(b.status));
+      const activeInUpcoming = (data.upcoming_bookings || []).some((b) => activeStatuses.includes(b.status));
+      const isActive = activeInDashboard || activeInAllBookings || activeInUpcoming;
+
+      setHasActiveBookingState(isActive);
+
+      const rawUpcoming = data.upcoming_bookings || [];
+      const activeFromAll = allBookings.filter((b) => activeStatuses.includes(b.status));
+      const mergedUpcoming = rawUpcoming.length > 0 ? rawUpcoming : activeFromAll;
+
+      setStats(data.stats || { upcoming: mergedUpcoming.length, completed: 0 });
+      setUpcomingBookings(mergedUpcoming);
+      setActiveSessions(data.active_sessions || []);
+      setServiceHistory(data.service_history || []);
+    } catch (error) {
+      console.error("Dashboard fetch error:", error);
+      setDashboardError("Failed to load dashboard data. Please refresh.");
+    } finally {
+      setIsDashboardLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardData();
   }, []);
 
@@ -593,11 +595,20 @@ function CustomerDashboard() {
 
         {/* ── Error Banner ── */}
         {dashboardError && (
-          <div className="mb-6 sm:mb-8 bg-red-500/10 border border-red-500/30 rounded-2xl p-3 sm:p-4 flex items-start sm:items-center gap-3 text-red-400">
-            <svg className="w-5 h-5 shrink-0 mt-0.5 sm:mt-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            </svg>
-            <span className="text-sm font-semibold">{dashboardError}</span>
+          <div className="mb-6 sm:mb-8 bg-red-500/10 border border-red-500/30 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-400">
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              <span className="text-sm font-semibold">{dashboardError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchDashboardData()}
+              className="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-md self-start sm:self-auto cursor-pointer"
+            >
+              Retry
+            </button>
           </div>
         )}
 
