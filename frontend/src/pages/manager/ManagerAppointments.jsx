@@ -874,7 +874,7 @@ function ManagerAppointments() {
                               actionLoading === b.id ||
                               !(assignedByBooking[b.id] || "").trim()
                             }
-                            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                            className="btn-action-green flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
                           >
                             {actionLoading === b.id ? (
                               <svg
@@ -916,7 +916,7 @@ function ManagerAppointments() {
                           <button
                             onClick={() => handleRescheduleProposal(b)}
                             disabled={actionLoading === b.id}
-                            className="flex-1 flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                            className="btn-action-indigo flex-1 flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
                           >
                             Reschedule
                           </button>
@@ -924,7 +924,7 @@ function ManagerAppointments() {
                         <button
                           onClick={() => handleCancel(b)}
                           disabled={actionLoading === b.id}
-                          className="w-full flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                          className="btn-action-red w-full flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
                         >
                           Reject / Cancel
                         </button>
@@ -955,14 +955,14 @@ function ManagerAppointments() {
                         <button
                           onClick={() => handleAction(b.id, "done")}
                           disabled={actionLoading === b.id}
-                          className="w-full flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                          className="btn-action-blue w-full flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/40 text-blue-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
                         >
                           Mark as Done
                         </button>
                         <button
                           onClick={() => handleRescheduleProposal(b)}
                           disabled={actionLoading === b.id}
-                          className="w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                          className="btn-action-indigo w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
                         >
                           Propose Reschedule
                         </button>
@@ -970,14 +970,14 @@ function ManagerAppointments() {
                           <button
                             onClick={() => handleNoShow(b)}
                             disabled={actionLoading === b.id}
-                            className="flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                            className="btn-action-red flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
                           >
                             Mark No Show
                           </button>
                           <button
                             onClick={() => handleCancel(b)}
                             disabled={actionLoading === b.id}
-                            className="flex items-center justify-center gap-1.5 bg-gray-700/40 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                            className="btn-action-gray flex items-center justify-center gap-1.5 bg-gray-700/40 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
                           >
                             Cancel
                           </button>

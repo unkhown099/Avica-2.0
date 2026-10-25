@@ -17,7 +17,7 @@ DEFAULT_CONTENT = {
         "subtitle": "Experience the Art of Automotive Perfection",
         "ctaLoggedIn": "GO TO DASHBOARD",
         "ctaGuest": "BOOK YOUR EXPERIENCE",
-        "signInPrompt": "Part of the elite?",
+        "signInPrompt": "Already a Customer?",
         "signInLabel": "SIGN IN HERE",
         "bgMode": "slideshow",
         "imageUrl": "",

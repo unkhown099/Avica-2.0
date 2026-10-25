@@ -28,12 +28,15 @@ def _require_owner(request):
     """
     if not request.user or not request.user.is_authenticated:
         return False, None
-    if getattr(request.user, "is_superuser", False):
+    if getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False):
         return True, "superuser"
     try:
-        if not hasattr(request.user, "staff_profile"):
+        staff = getattr(request.user, "staff_profile", None)
+        if not staff:
+            staff = Staff.objects.filter(user=request.user).first()
+        if not staff:
             return False, None
-        role = str(request.user.staff_profile.role or "").strip()
+        role = str(staff.role or "").strip()
         normalized = role.lower().replace(" ", "_")
         allowed = normalized in {"admin", "business_owner", "owner", "super_admin"}
         return allowed, role

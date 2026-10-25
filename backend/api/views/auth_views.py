@@ -266,7 +266,9 @@ def _get_profile_data(user):
 
     # Check staff first
     try:
-        staff = Staff.objects.get(user=user)
+        staff = getattr(user, "staff_profile", None) or Staff.objects.filter(user=user).first()
+        if not staff:
+            raise Staff.DoesNotExist
         pic = getattr(staff, "profile_picture", None)
         resolved_role = _normalize_role(staff.role) if staff.role else ("super_admin" if getattr(user, "is_superuser", False) else "staff")
         return (

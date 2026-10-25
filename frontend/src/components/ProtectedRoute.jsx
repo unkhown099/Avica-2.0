@@ -9,7 +9,7 @@ export const normalizeRole = (role) => {
   if (str.includes("business_owner") || str.includes("branch_owner") || str === "owner") return "business_owner";
   if (str.includes("branch_manager") || (str.includes("manager") && !str.includes("inventory"))) return "branch_manager";
   if (str.includes("inventory_manager")) return "inventory_manager";
-  if (str.includes("inventory")) return "inventory_manager";
+  if (str.includes("inventory")) return "inventory";
   if (str.includes("admin")) return "admin";
   if (str.includes("cashier") || str.includes("staff")) return "staff";
   if (str.includes("employee") || str.includes("technician") || str.includes("worker") || str.includes("mechanic") || str.includes("detailer")) return "employee";

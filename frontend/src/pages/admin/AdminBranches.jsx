@@ -371,7 +371,7 @@ function SkeletonCard() {
   );
 }
 
-function BranchCard({ branch, onEdit, onDelete }) {
+function BranchCard({ branch, onEdit, onArchive, onRestore }) {
   const util = branch.bay_utilization ?? 0;
   const utilColor = bayColor(util);
   const hasSat =
@@ -405,9 +405,9 @@ function BranchCard({ branch, onEdit, onDelete }) {
           </div>
         </div>
         <span
-          className={`px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${branch.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
+          className={`px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${branch.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}
         >
-          {branch.is_active ? "Active" : "Inactive"}
+          {branch.is_active ? "Active" : "Archived"}
         </span>
       </div>
 
@@ -505,16 +505,27 @@ function BranchCard({ branch, onEdit, onDelete }) {
       <div className="flex gap-2 mt-auto">
         <button
           onClick={() => onEdit(branch)}
-          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20"
+          className="btn-action-blue flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20"
         >
           Edit
         </button>
-        <button
-          onClick={() => onDelete(branch)}
-          className="px-4 sm:px-5 py-2.5 bg-white/[0.06] hover:bg-red-500/10 border border-white/10 hover:border-red-500/20 text-gray-300 hover:text-red-400 font-semibold text-sm rounded-xl transition-all"
-        >
-          Delete
-        </button>
+        {branch.is_active ? (
+          <button
+            onClick={() => onArchive(branch)}
+            className="px-4 sm:px-5 py-2.5 bg-amber-500/10 hover:bg-amber-600 border border-amber-500/20 hover:border-amber-600 text-amber-400 hover:text-white font-semibold text-sm rounded-xl transition-all"
+            title="Archive Branch"
+          >
+            Archive
+          </button>
+        ) : (
+          <button
+            onClick={() => onRestore(branch)}
+            className="px-4 sm:px-5 py-2.5 bg-emerald-500/10 hover:bg-emerald-600 border border-emerald-500/20 hover:border-emerald-600 text-emerald-400 hover:text-white font-semibold text-sm rounded-xl transition-all btn-action-green"
+            title="Restore Branch"
+          >
+            Restore
+          </button>
+        )}
       </div>
     </div>
   );
@@ -522,6 +533,7 @@ function BranchCard({ branch, onEdit, onDelete }) {
 
 function AdminBranches() {
   const [branches, setBranches] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -555,28 +567,74 @@ function AdminBranches() {
     setShowModal(true);
   };
 
-  const deleteBranch = async (branch) => {
+  const handleArchive = async (branch) => {
     const result = await Swal.fire({
-      title: `Delete "${branch.name}"?`,
-      text: "This cannot be undone. All associated data may be affected.",
+      title: `Archive "${branch.name}"?`,
+      text: "The branch will be deactivated and hidden from operational workflows, but historical records will be preserved.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Delete",
-      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Archive Branch",
+      confirmButtonColor: "#f59e0b",
       background: "#111827",
       color: "#f9fafb",
     });
     if (!result.isConfirmed) return;
     try {
-      await axios.delete(`${API}/branches/${branch.id}/`, {
+      await axios.patch(`${API}/branches/${branch.id}/`, { is_active: false }, {
         headers: authHeaders(),
       });
-      setBranches((prev) => prev.filter((b) => b.id !== branch.id));
+      setBranches((prev) => prev.map((b) => b.id === branch.id ? { ...b, is_active: false } : b));
+      Swal.fire({
+        icon: "success",
+        title: "Branch Archived",
+        text: `"${branch.name}" is now archived.`,
+        timer: 1500,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#f9fafb",
+      });
     } catch {
       Swal.fire({
         icon: "error",
         title: "Failed",
-        text: "Could not delete branch.",
+        text: "Could not archive branch.",
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    }
+  };
+
+  const handleRestore = async (branch) => {
+    const result = await Swal.fire({
+      title: `Restore "${branch.name}"?`,
+      text: "The branch will be reactivated and available for operations.",
+      icon: "info",
+      showCancelButton: true,
+      confirmButtonText: "Restore Branch",
+      confirmButtonColor: "#10b981",
+      background: "#111827",
+      color: "#f9fafb",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await axios.patch(`${API}/branches/${branch.id}/`, { is_active: true }, {
+        headers: authHeaders(),
+      });
+      setBranches((prev) => prev.map((b) => b.id === branch.id ? { ...b, is_active: true } : b));
+      Swal.fire({
+        icon: "success",
+        title: "Branch Restored",
+        text: `"${branch.name}" has been reactivated.`,
+        timer: 1500,
+        showConfirmButton: false,
+        background: "#111827",
+        color: "#f9fafb",
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: "Could not restore branch.",
         background: "#111827",
         color: "#f9fafb",
       });
@@ -584,6 +642,15 @@ function AdminBranches() {
   };
 
   const activeBranches = branches.filter((b) => b.is_active).length;
+  const archivedBranches = branches.filter((b) => !b.is_active).length;
+  const filteredBranches = branches.filter((b) => {
+    if (statusFilter === "active") return b.is_active;
+    if (statusFilter === "archived") return !b.is_active;
+    return true;
+  });
+
+
+
   const totalStaff = branches.reduce((s, b) => s + (b.staff_count ?? 0), 0);
   const totalEmployees = branches.reduce(
     (s, b) => s + (b.employee_count ?? 0),
@@ -738,14 +805,57 @@ function AdminBranches() {
           </div>
         )}
 
-        {!loading && !error && branches.length > 0 && (
+        {/* Status Filter Tabs */}
+        {!loading && !error && (
+          <div className="flex items-center gap-2 mb-6 flex-wrap">
+            {[
+              { id: "all", label: "All", count: branches.length },
+              { id: "active", label: "Active", count: activeBranches },
+              { id: "archived", label: "Archived", count: archivedBranches },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all ${
+                  statusFilter === tab.id
+                    ? "bg-red-600 text-white shadow-lg shadow-red-600/30"
+                    : "bg-gray-900/60 text-gray-400 hover:text-white hover:bg-gray-800 border border-white/5"
+                }`}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && filteredBranches.length === 0 && (
+          <div className="text-center py-16 sm:py-24 text-gray-600">
+            <svg
+              className="w-12 h-12 mx-auto mb-4 opacity-40"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"
+              />
+            </svg>
+            <p className="font-semibold">No {statusFilter === "all" ? "" : statusFilter} branches found.</p>
+          </div>
+        )}
+
+        {!loading && !error && filteredBranches.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-            {branches.map((branch) => (
+            {filteredBranches.map((branch) => (
               <BranchCard
                 key={branch.id}
                 branch={branch}
                 onEdit={openEdit}
-                onDelete={deleteBranch}
+                onArchive={handleArchive}
+                onRestore={handleRestore}
               />
             ))}
           </div>

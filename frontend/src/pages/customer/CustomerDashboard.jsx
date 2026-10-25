@@ -1204,11 +1204,13 @@ function CustomerDashboard() {
                         isDark ? "bg-gray-800/60 border-white/5" : "bg-gray-50 border-gray-200"
                       }`}>
                         <div className={`flex items-center justify-between text-xs font-bold ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                          <span>AI Recommended Services</span>
+                          <span className="flex items-center gap-2">
+                            <span>Top {Math.min(10, analysisResult.recommendedServices.length)} AI Recommended Services</span>
+                          </span>
                           <span className="text-[10px] text-red-500 font-semibold uppercase tracking-wider">Click to book</span>
                         </div>
-                        <div className="space-y-2">
-                          {analysisResult.recommendedServices.slice(0, 3).map((svc, i) => (
+                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                          {analysisResult.recommendedServices.slice(0, 10).map((svc, i) => (
                             <div
                               key={i}
                               className={`flex items-center justify-between p-2.5 rounded-xl transition-all gap-3 border ${
@@ -1217,9 +1219,14 @@ function CustomerDashboard() {
                                   : "bg-white hover:bg-gray-100 border-gray-200 shadow-sm"
                               }`}
                             >
-                              <div className="min-w-0 flex-1">
-                                <div className={`text-xs sm:text-sm font-bold truncate ${isDark ? "text-white" : "text-gray-900"}`}>{svc.name}</div>
-                                {svc.category && <div className={`text-[10px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>{svc.category}</div>}
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <span className="w-5 h-5 rounded-full bg-red-600/20 border border-red-500/30 text-red-400 font-black text-[10px] flex items-center justify-center shrink-0">
+                                  #{i + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className={`text-xs sm:text-sm font-bold truncate ${isDark ? "text-white" : "text-gray-900"}`}>{svc.name}</div>
+                                  {svc.category && <div className={`text-[10px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>{svc.category}</div>}
+                                </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 {svc.price && (
@@ -1354,13 +1361,13 @@ function CustomerDashboard() {
                                 setCustomerRescheduleBooking(booking);
                               }
                             }}
-                            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
+                            className="btn-action-indigo px-3 py-1.5 sm:px-4 sm:py-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
                           >
                             {booking.status === "rescheduled" ? "Review Reschedule" : "Reschedule"}
                           </button>
                           <button
                             onClick={() => setCancelBooking(booking)}
-                            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
+                            className="btn-action-red px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600/20 hover:bg-red-600 border border-red-600/40 text-red-400 hover:text-white rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
                           >
                             Cancel
                           </button>
@@ -1870,4 +1877,4 @@ function RescheduleResponseModal({ booking, onClose, onDecide }) {
   );
 }
 
-export default CustomerDashboard;
+export default CustomerDashboard;

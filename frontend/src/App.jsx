@@ -52,6 +52,7 @@ import AdminCustomers from "./pages/admin/AdminCustomers.jsx";
 import AdminAppointments from "./pages/admin/AdminAppointments.jsx";
 import AdminBranches from "./pages/admin/AdminBranches.jsx";
 import AdminStaff from "./pages/admin/AdminStaffAccounts.jsx";
+import AdminInventory from "./pages/admin/AdminInventory.jsx";
 
 // Branch Owner Imports
 import BranchOwnerDashboard from "./pages/branch_owner/BranchOwnerDashboard.jsx";
@@ -279,7 +280,30 @@ function Layout() {
               </ProtectedRoute>
             }
           />
-          <Route path="/settings" element={<Navigate to="/customer/settings" replace />} />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                {(() => {
+                  const raw = sessionStorage.getItem("user") || localStorage.getItem("user");
+                  const u = raw ? JSON.parse(raw) : null;
+                  const r = u?.role ? String(u.role).trim().toLowerCase().replace(/[- ]+/g, "_") : "";
+                  const map = {
+                    super_admin: "/super-admin/account-settings",
+                    admin: "/admin/settings",
+                    business_owner: "/branch-owner/settings",
+                    branch_manager: "/manager/settings",
+                    inventory_manager: "/inventory-manager/settings",
+                    inventory: "/inventory/settings",
+                    staff: "/staff/settings",
+                    employee: "/employee/settings",
+                    customer: "/customer/settings",
+                  };
+                  return <Navigate to={map[r] || "/customer/settings"} replace />;
+                })()}
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/help"
             element={
@@ -317,8 +341,8 @@ function Layout() {
           <Route
             path="/admin/inventory"
             element={
-              <ProtectedRoute allowedRoles={["inventory_manager"]}>
-                <Navigate to="/inventory-manager/inventory" replace />
+              <ProtectedRoute allowedRoles={["admin", "inventory_manager"]}>
+                <AdminInventory />
               </ProtectedRoute>
             }
           />
@@ -573,7 +597,7 @@ function Layout() {
           <Route
             path="/staff/pos"
             element={
-              <ProtectedRoute allowedRoles={["staff"]}>
+              <ProtectedRoute allowedRoles={["staff", "employee"]}>
                 <StaffPOS />
               </ProtectedRoute>
             }
@@ -581,7 +605,7 @@ function Layout() {
           <Route
             path="/staff/appointments"
             element={
-              <ProtectedRoute allowedRoles={["staff"]}>
+              <ProtectedRoute allowedRoles={["staff", "employee"]}>
                 <StaffAppointment />
               </ProtectedRoute>
             }
@@ -589,7 +613,7 @@ function Layout() {
           <Route
             path="/staff/queue"
             element={
-              <ProtectedRoute allowedRoles={["staff"]}>
+              <ProtectedRoute allowedRoles={["staff", "employee"]}>
                 <StaffQueue />
               </ProtectedRoute>
             }
@@ -597,7 +621,7 @@ function Layout() {
           <Route
             path="/staff/transactions"
             element={
-              <ProtectedRoute allowedRoles={["staff"]}>
+              <ProtectedRoute allowedRoles={["staff", "employee"]}>
                 <StaffTransactionHistory />
               </ProtectedRoute>
             }

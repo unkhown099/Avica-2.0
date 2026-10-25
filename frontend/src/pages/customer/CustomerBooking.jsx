@@ -1866,7 +1866,7 @@ function NewBookingModal({
                                 : [...(form.services || []), s],
                             );
                           }}
-                          className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer ${active ? "border-red-500 bg-red-50/80 dark:bg-red-600/15 shadow-md shadow-red-600/15 ring-1 ring-red-500/30" : "border-gray-200 dark:border-white/8 bg-gray-50/60 dark:bg-white/3 hover:border-red-500/40 hover:bg-gray-100 dark:hover:bg-red-600/8"}`}
+                          className={`booking-selection-card flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer ${active ? "booking-card-active border-gray-300 dark:border-white/20 bg-white dark:bg-gray-900 shadow-sm" : "border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-gray-800/60"}`}
                         >
                           <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-gray-100 dark:bg-white/5 flex items-center justify-center border border-gray-200 dark:border-white/10">
                             {s.image ? (
@@ -1881,7 +1881,7 @@ function NewBookingModal({
                           </div>
                           <div className="flex-1 min-w-0">
                             <div
-                              className={`font-bold text-xs truncate ${active ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-gray-300"}`}
+                              className="font-bold text-xs truncate text-gray-900 dark:text-gray-100"
                             >
                               {s.name}
                             </div>
@@ -1892,7 +1892,7 @@ function NewBookingModal({
                             )}
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="text-red-600 dark:text-red-400 font-black text-xs">
+                            <div className="font-black text-xs text-gray-900 dark:text-white">
                               ₱{parseFloat(s.price || 0).toLocaleString()}
                             </div>
                             {s.duration && (
@@ -1926,7 +1926,7 @@ function NewBookingModal({
                                 : [...(form.services || []), s],
                             );
                           }}
-                          className={`p-3.5 rounded-2xl border text-left transition-all duration-200 relative cursor-pointer ${active ? "border-red-500 bg-red-50/80 dark:bg-red-600/15 shadow-lg shadow-red-600/15 ring-1 ring-red-500/30" : "border-gray-200 dark:border-white/8 bg-gray-50/60 dark:bg-white/3 hover:border-red-500/40 hover:bg-gray-100 dark:hover:bg-red-600/8"}`}
+                          className={`booking-selection-card p-3.5 rounded-2xl border text-left transition-all duration-200 relative cursor-pointer ${active ? "booking-card-active border-gray-300 dark:border-white/20 bg-white dark:bg-gray-900 shadow-sm" : "border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-gray-800/60"}`}
                         >
                           <div className="flex items-center gap-3 mb-2.5">
                             {s.image ? (
@@ -1936,13 +1936,13 @@ function NewBookingModal({
                                 className="w-12 h-12 rounded-xl object-cover border border-gray-200 dark:border-white/10 shrink-0"
                               />
                             ) : (
-                              <div className="w-12 h-12 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center text-xl shrink-0">
+                              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 transition-colors bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300">
                                 {CATEGORY_ICON[s.category] ?? "🔧"}
                               </div>
                             )}
                             <div className="min-w-0 flex-1 pr-6">
                               <div
-                                className={`font-bold text-sm truncate ${active ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}
+                                className="font-bold text-sm truncate text-gray-900 dark:text-white"
                               >
                                 {s.name}
                               </div>
@@ -1954,7 +1954,7 @@ function NewBookingModal({
                             </div>
                           </div>
                           <div className="flex items-center justify-between border-t border-gray-200 dark:border-white/5 pt-2">
-                            <div className="text-red-600 dark:text-red-400 font-black text-sm">
+                            <div className="font-black text-sm text-gray-900 dark:text-white">
                               ₱{parseFloat(s.price || 0).toLocaleString()}
                             </div>
                             {s.duration && (
@@ -2032,16 +2032,14 @@ function NewBookingModal({
                               if (bookingMode === "specific")
                                 set("preferredEmployee", null);
                             }}
-                            className={`w-full p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-3 cursor-pointer ${
+                            className={`booking-branch-card w-full p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-start gap-3 cursor-pointer ${
                               active
-                                ? "border-red-500 bg-red-50/80 dark:bg-red-600/20 shadow-md shadow-red-600/20 ring-1 ring-red-500/30"
-                                : "border-gray-200 dark:border-white/10 bg-gray-50/60 dark:bg-white/[0.04] hover:border-red-500/40 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
+                                ? "booking-branch-selected border-gray-300 dark:border-white/20 bg-white dark:bg-gray-900 shadow-sm"
+                                : "border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-gray-800/60"
                             }`}
                           >
                             <div
-                              className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 ${
-                                active ? "bg-red-600 text-white shadow-md shadow-red-600/40" : "bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400"
-                              }`}
+                              className="branch-icon-pin w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200 bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400"
                             >
                               <svg
                                 className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -2059,18 +2057,18 @@ function NewBookingModal({
                             </div>
                             <div className="flex-1 min-w-0">
                               <div
-                                className={`font-bold text-xs sm:text-sm mb-0.5 ${active ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}
+                                className="branch-name font-bold text-xs sm:text-sm mb-0.5 text-gray-900 dark:text-white"
                               >
                                 {b.name}
                               </div>
-                              <div className="text-gray-500 dark:text-gray-400 text-[9px] sm:text-[10px] truncate">
+                              <div className="branch-address text-gray-500 dark:text-gray-400 text-[9px] sm:text-[10px] truncate">
                                 {b.address}
                               </div>
                               <div className="flex items-center gap-2 flex-wrap mt-1">
-                                <span className="text-gray-400 dark:text-gray-500 text-[9px] sm:text-[10px]">
+                                <span className="branch-hours text-gray-400 dark:text-gray-500 text-[9px] sm:text-[10px]">
                                   {b.hours}
                                 </span>
-                                <span className="text-emerald-600 dark:text-emerald-400 text-[9px] sm:text-[10px] font-bold">
+                                <span className="branch-slots text-emerald-600 dark:text-emerald-400 text-[9px] sm:text-[10px] font-bold">
                                   {b.slots} slots open
                                 </span>
                               </div>
@@ -2080,7 +2078,7 @@ function NewBookingModal({
                                     href={`https://www.google.com/maps/search/?api=1&query=${b.latitude},${b.longitude}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all hover:scale-105 duration-200"
+                                    className="branch-map-btn inline-flex items-center gap-1 text-[9px] sm:text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all hover:scale-105 duration-200"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <svg
@@ -2140,13 +2138,13 @@ function NewBookingModal({
                         setBookingMode(key);
                         if (key === "general") set("preferredEmployee", null);
                       }}
-                      className={`relative p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
+                      className={`booking-selection-card relative p-3 sm:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
                         active
-                          ? "border-red-500 bg-red-50/80 dark:bg-red-600/20 shadow-md shadow-red-600/20 ring-1 ring-red-500/30"
-                          : "border-gray-200 dark:border-white/10 bg-gray-50/60 dark:bg-white/[0.04] hover:border-red-500/40 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
+                          ? "booking-card-active border-gray-300 dark:border-white/20 bg-white dark:bg-gray-900 shadow-sm"
+                          : "border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-gray-800/60"
                       }`}
                     >
-                      <div className={`font-bold text-sm sm:text-base pr-6 ${active ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
+                      <div className="font-bold text-sm sm:text-base pr-6 text-gray-900 dark:text-white">
                         {label}
                       </div>
                       <div className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs mt-1">
@@ -2184,10 +2182,10 @@ function NewBookingModal({
                           <div
                             key={emp.id}
                             onClick={() => set("preferredEmployee", emp)}
-                            className={`relative w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
+                            className={`booking-selection-card relative w-full p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
                               active
-                                ? "border-red-500 bg-red-50/80 dark:bg-red-600/20 ring-1 ring-red-500/30"
-                                : "border-gray-200 dark:border-white/10 bg-gray-50/60 dark:bg-white/[0.04] hover:border-red-500/40 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
+                                ? "booking-card-active border-gray-300 dark:border-white/20 bg-white dark:bg-gray-900 shadow-sm"
+                                : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/[0.08]"
                             }`}
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -2198,14 +2196,14 @@ function NewBookingModal({
                                   className="w-11 h-11 rounded-xl object-cover border border-gray-200 dark:border-white/10 shrink-0"
                                 />
                               ) : (
-                                <div className="w-11 h-11 rounded-xl bg-red-600/15 border border-red-500/30 text-red-500 font-black text-xs flex items-center justify-center shrink-0">
+                                <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-colors bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300">
                                   {emp.full_name ? emp.full_name.slice(0, 2).toUpperCase() : "EM"}
                                 </div>
                               )}
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                   <span
-                                    className={`font-bold text-xs sm:text-sm truncate ${active ? "text-red-600 dark:text-red-400 font-bold" : "text-gray-900 dark:text-white"}`}
+                                    className="font-bold text-xs sm:text-sm truncate text-gray-900 dark:text-white"
                                   >
                                     {emp.full_name}
                                   </span>
@@ -2328,7 +2326,7 @@ function NewBookingModal({
                             ? "border-red-500 bg-red-600 text-white shadow-md shadow-red-600/30 ring-1 ring-red-500/40"
                             : isDisabled
                               ? "border-gray-100 dark:border-white/5 bg-gray-100/60 dark:bg-white/[0.02] text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-40"
-                              : "border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.04] text-gray-700 dark:text-gray-300 hover:border-red-500/40 hover:bg-gray-100 dark:hover:bg-white/[0.08] hover:text-gray-900 dark:hover:text-white"
+                              : "border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.04] text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.08] hover:text-gray-900 dark:hover:text-white"
                         }`}
                       >
                         {t}
@@ -2398,10 +2396,10 @@ function NewBookingModal({
                         key={key}
                         type="button"
                         onClick={() => set("vehicleSize", key)}
-                        className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                        className={`booking-selection-card p-2.5 sm:p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
                           active
-                            ? "border-red-500 bg-red-50/80 dark:bg-red-600/20 text-red-600 dark:text-red-400 font-bold shadow-md shadow-red-600/20 ring-1 ring-red-500/30"
-                            : "border-gray-200 dark:border-white/10 bg-gray-50/60 dark:bg-white/[0.04] text-gray-700 dark:text-gray-300 hover:border-red-500/40 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
+                            ? "booking-card-active border-red-500 bg-red-50/50 dark:bg-red-600/20 text-red-600 dark:text-red-400 font-bold shadow-sm ring-1 ring-red-500/30"
+                            : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.04] text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/[0.08]"
                         }`}
                       >
                         <div className="text-[11px] sm:text-xs font-semibold">
@@ -3800,7 +3798,7 @@ function ReceiptModal({ booking, onClose }) {
         <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-white/8 flex-shrink-0 bg-white dark:bg-[#0a0a0a] grid grid-cols-2 gap-3">
           <button
             onClick={handlePrint}
-            className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-600/20 cursor-pointer"
+            className="btn-action-gray w-full py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -4162,7 +4160,7 @@ function BookingsPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`flex-shrink-0 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-semibold text-[10px] sm:text-xs capitalize transition-all duration-200 cursor-pointer ${filter === f ? "bg-red-600 text-white shadow-lg shadow-red-600/30" : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/10 hover:text-gray-900 dark:hover:text-white hover:border-red-600/40 hover:bg-red-50 dark:hover:bg-red-600/10"}`}
+              className={`booking-filter-btn flex-shrink-0 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-semibold text-[10px] sm:text-xs capitalize transition-all duration-200 cursor-pointer ${filter === f ? "booking-filter-active bg-red-600 text-white border-2 border-red-600 shadow-lg shadow-red-600/30" : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/10 hover:text-red-600 dark:hover:text-red-400 hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-600/10"}`}
             >
               {f}
             </button>
@@ -4352,7 +4350,7 @@ function BookingsPage() {
                             {booking.status === "rescheduled" && (
                               <button
                                 onClick={() => setRescheduleBooking(booking)}
-                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 dark:bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-300 dark:border-indigo-600/40 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer"
+                                className="btn-action-indigo px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 dark:bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-300 dark:border-indigo-600/40 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer"
                               >
                                 <svg
                                   className="w-3 h-3"
@@ -4376,7 +4374,7 @@ function BookingsPage() {
                                   onClick={() =>
                                     setCustomerRescheduleBooking(booking)
                                   }
-                                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 dark:bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-300 dark:border-indigo-600/40 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer"
+                                  className="btn-action-indigo px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 dark:bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-300 dark:border-indigo-600/40 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer"
                                 >
                                   <svg
                                     className="w-3 h-3"
@@ -4396,7 +4394,7 @@ function BookingsPage() {
                               )}
                             <button
                               onClick={() => setCancelBooking(booking)}
-                              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-50 dark:bg-red-600/15 hover:bg-red-600 border border-red-200 dark:border-red-600/40 hover:border-red-500 text-red-600 dark:text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 cursor-pointer"
+                              className="btn-action-red px-3 sm:px-4 py-1.5 sm:py-2 bg-red-50 dark:bg-red-600/15 hover:bg-red-600 border border-red-200 dark:border-red-600/40 hover:border-red-500 text-red-600 dark:text-red-400 hover:text-white rounded-xl text-[10px] sm:text-xs font-semibold transition-all duration-200 cursor-pointer"
                             >
                               Cancel
                             </button>

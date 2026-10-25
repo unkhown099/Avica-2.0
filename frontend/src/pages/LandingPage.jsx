@@ -120,7 +120,7 @@ const EMPTY_LANDING_CONTENT = {
     subtitle: "Experience the Art of Automotive Perfection",
     ctaLoggedIn: "GO TO DASHBOARD",
     ctaGuest: "BOOK YOUR EXPERIENCE",
-    signInPrompt: "Part of the elite?",
+    signInPrompt: "Already a Customer?",
     signInLabel: "SIGN IN HERE",
     bgMode: "slideshow",
     imageUrl: "",
@@ -1097,7 +1097,7 @@ function LandingPage() {
 
             {!isLoggedIn && (
               <p className="mt-4 sm:mt-6 text-gray-500 text-xs sm:text-sm font-medium">
-                {hero.signInPrompt}{" "}
+                {hero.signInPrompt && hero.signInPrompt.toLowerCase().includes("elite") ? "Already a Customer?" : (hero.signInPrompt || "Already a Customer?")}{" "}
                 <a
                   href="/signin"
                   className="text-red-500 hover:text-red-400 font-bold underline underline-offset-4 decoration-2 transition-all"
@@ -1148,7 +1148,7 @@ function LandingPage() {
             </p>
 
             {/* Branch Dropdown */}
-            <div className="mt-8 relative w-full max-w-xl sm:max-w-2xl mx-auto z-30 px-3 sm:px-0">
+            <div className="mt-8 relative w-full max-w-md sm:max-w-lg mx-auto z-30 px-3 sm:px-0">
               <select
                 value={activeBranch?.id ?? ""}
                 onChange={(e) =>

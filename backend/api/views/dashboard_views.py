@@ -67,7 +67,11 @@ def sum_pos_product_sales(transactions):
 def payment_scope_for_branch(selected_branch=None):
     scope = PaymentTransaction.objects.select_related("branch", "queue_entry")
     if selected_branch:
-        scope = scope.filter(branch_id=selected_branch.id)
+        scope = scope.filter(
+            Q(branch_id=selected_branch.id) |
+            Q(queue_entry__branch_id=selected_branch.id) |
+            Q(queue_entry__branch_name=selected_branch.name)
+        )
     return scope
 
 
@@ -371,6 +375,7 @@ class AdminDashboardView(APIView):
         now = timezone.now()
         current_year = now.year
         branch_id_raw = request.query_params.get("branch_id")
+        branch_name_raw = request.query_params.get("branch")
         selected_branch = None
         branch_scope = "all"
 
@@ -383,12 +388,19 @@ class AdminDashboardView(APIView):
             if not selected_branch:
                 selected_branch = Branch.objects.filter(is_active=True).first() or Branch.objects.first()
             branch_scope = "single_branch"
-        elif branch_id_raw not in [None, ""]:
+        elif branch_id_raw not in [None, ""] and str(branch_id_raw).lower() not in ["all", "all branches"]:
             try:
                 selected_branch = Branch.objects.get(pk=int(branch_id_raw))
+                branch_scope = "single_branch"
             except (ValueError, Branch.DoesNotExist):
                 return Response({"detail": "Invalid branch_id."}, status=400)
-            branch_scope = "single_branch"
+        elif branch_name_raw not in [None, ""] and str(branch_name_raw).lower() not in ["all", "all branches"]:
+            if str(branch_name_raw).isdigit():
+                selected_branch = Branch.objects.filter(pk=int(branch_name_raw)).first()
+            else:
+                selected_branch = Branch.objects.filter(name__iexact=branch_name_raw).first()
+            if selected_branch:
+                branch_scope = "single_branch"
 
         queue_scope = QueueEntry.objects.all()
         booking_scope = Booking.objects.all()
@@ -475,16 +487,29 @@ class AdminDashboardView(APIView):
             else 0.0
         )
 
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if month_start.month == 12:
+            next_month = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            next_month = month_start.replace(month=month_start.month + 1)
+
         service_counts = list(
             queue_scope.filter(
                 status="done",
-                completed_at__year=current_year,
-                completed_at__month=now.month,
+                completed_at__gte=month_start,
+                completed_at__lt=next_month,
             )
             .values("service")
             .annotate(count=Count("id"))
             .order_by("-count")
         )
+        if not service_counts:
+            service_counts = list(
+                queue_scope.filter(status="done")
+                .values("service")
+                .annotate(count=Count("id"))
+                .order_by("-count")
+            )
         service_category_map = {
             (name or "").strip().lower(): (category or "Other")
             for name, category in Service.objects.values_list("name", "category")

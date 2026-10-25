@@ -250,6 +250,9 @@ function AnalyticsFiltersBar({
   yearFilter,
   onYearChange,
   years,
+  branchFilter,
+  onBranchChange,
+  branchOptions,
 }) {
   return (
     <div className="bg-gray-900/60 border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-4 backdrop-blur-sm mb-4 sm:mb-6">
@@ -258,7 +261,27 @@ function AnalyticsFiltersBar({
           <h3 className="text-sm sm:text-base font-black text-white">{title}</h3>
           <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">{subtitle}</p>
         </div>
-        <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full sm:w-auto">
+          {branchOptions && branchOptions.length > 0 && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <label className="text-[10px] sm:text-xs font-semibold text-gray-400">Branch:</label>
+              <select
+                value={branchFilter}
+                onChange={(e) => onBranchChange(e.target.value)}
+                className="bg-gray-900/60 border border-white/10 text-white rounded-lg px-2.5 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-red-500/50"
+                aria-label="Filter by branch"
+              >
+                {branchOptions.map((opt) => {
+                  const val = typeof opt === "string" ? opt : opt.name;
+                  return (
+                    <option key={val} value={val}>
+                      {val}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
           <select
             value={period}
             onChange={(e) => onPeriodChange(e.target.value)}
@@ -418,6 +441,65 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const [appointmentQuarterFilter, setAppointmentQuarterFilter] = useState(String(quarterOf(new Date().getMonth())));
   const [appointmentYearFilter, setAppointmentYearFilter] = useState(String(new Date().getFullYear()));
   const [inventoryBranchFilter, setInventoryBranchFilter] = useState("All Branches");
+  const [serviceBranchFilter, setServiceBranchFilter] = useState("All Branches");
+  const [availableBranches, setAvailableBranches] = useState([]);
+
+  const serviceBranchOptions = useMemo(() => {
+    const names = new Set();
+    availableBranches.forEach((b) => {
+      const n = b.name || b.branch_name;
+      if (n) names.add(n);
+    });
+    [...queueHistory, ...appointments].forEach((item) => {
+      const n = item.branch_name || item.branch?.name;
+      if (n) names.add(n);
+    });
+    return ["All Branches", ...Array.from(names)];
+  }, [availableBranches, queueHistory, appointments]);
+
+  const fetchBranchAnalytics = useCallback(async (branchName) => {
+    try {
+      const token =
+        localStorage.getItem("access_token") ??
+        sessionStorage.getItem("access_token");
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      const dashboardPathByScope = {
+        admin: "/dashboard/",
+        manager: "/dashboard/",
+        owner: "/dashboard/",
+      };
+      let url = `${API_BASE}${dashboardPathByScope[dataScope] || "/dashboard/"}`;
+      if (branchName && branchName !== "All Branches") {
+        const branchObj = availableBranches.find((b) => (b.name || b.branch_name) === branchName);
+        const branchId = branchObj ? branchObj.id : null;
+        if (branchId) {
+          url += `?branch_id=${branchId}&branch=${encodeURIComponent(branchName)}`;
+        } else {
+          url += `?branch=${encodeURIComponent(branchName)}`;
+        }
+      }
+      const res = await fetch(url, { headers, credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.analytics) {
+          setAnalytics(data.analytics);
+        }
+        if (data?.stats) {
+          setStats(data.stats);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching branch analytics:", err);
+    }
+  }, [dataScope, availableBranches]);
+
+  const handleServiceBranchChange = useCallback((branchVal) => {
+    setServiceBranchFilter(branchVal);
+    fetchBranchAnalytics(branchVal);
+  }, [fetchBranchAnalytics]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportRun, setReportRun] = useState(null);
@@ -450,13 +532,15 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         };
         const dashboardEndpoint = `${baseUrl}${dashboardPathByScope[dataScope] || "/dashboard/"}`;
         
-        const [dashboardRes, customersRes, inventoryRes, appointmentsRes, queueHistoryRes, forecastRes] = await Promise.all([
+        const branchEndpoint = dataScope === "owner" ? `${baseUrl}/owner/branches/` : `${baseUrl}/branches/`;
+        const [dashboardRes, customersRes, inventoryRes, appointmentsRes, queueHistoryRes, forecastRes, branchesRes] = await Promise.all([
           fetch(dashboardEndpoint, { headers, credentials: "include" }).catch(() => ({ ok: false })),
           fetch(`${baseUrl}/customers/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
           fetch(`${baseUrl}/inventory/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
           fetch(`${baseUrl}/appointments/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
           fetch(`${baseUrl}/api/queue/history/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
           fetch(`${API_BASE}/api/forecast/system/`, { headers, credentials: "include" }).catch(() => ({ ok: false })),
+          fetch(branchEndpoint, { headers, credentials: "include" }).catch(() => ({ ok: false })),
         ]);
 
         const dashboardData = dashboardRes?.ok ? await dashboardRes.json().catch(() => ({})) : {};
@@ -465,6 +549,14 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         const appointmentsData = appointmentsRes?.ok ? await appointmentsRes.json().catch(() => []) : [];
         const queueHistoryData = queueHistoryRes?.ok ? await queueHistoryRes.json().catch(() => []) : [];
         const forecastData = forecastRes?.ok ? await forecastRes.json().catch(() => ({})) : {};
+        let branchesData = branchesRes?.ok ? await branchesRes.json().catch(() => []) : [];
+        if ((!branchesData || (Array.isArray(branchesData) && branchesData.length === 0)) && dataScope === "owner") {
+          try {
+            const fb = await fetch(`${baseUrl}/branches/`, { headers, credentials: "include" });
+            if (fb.ok) branchesData = await fb.json().catch(() => []);
+          } catch (_) {}
+        }
+        setAvailableBranches(Array.isArray(branchesData) ? branchesData : (branchesData?.results ?? []));
 
         if (dashboardData?.stats) {
           setStats(dashboardData.stats);
@@ -666,7 +758,47 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const highestDemandBranch = analytics?.highest_demand_branch;
   const branchForecastRows = Array.isArray(analytics?.branch_forecasts) ? analytics.branch_forecasts : [];
   const branchDemandSeriesRows = Array.isArray(analytics?.branch_demand_time_series) ? analytics.branch_demand_time_series : [];
-  const topServiceCards = topServicesData;
+  const topServiceCards = useMemo(() => {
+    if (serviceBranchFilter !== "All Branches") {
+      if (Array.isArray(analytics?.top_services) && analytics.top_services.length > 0) {
+        return analytics.top_services;
+      }
+      const counts = {};
+      const revs = {};
+      [...queueHistory, ...appointments].forEach((item) => {
+        const bName = item.branch_name || item.branch?.name;
+        const bId = item.branch?.id || item.branch_id || item.branch;
+        if (bName !== serviceBranchFilter && String(bId) !== String(serviceBranchFilter)) {
+          return;
+        }
+        const sName = item.service || item.service_name || "Standard Service";
+        counts[sName] = (counts[sName] || 0) + 1;
+        revs[sName] = (revs[sName] || 0) + Number(item.price || item.service_base_price || item.amount || 0);
+      });
+      return Object.keys(counts).map((s) => ({
+        service: s,
+        count: counts[s],
+        revenue: revs[s],
+      })).sort((a, b) => b.revenue - a.revenue);
+    }
+
+    let list = analytics?.top_services ?? [];
+    if (!list.length) {
+      const counts = {};
+      const revs = {};
+      [...queueHistory, ...appointments].forEach((item) => {
+        const sName = item.service || item.service_name || "Standard Service";
+        counts[sName] = (counts[sName] || 0) + 1;
+        revs[sName] = (revs[sName] || 0) + Number(item.price || item.service_base_price || item.amount || 0);
+      });
+      list = Object.keys(counts).map((s) => ({
+        service: s,
+        count: counts[s],
+        revenue: revs[s],
+      })).sort((a, b) => b.revenue - a.revenue);
+    }
+    return list;
+  }, [analytics, queueHistory, appointments, serviceBranchFilter]);
   const selectedFilterOptions = useMemo(
     () => ({
       period: appointmentPeriod,
@@ -1102,11 +1234,34 @@ export default function AdminDashboard({ dataScope = "admin" }) {
 
   const serviceEvents = useMemo(() => {
     const rows = [];
-    appointments.forEach((apt) => {
-      const date = parseDateInput(apt.date ?? apt.created_at);
+    const sourceList = [
+      ...appointments.map((apt) => ({
+        service: apt.service,
+        date: apt.date ?? apt.created_at,
+        branchName: apt.branch_name || apt.branch?.name,
+        branchId: apt.branch?.id || apt.branch_id || apt.branch,
+      })),
+      ...queueHistory.map((q) => ({
+        service: q.service,
+        date: q.completed_at ?? q.queued_at ?? q.created_at,
+        branchName: q.branch_name || q.branch?.name,
+        branchId: q.branch?.id || q.branch_id || q.branch,
+      })),
+    ];
+
+    sourceList.forEach((item) => {
+      if (serviceBranchFilter !== "All Branches") {
+        if (
+          item.branchName !== serviceBranchFilter &&
+          String(item.branchId) !== String(serviceBranchFilter)
+        ) {
+          return;
+        }
+      }
+      const date = parseDateInput(item.date);
       if (!date) return;
       rows.push({
-        service: apt.service ?? "Unknown Service",
+        service: item.service ?? "Unknown Service",
         dayName: WEEKDAY_LABELS[date.getDay()],
         monthLabel: MONTH_LABELS_FULL[date.getMonth()],
         month: date.getMonth() + 1,
@@ -1117,7 +1272,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       });
     });
     return rows;
-  }, [appointments]);
+  }, [appointments, queueHistory, serviceBranchFilter]);
 
   const forecastYears = useMemo(() => {
     const years = Array.from(new Set(serviceEvents.map((row) => row.year))).sort((a, b) => b - a);
@@ -1131,15 +1286,15 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   }, [forecastYears, forecastYearFilter]);
 
   const filteredServiceEvents = useMemo(() => {
-    const selectedYear = Number(forecastYearFilter);
+    const selectedYear = Number(appointmentYearFilter);
     return serviceEvents.filter((row) => {
       if (row.year !== selectedYear) return false;
-      if (forecastPeriod === "weekly") return row.week === Number(forecastWeekFilter);
-      if (forecastPeriod === "monthly") return row.month === Number(forecastMonthFilter);
-      if (forecastPeriod === "quarterly") return row.quarter === Number(forecastQuarterFilter);
+      if (appointmentPeriod === "weekly") return row.week === Number(appointmentWeekFilter);
+      if (appointmentPeriod === "monthly") return row.month === Number(appointmentMonthFilter);
+      if (appointmentPeriod === "quarterly") return row.quarter === Number(appointmentQuarterFilter);
       return true;
     });
-  }, [serviceEvents, forecastPeriod, forecastWeekFilter, forecastMonthFilter, forecastQuarterFilter, forecastYearFilter]);
+  }, [serviceEvents, appointmentPeriod, appointmentWeekFilter, appointmentMonthFilter, appointmentQuarterFilter, appointmentYearFilter]);
 
   const demandByService = useMemo(() => {
     const grouped = filteredServiceEvents.reduce((acc, row) => {
@@ -1195,14 +1350,14 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   }, [demandByService, demandByDay, demandByMonth, filteredServiceEvents.length, serviceForecastRows]);
 
   const selectedServicePeriodLabel = useMemo(() => {
-    if (forecastPeriod === "weekly") return `Week ${forecastWeekFilter}`;
-    if (forecastPeriod === "monthly") {
-      const monthIndex = Math.max(0, Math.min(11, Number(forecastMonthFilter) - 1));
+    if (appointmentPeriod === "weekly") return `Week ${appointmentWeekFilter}`;
+    if (appointmentPeriod === "monthly") {
+      const monthIndex = Math.max(0, Math.min(11, Number(appointmentMonthFilter) - 1));
       return MONTH_LABELS_FULL[monthIndex] ?? "Month";
     }
-    if (forecastPeriod === "quarterly") return `Q${forecastQuarterFilter}`;
+    if (appointmentPeriod === "quarterly") return `Q${appointmentQuarterFilter}`;
     return "Yearly";
-  }, [forecastPeriod, forecastWeekFilter, forecastMonthFilter, forecastQuarterFilter]);
+  }, [appointmentPeriod, appointmentWeekFilter, appointmentMonthFilter, appointmentQuarterFilter]);
 
   const categoryForecastSummary = useMemo(() => {
     const totalPredictedDemand = categoryForecastRows.reduce(
@@ -1883,6 +2038,28 @@ export default function AdminDashboard({ dataScope = "admin" }) {
           <div className="flex items-center gap-1.5 sm:gap-2 print:hidden" />
         </div>
 
+        {/* View Switcher Tabs Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 border-b border-white/5 print:hidden">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              onClick={() => {
+                setActiveView(v.key);
+                setActiveExportSection(v.key);
+                window.location.hash = `#${v.key}`;
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                activeView === v.key
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-700/60 border border-white/5"
+              }`}
+            >
+              {v.icon}
+              <span>{v.label}</span>
+            </button>
+          ))}
+        </div>
+
         {/* ── Error Banner ────────────────────────────────────────────────── */}
         {error && (
           <ErrorBanner message={error} onRetry={refetch} />
@@ -1904,7 +2081,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
         <button
           onClick={handlePrintDashboard}
-          className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+          className="btn-action-gray flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -1913,7 +2090,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
         </button>
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+          className="btn-action-green flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -2225,7 +2402,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
     <button
       onClick={handlePrintDashboard}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-gray flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -2234,7 +2411,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
     <button
       onClick={handleExportCSV}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-green flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -2416,7 +2593,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
     <button
       onClick={handlePrintDashboard}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-gray flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -2425,7 +2602,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
     <button
       onClick={handleExportCSV}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-green flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -2671,7 +2848,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
     <button
       onClick={handlePrintDashboard}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-gray flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -2680,7 +2857,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
     <button
       onClick={handleExportCSV}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-green flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3086,7 +3263,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
     <button
       onClick={handlePrintDashboard}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-gray flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -3095,7 +3272,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
     <button
       onClick={handleExportCSV}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-green flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3402,7 +3579,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
     <button
       onClick={handlePrintDashboard}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-gray flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -3411,7 +3588,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
     <button
       onClick={handleExportCSV}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-green flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3422,7 +3599,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
 </div>
             <AnalyticsFiltersBar
               title="Service Analytics Filters"
-              subtitle="Analyze service trends by period"
+              subtitle="Analyze service trends by period & branch"
               period={appointmentPeriod}
               onPeriodChange={setAppointmentPeriod}
               weekFilter={appointmentWeekFilter}
@@ -3434,6 +3611,9 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               yearFilter={appointmentYearFilter}
               onYearChange={setAppointmentYearFilter}
               years={appointmentYears}
+              branchFilter={serviceBranchFilter}
+              onBranchChange={handleServiceBranchChange}
+              branchOptions={serviceBranchOptions}
             />
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
               {[
@@ -3685,7 +3865,13 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Service Demand Time Series</h3>
                 <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Demand trend by date for selected period</p>
                 <div className="h-40 sm:h-72">
-                  <Line data={demandTimeSeriesData} options={lineChartOptions} />
+                  {timeSeriesRows.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-gray-500 text-xs sm:text-sm">
+                      No service time series records available for the selected period or branch.
+                    </div>
+                  ) : (
+                    <Line data={demandTimeSeriesData} options={lineChartOptions} />
+                  )}
                 </div>
               </div>
 
@@ -3693,7 +3879,13 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                 <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Highest Demand Services</h3>
                 <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Top services by demand count</p>
                 <div className="h-40 sm:h-72">
-                  <Bar data={demandBarByServiceData} options={demandBarBaseOptions} />
+                  {demandByService.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-gray-500 text-xs sm:text-sm">
+                      No service demand records available for the selected period or branch.
+                    </div>
+                  ) : (
+                    <Bar data={demandBarByServiceData} options={demandBarBaseOptions} />
+                  )}
                 </div>
               </div>
             </div>
@@ -3702,7 +3894,13 @@ export default function AdminDashboard({ dataScope = "admin" }) {
               <h3 className="text-sm sm:text-lg font-black text-white mb-0.5">Peak Day Distribution</h3>
               <p className="text-gray-500 text-[10px] sm:text-sm mb-3 sm:mb-6">Which day has the highest service demand</p>
               <div className="h-40 sm:h-72">
-                <Bar data={demandBarByDayData} options={demandBarBaseOptions} />
+                {demandByDay.every((d) => d.demand === 0) ? (
+                  <div className="h-full flex items-center justify-center text-gray-500 text-xs sm:text-sm">
+                    No booking day distribution available for the selected period or branch.
+                  </div>
+                ) : (
+                  <Bar data={demandBarByDayData} options={demandBarBaseOptions} />
+                )}
               </div>
             </div>
 
@@ -3827,7 +4025,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   <div className="flex items-center gap-1.5 sm:gap-2 print:hidden shrink-0">
     <button
       onClick={handlePrintDashboard}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-gray flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 hover:border-white/20 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -3836,7 +4034,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     </button>
     <button
       onClick={handleExportCSV}
-      className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
+      className="btn-action-green flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold"
     >
       <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

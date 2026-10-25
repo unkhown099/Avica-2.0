@@ -136,7 +136,7 @@ function StaffCard({ staff, onEdit }) {
             disabled={staff.role === "Admin"}
             aria-label={`Edit ${staff.name}'s account`}
             title="Edit staff account"
-            className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="btn-edit-action p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <EditIcon />
           </button>
@@ -502,7 +502,7 @@ function AdminStaffAccounts() {
                     disabled={staff.role === "Admin"}
                     aria-label={`Edit ${staff.name}'s account`}
                     title="Edit staff account"
-                    className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="btn-edit-action p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <EditIcon />
                   </button>

@@ -41,7 +41,7 @@ function normalizeRole(rawRole) {
   if (str.includes("business_owner") || str.includes("branch_owner") || str === "owner") return "business_owner";
   if (str.includes("branch_manager") || (str.includes("manager") && !str.includes("inventory"))) return "branch_manager";
   if (str.includes("inventory_manager")) return "inventory_manager";
-  if (str.includes("inventory")) return "inventory_manager";
+  if (str.includes("inventory")) return "inventory";
   if (str.includes("admin")) return "admin";
   if (str.includes("cashier") || str.includes("staff")) return "staff";
   if (str.includes("employee") || str.includes("technician") || str.includes("worker") || str.includes("mechanic") || str.includes("detailer")) return "employee";
@@ -128,7 +128,7 @@ function SignIn() {
   };
 
   const storeSession = (tokens, user, remember) => {
-    // Clear both storages first to prevent stale collision (e.g. employee logging in on a machine with stale customer data)
+    // Clear both storages first to prevent stale collision
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
@@ -136,10 +136,14 @@ function SignIn() {
     sessionStorage.removeItem("refresh_token");
     sessionStorage.removeItem("user");
 
-    const store = remember ? localStorage : sessionStorage;
-    store.setItem("access_token", tokens.access);
-    store.setItem("refresh_token", tokens.refresh);
-    store.setItem("user", JSON.stringify(user));
+    // Always store in BOTH sessionStorage and localStorage to guarantee persistence across refreshes and tabs
+    sessionStorage.setItem("access_token", tokens.access);
+    sessionStorage.setItem("refresh_token", tokens.refresh);
+    sessionStorage.setItem("user", JSON.stringify(user));
+
+    localStorage.setItem("access_token", tokens.access);
+    localStorage.setItem("refresh_token", tokens.refresh);
+    localStorage.setItem("user", JSON.stringify(user));
   };
 
   // ── Regular login ───────────────────────────────────────────────────────────
@@ -438,7 +442,7 @@ function SignIn() {
       {/* Back arrow */}
       <Link
         to="/"
-        className="fixed top-5 left-5 z-50 w-11 h-11 bg-white/5 hover:bg-red-600 border border-white/10 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all duration-300 shadow-lg backdrop-blur-sm"
+        className="signin-back-btn fixed top-5 left-5 z-50 w-11 h-11 bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all duration-300 shadow-lg backdrop-blur-sm"
       >
         <svg
           className="w-5 h-5"
@@ -478,31 +482,12 @@ function SignIn() {
               <div>
                 <h1 className="text-6xl font-black text-white mb-5 leading-tight">
                   Welcome
-                  <br />
-                  Back!
                 </h1>
                 <p className="text-xl text-gray-400 leading-relaxed mb-8">
                   Sign in to access your account and continue enjoying premium
                   auto detailing services.
                 </p>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-7 border border-white/5">
-                    <div className="text-5xl font-black text-red-600 mb-2">
-                      {publicStats.customersRegistered !== null
-                        ? publicStats.customersRegistered.toLocaleString()
-                        : "—"}
-                    </div>
-                    <div className="text-lg text-gray-400">Served Customers</div>
-                  </div>
-                  <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl p-7 border border-white/5">
-                    <div className="text-5xl font-black text-red-600 mb-2">
-                      {publicStats.averageRating !== null
-                        ? `${publicStats.averageRating.toFixed(1)}★`
-                        : "—"}
-                    </div>
-                    <div className="text-lg text-gray-400">Average Rating</div>
-                  </div>
-                </div>
+
               </div>
             </div>
           </div>
@@ -623,7 +608,7 @@ function SignIn() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className={`w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all duration-300 transform text-xl flex items-center justify-center gap-3 shadow-lg shadow-red-600/30 ${
+                  className={`login-submit-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all duration-300 transform text-xl flex items-center justify-center gap-3 shadow-lg shadow-red-600/30 ${
                     isLoading
                       ? "opacity-80 cursor-not-allowed"
                       : "hover:scale-[1.02] hover:shadow-2xl hover:shadow-red-600/50"

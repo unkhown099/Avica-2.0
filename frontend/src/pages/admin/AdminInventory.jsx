@@ -172,7 +172,7 @@ function InventoryCard({ item, onEdit, onToggleActive, archiveFilter }) {
         <div className="flex gap-2">
           <button
             onClick={() => onEdit(item)}
-            className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+            className="btn-edit-action p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
           >
             <svg
               className="w-4 h-4"
@@ -447,7 +447,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               type="button"
               onClick={submit}
               disabled={saving}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-red-600/30 flex items-center justify-center gap-2"
+              className="btn-action-green flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl transition-all font-semibold text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
             >
               {saving ? (
                 <>
@@ -964,7 +964,7 @@ function AdminInventory({
               </button>
               <button
                 onClick={openCreate}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/30 text-sm"
+                className="btn-action-green flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/30 text-sm"
               >
                 <svg
                   className="w-4 h-4"
@@ -1517,7 +1517,7 @@ function AdminInventory({
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       <button
                         onClick={() => openEdit(item)}
-                        className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                        className="btn-edit-action p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
                         title="Edit"
                       >
                         <svg
@@ -1790,7 +1790,7 @@ function AdminInventory({
                                     setTransferInitialItemId(String(prod.central_item_id));
                                     setShowTransferModal(true);
                                   }}
-                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600/80 hover:bg-blue-600 text-white transition-all shadow-sm"
+                                  className="btn-action-blue px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600/80 hover:bg-blue-600 text-white transition-all shadow-sm"
                                 >
                                   Distribute
                                 </button>
@@ -1800,7 +1800,7 @@ function AdminInventory({
                                     setTransferInitialItemId("");
                                     setShowTransferModal(true);
                                   }}
-                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                  className="btn-action-blue px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
                                 >
                                   Send Stock
                                 </button>

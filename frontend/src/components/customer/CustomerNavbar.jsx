@@ -674,7 +674,7 @@ function Navbar({ user: userProp, setUser }) {
                   <div className={`border-t p-2 ${isDark ? "border-gray-700" : "border-gray-100"}`}>
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-600/10 transition-colors duration-200 w-full rounded-lg"
+                      className="logout-btn flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-600/10 transition-colors duration-200 w-full rounded-lg"
                     >
                       <IconLogout />
                       <span className="font-semibold text-sm">Logout</span>
@@ -793,7 +793,7 @@ function Navbar({ user: userProp, setUser }) {
                 setIsMobileOpen(false);
                 handleLogout();
               }}
-              className="flex items-center gap-3 w-full px-3 py-3 rounded-lg text-red-500 hover:bg-red-600/10 transition-colors duration-200 font-semibold text-sm"
+              className="logout-btn flex items-center gap-3 w-full px-3 py-3 rounded-lg text-red-500 hover:bg-red-600/10 transition-colors duration-200 font-semibold text-sm"
             >
               <IconLogout />
               Logout

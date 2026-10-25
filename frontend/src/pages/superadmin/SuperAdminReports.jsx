@@ -526,7 +526,7 @@ export default function SuperAdminReports() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleExportCSV}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 border ${
+                className={`btn-action-green rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 border ${
                   isDark ? "bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border-white/5" : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200 shadow-sm"
                 }`}
               >
@@ -537,18 +537,18 @@ export default function SuperAdminReports() {
               </button>
               <button
                 onClick={handlePrint}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 border ${
+                className={`btn-action-gray rounded-xl px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 border ${
                   isDark ? "bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border-white/5" : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200 shadow-sm"
                 }`}
               >
-                <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
                 Print
               </button>
               <button
                 onClick={handleRefresh}
-                className="rounded-xl bg-red-600 hover:bg-red-700 px-4 py-2 text-sm font-medium text-white transition-all flex items-center gap-2"
+                className="btn-action-refresh flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold"
               >
                 <IconRefresh className="w-4 h-4" />
                 Refresh

@@ -426,9 +426,9 @@ function BranchOwnerBranches() {
 
                   <button
                     onClick={() => handleViewDetails(branch)}
-                    className="mt-auto w-full bg-red-600 hover:bg-red-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20"
+                    className="btn-action-gray btn-view-details mt-auto w-full bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm py-2.5 rounded-xl transition-all shadow-md"
                   >
-                    View Details
+                    <span className="btn-view-details-label">View Details</span>
                   </button>
                 </div>
               ))}

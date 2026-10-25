@@ -101,12 +101,28 @@ function BranchOwnerServices() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    fetch(`${API_BASE}/owner/branches/`, { headers, credentials: "include" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) =>
-        setBranches(data.map((b) => ({ id: b.id, name: b.name }))),
-      )
-      .catch(() => {});
+    let isMounted = true;
+    const fetchBranches = async () => {
+      try {
+        let res = await fetch(`${API_BASE}/owner/branches/`, { headers, credentials: "include" });
+        if (!res.ok) {
+          res = await fetch(`${API_BASE}/branches/`, { headers, credentials: "include" });
+        }
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
+          if (isMounted && list.length > 0) {
+            setBranches(list.map((b) => ({ id: b.id, name: b.name })));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load branches for filter:", err);
+      }
+    };
+    fetchBranches();
+    return () => {
+      isMounted = false;
+    };
   }, [isAuthenticated, headers]);
 
   const categoryCounts = categories.reduce((acc, c) => {
@@ -445,9 +461,9 @@ function BranchOwnerServices() {
                     <div className="mt-auto pt-4 border-t border-white/5">
                       <button
                         onClick={() => handleViewDetails(service)}
-                        className="w-full text-center text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all"
+                        className="btn-action-gray btn-view-details w-full text-center text-sm font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl transition-all"
                       >
-                        View Details
+                        <span className="btn-view-details-label">View Details</span>
                       </button>
                     </div>
                   </div>

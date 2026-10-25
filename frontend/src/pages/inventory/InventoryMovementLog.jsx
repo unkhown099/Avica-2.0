@@ -247,7 +247,7 @@ function MovementLog({
           </div>
           <button
             onClick={handleExportCSV}
-            className="mt-10 flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit"
+            className="btn-action-green mt-10 flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition-all w-fit"
           >
             <svg
               className="w-4 h-4"
