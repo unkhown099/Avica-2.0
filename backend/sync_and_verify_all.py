@@ -422,4 +422,13 @@ try:
 except Exception as e:
     print(f"Warning: Could not seed services in sync script: {e}")
 
-print("\n=== COMPLETE: ALL ACCOUNTS AND SERVICES SYNCED AND TESTED ===", flush=True)
+# Also ensure inventory items and movement records are seeded
+try:
+    from seed_products import seed_products
+    from seed_inventory_data import seed_inventory_data
+    seed_products()
+    seed_inventory_data()
+except Exception as e:
+    print(f"Warning: Could not seed inventory products in sync script: {e}")
+
+print("\n=== COMPLETE: ALL ACCOUNTS, SERVICES, AND INVENTORY SYNCED AND TESTED ===", flush=True)

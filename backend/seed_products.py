@@ -207,45 +207,50 @@ products_data = [
     },
 ]
 
-branches = list(Branch.objects.all())
-created_count = 0
+def seed_products():
+    branches = list(Branch.objects.all())
+    created_count = 0
 
-for p in products_data:
-    # 1. Central Item
-    central_sku = p['sku_base']
-    central_item, _ = InventoryItem.objects.update_or_create(
-        sku=central_sku,
-        defaults={
-            'name': p['name'],
-            'category': p['category'],
-            'quantity': p['central_qty'],
-            'minimum_qty': p['min_qty'],
-            'unit': p['unit'],
-            'price': p['price'],
-            'supplier': p['supplier'],
-            'branch': None,
-            'is_active': True,
-        }
-    )
-    created_count += 1
-    
-    # 2. Branch Items for each active branch
-    for b in branches:
-        branch_sku = f"{p['sku_base']}-B{b.id}"
-        branch_item, _ = InventoryItem.objects.update_or_create(
-            sku=branch_sku,
+    for p in products_data:
+        # 1. Central Item
+        central_sku = p['sku_base']
+        central_item, _ = InventoryItem.objects.update_or_create(
+            sku=central_sku,
             defaults={
                 'name': p['name'],
                 'category': p['category'],
-                'quantity': p['branch_qty'],
+                'quantity': p['central_qty'],
                 'minimum_qty': p['min_qty'],
                 'unit': p['unit'],
                 'price': p['price'],
                 'supplier': p['supplier'],
-                'branch': b,
+                'branch': None,
                 'is_active': True,
             }
         )
         created_count += 1
+        
+        # 2. Branch Items for each active branch
+        for b in branches:
+            branch_sku = f"{p['sku_base']}-B{b.id}"
+            branch_item, _ = InventoryItem.objects.update_or_create(
+                sku=branch_sku,
+                defaults={
+                    'name': p['name'],
+                    'category': p['category'],
+                    'quantity': p['branch_qty'],
+                    'minimum_qty': p['min_qty'],
+                    'unit': p['unit'],
+                    'price': p['price'],
+                    'supplier': p['supplier'],
+                    'branch': b,
+                    'is_active': True,
+                }
+            )
+            created_count += 1
 
-print(f'Successfully created/updated {created_count} inventory items across Central and {len(branches)} branches!')
+    print(f'Successfully created/updated {created_count} inventory items across Central and {len(branches)} branches!')
+    return created_count
+
+if __name__ == '__main__':
+    seed_products()
