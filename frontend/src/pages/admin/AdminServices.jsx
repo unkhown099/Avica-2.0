@@ -1285,7 +1285,7 @@ function AdminServices() {
                     <div className="flex gap-2 mt-auto pt-4 border-t border-white/5">
                       <button
                         onClick={() => openEdit(service)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all"
+                        className="btn-edit-action flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all"
                       >
                         <svg
                           className="w-4 h-4"

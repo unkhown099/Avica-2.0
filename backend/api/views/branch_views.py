@@ -22,6 +22,11 @@ class BranchListCreateView(APIView):
             "queue_entries",
             "ratings",
         ).all()
+        status_param = request.query_params.get("status", "").strip().lower()
+        if status_param == "active":
+            branches = branches.filter(is_active=True)
+        elif status_param == "archived":
+            branches = branches.filter(is_active=False)
         serializer = BranchSerializer(branches, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -71,5 +76,6 @@ class BranchDetailView(APIView):
         branch = self.get_object(pk)
         if not branch:
             return Response({"error": "Branch not found."}, status=status.HTTP_404_NOT_FOUND)
-        branch.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        branch.is_active = False
+        branch.save(update_fields=["is_active"])
+        return Response({"message": f"Branch '{branch.name}' archived successfully.", "is_active": False}, status=status.HTTP_200_OK)

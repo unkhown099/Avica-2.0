@@ -91,15 +91,30 @@ html[data-theme="light"] footer.landing-footer .text-gray-500 {
   color: #6b7280 !important;
 }
 
-/* BACK TO TOP button */
+/* BACK TO TOP button (Light Mode: Outline in resting state, solid on hover) */
 html[data-theme="light"] footer.landing-footer button.bg-red-600 {
-  background-color: #dc2626 !important;
-  border-color: #dc2626 !important;
-  color: #ffffff !important;
+  background-color: #fef2f2 !important;
+  border: 1.5px solid #dc2626 !important;
+  color: #dc2626 !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+
+html[data-theme="light"] footer.landing-footer button.bg-red-600 * {
+  color: #dc2626 !important;
+  stroke: currentColor !important;
 }
 
 html[data-theme="light"] footer.landing-footer button.bg-red-600:hover {
-  background-color: #b91c1c !important;
+  background-color: #dc2626 !important;
+  border: 1.5px solid #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35) !important;
+}
+
+html[data-theme="light"] footer.landing-footer button.bg-red-600:hover * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 
 /* Red copyright strip */
@@ -219,32 +234,128 @@ html[data-theme="light"] aside .border-t {
   border-color: #e2e8f0 !important;
 }
 
-html[data-theme="light"] aside a,
-html[data-theme="light"] aside button {
+/* Sidebar navigation links and collapsible buttons: strictly clean, no box borders or shadows */
+html[data-theme="light"] aside nav a,
+html[data-theme="light"] aside nav button {
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
   color: #475569 !important;
 }
 
-html[data-theme="light"] aside a:hover,
-html[data-theme="light"] aside button:hover {
+html[data-theme="light"] aside nav a:not(.border-red-600):not([class*="border-red-600"]),
+html[data-theme="light"] aside nav button:not(.border-red-600):not([class*="border-red-600"]) {
+  border-left: 4px solid transparent !important;
+}
+
+html[data-theme="light"] aside nav a:hover,
+html[data-theme="light"] aside nav button:hover {
   background-color: #f8fafc !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+/* Active Nav Item - Matches Security & Backup reference */
+html[data-theme="light"] aside nav a.border-red-600,
+html[data-theme="light"] aside nav button.border-red-600,
+html[data-theme="light"] aside nav a[class*="border-red-600"],
+html[data-theme="light"] aside nav button[class*="border-red-600"],
+html[data-theme="light"] aside nav button.sidebar-nav-item.border-red-600,
+html[data-theme="light"] aside nav a.sidebar-nav-item.border-red-600,
+html[data-theme="light"] aside nav .border-red-600 {
+  background: linear-gradient(to right, rgba(220, 38, 38, 0.08), transparent) !important;
+  border-left: 4px solid #dc2626 !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] aside nav a.border-red-600 svg,
+html[data-theme="light"] aside nav button.border-red-600 svg,
+html[data-theme="light"] aside nav a[class*="border-red-600"] svg,
+html[data-theme="light"] aside nav button[class*="border-red-600"] svg {
+  color: #dc2626 !important;
+  stroke: #dc2626 !important;
+}
+
+html[data-theme="light"] aside nav a.border-red-600 span,
+html[data-theme="light"] aside nav button.border-red-600 span,
+html[data-theme="light"] aside nav a[class*="border-red-600"] span,
+html[data-theme="light"] aside nav button[class*="border-red-600"] span {
+  color: #1e293b !important;
+}
+
+/* Collapsible sub-links */
+html[data-theme="light"] aside nav div.space-y-1 a {
+  border-radius: 0.5rem !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-left: 3px solid transparent !important;
+  box-shadow: none !important;
+  color: #64748b !important;
+  background-color: transparent !important;
+}
+
+html[data-theme="light"] aside nav div.space-y-1 a:hover:not(.active-nav-child):not([class*="text-red-"]) {
+  background-color: #f1f5f9 !important;
   color: #0f172a !important;
 }
 
-html[data-theme="light"] aside a.border-red-600,
-html[data-theme="light"] aside button.border-red-600,
-html[data-theme="light"] aside a[class*="border-red-600"],
-html[data-theme="light"] aside button[class*="border-red-600"],
-html[data-theme="light"] aside a[class*="text-red-400"],
-html[data-theme="light"] aside a[class*="text-red-500"] {
-  background: linear-gradient(to right, rgba(220, 38, 38, 0.08), transparent) !important;
+/* Active child link inside collapsible navigation */
+html[data-theme="light"] aside nav div.space-y-1 a.active-nav-child,
+html[data-theme="light"] aside nav div.space-y-1 a[class*="text-red-"],
+html[data-theme="light"] aside nav div.space-y-1 a[class*="border-red-"] {
+  background-color: #fef2f2 !important;
   color: #dc2626 !important;
+  border-left: 3px solid #dc2626 !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
 }
 
-html[data-theme="light"] aside button.bg-gray-800\/50,
-html[data-theme="light"] aside button[class*="bg-gray-800"] {
+/* Sidebar top collapse/close buttons */
+html[data-theme="light"] aside button.w-8.h-8 {
   background-color: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] aside button.w-8.h-8:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Sidebar Footer (Theme Toggle & Logout): seamless, no outlines or boxes */
+html[data-theme="light"] aside .space-y-1 > button {
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
   color: #475569 !important;
 }
+
+html[data-theme="light"] aside .space-y-1 > button:hover {
+  background-color: #f8fafc !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+}
+
+/* Theme Toggle Track in Light Mode */
+html[data-theme="light"] aside .space-y-1 button .w-8.h-4 {
+  background-color: #dc2626 !important;
+}
+
+/* Stale sidebar logout rules removed - styled in dedicated logout section */
 
 html[data-theme="light"] aside span[class*="text-gray"] {
   color: #94a3b8 !important;
@@ -306,7 +417,7 @@ html[data-theme="light"] h6:not(.landing-hero *):not(.landing-footer *) {
   color: #0f172a !important;
 }
 
-html[data-theme="light"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-green"]):not([class*="bg-green"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-primary"]):not([class*="bg-primary"] *):not(.category-badge):not(.category-badge *):not([class*="category-badge"]):not([class*="category-badge"] *):not(.landing-hero *):not(.landing-footer):not(.landing-footer *) {
+html[data-theme="light"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-green"]):not([class*="bg-green"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-indigo"]):not([class*="bg-indigo"] *):not([class*="bg-primary"]):not([class*="bg-primary"] *):not(.category-badge):not(.category-badge *):not([class*="category-badge"]):not([class*="category-badge"] *):not(.landing-hero *):not(.landing-footer):not(.landing-footer *):not(.btn-view-details):not(.btn-view-details *):not(.btn-action-gray):not(.btn-action-gray *):not([class*="btn-view-details"]):not([class*="btn-view-details"] *):not(.btn-view-details-label):not([class*="bg-slate-"]):not([class*="bg-slate-"] *) {
   color: #0f172a !important;
 }
 
@@ -369,14 +480,25 @@ html[data-theme="light"] .map-skin-btn:not(.map-skin-btn-active) {
   background-color: transparent !important;
 }
 
-html[data-theme="light"] .map-skin-btn:not(.map-skin-btn-active):hover {
-  color: #0f172a !important;
-  background-color: #f1f5f9 !important;
+html[data-theme="light"] .map-skin-btn {
+  background-color: #fef2f2 !important;
+  border: 1.5px solid #dc2626 !important;
+  color: #dc2626 !important;
+  transition: all 0.2s ease !important;
+}
+
+html[data-theme="light"] .map-skin-btn:hover {
+  background-color: #dc2626 !important;
+  border: 1.5px solid #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
 }
 
 .map-skin-btn-active,
+html[data-theme="light"] .map-skin-btn.map-skin-btn-active,
 html[data-theme="light"] .map-skin-btn-active {
   background-color: #dc2626 !important;
+  border: 1.5px solid #dc2626 !important;
   color: #ffffff !important;
   box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4) !important;
 }
@@ -387,12 +509,12 @@ html[data-theme="light"] [class*="text-red-500"] {
 }
 
 /* KPI stat cards, accordions & card buttons that are white in light mode must show dark text */
-html[data-theme="light"] button:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-green"]):not([class*="bg-green"] *):not([class*="bg-primary"]):not([class*="bg-primary"] *) .text-white:not(.category-badge):not(.category-badge *),
-html[data-theme="light"] button[class*="backdrop-blur"]:not([class*="bg-red"]):not([class*="bg-red"] *) .text-white:not(.category-badge):not(.category-badge *),
-html[data-theme="light"] button[class*="rounded-2xl"]:not([class*="bg-red"]):not([class*="bg-red"] *) .text-white:not(.category-badge):not(.category-badge *),
-html[data-theme="light"] button[class*="rounded-xl"]:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *) .text-white:not(.category-badge):not(.category-badge *),
-html[data-theme="light"] div[class*="rounded-2xl"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not(.category-badge):not(.category-badge *),
-html[data-theme="light"] div[class*="backdrop-blur"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not(.category-badge):not(.category-badge *) {
+html[data-theme="light"] button:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-indigo"]):not([class*="bg-indigo"] *):not([class*="bg-green"]):not([class*="bg-green"] *):not([class*="bg-primary"]):not([class*="bg-primary"] *):not([class*="btn-action-"]):not([class*="btn-action-"] *):not([class*="btn-view-"]):not([class*="btn-view-"] *):not(:hover *) .text-white:not(.category-badge):not(.category-badge *),
+html[data-theme="light"] button[class*="backdrop-blur"]:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-indigo"]):not([class*="bg-indigo"] *):not([class*="btn-action-"]):not([class*="btn-action-"] *):not([class*="btn-view-"]):not([class*="btn-view-"] *):not(:hover *) .text-white:not(.category-badge):not(.category-badge *),
+html[data-theme="light"] button[class*="rounded-2xl"]:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-indigo"]):not([class*="bg-indigo"] *):not([class*="btn-action-"]):not([class*="btn-action-"] *):not([class*="btn-view-"]):not([class*="btn-view-"] *):not(:hover *) .text-white:not(.category-badge):not(.category-badge *),
+html[data-theme="light"] button[class*="rounded-xl"]:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-indigo"]):not([class*="bg-indigo"] *):not([class*="btn-action-"]):not([class*="btn-action-"] *):not([class*="btn-view-"]):not([class*="btn-view-"] *):not(:hover *) .text-white:not(.category-badge):not(.category-badge *),
+html[data-theme="light"] div[class*="rounded-2xl"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-indigo"]):not([class*="bg-indigo"] *):not(.category-badge):not(.category-badge *):not([class*="btn-action-"] *):not([class*="btn-view-"] *),
+html[data-theme="light"] div[class*="backdrop-blur"] .text-white:not([class*="bg-red"]):not([class*="bg-red"] *):not([class*="bg-emerald"]):not([class*="bg-emerald"] *):not([class*="bg-blue"]):not([class*="bg-blue"] *):not([class*="bg-indigo"]):not([class*="bg-indigo"] *):not(.category-badge):not(.category-badge *):not([class*="btn-action-"] *):not([class*="btn-view-"] *) {
   color: #0f172a !important;
 }
 
@@ -413,6 +535,58 @@ html[data-theme="light"] .text-gray-500:not(.landing-hero *) {
 html[data-theme="light"] .text-gray-600:not(.landing-hero *) {
   color: #94a3b8 !important;
 }
+
+/* Light Mode High-Contrast Accent Text Colors */
+html[data-theme="light"] .text-emerald-400:not(button):not(a):not(.landing-hero *):not([class*="bg-emerald-600"] *):not([class*="bg-green-600"] *),
+html[data-theme="light"] .text-emerald-300:not(button):not(a):not(.landing-hero *):not([class*="bg-emerald-600"] *):not([class*="bg-green-600"] *),
+html[data-theme="light"] [class*="text-emerald-400"]:not(button):not(a):not(.landing-hero *):not([class*="bg-emerald-600"] *):not([class*="bg-green-600"] *),
+html[data-theme="light"] [class*="text-emerald-300"]:not(button):not(a):not(.landing-hero *):not([class*="bg-emerald-600"] *):not([class*="bg-green-600"] *),
+html[data-theme="light"] .text-green-400:not(button):not(a):not(.landing-hero *),
+html[data-theme="light"] .text-green-300:not(button):not(a):not(.landing-hero *),
+html[data-theme="light"] [class*="text-green-400"]:not(button):not(a):not(.landing-hero *),
+html[data-theme="light"] [class*="text-green-300"]:not(button):not(a):not(.landing-hero *) {
+  color: #047857 !important;
+}
+
+html[data-theme="light"] .text-indigo-400:not(button):not(a):not(.landing-hero *):not([class*="bg-indigo-600"] *),
+html[data-theme="light"] .text-indigo-300:not(button):not(a):not(.landing-hero *):not([class*="bg-indigo-600"] *),
+html[data-theme="light"] [class*="text-indigo-400"]:not(button):not(a):not(.landing-hero *):not([class*="bg-indigo-600"] *),
+html[data-theme="light"] [class*="text-indigo-300"]:not(button):not(a):not(.landing-hero *):not([class*="bg-indigo-600"] *) {
+  color: #4338ca !important;
+}
+
+html[data-theme="light"] .text-red-400:not(button):not(a):not(.landing-hero *):not([class*="bg-red-600"] *),
+html[data-theme="light"] .text-red-300:not(button):not(a):not(.landing-hero *):not([class*="bg-red-600"] *),
+html[data-theme="light"] [class*="text-red-400"]:not(button):not(a):not(.landing-hero *):not([class*="bg-red-600"] *),
+html[data-theme="light"] [class*="text-red-300"]:not(button):not(a):not(.landing-hero *):not([class*="bg-red-600"] *) {
+  color: #dc2626 !important;
+}
+
+html[data-theme="light"] .text-blue-400:not(button):not(a):not(.landing-hero *):not([class*="bg-blue-600"] *),
+html[data-theme="light"] .text-blue-300:not(button):not(a):not(.landing-hero *):not([class*="bg-blue-600"] *),
+html[data-theme="light"] [class*="text-blue-400"]:not(button):not(a):not(.landing-hero *):not([class*="bg-blue-600"] *),
+html[data-theme="light"] [class*="text-blue-300"]:not(button):not(a):not(.landing-hero *):not([class*="bg-blue-600"] *) {
+  color: #1d4ed8 !important;
+}
+
+html[data-theme="light"] .text-amber-400:not(button):not(a):not(.landing-hero *):not([class*="bg-amber-600"] *),
+html[data-theme="light"] .text-amber-300:not(button):not(a):not(.landing-hero *):not([class*="bg-amber-600"] *),
+html[data-theme="light"] .text-yellow-400:not(button):not(a):not(.landing-hero *):not([class*="bg-amber-600"] *),
+html[data-theme="light"] .text-yellow-300:not(button):not(a):not(.landing-hero *):not([class*="bg-amber-600"] *),
+html[data-theme="light"] [class*="text-amber-400"]:not(button):not(a):not(.landing-hero *):not([class*="bg-amber-600"] *),
+html[data-theme="light"] [class*="text-amber-300"]:not(button):not(a):not(.landing-hero *):not([class*="bg-amber-600"] *),
+html[data-theme="light"] [class*="text-yellow-400"]:not(button):not(a):not(.landing-hero *):not([class*="bg-amber-600"] *),
+html[data-theme="light"] [class*="text-yellow-300"]:not(button):not(a):not(.landing-hero *):not([class*="bg-amber-600"] *) {
+  color: #b45309 !important;
+}
+
+html[data-theme="light"] .text-purple-400:not(.landing-hero *),
+html[data-theme="light"] .text-purple-300:not(.landing-hero *),
+html[data-theme="light"] .text-violet-400:not(.landing-hero *),
+html[data-theme="light"] .text-violet-300:not(.landing-hero *) {
+  color: #6d28d9 !important;
+}
+
 
 /* â”€â”€ 6. Borders & Dividers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 html[data-theme="light"] .border-gray-800:not(.landing-hero *),
@@ -547,50 +721,1164 @@ html[data-theme="light"] .bg-gray-500\/20:not(.landing-hero *) {
   border-color: #cbd5e1 !important;
 }
 
-/* ── 10. Primary Buttons & Brand Elements ────────────────────────────────── */
-html[data-theme="light"] button.bg-red-600:not(.landing-hero *),
-html[data-theme="light"] button.bg-red-700:not(.landing-hero *),
-html[data-theme="light"] button.bg-red-500:not(.landing-hero *),
-html[data-theme="light"] button.hover\:bg-red-700:hover:not(.landing-hero *),
-html[data-theme="light"] button.hover\:bg-red-600:hover:not(.landing-hero *),
-html[data-theme="light"] a.bg-red-600:not(.landing-hero *),
-html[data-theme="light"] a.bg-red-700:not(.landing-hero *),
-html[data-theme="light"] a.bg-red-500:not(.landing-hero *),
-html[data-theme="light"] .bg-red-600:not(.landing-hero *),
-html[data-theme="light"] .bg-red-700:not(.landing-hero *) {
+/* ── 10. Non-Interactive Red Badges & Indicators ────────────────────────── */
+html[data-theme="light"] div.bg-red-600:not(button):not(a):not(label):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]),
+html[data-theme="light"] span.bg-red-600:not(button):not(a):not(label):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]),
+html[data-theme="light"] div.bg-red-500:not(button):not(a):not(label):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]),
+html[data-theme="light"] span.bg-red-500:not(button):not(a):not(label):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) {
   background-color: #dc2626 !important;
   color: #ffffff !important;
 }
 
-html[data-theme="light"] button.bg-red-600 *:not(.landing-hero *),
-html[data-theme="light"] button.bg-red-700 *:not(.landing-hero *),
-html[data-theme="light"] button.bg-red-500 *:not(.landing-hero *),
-html[data-theme="light"] a.bg-red-600 *:not(.landing-hero *),
-html[data-theme="light"] a.bg-red-700 *:not(.landing-hero *),
-html[data-theme="light"] .bg-red-600 *:not(.landing-hero *),
-html[data-theme="light"] .bg-red-700 *:not(.landing-hero *) {
+/* ── 10-LOGIN. Log In Button Hover Behavior (Light Mode Only) ── */
+/* In resting state, preserve appearance. On hover, remove white glow and use red outline indicator with reduced shadow */
+html[data-theme="light"] .login-submit-btn,
+html[data-theme="light"] form button[type="submit"].login-submit-btn {
+  background-color: #dc2626 !important;
   color: #ffffff !important;
+  border: 2px solid transparent !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
+  outline: none !important;
+  transition: all 0.2s ease !important;
 }
 
-/* Delete / Action buttons on branch cards */
-html[data-theme="light"] button.hover\:bg-white\/10:hover:not(.landing-hero *),
-html[data-theme="light"] button.bg-white\/5:not(.landing-hero *) {
+html[data-theme="light"] .login-submit-btn:hover:not(:disabled),
+html[data-theme="light"] form button[type="submit"].login-submit-btn:hover:not(:disabled) {
+  background-color: #b91c1c !important;
+  color: #ffffff !important;
+  border: 2px solid #dc2626 !important;
+  outline: 2px solid #dc2626 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.25) !important;
+  transform: none !important;
+}
+
+html[data-theme="light"] .login-submit-btn:hover:not(:disabled) span,
+html[data-theme="light"] .login-submit-btn:hover:not(:disabled) svg {
+  color: #ffffff !important;
+  fill: currentColor !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ── 10-TOGGLE: Toggle Switch Controls & Tracks (Light Mode) ───────────────────
+   Preserves intended ON/OFF styling for toggle switches across the entire system.
+   - ON State (Green): Solid green track (#10b981), white circular thumb, subtle green glow
+   - ON State (Red): Solid red track (#ef4444), white circular thumb, subtle red glow
+   - OFF State: Outlined switch track (#e2e8f0 / border #cbd5e1), white circular thumb
+   - Thumb animation, position, dimensions, and alignment remain 100% intact.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Green Toggle Switch — Active / ON State (Reference Screenshot Match) */
+html[data-theme="light"] button.bg-emerald-500[class*="rounded-full"],
+html[data-theme="light"] button[class*="bg-emerald-500"][class*="rounded-full"],
+html[data-theme="light"] button[class*="bg-emerald-600"][class*="rounded-full"],
+html[data-theme="light"] div.bg-emerald-500[class*="rounded-full"],
+html[data-theme="light"] div[class*="bg-emerald-500"][class*="rounded-full"],
+html[data-theme="light"] [role="switch"][aria-checked="true"],
+html[data-theme="light"] [role="switch"].bg-emerald-500 {
+  background-color: #10b981 !important;
+  border: none !important;
+  border-width: 0 !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.42), 0 1px 3px rgba(16, 185, 129, 0.25) !important;
+  color: transparent !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] button.bg-emerald-500[class*="rounded-full"]:hover,
+html[data-theme="light"] button[class*="bg-emerald-500"][class*="rounded-full"]:hover,
+html[data-theme="light"] div.bg-emerald-500[class*="rounded-full"]:hover {
+  background-color: #059669 !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.55), 0 2px 4px rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Red Toggle Switch — Active / ON State */
+html[data-theme="light"] button.bg-red-500[class*="rounded-full"],
+html[data-theme="light"] button[class*="bg-red-500"][class*="rounded-full"],
+html[data-theme="light"] div.bg-red-500[class*="rounded-full"],
+html[data-theme="light"] div[class*="bg-red-500"][class*="rounded-full"] {
+  background-color: #ef4444 !important;
+  border: none !important;
+  border-width: 0 !important;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.42), 0 1px 3px rgba(239, 68, 68, 0.25) !important;
+  color: transparent !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] button.bg-red-500[class*="rounded-full"]:hover,
+html[data-theme="light"] button[class*="bg-red-500"][class*="rounded-full"]:hover {
+  background-color: #dc2626 !important;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.55), 0 2px 4px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Blue & Indigo Toggle Switches — Active / ON State */
+html[data-theme="light"] button.bg-blue-500[class*="rounded-full"],
+html[data-theme="light"] button[class*="bg-blue-500"][class*="rounded-full"],
+html[data-theme="light"] div.bg-blue-500[class*="rounded-full"] {
+  background-color: #2563eb !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.42), 0 1px 3px rgba(37, 99, 235, 0.25) !important;
+  color: transparent !important;
+}
+
+html[data-theme="light"] button.bg-indigo-500[class*="rounded-full"],
+html[data-theme="light"] button[class*="bg-indigo-500"][class*="rounded-full"],
+html[data-theme="light"] div.bg-indigo-500[class*="rounded-full"] {
+  background-color: #4f46e5 !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.42), 0 1px 3px rgba(79, 70, 229, 0.25) !important;
+  color: transparent !important;
+}
+
+/* Inactive / OFF Toggle Switch — Outlined Appearance in Light Mode */
+html[data-theme="light"] button.bg-gray-600[class*="rounded-full"],
+html[data-theme="light"] button.bg-gray-700[class*="rounded-full"],
+html[data-theme="light"] button[class*="bg-gray-600"][class*="rounded-full"],
+html[data-theme="light"] button[class*="bg-gray-700"][class*="rounded-full"],
+html[data-theme="light"] div.bg-gray-600[class*="rounded-full"],
+html[data-theme="light"] div.bg-gray-700[class*="rounded-full"],
+html[data-theme="light"] div[class*="bg-gray-600"][class*="rounded-full"],
+html[data-theme="light"] div[class*="bg-gray-700"][class*="rounded-full"],
+html[data-theme="light"] [role="switch"][aria-checked="false"] {
   background-color: #f1f5f9 !important;
-  color: #334155 !important;
-  border-color: #cbd5e1 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  color: transparent !important;
 }
 
-/* Print / Export buttons on dashboard */
-html[data-theme="light"] button.bg-gray-800:not(.landing-hero *) {
+html[data-theme="light"] button.bg-gray-600[class*="rounded-full"]:hover,
+html[data-theme="light"] button.bg-gray-700[class*="rounded-full"]:hover,
+html[data-theme="light"] div.bg-gray-600[class*="rounded-full"]:hover,
+html[data-theme="light"] div.bg-gray-700[class*="rounded-full"]:hover {
+  background-color: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Toggle Switch Thumb — Pure White Circle, positioned & animated by Tailwind */
+html[data-theme="light"] button[class*="rounded-full"] > span[class*="rounded-full"],
+html[data-theme="light"] button[class*="w-11"] > span[class*="rounded-full"],
+html[data-theme="light"] button[class*="w-11"] > span.bg-white,
+html[data-theme="light"] div[class*="rounded-full"] > div[class*="rounded-full"],
+html[data-theme="light"] label div[class*="rounded-full"] > div[class*="rounded-full"] {
   background-color: #ffffff !important;
-  color: #334155 !important;
-  border-color: #cbd5e1 !important;
+  border-radius: 9999px !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15) !important;
 }
 
-html[data-theme="light"] button.bg-gray-800:hover:not(.landing-hero *) {
+/* ══════════════════════════════════════════════════════════════════════════════
+   ── 10-OUTLINE-BUTTONS: System-Wide Outline-to-Solid-Hover Buttons (Light Mode)
+   Resting State: 1.5px solid colored border, colored text/icon, tinted light bg
+   Hover State: Solid background of same color, 1.5px solid border, pure white text & icon
+   Applies to BOTH icon-only buttons (tables/cards) and buttons containing text and icons
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 10A. GREEN Action Buttons (Approve / Confirm / Edit / Restock / Export CSV) ── */
+/* Resting state: light green bg, green outline, green text/icon */
+html[data-theme="light"] .btn-action-green,
+html[data-theme="light"] button.btn-action-green,
+html[data-theme="light"] .btn-edit-action,
+html[data-theme="light"] button.btn-edit-action,
+html[data-theme="light"] button[title*="Edit" i]:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[aria-label*="Edit" i]:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[title*="Approve" i]:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[aria-label*="Approve" i]:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-600:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-500:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-700:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-green-600:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-green-500:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-emerald-600"]:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-emerald-500"]:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="hover:bg-emerald-"]:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="hover:bg-green-"]:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-600\/20:not(.landing-hero *):not(aside *):not([class*="w-11"]):not([class*="rounded-full"]),
+html[data-theme="light"] button.bg-emerald-500\/20:not(.landing-hero *):not(aside *):not([class*="w-11"]):not([class*="rounded-full"]),
+html[data-theme="light"] button.bg-green-600\/20:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-green-500\/20:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-emerald-600/"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="w-11"]):not([class*="rounded-full"]),
+html[data-theme="light"] button[class*="bg-emerald-500/"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="w-11"]):not([class*="rounded-full"]),
+html[data-theme="light"] button[class*="bg-green-600/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-green-500/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-emerald-50 "]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]), html[data-theme="light"] button[class$="bg-emerald-50"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]),
+html[data-theme="light"] a.bg-emerald-600:not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *),
+html[data-theme="light"] a.bg-emerald-500:not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-emerald-600"]:not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-emerald-500"]:not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-emerald-600/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-emerald-500/"]:not(aside *):not(nav *):not(.landing-hero *) {
+  background-color: #ecfdf5 !important;
+  border: 1.5px solid #059669 !important;
+  color: #047857 !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+
+html[data-theme="light"] .btn-action-green *,
+html[data-theme="light"] button.btn-action-green *,
+html[data-theme="light"] .btn-edit-action *,
+html[data-theme="light"] button.btn-edit-action *,
+html[data-theme="light"] button[title*="Edit" i]:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[aria-label*="Edit" i]:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[title*="Approve" i]:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[aria-label*="Approve" i]:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-emerald-600:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-emerald-500:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-emerald-700:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-green-600:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-green-500:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-emerald-600"]:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-emerald-500"]:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="hover:bg-emerald-"]:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="hover:bg-green-"]:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-emerald-600\/20:not(.landing-hero *):not(aside *):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-emerald-500\/20:not(.landing-hero *):not(aside *):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-green-600\/20:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-green-500\/20:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[class*="bg-emerald-600/"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-emerald-500/"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-green-600/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-green-500/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-emerald-50 "]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]) *,
+html[data-theme="light"] button[class$="bg-emerald-50"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]) *,
+html[data-theme="light"] a.bg-emerald-600:not([class*="rounded-full"]):not(nav *):not(header *) *,
+html[data-theme="light"] a.bg-emerald-500:not([class*="rounded-full"]):not(nav *):not(header *) *,
+html[data-theme="light"] a[class*="bg-emerald-600"]:not([class*="rounded-full"]):not(nav *):not(header *) *,
+html[data-theme="light"] a[class*="bg-emerald-500"]:not([class*="rounded-full"]):not(nav *):not(header *) *,
+html[data-theme="light"] a[class*="bg-emerald-600/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a[class*="bg-emerald-500/"]:not(aside *):not(nav *):not(.landing-hero *) * {
+  color: #047857 !important;
+  stroke: currentColor;
+}
+
+/* Hover state: solid green fill, crisp white text and icon */
+html[data-theme="light"] .btn-action-green:hover:not(:disabled),
+html[data-theme="light"] button.btn-action-green:hover:not(:disabled),
+html[data-theme="light"] .btn-edit-action:hover:not(:disabled),
+html[data-theme="light"] button.btn-edit-action:hover:not(:disabled),
+html[data-theme="light"] button[title*="Edit" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[aria-label*="Edit" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[title*="Approve" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[aria-label*="Approve" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-600:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-500:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-700:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-green-600:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-green-500:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-emerald-600"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-emerald-500"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="hover:bg-emerald-"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="hover:bg-green-"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-emerald-500\/20:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-green-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-green-500\/20:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-emerald-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-emerald-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-green-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-green-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-emerald-50"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a.bg-emerald-600:hover:not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *),
+html[data-theme="light"] a.bg-emerald-500:hover:not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-emerald-600"]:hover:not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-emerald-500"]:hover:not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-emerald-600/"]:hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-emerald-500/"]:hover:not(aside *):not(nav *):not(.landing-hero *) {
+  background-color: #059669 !important;
+  border: 1.5px solid #059669 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35) !important;
+}
+
+html[data-theme="light"] .btn-action-green:hover:not(:disabled) *,
+html[data-theme="light"] button.btn-action-green:hover:not(:disabled) *,
+html[data-theme="light"] .btn-edit-action:hover:not(:disabled) *,
+html[data-theme="light"] button.btn-edit-action:hover:not(:disabled) *,
+html[data-theme="light"] button[title*="Edit" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[aria-label*="Edit" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[title*="Approve" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[aria-label*="Approve" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-emerald-600:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-emerald-500:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-emerald-700:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-green-600:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-green-500:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-emerald-600"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-emerald-500"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="hover:bg-emerald-"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="hover:bg-green-"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-emerald-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-emerald-500\/20:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-green-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-green-500\/20:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[class*="bg-emerald-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-emerald-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-green-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-green-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-emerald-50"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a.bg-emerald-600:hover:not([class*="rounded-full"]):not(nav *):not(header *) *,
+html[data-theme="light"] a.bg-emerald-500:hover:not([class*="rounded-full"]):not(nav *):not(header *) *,
+html[data-theme="light"] a[class*="bg-emerald-600"]:hover:not([class*="rounded-full"]):not(nav *):not(header *) *,
+html[data-theme="light"] a[class*="bg-emerald-500"]:hover:not([class*="rounded-full"]):not(nav *):not(header *) *,
+html[data-theme="light"] a[class*="bg-emerald-600/"]:hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a[class*="bg-emerald-500/"]:hover:not(aside *):not(nav *):not(.landing-hero *) * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html[data-theme="light"] .btn-action-green:hover:not(:disabled) svg[fill]:not([fill="none"]),
+html[data-theme="light"] .btn-action-green:hover:not(:disabled) svg path[fill]:not([fill="none"]),
+html[data-theme="light"] .btn-edit-action:hover:not(:disabled) svg[fill]:not([fill="none"]),
+html[data-theme="light"] .btn-edit-action:hover:not(:disabled) svg path[fill]:not([fill="none"]),
+html[data-theme="light"] button[title*="Edit" i]:not(:disabled):hover svg[fill]:not([fill="none"]),
+html[data-theme="light"] button[title*="Edit" i]:not(:disabled):hover svg path[fill]:not([fill="none"]) {
+  fill: #ffffff !important;
+}
+
+/* ── 10B. INDIGO Action Buttons (Reschedule / Propose Reschedule) ── */
+/* Resting state: light indigo bg, indigo outline, indigo text/icon */
+html[data-theme="light"] .btn-action-indigo,
+html[data-theme="light"] button.btn-action-indigo,
+html[data-theme="light"] button[title*="Reschedule" i]:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-indigo-600\/20:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-indigo-500\/20:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-indigo-600/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-indigo-500/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-indigo-50 "]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]), html[data-theme="light"] button[class$="bg-indigo-50"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]),
+html[data-theme="light"] a[class*="bg-indigo-600/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-indigo-500/"]:not(aside *):not(nav *):not(.landing-hero *) {
+  background-color: #eef2ff !important;
+  border: 1.5px solid #4f46e5 !important;
+  color: #4338ca !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+
+html[data-theme="light"] .btn-action-indigo *,
+html[data-theme="light"] button.btn-action-indigo *,
+html[data-theme="light"] button[title*="Reschedule" i]:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-indigo-600\/20:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-indigo-500\/20:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[class*="bg-indigo-600/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-indigo-500/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-indigo-50 "]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]), html[data-theme="light"] button[class$="bg-indigo-50"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]) *,
+html[data-theme="light"] a[class*="bg-indigo-600/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a[class*="bg-indigo-500/"]:not(aside *):not(nav *):not(.landing-hero *) * {
+  color: #4338ca !important;
+  stroke: currentColor;
+}
+
+/* Hover state: solid indigo fill, crisp white text and icon */
+html[data-theme="light"] .btn-action-indigo:hover:not(:disabled),
+html[data-theme="light"] button.btn-action-indigo:hover:not(:disabled),
+html[data-theme="light"] button[title*="Reschedule" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-indigo-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-indigo-500\/20:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-indigo-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-indigo-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-indigo-50"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-indigo-600/"]:hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-indigo-500/"]:hover:not(aside *):not(nav *):not(.landing-hero *) {
+  background-color: #4f46e5 !important;
+  border: 1.5px solid #4f46e5 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28) !important;
+}
+
+html[data-theme="light"] .btn-action-indigo:hover:not(:disabled) *,
+html[data-theme="light"] button.btn-action-indigo:hover:not(:disabled) *,
+html[data-theme="light"] button[title*="Reschedule" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-indigo-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-indigo-500\/20:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[class*="bg-indigo-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-indigo-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-indigo-50"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a[class*="bg-indigo-600/"]:hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a[class*="bg-indigo-500/"]:hover:not(aside *):not(nav *):not(.landing-hero *) * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html[data-theme="light"] .btn-action-indigo:hover:not(:disabled) svg[fill]:not([fill="none"]),
+html[data-theme="light"] .btn-action-indigo:hover:not(:disabled) svg path[fill]:not([fill="none"]) {
+  fill: #ffffff !important;
+}
+
+/* ── 10C. RED Action Buttons (All Red Action Buttons Across System) ── */
+
+/* Resting state: light pink bg, red outline, red text/icon */
+
+html[data-theme="light"] .btn-action-red:not(:hover),
+
+html[data-theme="light"] button.btn-action-red:not(:hover),
+
+html[data-theme="light"] button[title*="Delete" i]:not(:hover):not(aside *),
+
+html[data-theme="light"] button[aria-label*="Delete" i]:not(:hover):not(aside *),
+
+html[data-theme="light"] button[title*="Reject" i]:not(:hover):not(aside *),
+
+html[data-theme="light"] button[aria-label*="Reject" i]:not(:hover):not(aside *),
+
+html[data-theme="light"] button[title*="Cancel" i]:not(:hover):not(aside *):not(.fixed.top-20 button),
+
+html[data-theme="light"] button[aria-label*="Cancel" i]:not(:hover):not(aside *):not(.fixed.top-20 button),
+
+html[data-theme="light"] button.btn-reject:not(:hover),
+
+html[data-theme="light"] button.btn-cancel:not(:hover),
+
+html[data-theme="light"] button.btn-delete:not(:hover),
+
+html[data-theme="light"] button.bg-red-600:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-500:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-700:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-600"]:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-500"]:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="hover:bg-red-"]:not(:hover):not(.login-submit-btn):not(.booking-filter-btn):not(.signin-back-btn):not(.logout-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-600\/20:not(:hover):not(.landing-hero *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-600\/15:not(:hover):not(.landing-hero *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-500\/20:not(:hover):not(.landing-hero *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-600/"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-500/"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-50 "]:not(:hover):not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class$="bg-red-50"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] a.bg-red-600:not(:hover):not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a.bg-red-500:not(:hover):not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a.bg-red-700:not(:hover):not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a[class*="bg-red-600"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a[class*="bg-red-500"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a[class*="hover:bg-red-"]:not(:hover):not(.login-submit-btn):not(.booking-filter-btn):not(.signin-back-btn):not(.logout-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a[class*="bg-red-600/"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *),
+
+html[data-theme="light"] a[class*="bg-red-500/"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *),
+
+html[data-theme="light"] label.bg-red-600:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]),
+
+html[data-theme="light"] label[class*="bg-red-600"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]),
+
+html[data-theme="light"] label[class*="bg-red-500"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]),
+
+html[data-theme="light"] label[class*="hover:bg-red-"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) {
+
+  background-color: #fef2f2 !important;
+
+  border: 1.5px solid #dc2626 !important;
+
+  color: #dc2626 !important;
+
+  font-weight: 600 !important;
+
+  box-shadow: none !important;
+
+  transition: all 0.2s ease !important;
+
+}
+
+
+
+html[data-theme="light"] .btn-action-red:not(:hover) *,
+
+html[data-theme="light"] button.btn-action-red:not(:hover) *,
+
+html[data-theme="light"] button[title*="Delete" i]:not(:hover):not(aside *) *,
+
+html[data-theme="light"] button[aria-label*="Delete" i]:not(:hover):not(aside *) *,
+
+html[data-theme="light"] button[title*="Reject" i]:not(:hover):not(aside *) *,
+
+html[data-theme="light"] button[aria-label*="Reject" i]:not(:hover):not(aside *) *,
+
+html[data-theme="light"] button[title*="Cancel" i]:not(:hover):not(aside *):not(.fixed.top-20 button) *,
+
+html[data-theme="light"] button[aria-label*="Cancel" i]:not(:hover):not(aside *):not(.fixed.top-20 button) *,
+
+html[data-theme="light"] button.btn-reject:not(:hover) *,
+
+html[data-theme="light"] button.btn-cancel:not(:hover) *,
+
+html[data-theme="light"] button.btn-delete:not(:hover) *,
+
+html[data-theme="light"] button.bg-red-600:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-500:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-700:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-600"]:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-500"]:not(:hover):not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="hover:bg-red-"]:not(:hover):not(.login-submit-btn):not(.booking-filter-btn):not(.signin-back-btn):not(.logout-btn):not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-600\/20:not(:hover):not(.landing-hero *):not(aside *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-600\/15:not(:hover):not(.landing-hero *):not(aside *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-500\/20:not(:hover):not(.landing-hero *):not(aside *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-600/"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-500/"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-50 "]:not(:hover):not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class$="bg-red-50"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] a.bg-red-600:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a.bg-red-500:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a.bg-red-700:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a[class*="bg-red-600"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a[class*="bg-red-500"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a[class*="hover:bg-red-"]:not(:hover):not(.login-submit-btn):not(.booking-filter-btn):not(.signin-back-btn):not(.logout-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a[class*="bg-red-600/"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *),
+
+html[data-theme="light"] a[class*="bg-red-500/"]:not(:hover):not(aside *):not(nav *):not(.landing-hero *),
+
+html[data-theme="light"] label.bg-red-600:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] label[class*="bg-red-600"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] label[class*="bg-red-500"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) *,
+
+html[data-theme="light"] label[class*="hover:bg-red-"]:not(:hover):not(.login-submit-btn):not([class*="rounded-full"]) * {
+
+  color: #dc2626 !important;
+
+  stroke: currentColor;
+
+}
+
+
+
+html[data-theme="light"] .btn-action-red:not(:hover) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] .btn-action-red:not(:hover) svg path[fill]:not([fill="none"]),
+
+html[data-theme="light"] button[class*="bg-red-"]:not(:hover):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] button[class*="bg-red-"]:not(:hover):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]) svg path[fill]:not([fill="none"]),
+
+html[data-theme="light"] button[class*="hover:bg-red-"]:not(:hover):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] button[class*="hover:bg-red-"]:not(:hover):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]) svg path[fill]:not([fill="none"]) {
+
+  fill: #dc2626 !important;
+
+}
+
+
+
+/* Hover state: solid red fill, crisp white text and icon */
+
+html[data-theme="light"] .btn-action-red:hover:not(:disabled),
+
+html[data-theme="light"] button.btn-action-red:hover:not(:disabled),
+
+html[data-theme="light"] button[title*="Delete" i]:hover:not(:disabled):not(aside *),
+
+html[data-theme="light"] button[aria-label*="Delete" i]:hover:not(:disabled):not(aside *),
+
+html[data-theme="light"] button[title*="Reject" i]:hover:not(:disabled):not(aside *),
+
+html[data-theme="light"] button[aria-label*="Reject" i]:hover:not(:disabled):not(aside *),
+
+html[data-theme="light"] button[title*="Cancel" i]:hover:not(:disabled):not(aside *):not(.fixed.top-20 button),
+
+html[data-theme="light"] button[aria-label*="Cancel" i]:hover:not(:disabled):not(aside *):not(.fixed.top-20 button),
+
+html[data-theme="light"] button.btn-reject:hover:not(:disabled),
+
+html[data-theme="light"] button.btn-cancel:hover:not(:disabled),
+
+html[data-theme="light"] button.btn-delete:hover:not(:disabled),
+
+html[data-theme="light"] button.bg-red-600:not(:disabled):hover:not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-500:not(:disabled):hover:not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-700:not(:disabled):hover:not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-600"]:not(:disabled):hover:not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-500"]:not(:disabled):hover:not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="hover:bg-red-"]:not(:disabled):hover:not(.login-submit-btn):not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button.bg-red-600\/15:not(:disabled):hover:not(.landing-hero *):not(aside *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] button[class*="bg-red-50"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]),
+
+html[data-theme="light"] a.bg-red-600:hover:not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a.bg-red-500:hover:not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a.bg-red-700:hover:not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a[class*="bg-red-600"]:hover:not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a[class*="bg-red-500"]:hover:not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a[class*="hover:bg-red-"]:hover:not(.login-submit-btn):not([class*="rounded-full"][class*="border-2"]):not(nav *):not(header *),
+
+html[data-theme="light"] a[class*="bg-red-600/"]:hover:not(aside *):not(nav *):not(.landing-hero *),
+
+html[data-theme="light"] a[class*="bg-red-500/"]:hover:not(aside *):not(nav *):not(.landing-hero *),
+
+html[data-theme="light"] label.bg-red-600:hover:not(.login-submit-btn):not([class*="rounded-full"]),
+
+html[data-theme="light"] label[class*="bg-red-600"]:hover:not(.login-submit-btn):not([class*="rounded-full"]),
+
+html[data-theme="light"] label[class*="bg-red-500"]:hover:not(.login-submit-btn):not([class*="rounded-full"]),
+
+html[data-theme="light"] label[class*="hover:bg-red-"]:hover:not(.login-submit-btn):not([class*="rounded-full"]) {
+
+  background-color: #dc2626 !important;
+
+  border: 1.5px solid #dc2626 !important;
+
+  color: #ffffff !important;
+
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35) !important;
+
+}
+
+
+
+html[data-theme="light"] .btn-action-red:hover:not(:disabled) *,
+
+html[data-theme="light"] button.btn-action-red:hover:not(:disabled) *,
+
+html[data-theme="light"] button[title*="Delete" i]:hover:not(:disabled):not(aside *) *,
+
+html[data-theme="light"] button[aria-label*="Delete" i]:hover:not(:disabled):not(aside *) *,
+
+html[data-theme="light"] button[title*="Reject" i]:hover:not(:disabled):not(aside *) *,
+
+html[data-theme="light"] button[aria-label*="Reject" i]:hover:not(:disabled):not(aside *) *,
+
+html[data-theme="light"] button[title*="Cancel" i]:hover:not(:disabled):not(aside *):not(.fixed.top-20 button) *,
+
+html[data-theme="light"] button[aria-label*="Cancel" i]:hover:not(:disabled):not(aside *):not(.fixed.top-20 button) *,
+
+html[data-theme="light"] button.btn-reject:hover:not(:disabled) *,
+
+html[data-theme="light"] button.btn-cancel:hover:not(:disabled) *,
+
+html[data-theme="light"] button.btn-delete:hover:not(:disabled) *,
+
+html[data-theme="light"] button.bg-red-600:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-500:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-700:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-600"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-500"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="hover:bg-red-"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button.bg-red-600\/15:not(:disabled):hover:not(.landing-hero *):not(aside *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] button[class*="bg-red-50"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *):not(.booking-branch-card *):not(.booking-selection-card *) *,
+
+html[data-theme="light"] a.bg-red-600:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a.bg-red-500:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a.bg-red-700:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a[class*="bg-red-600"]:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a[class*="bg-red-500"]:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a[class*="hover:bg-red-"]:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] a[class*="bg-red-600/"]:hover:not(aside *):not(nav *):not(.landing-hero *),
+
+html[data-theme="light"] a[class*="bg-red-500/"]:hover:not(aside *):not(nav *):not(.landing-hero *),
+
+html[data-theme="light"] label.bg-red-600:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] label[class*="bg-red-600"]:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] label[class*="bg-red-500"]:hover:not([class*="rounded-full"]) *,
+
+html[data-theme="light"] label[class*="hover:bg-red-"]:hover:not([class*="rounded-full"]) * {
+
+  color: #ffffff !important;
+
+  stroke: #ffffff !important;
+
+}
+
+
+
+html[data-theme="light"] .btn-action-red:hover:not(:disabled) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] .btn-action-red:hover:not(:disabled) svg path[fill]:not([fill="none"]),
+
+html[data-theme="light"] button[class*="bg-red-"]:hover:not(:disabled):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] button[class*="bg-red-"]:hover:not(:disabled):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]) svg path[fill]:not([fill="none"]),
+
+html[data-theme="light"] button[class*="hover:bg-red-"]:hover:not(:disabled):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] button[class*="hover:bg-red-"]:hover:not(:disabled):not(.booking-branch-card):not([class*="booking-branch-card"]):not(.booking-selection-card):not([class*="booking-card"]) svg path[fill]:not([fill="none"]) {
+
+  fill: #ffffff !important;
+
+}
+
+
+
+/* ── 10D. BLUE Action Buttons (Details / Chat / Mark Done / Send Stock / Export) ── */
+/* Resting state: light blue bg, blue outline, blue text/icon */
+html[data-theme="light"] .btn-action-blue,
+html[data-theme="light"] button.btn-action-blue,
+html[data-theme="light"] button.bg-blue-600:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-blue-500:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-blue-700:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-blue-600"]:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-blue-500"]:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="hover:bg-blue-"]:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-blue-600\/20:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-blue-500\/20:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-blue-600/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-blue-500/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-blue-50 "]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]),
+html[data-theme="light"] button[class$="bg-blue-50"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]),
+html[data-theme="light"] a.bg-blue-600:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a.bg-blue-500:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a.bg-blue-700:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a[class*="bg-blue-600"]:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a[class*="bg-blue-500"]:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a[class*="hover:bg-blue-"]:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a[class*="bg-blue-600/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-blue-500/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] label.bg-blue-600:not([class*="rounded-full"]),
+html[data-theme="light"] label[class*="bg-blue-600"]:not([class*="rounded-full"]),
+html[data-theme="light"] label[class*="bg-blue-500"]:not([class*="rounded-full"]) {
+  background-color: #eff6ff !important;
+  border: 1.5px solid #2563eb !important;
+  color: #1d4ed8 !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+
+html[data-theme="light"] .btn-action-blue *,
+html[data-theme="light"] button.btn-action-blue *,
+html[data-theme="light"] button.bg-blue-600:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-blue-500:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-blue-700:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-blue-600"]:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-blue-500"]:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="hover:bg-blue-"]:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-blue-600\/20:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-blue-500\/20:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[class*="bg-blue-600/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-blue-500/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-blue-50 "]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]) *,
+html[data-theme="light"] button[class$="bg-blue-50"]:not(aside *):not(nav *):not(.landing-hero *):not([class*="rounded-full"]):not([class*="w-11"]) *,
+html[data-theme="light"] a.bg-blue-600:not([class*="rounded-full"]) *,
+html[data-theme="light"] a.bg-blue-500:not([class*="rounded-full"]) *,
+html[data-theme="light"] a.bg-blue-700:not([class*="rounded-full"]) *,
+html[data-theme="light"] a[class*="bg-blue-600"]:not([class*="rounded-full"]) *,
+html[data-theme="light"] a[class*="bg-blue-500"]:not([class*="rounded-full"]) *,
+html[data-theme="light"] a[class*="hover:bg-blue-"]:not([class*="rounded-full"]) *,
+html[data-theme="light"] a[class*="bg-blue-600/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a[class*="bg-blue-500/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] label.bg-blue-600:not([class*="rounded-full"]) *,
+html[data-theme="light"] label[class*="bg-blue-600"]:not([class*="rounded-full"]) *,
+html[data-theme="light"] label[class*="bg-blue-500"]:not([class*="rounded-full"]) * {
+  color: #1d4ed8 !important;
+  stroke: currentColor;
+}
+
+/* Hover state: solid blue fill, crisp white text and icon */
+html[data-theme="light"] .btn-action-blue:hover:not(:disabled),
+html[data-theme="light"] button.btn-action-blue:hover:not(:disabled),
+html[data-theme="light"] button.bg-blue-600:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-blue-500:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-blue-700:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-blue-600"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-blue-500"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="hover:bg-blue-"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="w-10"]):not([class*="w-9"]):not([class*="w-8"]):not([class*="h-6"][class*="rounded-full"]):not([class*="rounded-full"]):not(nav *):not(header *):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-blue-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-blue-500\/20:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-blue-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-blue-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-blue-50"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a.bg-blue-600:hover:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a.bg-blue-500:hover:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a.bg-blue-700:hover:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a[class*="bg-blue-600"]:hover:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a[class*="bg-blue-500"]:hover:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a[class*="hover:bg-blue-"]:hover:not([class*="rounded-full"]):not(nav *):not(header *),
+html[data-theme="light"] a[class*="bg-blue-600/"]:hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] a[class*="bg-blue-500/"]:hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] label.bg-blue-600:hover:not([class*="rounded-full"]),
+html[data-theme="light"] label[class*="bg-blue-600"]:hover:not([class*="rounded-full"]),
+html[data-theme="light"] label[class*="bg-blue-500"]:hover:not([class*="rounded-full"]) {
+  background-color: #2563eb !important;
+  border: 1.5px solid #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+}
+
+html[data-theme="light"] .btn-action-blue:hover:not(:disabled) *,
+html[data-theme="light"] button.btn-action-blue:hover:not(:disabled) *,
+html[data-theme="light"] button.bg-blue-600:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-blue-500:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-blue-700:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-blue-600"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="bg-blue-500"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button[class*="hover:bg-blue-"]:not(:disabled):hover:not([role="switch"]):not([class*="w-11"]):not([class*="rounded-full"]) *,
+html[data-theme="light"] button.bg-blue-600\/20:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button.bg-blue-500\/20:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[class*="bg-blue-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-blue-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-blue-50"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a.bg-blue-600:hover:not([class*="rounded-full"]) *,
+html[data-theme="light"] a.bg-blue-500:hover:not([class*="rounded-full"]) *,
+html[data-theme="light"] a.bg-blue-700:hover:not([class*="rounded-full"]) *,
+html[data-theme="light"] a[class*="bg-blue-600"]:hover:not([class*="rounded-full"]) *,
+html[data-theme="light"] a[class*="bg-blue-500"]:hover:not([class*="rounded-full"]) *,
+html[data-theme="light"] a[class*="hover:bg-blue-"]:hover:not([class*="rounded-full"]) *,
+html[data-theme="light"] a[class*="bg-blue-600/"]:hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] a[class*="bg-blue-500/"]:hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] label.bg-blue-600:hover:not([class*="rounded-full"]) *,
+html[data-theme="light"] label[class*="bg-blue-600"]:hover:not([class*="rounded-full"]) *,
+html[data-theme="light"] label[class*="bg-blue-500"]:hover:not([class*="rounded-full"]) * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html[data-theme="light"] .btn-action-blue:hover:not(:disabled) svg[fill]:not([fill="none"]),
+html[data-theme="light"] .btn-action-blue:hover:not(:disabled) svg path[fill]:not([fill="none"]),
+html[data-theme="light"] button[class*="bg-blue-"]:hover:not(:disabled) svg[fill]:not([fill="none"]),
+html[data-theme="light"] button[class*="bg-blue-"]:hover:not(:disabled) svg path[fill]:not([fill="none"]) {
+  fill: #ffffff !important;
+}
+
+/* ── 10E. Archive, View Details & Muted Gray Buttons (Dedicated Charcoal Gray Outline Style) ── */
+
+/* Resting state: subtle light bg, charcoal-gray outline, readable charcoal-gray text/icon */
+
+html[data-theme="light"] .btn-action-gray:not(:hover),
+
+html[data-theme="light"] button.btn-action-gray:not(:hover),
+
+html[data-theme="light"] .btn-view-details:not(:hover),
+
+html[data-theme="light"] button.btn-view-details:not(:hover),
+
+html[data-theme="light"] .btn-action-refresh:not(:hover),
+
+html[data-theme="light"] button.btn-action-refresh:not(:hover),
+
+html[data-theme="light"] .btn-archive-action:not(:hover),
+
+html[data-theme="light"] button.btn-archive-action:not(:hover),
+
+html[data-theme="light"] button[title*="Archive" i]:not(:hover):not(.landing-hero *):not(aside *),
+
+html[data-theme="light"] button[aria-label*="Archive" i]:not(:hover):not(.landing-hero *):not(aside *),
+
+html[data-theme="light"] button[title*="Details" i]:not(:hover):not(.landing-hero *):not(aside *),
+
+html[data-theme="light"] button[aria-label*="Details" i]:not(:hover):not(.landing-hero *):not(aside *) {
+
   background-color: #f8fafc !important;
+
+  border: 1.5px solid #64748b !important;
+
+  color: #334155 !important;
+
+  font-weight: 600 !important;
+
+  box-shadow: none !important;
+
+  transition: all 0.2s ease !important;
+
+}
+
+
+
+html[data-theme="light"] .btn-action-gray:not(:hover) *,
+
+html[data-theme="light"] button.btn-action-gray:not(:hover) *,
+
+html[data-theme="light"] .btn-view-details:not(:hover) *,
+
+html[data-theme="light"] button.btn-view-details:not(:hover) *,
+
+html[data-theme="light"] .btn-action-refresh:not(:hover) *,
+
+html[data-theme="light"] button.btn-action-refresh:not(:hover) *,
+
+html[data-theme="light"] .btn-archive-action:not(:hover) *,
+
+html[data-theme="light"] button.btn-archive-action:not(:hover) *,
+
+html[data-theme="light"] button[title*="Archive" i]:not(:hover):not(.landing-hero *):not(aside *) *,
+
+html[data-theme="light"] button[aria-label*="Archive" i]:not(:hover):not(.landing-hero *):not(aside *) *,
+
+html[data-theme="light"] button[title*="Details" i]:not(:hover):not(.landing-hero *):not(aside *) *,
+
+html[data-theme="light"] button[aria-label*="Details" i]:not(:hover):not(.landing-hero *):not(aside *) * {
+
+  color: #334155 !important;
+
+  stroke: currentColor;
+
+}
+
+
+
+/* Hover state: solid charcoal-gray fill, crisp white text and icon */
+
+html[data-theme="light"] .btn-action-gray:hover:not(:disabled),
+
+html[data-theme="light"] button.btn-action-gray:hover:not(:disabled),
+
+html[data-theme="light"] .btn-view-details:hover:not(:disabled),
+
+html[data-theme="light"] button.btn-view-details:hover:not(:disabled),
+
+html[data-theme="light"] .btn-action-refresh:hover:not(:disabled),
+
+html[data-theme="light"] button.btn-action-refresh:hover:not(:disabled),
+
+html[data-theme="light"] .btn-archive-action:hover:not(:disabled),
+
+html[data-theme="light"] button.btn-archive-action:hover:not(:disabled),
+
+html[data-theme="light"] button[title*="Archive" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+
+html[data-theme="light"] button[aria-label*="Archive" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+
+html[data-theme="light"] button[title*="Details" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+
+html[data-theme="light"] button[aria-label*="Details" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) {
+
+  background-color: #334155 !important;
+
+  border: 1.5px solid #334155 !important;
+
+  color: #ffffff !important;
+
+  box-shadow: 0 4px 12px rgba(51, 65, 85, 0.3) !important;
+
+}
+
+
+
+html[data-theme="light"] .btn-action-gray:hover:not(:disabled) *,
+
+html[data-theme="light"] button.btn-action-gray:hover:not(:disabled) *,
+
+html[data-theme="light"] .btn-view-details:hover:not(:disabled) *,
+
+html[data-theme="light"] button.btn-view-details:hover:not(:disabled) *,
+
+html[data-theme="light"] .btn-action-refresh:hover:not(:disabled) *,
+
+html[data-theme="light"] button.btn-action-refresh:hover:not(:disabled) *,
+
+html[data-theme="light"] .btn-archive-action:hover:not(:disabled) *,
+
+html[data-theme="light"] button.btn-archive-action:hover:not(:disabled) *,
+
+html[data-theme="light"] button[title*="Archive" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+
+html[data-theme="light"] button[aria-label*="Archive" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+
+html[data-theme="light"] button[title*="Details" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+
+html[data-theme="light"] button[aria-label*="Details" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) * {
+
+  color: #ffffff !important;
+
+  stroke: #ffffff !important;
+
+}
+
+
+
+html[data-theme="light"] .btn-action-gray:hover:not(:disabled) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] .btn-action-gray:hover:not(:disabled) svg path[fill]:not([fill="none"]),
+
+html[data-theme="light"] .btn-view-details:hover:not(:disabled) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] .btn-view-details:hover:not(:disabled) svg path[fill]:not([fill="none"]),
+
+html[data-theme="light"] .btn-archive-action:hover:not(:disabled) svg[fill]:not([fill="none"]),
+
+html[data-theme="light"] .btn-archive-action:hover:not(:disabled) svg path[fill]:not([fill="none"]) {
+
+  fill: #ffffff !important;
+
+}
+
+
+
+/* ── 10F. Amber / Yellow Action Buttons (Alerts / Warnings) ── */
+html[data-theme="light"] .btn-action-amber,
+html[data-theme="light"] button.btn-action-amber,
+html[data-theme="light"] button.bg-amber-600\/20:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button.bg-amber-500\/20:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[class*="bg-amber-600/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-amber-500/"]:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-yellow-500/"]:not(aside *):not(nav *):not(.landing-hero *) {
+  background-color: #fffbeb !important;
+  border: 1.5px solid #d97706 !important;
+  color: #b45309 !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+
+html[data-theme="light"] .btn-action-amber *,
+html[data-theme="light"] button.btn-action-amber *,
+html[data-theme="light"] button[class*="bg-amber-600/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-amber-500/"]:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-yellow-500/"]:not(aside *):not(nav *):not(.landing-hero *) * {
+  color: #b45309 !important;
+}
+
+html[data-theme="light"] .btn-action-amber:hover:not(:disabled),
+html[data-theme="light"] button.btn-action-amber:hover:not(:disabled),
+html[data-theme="light"] button[class*="bg-amber-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-amber-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *),
+html[data-theme="light"] button[class*="bg-yellow-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) {
+  background-color: #d97706 !important;
+  border: 1.5px solid #d97706 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.28) !important;
+}
+
+html[data-theme="light"] .btn-action-amber:hover:not(:disabled) *,
+html[data-theme="light"] button.btn-action-amber:hover:not(:disabled) *,
+html[data-theme="light"] button[class*="bg-amber-600/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-amber-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) *,
+html[data-theme="light"] button[class*="bg-yellow-500/"]:not(:disabled):hover:not(aside *):not(nav *):not(.landing-hero *) * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Secondary Neutral / Outline / Gray Action Buttons */
+html[data-theme="light"] button.bg-gray-700\/40:not(.landing-hero *):not(aside *):not(nav *):not(.btn-archive-action):not([title*="Archive" i]):not(.btn-action-gray):not(.btn-view-details),
+html[data-theme="light"] button.bg-gray-800:not(.landing-hero *):not(aside *):not(nav *):not(.btn-archive-action):not([title*="Archive" i]):not(.btn-action-gray):not(.btn-view-details),
+html[data-theme="light"] a.bg-gray-700\/40:not(.landing-hero *):not(aside *):not(nav *),
+html[data-theme="light"] a.bg-gray-800:not(.landing-hero *):not(aside *):not(nav *) {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+html[data-theme="light"] button.bg-gray-700\/40:not(.landing-hero *):not(aside *):not(nav *):not(.btn-archive-action):not([title*="Archive" i]):not(.btn-action-gray):not(.btn-view-details) *,
+html[data-theme="light"] button.bg-gray-800:not(.landing-hero *):not(aside *):not(nav *):not(.btn-archive-action):not([title*="Archive" i]):not(.btn-action-gray):not(.btn-view-details) * {
+  color: inherit !important;
+}
+
+html[data-theme="light"] button.bg-gray-700\/40:not(:disabled):hover:not(.landing-hero *):not(aside *):not(nav *):not(.btn-archive-action):not([title*="Archive" i]):not(.btn-action-gray),
+html[data-theme="light"] button.bg-gray-800:not(:disabled):hover:not(.landing-hero *):not(aside *):not(nav *):not(.btn-archive-action):not([title*="Archive" i]):not(.btn-action-gray),
+html[data-theme="light"] a.bg-gray-700\/40:hover:not(.landing-hero *):not(aside *):not(nav *),
+html[data-theme="light"] a.bg-gray-800:hover:not(.landing-hero *):not(aside *):not(nav *) {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #94a3b8 !important;
   color: #0f172a !important;
 }
+
+/* ── 10G. Filter Tabs, Segment Buttons & Calendar View Controls ── */
+/* Inactive filter / view tab buttons */
+html[data-theme="light"] div[class*="bg-gray-800"] > button.text-gray-400,
+html[data-theme="light"] div[class*="bg-gray-900"] > button.text-gray-400,
+html[data-theme="light"] div[class*="bg-gray-800"] > button[class*="text-gray-400"],
+html[data-theme="light"] div[class*="bg-gray-900"] > button[class*="text-gray-400"] {
+  color: #475569 !important;
+  font-weight: 600 !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+html[data-theme="light"] div[class*="bg-gray-800"] > button.text-gray-400:hover,
+html[data-theme="light"] div[class*="bg-gray-900"] > button.text-gray-400:hover,
+html[data-theme="light"] div[class*="bg-gray-800"] > button[class*="text-gray-400"]:hover,
+html[data-theme="light"] div[class*="bg-gray-900"] > button[class*="text-gray-400"]:hover {
+  color: #0f172a !important;
+  background-color: #e2e8f0 !important;
+}
+
+/* Calendar Day Buttons in Appointment Manager */
+html[data-theme="light"] button.aspect-square:not([class*="bg-red"]) {
+  color: #334155 !important;
+}
+
+html[data-theme="light"] button.aspect-square:not([class*="bg-red"]):hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Global Light Mode Safety: Avoid hover:text-white vanishing on light backgrounds */
+html[data-theme="light"] button.hover\:text-white:not(.btn-view-details):not(.btn-action-gray):not([class*="bg-red"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="hover:bg-red"]):not([class*="hover:bg-emerald"]):not([class*="hover:bg-blue"]):not([class*="hover:bg-indigo"]):hover:not(.landing-hero *) {
+  color: #0f172a !important;
+}
+
+/* ── 10H. Disabled Buttons (Light Mode) ── */
+html[data-theme="light"] button:disabled,
+html[data-theme="light"] button[disabled] {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
 
 /* ── 11. Modal, Dialogs & SweetAlert2 ────────────────────────────────── */
 html[data-theme="light"] .fixed.inset-0[class*="bg-black"],
@@ -1075,24 +2363,176 @@ html[data-theme="light"] .fixed.top-20 button.border div.text-gray-500 {
 }
 
 /* Active / selected option card in light mode */
-html[data-theme="light"] button.border-red-500,
-html[data-theme="light"] button.border-red-600,
-html[data-theme="light"] .fixed.top-20 button.border-red-500,
-html[data-theme="light"] .fixed.top-20 button.border-red-600 {
-  background-color: #fff1f2 !important;
-  border-color: #dc2626 !important;
-  box-shadow: 0 0 0 1px #dc2626 !important;
+
+/* Booking branch card: clean, neutral light/dark styling. NEVER turned solid red. */
+html[data-theme="light"] .booking-branch-card,
+html[data-theme="light"] button.booking-branch-card {
+  background-color: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
 }
 
-html[data-theme="light"] button.border-red-500 div,
-html[data-theme="light"] button.border-red-600 div {
+html[data-theme="light"] .booking-branch-card:hover:not(:disabled),
+html[data-theme="light"] button.booking-branch-card:hover:not(:disabled) {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Selected branch card: remains clean neutral white card. ONLY SelectedBadge indicates selection! */
+html[data-theme="light"] .booking-branch-card.booking-branch-selected,
+html[data-theme="light"] button.booking-branch-card.booking-branch-selected {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+html[data-theme="light"] .booking-branch-card:hover *,
+html[data-theme="light"] button.booking-branch-card:hover *,
+html[data-theme="light"] .booking-branch-card.booking-branch-selected *,
+html[data-theme="light"] button.booking-branch-card.booking-branch-selected * {
+  color: inherit;
+}
+
+/* Branch name: always dark #0f172a, never red or white */
+html[data-theme="light"] .booking-branch-card .branch-name,
+html[data-theme="light"] .booking-branch-card [class*="font-bold"],
+html[data-theme="light"] .booking-branch-card.booking-branch-selected .branch-name,
+html[data-theme="light"] .booking-branch-card:hover .branch-name {
   color: #0f172a !important;
 }
 
-html[data-theme="light"] button.border-red-500 div.text-red-400,
-html[data-theme="light"] button.border-red-600 div.text-red-400 {
-  color: #dc2626 !important;
+/* Branch pin icon: always neutral slate #64748b on #f1f5f9, never red */
+html[data-theme="light"] .booking-branch-card .branch-icon-pin,
+html[data-theme="light"] .booking-branch-card.booking-branch-selected .branch-icon-pin,
+html[data-theme="light"] .booking-branch-card:hover .branch-icon-pin {
+  color: #64748b !important;
+  background-color: #f1f5f9 !important;
 }
+
+html[data-theme="light"] .booking-branch-card .branch-icon-pin *,
+html[data-theme="light"] .booking-branch-card.booking-branch-selected .branch-icon-pin *,
+html[data-theme="light"] .booking-branch-card:hover .branch-icon-pin * {
+  color: #64748b !important;
+  stroke: #64748b !important;
+}
+
+/* Branch address & hours */
+html[data-theme="light"] .booking-branch-card .branch-address,
+html[data-theme="light"] .booking-branch-card .branch-hours,
+html[data-theme="light"] .booking-branch-card:hover .branch-address,
+html[data-theme="light"] .booking-branch-card:hover .branch-hours {
+  color: #64748b !important;
+}
+
+/* Branch slots: green #059669 */
+html[data-theme="light"] .booking-branch-card .branch-slots,
+html[data-theme="light"] .booking-branch-card:hover .branch-slots {
+  color: #059669 !important;
+}
+
+/* View in Map button: blue outline pill normally, solid blue on hover with white text */
+html[data-theme="light"] .booking-branch-card .branch-map-btn,
+html[data-theme="light"] .booking-branch-card a[href*="google.com/maps"] {
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #2563eb !important;
+}
+
+html[data-theme="light"] .booking-branch-card .branch-map-btn *,
+html[data-theme="light"] .booking-branch-card a[href*="google.com/maps"] * {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+}
+
+html[data-theme="light"] .booking-branch-card .branch-map-btn:hover,
+html[data-theme="light"] .booking-branch-card a[href*="google.com/maps"]:hover {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .booking-branch-card .branch-map-btn:hover *,
+html[data-theme="light"] .booking-branch-card a[href*="google.com/maps"]:hover * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Other booking option cards (services, mode, employee, vehicle size) */
+html[data-theme="light"] .booking-selection-card,
+html[data-theme="light"] button.booking-selection-card {
+  background-color: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .booking-selection-card:hover:not(:disabled),
+html[data-theme="light"] button.booking-selection-card:hover:not(:disabled) {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Selected option cards: keep neutral card styling with small red SelectedBadge check */
+html[data-theme="light"] .booking-selection-card.booking-card-active,
+html[data-theme="light"] button.booking-selection-card.booking-card-active {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+
+
+html[data-theme="light"] .booking-selection-card:hover *,
+
+html[data-theme="light"] button.booking-selection-card:hover *,
+
+html[data-theme="light"] .booking-selection-card.booking-card-active *,
+
+html[data-theme="light"] button.booking-selection-card.booking-card-active * {
+
+  color: inherit;
+
+}
+
+
+
+html[data-theme="light"] .booking-selection-card [class*="font-bold"],
+
+html[data-theme="light"] .booking-selection-card [class*="font-semibold"] {
+
+  color: #0f172a !important;
+
+}
+
+
+
+html[data-theme="light"] .booking-selection-card.booking-card-active [class*="font-bold"],
+
+html[data-theme="light"] .booking-selection-card.booking-card-active [class*="font-semibold"],
+
+html[data-theme="light"] .booking-selection-card [class*="text-red-"] {
+
+  color: #dc2626 !important;
+
+}
+
+
+
+html[data-theme="light"] .booking-selection-card [class*="text-gray-500"],
+
+html[data-theme="light"] .booking-selection-card [class*="text-gray-400"] {
+
+  color: #64748b !important;
+
+}
+
+
 
 /* Modal footer Back button in light mode */
 html[data-theme="light"] .fixed.top-20 button.border-white\/10 {
@@ -1347,3 +2787,407 @@ html[data-theme="light"] .bg-black\/60.backdrop-blur-md {
   color: #ffffff !important;
 }
 
+
+
+/* ── Specific Overrides for Sign In Back Button, Logout, & Booking Filters ── */
+/* Back button on Sign In: clean red highlight on hover, never bright white */
+.signin-back-btn {
+  transition: all 0.25s ease-in-out !important;
+}
+.signin-back-btn:hover {
+  background-color: rgba(220, 38, 38, 0.12) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
+}
+.signin-back-btn:hover svg {
+  color: #ef4444 !important;
+  stroke: #ef4444 !important;
+}
+
+/* Logout buttons across all accounts: red resting, red hover with light tint, NEVER white solid background */
+.logout-btn,
+button.logout-btn,
+html[data-theme="light"] .logout-btn,
+html[data-theme="light"] button.logout-btn,
+html[data-theme="light"] aside .space-y-1 > button:last-child {
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+  color: #dc2626 !important;
+}
+
+.logout-btn *,
+button.logout-btn *,
+html[data-theme="light"] .logout-btn *,
+html[data-theme="light"] button.logout-btn *,
+html[data-theme="light"] aside .space-y-1 > button:last-child * {
+  color: #dc2626 !important;
+  stroke: #dc2626 !important;
+}
+
+.logout-btn:hover,
+button.logout-btn:hover,
+html[data-theme="light"] .logout-btn:hover,
+html[data-theme="light"] button.logout-btn:hover,
+html[data-theme="light"] aside .space-y-1 > button:last-child:hover {
+  background-color: #fef2f2 !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  color: #dc2626 !important;
+}
+
+.logout-btn:hover *,
+button.logout-btn:hover *,
+html[data-theme="light"] .logout-btn:hover *,
+html[data-theme="light"] button.logout-btn:hover *,
+html[data-theme="light"] aside .space-y-1 > button:last-child:hover * {
+  color: #dc2626 !important;
+  stroke: #dc2626 !important;
+}
+
+/* Customer Booking Filter Buttons (All, Confirmed, Pending, Done, Cancelled) */
+html[data-theme="light"] .booking-filter-btn:not(.booking-filter-active) {
+  background-color: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .booking-filter-btn:not(.booking-filter-active):hover {
+  background-color: #fef2f2 !important;
+  border-color: #dc2626 !important;
+  color: #dc2626 !important;
+}
+
+html[data-theme="light"] .booking-filter-active {
+  background-color: #dc2626 !important;
+  border: 2px solid #b91c1c !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+}
+html[data-theme="light"] .booking-filter-active * {
+  color: #ffffff !important;
+}
+
+
+/* ==========================================================================
+   HIGH-SPECIFICITY OVERRIDES FOR BUTTON CONTRAST, SIDEBAR & LOGOUT
+   ========================================================================== */
+
+/* 1. View Details Buttons: solid charcoal fill with crisp white text & white icon */
+html[data-theme="light"] .btn-view-details:hover:not(:disabled),
+html[data-theme="light"] button.btn-view-details:hover:not(:disabled),
+html[data-theme="light"] .btn-action-gray.btn-view-details:hover:not(:disabled),
+html[data-theme="light"] button.btn-action-gray.btn-view-details:hover:not(:disabled),
+html[data-theme="light"] button[title*="Details" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[aria-label*="Details" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) {
+  background-color: #334155 !important;
+  border: 1.5px solid #334155 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(51, 65, 85, 0.3) !important;
+}
+
+html[data-theme="light"] .btn-view-details:hover:not(:disabled) *,
+html[data-theme="light"] button.btn-view-details:hover:not(:disabled) *,
+html[data-theme="light"] .btn-action-gray.btn-view-details:hover:not(:disabled) *,
+html[data-theme="light"] button.btn-action-gray.btn-view-details:hover:not(:disabled) *,
+html[data-theme="light"] button[title*="Details" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[aria-label*="Details" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* 2. Refresh Buttons: solid semantic background with white text & icon */
+html[data-theme="light"] .btn-action-refresh:hover:not(:disabled),
+html[data-theme="light"] button.btn-action-refresh:hover:not(:disabled),
+html[data-theme="light"] button[title*="Refresh" i]:not(:disabled):hover:not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[aria-label*="Refresh" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) {
+  background-color: #dc2626 !important;
+  border: 1.5px solid #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+}
+
+html[data-theme="light"] .btn-action-refresh:hover:not(:disabled) *,
+html[data-theme="light"] button.btn-action-refresh:hover:not(:disabled) *,
+html[data-theme="light"] button[title*="Refresh" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[aria-label*="Refresh" i]:not(:disabled):hover:not(.landing-hero *):not(aside *) * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* 3. Sidebar Nav Item Active State: Left border only, NO rectangular outline, NO pink box */
+html aside nav a,
+html aside nav button,
+html aside nav a:focus,
+html aside nav button:focus,
+html aside nav a:focus-visible,
+html aside nav button:focus-visible,
+html aside nav a:active,
+html aside nav button:active,
+html[data-theme="light"] aside nav a,
+html[data-theme="light"] aside nav button,
+html[data-theme="light"] aside nav a:focus,
+html[data-theme="light"] aside nav button:focus,
+html[data-theme="light"] aside nav a:focus-visible,
+html[data-theme="light"] aside nav button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+}
+
+html[data-theme="light"] aside nav button.sidebar-nav-item.border-red-600,
+html[data-theme="light"] aside nav a.sidebar-nav-item.border-red-600,
+html[data-theme="light"] aside nav button.border-red-600,
+html[data-theme="light"] aside nav a.border-red-600 {
+  background: linear-gradient(to right, rgba(220, 38, 38, 0.08), transparent) !important;
+  border-left: 4px solid #dc2626 !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: #1e293b !important;
+}
+
+html[data-theme="light"] aside nav button.sidebar-nav-item.border-red-600 svg,
+html[data-theme="light"] aside nav a.sidebar-nav-item.border-red-600 svg,
+html[data-theme="light"] aside nav button.border-red-600 svg,
+html[data-theme="light"] aside nav a.border-red-600 svg {
+  color: #dc2626 !important;
+  stroke: #dc2626 !important;
+}
+
+html[data-theme="light"] aside nav button.sidebar-nav-item.border-red-600 span,
+html[data-theme="light"] aside nav a.sidebar-nav-item.border-red-600 span,
+html[data-theme="light"] aside nav button.border-red-600 span,
+html[data-theme="light"] aside nav a.border-red-600 span {
+  color: #1e293b !important;
+}
+
+/* 4. Logout: Red default and RED hover in Light & Dark mode */
+/* Dark Mode: Transparent background, red text & icon, NO hover background, NO white text, NO glow, NO scaling */
+html:not([data-theme="light"]) .logout-btn,
+html:not([data-theme="light"]) button.logout-btn,
+html:not([data-theme="light"]) .sidebar-logout-btn,
+html:not([data-theme="light"]) aside .logout-btn,
+html:not([data-theme="light"]) aside button.logout-btn,
+html:not([data-theme="light"]) aside .sidebar-logout-btn {
+  background-color: transparent !important;
+  color: #ef4444 !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+html:not([data-theme="light"]) .logout-btn *,
+html:not([data-theme="light"]) button.logout-btn *,
+html:not([data-theme="light"]) .sidebar-logout-btn *,
+html:not([data-theme="light"]) aside .logout-btn *,
+html:not([data-theme="light"]) aside button.logout-btn *,
+html:not([data-theme="light"]) aside .sidebar-logout-btn * {
+  color: #ef4444 !important;
+  stroke: #ef4444 !important;
+  fill: none !important;
+  filter: none !important;
+}
+
+html:not([data-theme="light"]) .logout-btn:hover,
+html:not([data-theme="light"]) button.logout-btn:hover,
+html:not([data-theme="light"]) .sidebar-logout-btn:hover,
+html:not([data-theme="light"]) aside .logout-btn:hover,
+html:not([data-theme="light"]) aside button.logout-btn:hover,
+html:not([data-theme="light"]) aside .sidebar-logout-btn:hover {
+  background-color: transparent !important;
+  color: #ef4444 !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+html:not([data-theme="light"]) .logout-btn:hover *,
+html:not([data-theme="light"]) button.logout-btn:hover *,
+html:not([data-theme="light"]) .sidebar-logout-btn:hover *,
+html:not([data-theme="light"]) aside .logout-btn:hover *,
+html:not([data-theme="light"]) aside button.logout-btn:hover *,
+html:not([data-theme="light"]) aside .sidebar-logout-btn:hover * {
+  color: #ef4444 !important;
+  stroke: #ef4444 !important;
+  fill: none !important;
+  filter: none !important;
+}
+
+/* Light Mode: Transparent default, red text & icon; subtle #fef2f2 on hover, red text & icon NEVER white */
+html[data-theme="light"] .logout-btn,
+html[data-theme="light"] button.logout-btn,
+html[data-theme="light"] .sidebar-logout-btn,
+html[data-theme="light"] aside .logout-btn,
+html[data-theme="light"] aside button.logout-btn,
+html[data-theme="light"] aside .sidebar-logout-btn,
+html[data-theme="light"] aside .space-y-1 > button:last-child {
+  background-color: transparent !important;
+  color: #dc2626 !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+html[data-theme="light"] .logout-btn *,
+html[data-theme="light"] button.logout-btn *,
+html[data-theme="light"] .sidebar-logout-btn *,
+html[data-theme="light"] aside .logout-btn *,
+html[data-theme="light"] aside button.logout-btn *,
+html[data-theme="light"] aside .sidebar-logout-btn *,
+html[data-theme="light"] aside .space-y-1 > button:last-child * {
+  color: #dc2626 !important;
+  stroke: #dc2626 !important;
+  fill: none !important;
+  filter: none !important;
+}
+
+html[data-theme="light"] .logout-btn:hover,
+html[data-theme="light"] button.logout-btn:hover,
+html[data-theme="light"] .sidebar-logout-btn:hover,
+html[data-theme="light"] aside .logout-btn:hover,
+html[data-theme="light"] aside button.logout-btn:hover,
+html[data-theme="light"] aside .sidebar-logout-btn:hover,
+html[data-theme="light"] aside .space-y-1 > button:last-child:hover {
+  background-color: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+html[data-theme="light"] .logout-btn:hover *,
+html[data-theme="light"] button.logout-btn:hover *,
+html[data-theme="light"] .sidebar-logout-btn:hover *,
+html[data-theme="light"] aside .logout-btn:hover *,
+html[data-theme="light"] aside button.logout-btn:hover *,
+html[data-theme="light"] aside .sidebar-logout-btn:hover *,
+html[data-theme="light"] aside .space-y-1 > button:last-child:hover * {
+  color: #dc2626 !important;
+  stroke: #dc2626 !important;
+  fill: none !important;
+  filter: none !important;
+}
+
+/* ==========================================================================
+   FINAL BULLETPROOF OVERRIDES: VIEW DETAILS & CUSTOMER BOOKING
+   ========================================================================== */
+
+/* B. View Details Buttons: solid charcoal fill with WHITE text & WHITE icon on hover */
+html[data-theme="light"] .btn-view-details:not(:hover),
+html[data-theme="light"] button.btn-view-details:not(:hover),
+html[data-theme="light"] .btn-action-gray.btn-view-details:not(:hover),
+html[data-theme="light"] button.btn-action-gray.btn-view-details:not(:hover) {
+  background-color: #f8fafc !important;
+  border: 1.5px solid #64748b !important;
+  color: #334155 !important;
+}
+
+html[data-theme="light"] .btn-view-details:not(:hover) *,
+html[data-theme="light"] button.btn-view-details:not(:hover) *,
+html[data-theme="light"] .btn-action-gray.btn-view-details:not(:hover) *,
+html[data-theme="light"] button.btn-action-gray.btn-view-details:not(:hover) * {
+  color: #334155 !important;
+  stroke: currentColor !important;
+}
+
+html[data-theme="light"] .btn-view-details:hover,
+html[data-theme="light"] button.btn-view-details:hover,
+html[data-theme="light"] .btn-action-gray.btn-view-details:hover,
+html[data-theme="light"] button.btn-action-gray.btn-view-details:hover,
+html .btn-view-details:hover,
+html button.btn-view-details:hover,
+html .btn-action-gray.btn-view-details:hover,
+html button.btn-action-gray.btn-view-details:hover,
+html[data-theme="light"] button[title*="Details" i]:hover:not(:disabled):not(.landing-hero *):not(aside *),
+html[data-theme="light"] button[aria-label*="Details" i]:hover:not(:disabled):not(.landing-hero *):not(aside *) {
+  background-color: #334155 !important;
+  border: 1.5px solid #334155 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(51, 65, 85, 0.3) !important;
+}
+
+html[data-theme="light"] .btn-view-details:hover *,
+html[data-theme="light"] button.btn-view-details:hover *,
+html[data-theme="light"] .btn-action-gray.btn-view-details:hover *,
+html[data-theme="light"] button.btn-action-gray.btn-view-details:hover *,
+html[data-theme="light"] .btn-view-details:hover .btn-view-details-label,
+html[data-theme="light"] button.btn-view-details:hover .btn-view-details-label,
+html .btn-view-details:hover *,
+html button.btn-view-details:hover *,
+html .btn-action-gray.btn-view-details:hover *,
+html button.btn-action-gray.btn-view-details:hover *,
+html .btn-view-details:hover .btn-view-details-label,
+html button.btn-view-details:hover .btn-view-details-label,
+html[data-theme="light"] button[title*="Details" i]:hover:not(:disabled):not(.landing-hero *):not(aside *) *,
+html[data-theme="light"] button[aria-label*="Details" i]:hover:not(:disabled):not(.landing-hero *):not(aside *) * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  fill: #ffffff !important;
+}
+
+/* C. Customer Booking Cards: Clean neutral card matching reference - NO RED CARDS */
+html[data-theme="light"] .booking-selection-card,
+html[data-theme="light"] button.booking-selection-card,
+html[data-theme="light"] .booking-branch-card,
+html[data-theme="light"] button.booking-branch-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] .booking-selection-card:hover,
+html[data-theme="light"] button.booking-selection-card:hover,
+html[data-theme="light"] .booking-branch-card:hover,
+html[data-theme="light"] button.booking-branch-card:hover {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+html[data-theme="light"] .booking-selection-card.booking-card-active,
+html[data-theme="light"] button.booking-selection-card.booking-card-active,
+html[data-theme="light"] .booking-branch-card.booking-branch-selected,
+html[data-theme="light"] button.booking-branch-card.booking-branch-selected {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Ensure text and icons inside booking cards stay neutral */
+html[data-theme="light"] .booking-selection-card:not(.booking-filter-btn):not(.btn-action-red) *,
+html[data-theme="light"] button.booking-selection-card:not(.booking-filter-btn):not(.btn-action-red) *,
+html[data-theme="light"] .booking-branch-card *,
+html[data-theme="light"] button.booking-branch-card * {
+  border-color: inherit;
+}
+
+/* SelectedBadge: sole red selection indicator */
+.selected-badge,
+.booking-selection-card .selected-badge,
+.booking-branch-card .selected-badge {
+  background-color: #dc2626 !important;
+  border: 2px solid #f87171 !important;
+  color: #ffffff !important;
+}
+
+.selected-badge svg,
+.booking-selection-card .selected-badge svg,
+.booking-branch-card .selected-badge svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}

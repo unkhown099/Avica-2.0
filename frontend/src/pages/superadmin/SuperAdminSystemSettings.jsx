@@ -540,7 +540,7 @@ const handleSave = async () => {
                 type="button"
                 onClick={handleSave}
                 disabled={saving || loading || !formState}
-                className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60 flex items-center gap-2"
+                className="btn-action-green rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 flex items-center gap-2"
               >
                 {saving ? (
                   <>

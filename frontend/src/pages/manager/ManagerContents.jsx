@@ -328,7 +328,7 @@ function ManagerContents() {
             <button
               onClick={handleSaveSchedule}
               disabled={savingSchedule}
-              className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors"
+              className="btn-action-green w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all shadow-md"
             >
               {savingSchedule ? "Saving..." : "Save Schedule Settings"}
             </button>
@@ -355,7 +355,7 @@ function ManagerContents() {
               <button
                 onClick={handleSaveSchedule}
                 disabled={savingSchedule}
-                className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors"
+                className="btn-action-green w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all shadow-md"
               >
                 {savingSchedule ? "Saving..." : "Save Schedule Settings"}
               </button>

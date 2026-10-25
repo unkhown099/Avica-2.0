@@ -239,7 +239,7 @@ export default function SuperAdminPlugin() {
             </div>
             <button
               onClick={() => setShowInstallModal(true)}
-              className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400"
+              className="btn-action-red rounded-2xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400"
             >
               + Install New Plugin
             </button>
@@ -531,7 +531,7 @@ export default function SuperAdminPlugin() {
                       selectedPlugin.settings,
                     )
                   }
-                  className="flex-1 rounded-xl bg-red-500 py-2 font-semibold text-white hover:bg-red-400"
+                  className="btn-action-green flex-1 rounded-xl bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-500"
                 >
                   Save Settings
                 </button>
@@ -679,7 +679,7 @@ export default function SuperAdminPlugin() {
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleInstall}
-                  className="flex-1 rounded-xl bg-red-500 py-2 font-semibold text-white hover:bg-red-400"
+                  className="btn-action-green flex-1 rounded-xl bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-500"
                 >
                   Install Plugin
                 </button>

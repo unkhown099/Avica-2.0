@@ -1330,7 +1330,7 @@ function PostsEditor() {
           <button
             onClick={handleSave}
             disabled={status === "saving"}
-            className="rounded-xl px-5 py-2 text-xs font-black bg-red-600 text-white hover:bg-red-700 transition-colors shadow-lg shadow-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-action-green rounded-xl px-5 py-2 text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {status === "saving" ? "Saving…" : "Save Changes"}
           </button>
@@ -1635,7 +1635,7 @@ function PagesEditor() {
           <button
             onClick={handleSave}
             disabled={status === "saving"}
-            className="flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-red-900/40 transition-all disabled:opacity-50"
+            className="btn-action-green flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-900/40 transition-all disabled:opacity-50"
           >
             {status === "saving" ? (
               <>
@@ -1716,7 +1716,7 @@ function PagesEditor() {
             type="button"
             onClick={handleSave}
             disabled={status === "saving"}
-            className="flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 px-6 py-2.5 text-xs font-black text-white shadow-xl shadow-red-900/40 transition-all disabled:opacity-50"
+            className="btn-action-green flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 px-6 py-2.5 text-xs font-black text-white shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50"
           >
             {status === "saving" ? "Saving…" : "Save All Changes"}
           </button>

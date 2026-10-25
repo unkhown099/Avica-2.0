@@ -36,6 +36,7 @@ function getRefreshToken() {
 }
 
 function setAccessToken(token) {
+  sessionStorage.setItem("access_token", token);
   localStorage.setItem("access_token", token);
 }
 

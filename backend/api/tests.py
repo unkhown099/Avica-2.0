@@ -1479,3 +1479,48 @@ class VehicleAnalysisTop10RecommendationsTests(TestCase):
 
 
 
+
+
+class BranchArchiveAndRestoreTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from rest_framework.test import APIClient
+        User = get_user_model()
+        self.client = APIClient()
+        self.admin = User.objects.create_superuser(
+            email="branch_admin@test.com",
+            password="AdminPassword123!"
+        )
+        self.client.force_authenticate(user=self.admin)
+        self.branch1 = Branch.objects.create(name="Active Branch 1", address="Addr 1", is_active=True)
+        self.branch2 = Branch.objects.create(name="Archived Branch 2", address="Addr 2", is_active=False)
+
+    def test_archive_branch_via_delete_soft_deletes(self):
+        res = self.client.delete(f"/branches/{self.branch1.id}/")
+        self.assertEqual(res.status_code, 200)
+        self.branch1.refresh_from_db()
+        self.assertFalse(self.branch1.is_active)
+        # Check record is still in database
+        self.assertTrue(Branch.objects.filter(id=self.branch1.id).exists())
+
+    def test_restore_branch_via_patch(self):
+        res = self.client.patch(f"/branches/{self.branch2.id}/", {"is_active": True}, format="json")
+        self.assertEqual(res.status_code, 200)
+        self.branch2.refresh_from_db()
+        self.assertTrue(self.branch2.is_active)
+
+    def test_branch_list_status_filtering(self):
+        # All
+        res = self.client.get("/branches/?status=all")
+        self.assertEqual(res.status_code, 200)
+        self.assertGreaterEqual(len(res.data), 2)
+
+        # Active only
+        res_active = self.client.get("/branches/?status=active")
+        self.assertEqual(res_active.status_code, 200)
+        self.assertTrue(all(b["is_active"] for b in res_active.data))
+
+        # Archived only
+        res_archived = self.client.get("/branches/?status=archived")
+        self.assertEqual(res_archived.status_code, 200)
+        self.assertTrue(all(not b["is_active"] for b in res_archived.data))

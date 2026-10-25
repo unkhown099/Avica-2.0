@@ -868,7 +868,7 @@ function StaffAppointments() {
                               actionLoading === b.id ||
                               !(assignedByBooking[b.id] || "").trim()
                             }
-                            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                            className="btn-action-green flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600 border border-emerald-600/40 text-emerald-400 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
                           >
                             {actionLoading === b.id ? (
                               <svg
@@ -910,7 +910,7 @@ function StaffAppointments() {
                           <button
                             onClick={() => handleReschedule(b)}
                             disabled={actionLoading === b.id}
-                            className="flex-1 flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+                            className="btn-action-indigo flex-1 flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
                           >
                             Reschedule
                           </button>
@@ -984,7 +984,7 @@ function StaffAppointments() {
                           <button
                             onClick={() => handleReschedule(b)}
                             disabled={actionLoading === b.id}
-                            className="w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+                            className="btn-action-indigo w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-600/40 text-indigo-300 hover:text-white text-xs font-semibold py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
                           >
                             Propose Reschedule
                           </button>
