@@ -510,7 +510,7 @@ function AccountSettings({ LayoutComponent }) {
                             <div className="z-10">
                                 <h2 className="text-2xl font-black text-white tracking-tight">{userData?.first_name} {userData?.last_name}</h2>
                                 <div className="mt-3 inline-flex items-center px-4 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl shadow-lg shadow-red-600/20">
-                                    {userData?.role_display || userData?.role}
+                                    {(userData?.role_display || userData?.role) === "Staff" ? "Cashier" : (userData?.role_display || userData?.role)}
                                 </div>
                             </div>
 

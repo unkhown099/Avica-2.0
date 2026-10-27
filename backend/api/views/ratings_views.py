@@ -9,6 +9,7 @@ from django.core.mail import BadHeaderError
 from django.utils.html import strip_tags
 from smtplib import SMTPException
 from html import escape
+from django.db.models import Q
 from api.models import Rating, Booking, Customer, QueueEntry
 
 
@@ -152,7 +153,7 @@ class ManagerBranchReviewsView(APIView):
 
         ratings = (
             Rating.objects.select_related("customer__user", "booking", "branch")
-            .filter(branch_id=staff.branch_id)
+            .filter(Q(branch_id=staff.branch_id) | Q(booking__branch_id=staff.branch_id))
             .order_by("-created_at")
         )
 
@@ -171,12 +172,39 @@ class ManagerBranchReviewsView(APIView):
                     "score": rating.score,
                     "comment": rating.comment or "",
                     "created_at": rating.created_at,
-                    "branch": rating.branch.name if rating.branch else "",
+                    "branch": rating.branch.name if rating.branch else (rating.booking.branch.name if rating.booking and rating.booking.branch else ""),
                     "service": rating.booking.service if rating.booking else "",
                     "customer_name": customer_name,
                     "customer_email": customer_email,
                     "response_status": rating.response_status,
                     "responded_at": rating.responded_at,
+                }
+            )
+
+        # Also include walk-in queue entries with rating_score that don't have a linked Rating
+        queue_ratings = (
+            QueueEntry.objects.select_related("customer_user", "branch")
+            .filter(
+                Q(branch_id=staff.branch_id) | Q(branch__isnull=True, branch_name=staff.branch.name if staff.branch else ""),
+                rating_score__isnull=False
+            )
+            .filter(Q(booking__isnull=True) | Q(booking__rating__isnull=True))
+            .order_by("-rated_at")
+        )
+        for q in queue_ratings:
+            customer_email = q.customer_user.email if q.customer_user else ""
+            data.append(
+                {
+                    "id": f"q_{q.id}",
+                    "score": q.rating_score,
+                    "comment": q.rating_comment or "",
+                    "created_at": q.rated_at or q.completed_at,
+                    "branch": q.branch.name if q.branch else q.branch_name,
+                    "service": q.service,
+                    "customer_name": q.customer_name or "Walk-in Customer",
+                    "customer_email": customer_email,
+                    "response_status": "responded" if q.rating_comment else "pending",
+                    "responded_at": q.rated_at,
                 }
             )
 

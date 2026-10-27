@@ -10,7 +10,7 @@ import usePagination from "../../hooks/usePagination";
 const roles = [
   "Admin",
   "Branch Manager",
-  "Staff",
+  "Cashier",
   "Employee",
   "Inventory",
   "Inventory Manager",
@@ -18,7 +18,7 @@ const roles = [
 
 const kpiRoles = [
   "Branch Manager",
-  "Staff",
+  "Cashier",
   "Employee",
   "Inventory",
   "Inventory Manager",

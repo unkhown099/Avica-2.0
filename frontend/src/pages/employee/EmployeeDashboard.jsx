@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import EmployeeLayout from "./EmployeeLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
 import ServiceChatModal from "../../components/ServiceChatModal.jsx";
+import { exportToCSV } from "../../components/admin/DashboardUI.jsx";
 
 function authHeaders() {
   const token =
@@ -298,11 +299,31 @@ function EmployeeDashboard() {
     return styles[type] || styles.info;
   };
 
+  const handleExportCSV = () => {
+    if (!bookings || bookings.length === 0) return;
+    const rows = bookings.map((b) => [
+      b.appointment_date || b.date || "—",
+      toDisplayTime(b.appointment_time || b.time),
+      b.customer_name || "—",
+      b.customer_phone || b.phone || "—",
+      b.service_name || b.service || "—",
+      b.vehicle_type || b.vehicle || "—",
+      b.plate_number || "—",
+      b.branch_name || b.branch || "—",
+      b.status || "—",
+    ]);
+    exportToCSV(
+      rows,
+      ["Date", "Time", "Customer", "Phone", "Service", "Vehicle", "Plate Number", "Branch", "Status"],
+      `employee_assigned_jobs_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+  };
+
   return (
     <EmployeeLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tight">
               Employee Dashboard
@@ -310,6 +331,24 @@ function EmployeeDashboard() {
             <p className="text-gray-400 mt-1">
               Live data of your assigned appointments
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-sm font-semibold shadow-sm"
+              title="Export assigned appointments to CSV"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export to CSV
+            </button>
+            <button
+              onClick={fetchBookings}
+              className="px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold"
+            >
+              Refresh
+            </button>
           </div>
         </div>
 

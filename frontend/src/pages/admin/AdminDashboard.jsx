@@ -2054,7 +2054,27 @@ export default function AdminDashboard({ dataScope = "admin" }) {
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 print:hidden" />
+          <div className="flex items-center gap-1.5 sm:gap-2 print:hidden">
+            <button
+              onClick={handleExportCSV}
+              className="btn-action-green flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-xs sm:text-sm font-semibold shadow-sm"
+              title="Export current view to CSV"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Export to CSV</span>
+            </button>
+            <button
+              onClick={handlePrintDashboard}
+              className="btn-action-gray flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-xs sm:text-sm font-semibold"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              <span>Print</span>
+            </button>
+          </div>
         </div>
 
         {/* View Switcher Tabs Bar */}

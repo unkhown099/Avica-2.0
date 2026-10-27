@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../../hooks/api";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
+import { exportToCSV } from "../../components/admin/DashboardUI.jsx";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -479,6 +480,25 @@ export default function SuperAdminDashboard() {
     fetchDashboard(); 
   }, []);
 
+  const handleExportCSV = () => {
+    if (!data) return;
+    const rows = [
+      ["Total Users", data?.users?.total ?? 0],
+      ["Customer Users", data?.users?.customers ?? 0],
+      ["Staff Users", data?.users?.staff ?? 0],
+      ["Active Sessions", data?.active_sessions ?? 0],
+      ["Avg Response Time (ms)", data?.avg_response_time ?? 0],
+      ["Error Rate", `${((data?.error_rate ?? 0) * 100).toFixed(1)}%`],
+      ["Database Status", data?.system_status?.database ?? "OK"],
+      ["Redis Status", data?.system_status?.redis ?? "OK"],
+      ["Storage Status", data?.system_status?.storage ?? "OK"],
+      ["CPU Usage", `${data?.server_metrics?.cpu ?? 0}%`],
+      ["Memory Usage", `${data?.server_metrics?.memory ?? 0}%`],
+      ["Disk Usage", `${data?.server_metrics?.disk ?? 0}%`],
+    ];
+    exportToCSV(rows, ["Metric / Component", "Value / Status"], `superadmin_system_metrics_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
   return (
     <SuperAdminLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-4 sm:-m-8 p-3 sm:p-8">
@@ -492,15 +512,27 @@ export default function SuperAdminDashboard() {
               Monitor system health, user analytics, and platform activity.
             </p>
           </div>
-          <button
-            onClick={fetchDashboard}
-            className="btn-action-refresh flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold w-fit"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-sm font-semibold shadow-sm"
+              title="Export system metrics to CSV"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export to CSV
+            </button>
+            <button
+              onClick={fetchDashboard}
+              className="btn-action-refresh flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold w-fit"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Error */}

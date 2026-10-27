@@ -32,6 +32,9 @@ class StaffSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         role = attrs.get("role")
+        if role == "Cashier":
+            role = "Staff"
+            attrs["role"] = "Staff"
         branch = attrs.get("branch")
         first_name = attrs.get("first_name")
         last_name = attrs.get("last_name")
@@ -136,3 +139,10 @@ class StaffSerializer(serializers.ModelSerializer):
             instance.user.save(update_fields=["password"])
 
         return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if data.get("role") == "Staff":
+            data["role"] = "Cashier"
+        data["role_display"] = "Cashier" if getattr(instance, "role", None) == "Staff" else (instance.get_role_display() if hasattr(instance, "get_role_display") else data.get("role"))
+        return data

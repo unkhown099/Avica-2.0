@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import StaffLayout from "./StaffLayout";
 import { API_BASE } from "../../hooks/useAuth.js";
+import { exportToCSV } from "../../components/admin/DashboardUI.jsx";
 
 function getAuthHeaders() {
   const token =
@@ -183,24 +184,52 @@ export default function StaffDashboard() {
     [dailyRevenuePoints],
   );
 
+  const handleExportCSV = () => {
+    const summaryRows = [
+      ["Metric", "Value"],
+      ["Cashier", dashboard?.staff?.name || "Cashier"],
+      ["Branch", dashboard?.staff?.branch_name || "—"],
+      ["Date", new Date().toLocaleDateString("en-PH")],
+      ["Total Sales Revenue", dashboard?.stats?.total_revenue || 0],
+      ["Total Transactions", dashboard?.stats?.total_transactions || 0],
+      ["Completed Jobs", dashboard?.stats?.completed_jobs || 0],
+      ["Average Ticket", dashboard?.stats?.avg_ticket || 0],
+      ["", ""],
+      ["Hour", "Hourly Revenue (PHP)"],
+      ...earningsPerHour.map((r) => [r.hourLabel, r.value]),
+    ];
+    exportToCSV(summaryRows, ["Report", "Details"], `cashier_sales_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
   return (
     <StaffLayout>
       <div className="min-h-screen -m-8 p-8 bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30">
         <div>
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-3xl font-black text-white tracking-tight">Staff Dashboard</h1>
+              <h1 className="text-3xl font-black text-white tracking-tight">Cashier Dashboard</h1>
               <p className="mt-2 text-sm text-gray-300 max-w-2xl">
-                Personal staff snapshot for {dashboard?.staff?.name || "your account"}
+                Personal cashier snapshot for {dashboard?.staff?.name || "your account"}
                 {dashboard?.staff?.branch_name ? ` · ${dashboard.staff.branch_name}` : ""}
               </p>
             </div>
-            <button
-              onClick={loadDashboard}
-              className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
-            >
-              Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 px-4 py-2 text-sm font-semibold text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export to CSV
+              </button>
+              <button
+                onClick={loadDashboard}
+                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
 
           {loading && (

@@ -379,7 +379,16 @@ class AdminDashboardView(APIView):
         selected_branch = None
         branch_scope = "all"
 
-        if branch_id_raw not in [None, ""] and str(branch_id_raw).lower() in ["all", "all branches"]:
+        if normalized_role == "branch_manager":
+            selected_branch = requester_staff.branch if requester_staff else None
+            if not selected_branch and requester_staff and requester_staff.branch_id:
+                selected_branch = Branch.objects.filter(id=requester_staff.branch_id).first()
+            if not selected_branch and requester_staff and requester_staff.branch_name:
+                selected_branch = Branch.objects.filter(name__iexact=requester_staff.branch_name).first()
+            if not selected_branch:
+                selected_branch = Branch.objects.filter(is_active=True).first() or Branch.objects.first()
+            branch_scope = "single_branch"
+        elif branch_id_raw not in [None, ""] and str(branch_id_raw).lower() in ["all", "all branches"]:
             selected_branch = None
             branch_scope = "all"
         elif branch_name_raw not in [None, ""] and str(branch_name_raw).lower() in ["all", "all branches"]:
@@ -398,15 +407,6 @@ class AdminDashboardView(APIView):
                 selected_branch = Branch.objects.filter(name__iexact=branch_name_raw).first()
             if selected_branch:
                 branch_scope = "single_branch"
-        elif normalized_role == "branch_manager":
-            selected_branch = requester_staff.branch if requester_staff else None
-            if not selected_branch and requester_staff and requester_staff.branch_id:
-                selected_branch = Branch.objects.filter(id=requester_staff.branch_id).first()
-            if not selected_branch and requester_staff and requester_staff.branch_name:
-                selected_branch = Branch.objects.filter(name__iexact=requester_staff.branch_name).first()
-            if not selected_branch:
-                selected_branch = Branch.objects.filter(is_active=True).first() or Branch.objects.first()
-            branch_scope = "single_branch"
 
         queue_scope = QueueEntry.objects.all()
         booking_scope = Booking.objects.all()
@@ -439,9 +439,16 @@ class AdminDashboardView(APIView):
         total_customers = customer_scope.count()
         services_completed = queue_scope.filter(status="done").count()
         try:
-            avg_satisfaction = rating_scope.aggregate(Avg("score"))["score__avg"] or 0
+            rating_scores = list(rating_scope.filter(score__isnull=False).values_list("score", flat=True))
+            queue_unlinked_scores = list(
+                queue_scope.filter(rating_score__isnull=False)
+                .filter(Q(booking__isnull=True) | Q(booking__rating__isnull=True))
+                .values_list("rating_score", flat=True)
+            )
+            all_scores = [float(s) for s in (rating_scores + queue_unlinked_scores) if s is not None and s > 0]
+            avg_satisfaction = round(sum(all_scores) / len(all_scores), 2) if all_scores else 0.0
         except Exception:
-            avg_satisfaction = 0
+            avg_satisfaction = 0.0
 
         stats = DashboardStatsSerializer({
             "total_revenue": total_revenue,
@@ -949,10 +956,16 @@ class ManagerDashboardView(APIView):
             cust_last = Booking.objects.filter(branch=branch, date__month=last_month, date__year=last_month_year).values("user").distinct().count()
             cust_change = round(((cust_this - cust_last) / cust_last) * 100, 1) if cust_last else 0
 
-            sat_this = Rating.objects.filter(booking__branch=branch, created_at__month=this_month, created_at__year=this_year).aggregate(a=Avg("score"))["a"] or 0
+            sat_scores = list(Rating.objects.filter(Q(branch=branch) | Q(booking__branch=branch), score__isnull=False).values_list("score", flat=True))
+            queue_sat_scores = list(
+                QueueEntry.objects.filter(Q(branch=branch) | Q(branch_name=branch.name), rating_score__isnull=False)
+                .filter(Q(booking__isnull=True) | Q(booking__rating__isnull=True))
+                .values_list("rating_score", flat=True)
+            )
+            all_branch_scores = [float(s) for s in (sat_scores + queue_sat_scores) if s is not None and s > 0]
+            sat_pct = round((sum(all_branch_scores) / len(all_branch_scores) / 5) * 100, 1) if all_branch_scores else 0.0
             sat_last = Rating.objects.filter(booking__branch=branch, created_at__month=last_month, created_at__year=last_month_year).aggregate(a=Avg("score"))["a"] or 0
-            sat_pct = round((float(sat_this) / 5) * 100, 1) if sat_this else 0
-            sat_prev = round((float(sat_last) / 5) * 100, 1) if sat_last else 0
+            sat_prev = round((float(sat_last) / 5) * 100, 1) if sat_last else sat_pct
             sat_change = round(sat_pct - sat_prev, 1)
 
             # Chart Data (Trend)

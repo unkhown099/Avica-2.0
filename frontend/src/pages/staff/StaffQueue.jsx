@@ -195,8 +195,8 @@ const STATUS_META = {
   },
   in_service: {
     label: "In Service",
-    dot: "bg-emerald-400",
-    badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    dot: "bg-white",
+    badge: "bg-emerald-600 text-white font-bold border-emerald-500 shadow-sm",
     glow: "shadow-emerald-500/20",
   },
   done: {
@@ -231,7 +231,7 @@ const KANBAN_COLUMNS = [
     headerBg: "bg-emerald-500/10 border-emerald-500/25",
     dotColor: "bg-emerald-400",
     dotPulse: true,
-    countBg: "bg-emerald-500/20 text-emerald-300",
+    countBg: "bg-emerald-600 text-white font-bold",
     dropActiveBg: "bg-emerald-500/6 border-emerald-400/50",
   },
   {
@@ -507,9 +507,9 @@ function QueueCard({
       </div>
 
       {entry.status === "in_service" && entry.service_started_at && (
-        <div className="mt-2 flex items-center gap-2 text-emerald-400 text-[11px] font-semibold bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2.5 py-1.5">
+        <div className="mt-2 flex items-center gap-2 text-white text-[11px] font-semibold bg-emerald-600/90 border border-emerald-500 rounded-lg px-2.5 py-1.5 shadow-sm">
           <svg
-            className="w-3 h-3 animate-pulse"
+            className="w-3 h-3 animate-pulse text-white"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1680,7 +1680,7 @@ function StaffQueue() {
                           </div>
                         </div>
                         {currentlyServing ? (
-                          <span className="text-xs font-black px-2 py-0.5 rounded-lg text-center min-w-[88px] bg-emerald-500/20 text-emerald-400">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-lg text-center min-w-[88px] bg-emerald-600 text-white shadow-sm">
                             In Progress
                           </span>
                         ) : (
@@ -1724,7 +1724,7 @@ function StaffQueue() {
                           </div>
                         </div>
                         <span
-                          className={`text-xs font-semibold shrink-0 ${STATUS_META[h.status]?.badge.split(" ")[1] || "text-gray-400"}`}
+                          className={`text-xs font-semibold shrink-0 px-2 py-0.5 rounded-full ${h.status === "in_service" ? "bg-emerald-600 text-white" : STATUS_META[h.status]?.badge || "text-gray-400"}`}
                         >
                           {STATUS_META[h.status]?.label || h.status}
                         </span>

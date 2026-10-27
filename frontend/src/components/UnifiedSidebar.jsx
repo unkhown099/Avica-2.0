@@ -395,12 +395,13 @@ function UnifiedSidebar({ isOpen, onClose }) {
     }
   });
 
-  const menuItems = MENU_ITEMS[role] ?? [];
+  const normalizedRole = role === "cashier" ? "staff" : role;
+  const menuItems = MENU_ITEMS[normalizedRole] ?? MENU_ITEMS[role] ?? [];
 
   // Fetch live reorder-alert count
   useEffect(() => {
     if (!isAuthenticated) return;
-    const hasAlertBadge = (MENU_ITEMS[role] ?? []).some(
+    const hasAlertBadge = (MENU_ITEMS[normalizedRole] ?? MENU_ITEMS[role] ?? []).some(
       (item) => item.alertBadge,
     );
     if (!hasAlertBadge) return;

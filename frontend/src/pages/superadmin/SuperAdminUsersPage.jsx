@@ -111,6 +111,7 @@ function UsersTable({ users, loading, onArchive, onRestore }) {
       "bg-orange-500/10 text-orange-400 border-orange-500/20",
     "Business Owner": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
     Staff: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+    Cashier: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
   };
 
   const customerBadge = "bg-green-500/10 text-green-400 border-green-500/20";
@@ -125,7 +126,8 @@ function UsersTable({ users, loading, onArchive, onRestore }) {
 
   const getRoleLabel = (user) => {
     if (user.account_type === "customer") return "Customer";
-    return user.profile?.role || user.account_type || "—";
+    const r = user.profile?.role || user.account_type || "—";
+    return r === "Staff" ? "Cashier" : r;
   };
 
   const getInitial = (user) =>
@@ -434,6 +436,10 @@ function AddUserForm({ onSubmit, onCancel, branches, roles, loading }) {
     employee: "Employee",
     inventory_manager: "Inventory Manager",
     customer: "Customer",
+    staff: "Cashier",
+    Staff: "Cashier",
+    cashier: "Cashier",
+    Cashier: "Cashier",
   };
 
   return (
@@ -710,6 +716,10 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
     branch_manager: "Branch Manager",
     employee: "Employee",
     inventory_manager: "Inventory Manager",
+    staff: "Cashier",
+    Staff: "Cashier",
+    cashier: "Cashier",
+    Cashier: "Cashier",
   };
 
   const staffRoles = [
@@ -718,6 +728,7 @@ function EditUserModal({ user, onClose, onSave, branches, loading }) {
     "branch_manager",
     "employee",
     "inventory_manager",
+    "staff",
   ];
 
   return (
@@ -1054,6 +1065,10 @@ export default function SuperAdminUsers() {
     employee: "Employee",
     inventory_manager: "Inventory Manager",
     customer: "Customer",
+    staff: "Cashier",
+    Staff: "Cashier",
+    cashier: "Cashier",
+    Cashier: "Cashier",
   };
 
   return (

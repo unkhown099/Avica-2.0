@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import InventoryLayout from "./InventoryLayout";
 import { useAuth, API_BASE } from "../../hooks/useAuth.js";
+import { exportToCSV } from "../../components/admin/DashboardUI.jsx";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -362,13 +363,33 @@ export default function InventoryDashboard({
     },
   ];
 
+  const handleExportCSV = () => {
+    const list = items || [];
+    if (list.length === 0) return;
+    const rows = list.map((item) => [
+      item.name || "—",
+      item.category || "—",
+      item.branch_name || item.branch?.name || branchName || "—",
+      item.quantity ?? 0,
+      item.unit || "pcs",
+      item.min_level ?? item.minimum_qty ?? 0,
+      normalizeStatus(item.status),
+      item.price ?? 0,
+    ]);
+    exportToCSV(
+      rows,
+      ["Item Name", "Category", "Branch", "Quantity", "Unit", "Reorder Level", "Status", "Price (PHP)"],
+      `inventory_stock_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <LayoutComponent>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-red-950/30 -m-8 p-8">
 
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-white tracking-tight">
               {title}
@@ -380,6 +401,24 @@ export default function InventoryDashboard({
                 ? "Stock overview across all branches"
                 : `Stock overview for ${branchName}`}
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 hover:border-emerald-500/50 hover:text-emerald-300 transition-all text-sm font-semibold shadow-sm"
+              title="Export inventory to CSV"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export to CSV
+            </button>
+            <button
+              onClick={refetch}
+              className="px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-300 hover:text-white hover:bg-gray-700 transition-all text-sm font-semibold"
+            >
+              Refresh
+            </button>
           </div>
         </div>
 

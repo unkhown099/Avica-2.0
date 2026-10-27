@@ -339,8 +339,8 @@ function PrintableReceipt({
             <span>{date}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span><strong>STAFF / CASHIER:</strong></span>
-            <span style={{ fontWeight: "bold" }}>{staffName || "Staff"}</span>
+            <span><strong>CASHIER:</strong></span>
+            <span style={{ fontWeight: "bold" }}>{staffName || "Cashier"}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span><strong>CUSTOMER:</strong></span>
@@ -501,8 +501,8 @@ function ReceiptModal({
                 <span className="text-amber-500 font-bold">{branchName || "Main Branch"}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className={`font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>Staff / Cashier</span>
-                <span className={`font-bold ${isDark ? "text-gray-300" : "text-gray-700"}`}>{staffName || "Staff"}</span>
+                <span className={`font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cashier</span>
+                <span className={`font-bold ${isDark ? "text-gray-300" : "text-gray-700"}`}>{staffName || "Cashier"}</span>
               </div>
               <div className={`flex justify-between items-center text-xs border-t pt-2 ${isDark ? "border-white/5" : "border-gray-200"}`}>
                 <span className={`font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>Customer</span>
@@ -1445,15 +1445,40 @@ const filteredServices = services.filter((s) => {
                           <div className="flex items-center gap-1 bg-gray-900/80 border border-white/10 rounded-lg p-0.5">
                             <button
                               type="button"
-                              onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)}
+                              onClick={() => {
+                                if (item.quantity <= 1) {
+                                  removeFromCart(item.id, item.type);
+                                } else {
+                                  updateQuantity(item.id, item.type, item.quantity - 1);
+                                }
+                              }}
                               className="w-6 h-6 rounded bg-white/5 hover:bg-red-600 hover:text-white text-gray-300 text-xs font-bold flex items-center justify-center transition-all cursor-pointer"
                               title="Decrease quantity or remove"
                             >
                               -
                             </button>
-                            <span className="text-xs font-bold text-white w-6 text-center">
-                              {item.quantity}
-                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              max={item.type === "product" ? (products.find((p) => p.id === item.id)?.quantity || 999) : 999}
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                if (raw === "") return;
+                                const val = parseInt(raw, 10);
+                                if (!isNaN(val) && val > 0) {
+                                  updateQuantity(item.id, item.type, val);
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (isNaN(val) || val <= 0) {
+                                  updateQuantity(item.id, item.type, 1);
+                                }
+                              }}
+                              className="w-10 text-center text-xs font-bold text-white bg-transparent border border-transparent focus:border-red-500/50 focus:bg-black/40 rounded py-0.5 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              title="Type quantity manually or use +/- buttons"
+                            />
                             <button
                               type="button"
                               onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)}

@@ -60,6 +60,14 @@ class AnalyzeVehicleView(APIView):
 
         try:
             result = analyze_vehicle_images(images_data)
+            if not result.get("is_vehicle", True):
+                return Response(
+                    {
+                        "error": result.get("rejection_reason") or "No vehicle detected in the uploaded images. Please upload clear photos of your vehicle.",
+                        **result,
+                    },
+                    status=400,
+                )
             return Response(result)
         except Exception as e:
             return Response({"error": f"Vehicle analysis failed: {str(e)}"}, status=500)

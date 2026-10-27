@@ -10,21 +10,22 @@ const roles = [
   "Admin",
   "Business Owner",
   "Branch Manager",
-  "Staff",
+  "Cashier",
   "Employee",
   "Inventory",
   "Inventory Manager",
   "super_admin",
 ];
 
-const createRoles = ["Staff", "Employee", "Inventory"];
-const editRoles = ["Staff", "Employee", "Inventory", "Branch Manager"];
+const createRoles = ["Cashier", "Employee", "Inventory"];
+const editRoles = ["Cashier", "Employee", "Inventory", "Branch Manager"];
 
 const roleColors = {
   Admin: "#ef4444",
   "Business Owner": "#a855f7",
   "Branch Manager": "#3b82f6",
   Staff: "#10b981",
+  Cashier: "#10b981",
   Employee: "#f59e0b",
   Inventory: "#f97316",
   "Inventory Manager": "#fb923c",
@@ -36,6 +37,7 @@ const ROLE_BADGE_STYLE = {
   "Business Owner": "bg-purple-500/20 text-purple-400 border-purple-500/30",
   "Branch Manager": "bg-blue-500/20 text-blue-400 border-blue-500/30",
   Staff: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  Cashier: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   Employee: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   Inventory: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   "Inventory Manager": "bg-orange-600/20 text-orange-300 border-orange-600/30",

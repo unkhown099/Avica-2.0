@@ -467,7 +467,7 @@ class MeView(APIView):
                 staff = Staff.objects.get(user=user)
                 staff_info = {
                     "branch_name": staff.branch.name if staff.branch else "N/A",
-                    "role_display": staff.get_role_display(),
+                    "role_display": "Cashier" if getattr(staff, "role", None) == "Staff" else staff.get_role_display(),
                 }
             except Exception:
                 pass
