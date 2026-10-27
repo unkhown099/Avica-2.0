@@ -162,6 +162,13 @@ def detect_image_is_vehicle(img: Image.Image) -> tuple[bool, str]:
     if stddev < 5:
         return False, "The image is too blurry or lacks visual detail to identify a vehicle."
 
+    # 3. Flat landscape / sky / silhouette low edge density check
+    from PIL import ImageFilter
+    edges = sampled.filter(ImageFilter.FIND_EDGES).convert("L")
+    edge_mean = ImageStat.Stat(edges).mean[0]
+    if edge_mean < 8.5:
+        return False, "The image lacks vehicle contours and structural details (appears to be a landscape, sky, or flat background). Please upload a clear photo of your vehicle."
+
     return True, "Vehicle detected"
 
 
@@ -332,12 +339,32 @@ def _call_groq_vision(base64_images: list[str], api_key: str, catalog_text: str)
                 },
                 json={
                     "model": model_name,
-                    "max_tokens": 450,
+                    "max_tokens": 650,
                     "temperature": 0.1,
                     "messages": [{"role": "user", "content": content_items}],
                 },
                 timeout=45,
             )
+
+            # If rate limited (429), wait 2.5 seconds and retry once
+            if response.status_code == 429:
+                print(f"[Groq Vision] Rate limit encountered for {model_name}. Retrying in 2.5s...")
+                import time
+                time.sleep(2.5)
+                response = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model_name,
+                        "max_tokens": 650,
+                        "temperature": 0.1,
+                        "messages": [{"role": "user", "content": content_items}],
+                    },
+                    timeout=35,
+                )
 
             if response.status_code == 200:
                 data = response.json()
@@ -584,30 +611,9 @@ def analyze_vehicle_images(images: list[str]) -> dict:
         if openrouter_key:
             parsed_result = _call_openrouter_vision(cleaned_images, openrouter_key, service_catalog_text)
 
-    # 3. Fallback to image heuristics only if no AI keys configured
+    # 3. Fallback to intelligent multi-image heuristics if vision model is rate-limited or unavailable
     if not parsed_result:
-        if groq_key or openrouter_key:
-            return {
-                "success": False,
-                "is_vehicle": False,
-                "rejection_reason": "AI Vision service is temporarily busy. Please wait 5 seconds and click Submit again.",
-                "error": "AI Vision service busy",
-                "make": None,
-                "model": None,
-                "year": None,
-                "bodyType": None,
-                "vehicleSize": None,
-                "vehicleSizeLabel": None,
-                "color": None,
-                "colorHex": None,
-                "condition": None,
-                "conditionDetails": None,
-                "plateNumber": None,
-                "confidence": "0%",
-                "features": [],
-                "additionalNotes": "Please retry submitting your photos to allow AI Vision to process.",
-                "recommendedServices": [],
-            }
+        print("[AI Vehicle] Vision AI model rate-limited or unavailable; seamlessly falling back to multi-image heuristics.")
         parsed_result = _analyze_images_heuristics(cleaned_images)
 
     # CHECK REJECTION: If non-vehicle, strictly DO NOT output sedan/pickup or any vehicle categories
