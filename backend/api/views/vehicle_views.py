@@ -4,7 +4,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import SessionAuthentication
-from api.services.ai_vehicle_service import analyze_vehicle_image, analyze_vehicle_images  # type: ignore
+from api.services.ai_vehicle_service import (  # type: ignore
+    analyze_vehicle_image,
+    analyze_vehicle_images,
+    validate_vehicle_step_image,
+)
 
 
 class AnalyzeVehicleView(APIView):
@@ -71,6 +75,36 @@ class AnalyzeVehicleView(APIView):
             return Response(result)
         except Exception as e:
             return Response({"error": f"Vehicle analysis failed: {str(e)}"}, status=500)
+
+
+class ValidateVehicleStepImageView(APIView):
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        base64_image = request.data.get("image")
+        step_key = request.data.get("step", "front")
+        step_title = request.data.get("step_title", f"{step_key.capitalize()} View")
+
+        if hasattr(base64_image, "read"):
+            try:
+                base64_image = base64.b64encode(base64_image.read()).decode("utf-8")
+            except Exception as e:
+                return Response({"valid": False, "is_vehicle": False, "reason": f"Failed reading file: {str(e)}"}, status=400)
+        elif not base64_image and "image" in request.FILES:
+            try:
+                base64_image = base64.b64encode(request.FILES["image"].read()).decode("utf-8")
+            except Exception as e:
+                return Response({"valid": False, "is_vehicle": False, "reason": f"Failed reading file: {str(e)}"}, status=400)
+
+        if not base64_image or not isinstance(base64_image, str):
+            return Response({"valid": False, "is_vehicle": False, "reason": "No image data provided. Please upload or capture an image."}, status=400)
+
+        try:
+            result = validate_vehicle_step_image(base64_image, step_key=step_key, step_title=step_title)
+            return Response(result, status=200)
+        except Exception as e:
+            return Response({"valid": False, "is_vehicle": False, "reason": f"Validation failed: {str(e)}"}, status=500)
 
 
 from api.models import VehiclePMSLog, Customer  # type: ignore

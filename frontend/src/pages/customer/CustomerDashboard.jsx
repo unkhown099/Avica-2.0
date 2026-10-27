@@ -253,8 +253,9 @@ function CustomerDashboard() {
     });
   };
 
-  const validateImageIsVehicle = (dataUrl) => {
-    return new Promise((resolve) => {
+  const validateImageIsVehicle = async (dataUrl, stepKey = "front", stepTitle = "Front View") => {
+    // 1. Fast client-side canvas pre-check for blank / blurry / solid color images
+    const clientPreCheck = await new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         try {
@@ -274,31 +275,12 @@ function CustomerDashboard() {
           let totalR = 0;
           let totalG = 0;
           let totalB = 0;
-          let skinPixels = 0;
-          let centerSkinPixels = 0;
           const totalPixels = size * size;
 
           for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            totalR += r;
-            totalG += g;
-            totalB += b;
-
-            const pxIdx = i / 4;
-            const x = pxIdx % size;
-            const y = Math.floor(pxIdx / size);
-
-            // YCbCr skin chromaticity detection
-            const cb = -0.1687 * r - 0.3313 * g + 0.5 * b + 128;
-            const cr = 0.5 * r - 0.4187 * g - 0.0813 * b + 128;
-            if (cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173 && r > g && r > b) {
-              skinPixels++;
-              if (x >= 20 && x <= 80 && y >= 20 && y <= 80) {
-                centerSkinPixels++;
-              }
-            }
+            totalR += data[i];
+            totalG += data[i + 1];
+            totalB += data[i + 2];
           }
 
           const meanR = totalR / totalPixels;
@@ -314,7 +296,6 @@ function CustomerDashboard() {
           }
           const stdDev = Math.sqrt(varSum / totalPixels);
 
-          // 1. Blurry, blank or solid background
           if (stdDev < 5) {
             resolve({
               valid: false,
@@ -323,22 +304,8 @@ function CustomerDashboard() {
             return;
           }
 
-          const skinRatio = skinPixels / totalPixels;
-          const centerRatio = centerSkinPixels / (60 * 60);
-          const aspectRatio = img.width / Math.max(img.height, 1);
-
-          // 2. Person / portrait / selfie detection
-          if ((skinRatio > 0.35 && centerRatio > 0.38) || (aspectRatio < 0.75 && skinRatio > 0.25 && centerRatio > 0.30)) {
-            resolve({
-              valid: false,
-              reason: `The uploaded image appears to be a person or portrait (skin tone ratio ${(skinRatio * 100).toFixed(0)}%). Please upload a clear photo of your vehicle.`,
-            });
-            return;
-          }
-
           resolve({ valid: true });
-        } catch (err) {
-          console.warn("Vehicle validation check error:", err);
+        } catch {
           resolve({ valid: true });
         }
       };
@@ -347,6 +314,57 @@ function CustomerDashboard() {
       };
       img.src = dataUrl;
     });
+
+    if (!clientPreCheck.valid) {
+      return clientPreCheck;
+    }
+
+    // 2. Perform Vision AI Analysis on the image to ensure it is a motor vehicle
+    try {
+      const rawB64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+      const headers = await getAuthHeadersAsync();
+      const res = await fetch(`${API_BASE}/api/analyze-vehicle/validate-step/`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          image: rawB64,
+          step: stepKey,
+          step_title: stepTitle,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) {
+        if (!data.valid || !data.is_vehicle) {
+          return {
+            valid: false,
+            is_vehicle: false,
+            detected_object: data.detected_object || "Non-vehicle subject",
+            reason:
+              data.reason ||
+              `Detected '${data.detected_object || "non-vehicle"}' instead of a vehicle. Please upload or take a clear photo of your vehicle.`,
+          };
+        }
+        return {
+          valid: true,
+          is_vehicle: true,
+          detected_object: data.detected_object,
+          detected_view: data.detected_view,
+          reason: data.reason,
+        };
+      } else if (data && !data.valid) {
+        return {
+          valid: false,
+          is_vehicle: false,
+          reason: data.reason || "The uploaded image could not be verified as a vehicle.",
+        };
+      }
+    } catch (err) {
+      console.warn("AI step image validation network error:", err);
+      // Fallback gracefully if backend is offline or network times out
+    }
+
+    return { valid: true };
   };
 
   const handleVehicleImageClick = (e) => {
@@ -477,11 +495,19 @@ function CustomerDashboard() {
     setViewMismatchWarning(null);
     setClickHotspot(null);
 
-    const check = await validateImageIsVehicle(dataUrl);
+    const check = await validateImageIsVehicle(
+      dataUrl,
+      stepKey,
+      VEHICLE_ID_STEPS[currentIdStep]?.title || `${stepKey} view`
+    );
     setIsValidatingImage(false);
 
     if (!check.valid) {
       setImageValidationError(check.reason);
+      setVehiclePhotos((prev) => ({
+        ...prev,
+        [stepKey]: null,
+      }));
       showToast(check.reason, "error");
       return;
     }
@@ -492,6 +518,7 @@ function CustomerDashboard() {
         url: dataUrl,
         dataUrl,
         name: `${stepKey}-photo.jpg`,
+        detectedObject: check.detected_object || `${stepKey} view`,
       },
     }));
     stopLiveCamera();
@@ -530,11 +557,19 @@ function CustomerDashboard() {
       return;
     }
 
-    const check = await validateImageIsVehicle(dataUrl);
+    const check = await validateImageIsVehicle(
+      dataUrl,
+      stepKey,
+      VEHICLE_ID_STEPS[currentIdStep]?.title || `${stepKey} view`
+    );
     setIsValidatingImage(false);
 
     if (!check.valid) {
       setImageValidationError(check.reason);
+      setVehiclePhotos((prev) => ({
+        ...prev,
+        [stepKey]: null,
+      }));
       showToast(check.reason, "error");
       e.target.value = "";
       return;
@@ -546,6 +581,7 @@ function CustomerDashboard() {
         url: dataUrl,
         dataUrl,
         name: file.name,
+        detectedObject: check.detected_object || `${stepKey} view`,
       },
     }));
     showToast(`${VEHICLE_ID_STEPS[currentIdStep]?.shortLabel} photo added and verified.`);
@@ -1194,9 +1230,9 @@ function CustomerDashboard() {
                                 />
 
                                 {/* Step Status Badge */}
-                                <div className="absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-emerald-500/50 flex items-center gap-1.5 text-emerald-400 text-xs font-bold pointer-events-none">
+                                <div className="absolute top-2.5 left-2.5 bg-black/85 backdrop-blur-md px-2.5 py-1 rounded-lg border border-emerald-500/50 flex items-center gap-1.5 text-emerald-400 text-xs font-bold pointer-events-none shadow-md">
                                   <span>✓</span>
-                                  <span>{step.title} Captured</span>
+                                  <span>{photo.detectedObject ? `Verified: ${photo.detectedObject}` : `${step.title} Verified`}</span>
                                 </div>
 
                                 {/* Click Hint Indicator */}
@@ -1277,24 +1313,30 @@ function CustomerDashboard() {
                             <div className="space-y-4 max-w-sm">
                               {isValidatingImage ? (
                                 <div className="py-8 space-y-3">
-                                  <div className="w-10 h-10 border-3 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                                  <div className="relative w-12 h-12 mx-auto">
+                                    <div className="w-12 h-12 border-3 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                    <div className="absolute inset-0 flex items-center justify-center text-xs">🚗</div>
+                                  </div>
                                   <p className={`text-xs font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
-                                    Validating vehicle image...
+                                    AI Analyzing Photo with Vision Model...
                                   </p>
                                   <p className={`text-[11px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                                    Checking image clarity and vehicle subject
+                                    Checking vehicle subject & angle accuracy for {step.title}
                                   </p>
                                 </div>
                               ) : (
                                 <>
                                   {imageValidationError && (
-                                    <div className="p-3 bg-red-500/15 border-2 border-red-500 rounded-xl text-left flex items-start gap-2.5 animate-pulse shadow-md">
-                                      <div className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-xs font-black">
-                                        !
+                                    <div className="p-3.5 bg-red-500/15 border-2 border-red-500 rounded-xl text-left flex items-start gap-2.5 shadow-lg shadow-red-500/10">
+                                      <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-xs font-black shadow">
+                                        ✕
                                       </div>
                                       <div className="flex-1">
-                                        <p className="text-xs font-bold text-red-500">Image Rejected</p>
-                                        <p className={`text-[11px] mt-0.5 leading-relaxed ${isDark ? "text-red-300" : "text-red-700"}`}>
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-xs font-extrabold text-red-500">Image Rejected by AI</p>
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-mono font-bold">Non-Vehicle</span>
+                                        </div>
+                                        <p className={`text-[11px] mt-1 leading-relaxed font-medium ${isDark ? "text-red-200" : "text-red-700"}`}>
                                           {imageValidationError}
                                         </p>
                                       </div>
@@ -1302,6 +1344,7 @@ function CustomerDashboard() {
                                         type="button"
                                         onClick={() => setImageValidationError(null)}
                                         className="text-red-400 hover:text-white text-xs font-bold px-1"
+                                        title="Dismiss"
                                       >
                                         ✕
                                       </button>

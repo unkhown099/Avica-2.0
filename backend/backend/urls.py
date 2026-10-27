@@ -20,7 +20,7 @@ from api.views.forecast_views import (
 )
 
 from api.views.staff_views import StaffView, StaffDetailView, VerifyPasswordView
-from api.views.vehicle_views import AnalyzeVehicleView, PreventiveMaintenanceView
+from api.views.vehicle_views import AnalyzeVehicleView, ValidateVehicleStepImageView, PreventiveMaintenanceView
 from api.views.chatbot_views import chat_with_groq
 from api.views.customer_dashboard import CustomerDashboardAPIView
 from api.views.branch_views import BranchListCreateView, BranchDetailView
@@ -178,6 +178,7 @@ urlpatterns = [
 
     # ── Vehicle AI & PMS ──────────────────────────────────────────────────────
     path('api/analyze-vehicle/', AnalyzeVehicleView.as_view(), name='analyze_vehicle'),
+    path('api/analyze-vehicle/validate-step/', ValidateVehicleStepImageView.as_view(), name='validate_vehicle_step'),
     path('api/analyze-damage/', AnalyzeDamageView.as_view(), name='analyze_damage'),
     path('api/vehicle/pms/', PreventiveMaintenanceView.as_view(), name='vehicle_pms'),
 

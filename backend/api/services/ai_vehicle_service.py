@@ -709,3 +709,241 @@ def analyze_vehicle_image(base64_image: str) -> dict:
     if not base64_image:
         return {"error": "No image provided"}
     return analyze_vehicle_images([base64_image])
+
+
+def validate_vehicle_step_image(image_b64: str, step_key: str = "front", step_title: str = "Front View") -> dict:
+    """
+    Validates an individual photo captured/uploaded during vehicle inspection steps.
+    Ensures that the image depicts a real motor vehicle and matches the expected step/angle.
+    Returns:
+    {
+        "valid": bool,
+        "is_vehicle": bool,
+        "detected_object": str,
+        "detected_view": str,
+        "matches_step": bool,
+        "reason": str
+    }
+    """
+    if not image_b64:
+        return {
+            "valid": False,
+            "is_vehicle": False,
+            "detected_object": "Empty image",
+            "detected_view": "unknown",
+            "matches_step": False,
+            "reason": "No image data received. Please provide a valid photo.",
+        }
+
+    # Clean data url header if present
+    if "," in image_b64:
+        image_b64 = image_b64.split(",", 1)[1]
+
+    # Fast heuristic checks first
+    try:
+        raw_bytes = base64.b64decode(image_b64)
+        im = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+    except Exception as e:
+        return {
+            "valid": False,
+            "is_vehicle": False,
+            "detected_object": "Invalid file",
+            "detected_view": "unknown",
+            "matches_step": False,
+            "reason": "The uploaded file could not be decoded as an image. Please provide a standard JPEG or PNG photo.",
+        }
+
+    is_veh, h_reason = detect_image_is_vehicle(im)
+    if not is_veh:
+        return {
+            "valid": False,
+            "is_vehicle": False,
+            "detected_object": "Non-vehicle subject",
+            "detected_view": "not_vehicle",
+            "matches_step": False,
+            "reason": h_reason,
+        }
+
+    # Compress & downscale to ~380px to stay well within Groq limits
+    optimized_b64 = _prepare_image_for_vision(image_b64, 380)
+
+    prompt = f"""You are an automotive AI inspection validator.
+A user uploaded/captured a photo for '{step_title}' (expected angle: {step_key}).
+Determine:
+1. Does this photo show a real motor vehicle (car, SUV, pickup, truck, van, motorcycle)?
+   If NOT a vehicle (such as a crucifix, cross, religious statue, landscape, mountain, sky, room, building, person, animal, food, or random object), you MUST set "is_vehicle": false.
+2. What is the detected object? Be specific (e.g. "Crucifix on a hill", "Toyota Vios front view", "Car rear bumper", "Cat on table").
+3. What angle or view is shown? ("front", "rear", "side", "detail", "interior", or "not_vehicle").
+4. Does this view match the requested step '{step_title}'?
+   - For front view: should clearly show the front or front three-quarter angle of a vehicle.
+   - For rear view: should clearly show the rear or rear three-quarter angle of a vehicle.
+   - For side view: should clearly show the side profile of a vehicle.
+   - For damage/condition: close-up of vehicle paint, panel, or cosmetic damage is acceptable.
+
+Return STRICT JSON ONLY:
+{{
+  "valid": true/false,
+  "is_vehicle": true/false,
+  "detected_object": "Concise label",
+  "detected_view": "front | rear | side | detail | not_vehicle",
+  "matches_step": true/false,
+  "reason": "Clear explanation in English why this image is accepted or rejected."
+}}
+STRICT JSON ONLY. NO MARKDOWN."""
+
+    groq_api_key = getattr(settings, "GROQ_API_KEY", os.environ.get("GROQ_API_KEY"))
+    if groq_api_key:
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {groq_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "qwen/qwen3.8-27b",
+                    "max_tokens": 200,
+                    "temperature": 0.1,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{optimized_b64}"}},
+                            ],
+                        }
+                    ],
+                },
+                timeout=18,
+            )
+            if resp.status_code == 200:
+                raw_content = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                if "<think>" in raw_content:
+                    raw_content = re.sub(r"<think>.*?</think>", "", raw_content, flags=re.DOTALL).strip()
+                if "```" in raw_content:
+                    parts = raw_content.split("```")
+                    raw_content = parts[1] if len(parts) > 1 else parts[0]
+                    if raw_content.startswith("json"):
+                        raw_content = raw_content[4:]
+                    raw_content = raw_content.strip()
+
+                json_match = re.search(r"\{.*\}", raw_content, re.DOTALL)
+                if json_match:
+                    raw_content = json_match.group(0)
+
+                parsed = json.loads(raw_content)
+                is_veh = bool(parsed.get("is_vehicle", False))
+                matches = bool(parsed.get("matches_step", is_veh))
+                det_obj = parsed.get("detected_object", "Unknown subject")
+                det_view = parsed.get("detected_view", "unknown")
+                reason = parsed.get("reason", "")
+
+                if not is_veh:
+                    return {
+                        "valid": False,
+                        "is_vehicle": False,
+                        "detected_object": det_obj,
+                        "detected_view": "not_vehicle",
+                        "matches_step": False,
+                        "reason": reason or f"Image rejected: Detected '{det_obj}' instead of a motor vehicle. Please capture a photo of your vehicle.",
+                    }
+
+                if not matches and step_key in ("front", "rear"):
+                    return {
+                        "valid": False,
+                        "is_vehicle": True,
+                        "detected_object": det_obj,
+                        "detected_view": det_view,
+                        "matches_step": False,
+                        "reason": reason or f"Angle mismatch: Detected {det_view} view, but {step_title} is required. Please capture the {step_key} portion.",
+                    }
+
+                return {
+                    "valid": True,
+                    "is_vehicle": True,
+                    "detected_object": det_obj,
+                    "detected_view": det_view,
+                    "matches_step": True,
+                    "reason": reason or f"Verified {step_title} vehicle photo ({det_obj}).",
+                }
+        except Exception as e:
+            print("[validate_vehicle_step_image] Groq vision call failed:", e)
+
+    # Fallback to OpenRouter if Groq is unavailable
+    openrouter_key = getattr(settings, "OPENROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY"))
+    if openrouter_key:
+        try:
+            resp = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {openrouter_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "google/gemini-2.0-flash-001",
+                    "max_tokens": 200,
+                    "temperature": 0.1,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{optimized_b64}"}},
+                            ],
+                        }
+                    ],
+                },
+                timeout=20,
+            )
+            if resp.status_code == 200:
+                raw_content = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                json_match = re.search(r"\{.*\}", raw_content, re.DOTALL)
+                if json_match:
+                    raw_content = json_match.group(0)
+                parsed = json.loads(raw_content)
+                is_veh = bool(parsed.get("is_vehicle", False))
+                matches = bool(parsed.get("matches_step", is_veh))
+                det_obj = parsed.get("detected_object", "Unknown subject")
+                det_view = parsed.get("detected_view", "unknown")
+                reason = parsed.get("reason", "")
+
+                if not is_veh:
+                    return {
+                        "valid": False,
+                        "is_vehicle": False,
+                        "detected_object": det_obj,
+                        "detected_view": "not_vehicle",
+                        "matches_step": False,
+                        "reason": reason or f"Image rejected: Detected '{det_obj}' instead of a motor vehicle. Please capture a photo of your vehicle.",
+                    }
+
+                if not matches and step_key in ("front", "rear"):
+                    return {
+                        "valid": False,
+                        "is_vehicle": True,
+                        "detected_object": det_obj,
+                        "detected_view": det_view,
+                        "matches_step": False,
+                        "reason": reason or f"Angle mismatch: Detected {det_view} view, but {step_title} is required.",
+                    }
+
+                return {
+                    "valid": True,
+                    "is_vehicle": True,
+                    "detected_object": det_obj,
+                    "detected_view": det_view,
+                    "matches_step": True,
+                    "reason": reason or f"Verified {step_title} vehicle photo ({det_obj}).",
+                }
+        except Exception as e:
+            print("[validate_vehicle_step_image] OpenRouter call failed:", e)
+
+    # If external APIs could not be reached, allow proceeding if heuristic passed
+    return {
+        "valid": True,
+        "is_vehicle": True,
+        "detected_object": "Vehicle photo",
+        "detected_view": step_key,
+        "matches_step": True,
+        "reason": f"Photo recorded for {step_title}.",
+    }
