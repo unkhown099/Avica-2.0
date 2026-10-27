@@ -543,6 +543,7 @@ function LandingPage() {
   const [activeBranch, setActiveBranch] = useState(null);
   const [user, setUser] = useState(null);
   const [mapSkin, setMapSkin] = useState("satellite");
+  const [mobileReelIndex, setMobileReelIndex] = useState(0);
   
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -1127,13 +1128,131 @@ function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
+          {/* Desktop / Tablet View (3-column Grid) */}
+          <div className="hidden md:grid md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
             {filteredServices.slice(0, 3).map((svc, i) => {
               const reelUrl = typeof svc === "string" ? svc : (svc?.url || svc?.link || svc?.image || "");
               return (
                 <FBVideoEmbed key={i} url={reelUrl} index={i} isDark={isDark} />
               );
             })}
+          </div>
+
+          {/* Mobile View: Carousel with Left and Right Buttons (Mobile view only) */}
+          <div className="block md:hidden max-w-sm mx-auto px-1">
+            <div className="relative">
+              {filteredServices.slice(0, 3).map((svc, i) => {
+                const reelUrl = typeof svc === "string" ? svc : (svc?.url || svc?.link || svc?.image || "");
+                return (
+                  <div
+                    key={i}
+                    className={`${i === mobileReelIndex ? "block" : "hidden"} transition-all duration-300`}
+                  >
+                    <FBVideoEmbed url={reelUrl} index={i} isDark={isDark} />
+                  </div>
+                );
+              })}
+
+              {/* Floating Left Button on mobile */}
+              {filteredServices.slice(0, 3).length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMobileReelIndex((prev) =>
+                      prev > 0 ? prev - 1 : filteredServices.slice(0, 3).length - 1
+                    )
+                  }
+                  aria-label="Previous Reel"
+                  className="absolute -left-3 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/85 hover:bg-black text-white border border-white/20 shadow-2xl flex items-center justify-center transition-all active:scale-95 backdrop-blur-md"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Floating Right Button on mobile */}
+              {filteredServices.slice(0, 3).length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMobileReelIndex((prev) =>
+                      prev < filteredServices.slice(0, 3).length - 1 ? prev + 1 : 0
+                    )
+                  }
+                  aria-label="Next Reel"
+                  className="absolute -right-3 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/85 hover:bg-black text-white border border-white/20 shadow-2xl flex items-center justify-center transition-all active:scale-95 backdrop-blur-md"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Bottom Navigation & Dots Indicator */}
+            {filteredServices.slice(0, 3).length > 1 && (
+              <div className="flex items-center justify-between mt-5 px-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMobileReelIndex((prev) =>
+                      prev > 0 ? prev - 1 : filteredServices.slice(0, 3).length - 1
+                    )
+                  }
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                    isDark
+                      ? "bg-gray-900 border-white/10 text-gray-200 hover:bg-gray-800"
+                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span>Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  {filteredServices.slice(0, 3).map((_, dotIdx) => (
+                    <button
+                      key={dotIdx}
+                      type="button"
+                      onClick={() => setMobileReelIndex(dotIdx)}
+                      aria-label={`Go to reel ${dotIdx + 1}`}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        dotIdx === mobileReelIndex
+                          ? "w-6 bg-red-600 shadow-md shadow-red-600/50"
+                          : isDark
+                          ? "w-2 bg-gray-700 hover:bg-gray-600"
+                          : "w-2 bg-gray-300 hover:bg-gray-400"
+                      }`}
+                    />
+                  ))}
+                  <span className={`text-[11px] font-bold ml-1.5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                    {mobileReelIndex + 1}/{filteredServices.slice(0, 3).length}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMobileReelIndex((prev) =>
+                      prev < filteredServices.slice(0, 3).length - 1 ? prev + 1 : 0
+                    )
+                  }
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                    isDark
+                      ? "bg-gray-900 border-white/10 text-gray-200 hover:bg-gray-800"
+                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <span>Next</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
