@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import ServiceChatModal from "../../components/ServiceChatModal.jsx";
 import CustomDatePicker from "../../components/common/CustomDatePicker.jsx";
 import { useTheme } from "../../context/ThemeContext.jsx";
-import { exportToCSV } from "../../components/admin/DashboardUI.jsx";
 
 const VEHICLE_ID_STEPS = [
   {
@@ -810,26 +809,6 @@ function CustomerDashboard() {
     );
   }
 
-  const handleExportCSV = () => {
-    const allRecords = [...(upcomingBookings || []), ...(serviceHistory || [])];
-    if (allRecords.length === 0) return;
-    const rows = allRecords.map((b) => [
-      b.appointment_date || b.date || "—",
-      b.appointment_time || b.time || "—",
-      b.service_name || b.service || "—",
-      b.branch_name || b.branch || "—",
-      b.vehicle_type || b.vehicle || "—",
-      b.plate_number || "—",
-      b.status || "—",
-      b.price || b.total_amount || 0,
-    ]);
-    exportToCSV(
-      rows,
-      ["Date", "Time", "Service", "Branch", "Vehicle", "Plate Number", "Status", "Amount (PHP)"],
-      `my_service_history_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-  };
-
   return (
     <CustomerLayout>
       {/* ── Hero ── */}
@@ -852,21 +831,7 @@ function CustomerDashboard() {
             </div>
 
             {/* Hero CTA */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <button
-                onClick={handleExportCSV}
-                className={`w-full sm:w-auto font-bold px-4 py-3 sm:px-5 sm:py-3.5 rounded-xl transition-all duration-300 border flex items-center justify-center gap-2 text-sm sm:text-base shadow-sm ${
-                  isDark
-                    ? "bg-gray-800/80 border-white/10 text-gray-200 hover:text-white hover:bg-gray-700"
-                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                }`}
-                title="Export my service history to CSV"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export to CSV
-              </button>
+            <div>
               <button
                 onClick={() =>
                   navigate("/bookings", { state: { openBooking: true } })
