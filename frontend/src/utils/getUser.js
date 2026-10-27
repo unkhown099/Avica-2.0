@@ -29,7 +29,7 @@ function normalizeRole(raw) {
   if (str.includes('business_owner') || str.includes('branch_owner') || str === 'owner') return 'business_owner';
   if (str.includes('branch_manager') || (str.includes('manager') && !str.includes('inventory'))) return 'branch_manager';
   if (str.includes('inventory_manager')) return 'inventory_manager';
-  if (str.includes('inventory')) return 'inventory_manager';
+  if (str.includes('inventory')) return 'inventory';
   if (str.includes('admin')) return 'admin';
   if (str.includes('cashier') || str.includes('staff')) return 'staff';
   if (str.includes('employee') || str.includes('technician') || str.includes('worker') || str.includes('mechanic') || str.includes('detailer')) return 'employee';
@@ -38,14 +38,29 @@ function normalizeRole(raw) {
 }
 
 export function getUserFromSession() {
-  // 1️⃣ Prefer the user object saved explicitly at login (check current session first)
-  const stored =
-    sessionStorage.getItem('user') ||
-    localStorage.getItem('user');
+  // 1️⃣ Prefer the user object saved explicitly at login (merge session & local storage)
+  let stored = null;
+  try {
+    const sRaw = sessionStorage.getItem('user');
+    const lRaw = localStorage.getItem('user');
+    const s = sRaw ? JSON.parse(sRaw) : null;
+    const l = lRaw ? JSON.parse(lRaw) : null;
+    if (s || l) {
+      stored = { ...(l || {}), ...(s || {}) };
+      const pic = l?.profile_picture || l?.profilePicture || s?.profile_picture || s?.profilePicture;
+      if (pic) {
+        stored.profile_picture = pic;
+        stored.profilePicture = pic;
+      }
+    }
+  } catch {
+    stored = null;
+  }
 
   if (stored) {
     try {
-      const parsed = JSON.parse(stored);
+      const parsed = stored;
+      const pic = parsed.profile_picture || parsed.profilePicture || parsed.profile_pic || null;
       // Normalise: backend returns snake_case, frontend uses camelCase
       return {
         firstName: parsed.first_name || parsed.firstName || '',
@@ -54,7 +69,8 @@ export function getUserFromSession() {
         phone: parsed.phone || '',
         role: normalizeRole(parsed.role),
         id: parsed.id || null,
-        profilePicture: parsed.profile_picture || parsed.profilePicture || null,
+        profile_picture: pic,
+        profilePicture: pic,
       };
     } catch { /* fall through */ }
   }
@@ -67,6 +83,7 @@ export function getUserFromSession() {
   if (token) {
     const payload = parseJwt(token);
     if (payload) {
+      const pic = payload.profile_picture || payload.profilePicture || payload.profile_pic || null;
       return {
         firstName: payload.first_name || payload.firstName || '',
         lastName: payload.last_name || payload.lastName || '',
@@ -74,7 +91,8 @@ export function getUserFromSession() {
         phone: payload.phone || '',
         role: normalizeRole(payload.role),
         id: payload.user_id || null,
-        profilePicture: payload.profile_picture || payload.profilePicture || null,
+        profile_picture: pic,
+        profilePicture: pic,
       };
     }
   }

@@ -168,6 +168,7 @@ def seed_services():
 
     for item in OTOKWIKK_PRICELIST:
         price_list = item["price_list"]
+        assert isinstance(price_list, dict)
         # Base price is the minimum tier price (or starting small price)
         values = [float(v) for v in price_list.values() if v is not None]
         base_price = min(values) if values else 0.0

@@ -65,7 +65,7 @@ const isProtectedRole = (role) => {
 
 const getRoleBadge = (role) => {
   const normalized = normalizeRole(role);
-  const label = normalized === "super_admin" ? "Super Admin" : normalized;
+  const label = normalized === "super_admin" ? "Super Admin" : (normalized === "Staff" ? "Cashier" : normalized);
   return (
     <span
       className={`inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold border ${ROLE_BADGE_STYLE[normalized] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}
@@ -542,7 +542,7 @@ function ManagerAccountManagement() {
     },
     {
       key: "staff",
-      label: "Staff",
+      label: "Cashier",
       count: roleCounts.Staff || 0,
       pct: branchScopedStaff.length ? ((roleCounts.Staff || 0) / branchScopedStaff.length) * 100 : 0,
       color: roleColors.Staff,

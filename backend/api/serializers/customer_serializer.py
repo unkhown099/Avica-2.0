@@ -1,7 +1,25 @@
 from rest_framework import serializers
-from ..models import Customer, Booking, QueueEntry, Rating
+from ..models import Customer, Booking, QueueEntry, Rating, CustomerVehicle
 from django.db.models import Q
 from django.db.models import Sum, Avg
+
+
+class CustomerVehicleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerVehicle
+        fields = [
+            "id",
+            "make",
+            "model",
+            "year",
+            "color",
+            "plate_number",
+            "vehicle_size",
+            "is_primary",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -10,14 +28,51 @@ class CustomerSerializer(serializers.ModelSerializer):
     visits       = serializers.SerializerMethodField()
     avg_rating   = serializers.SerializerMethodField()
     segment      = serializers.SerializerMethodField()
+    address      = serializers.SerializerMethodField()
+    car_make     = serializers.SerializerMethodField()
+    car_model    = serializers.SerializerMethodField()
+    car_year     = serializers.SerializerMethodField()
+    car_color    = serializers.SerializerMethodField()
+    car_plate    = serializers.SerializerMethodField()
+    vehicles     = serializers.SerializerMethodField()
 
     class Meta:
         model  = Customer
         fields = [
             "id", "first_name", "last_name", "email", "phone",
             "address", "car_make", "car_model", "car_year", "car_color", "car_plate",
+            "vehicles",
             "loyalty_points", "total_spent", "visits", "avg_rating", "segment",
         ]
+
+    def _primary_vehicle(self, obj):
+        return obj.vehicles.filter(is_primary=True).first() or obj.vehicles.first()
+
+    def get_address(self, obj):
+        return ""
+
+    def get_car_make(self, obj):
+        v = self._primary_vehicle(obj)
+        return v.make if v else ""
+
+    def get_car_model(self, obj):
+        v = self._primary_vehicle(obj)
+        return v.model if v else ""
+
+    def get_car_year(self, obj):
+        v = self._primary_vehicle(obj)
+        return v.year if v else ""
+
+    def get_car_color(self, obj):
+        v = self._primary_vehicle(obj)
+        return v.color if v else ""
+
+    def get_car_plate(self, obj):
+        v = self._primary_vehicle(obj)
+        return v.plate_number if v else ""
+
+    def get_vehicles(self, obj):
+        return CustomerVehicleSerializer(obj.vehicles.all(), many=True).data
 
     def _paid_completed_entries(self, obj):
         return QueueEntry.objects.filter(

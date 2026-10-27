@@ -60,12 +60,15 @@ def merge_manager_schedule_config(raw):
 
     merged = {**base, **raw}
 
+    base_days = base["days"] if isinstance(base.get("days"), dict) else {}
     raw_days = raw.get("days") if isinstance(raw.get("days"), dict) else {}
     merged_days = {}
     for day in WEEK_DAYS:
-        default_day = base["days"][day]
-        custom_day = raw_days.get(day) if isinstance(raw_days.get(day), dict) else {}
-        merged_days[day] = {**default_day, **custom_day}
+        default_day = dict(base_days[day]) if day in base_days and isinstance(base_days[day], dict) else {}
+        custom_day = raw_days[day] if isinstance(raw_days, dict) and day in raw_days and isinstance(raw_days[day], dict) else {}
+        merged_day = dict(default_day)
+        merged_day.update(custom_day)
+        merged_days[day] = merged_day
 
     merged["days"] = merged_days
     merged["assignments"] = raw.get("assignments") if isinstance(raw.get("assignments"), dict) else {}
@@ -88,6 +91,12 @@ def _slot_overlaps(window_start, window_end, slot_start, slot_end):
 
 def _format_display_time(time_obj):
     return time_obj.strftime("%I:%M %p").lstrip("0")
+
+
+# Customer booking window: 8:00 AM until 12:00 midnight, in 30-minute intervals.
+# (Last bookable slot is 11:30 PM, which ends at 12:00 midnight.)
+BOOKING_WINDOW_START = datetime.strptime("08:00", "%H:%M").time()
+BOOKING_SLOT_MINUTES = 30
 
 
 def _extract_preferred_employee_id(notes):
@@ -320,11 +329,12 @@ def _notify_staff_and_manager_new_booking(booking):
     )
 
     for staff_member in recipients:
-        if not getattr(staff_member, "user_id", None):
+        recipient_user_id = getattr(staff_member, "user_id", None) or (staff_member.user.id if getattr(staff_member, "user", None) else None)
+        if not recipient_user_id:
             continue
         notifications.append(
             Notification(
-                user_id=staff_member.user_id,
+                user_id=recipient_user_id,
                 title="New Appointment",
                 message=message,
                 notification_type="appointment",
@@ -340,8 +350,8 @@ def _notify_staff_and_manager_new_booking(booking):
     except Exception:
         logger.exception(
             "Failed to notify staff/manager for new booking_id=%s branch_id=%s",
-            booking.id,
-            branch.id,
+            getattr(booking, "id", booking.pk),
+            getattr(branch, "id", branch.pk),
         )
 
 
@@ -368,11 +378,12 @@ def _notify_staff_and_manager_cancellation(booking):
     )
 
     for staff_member in recipients:
-        if not getattr(staff_member, "user_id", None):
+        recipient_user_id = getattr(staff_member, "user_id", None) or (staff_member.user.id if getattr(staff_member, "user", None) else None)
+        if not recipient_user_id:
             continue
         notifications.append(
             Notification(
-                user_id=staff_member.user_id,
+                user_id=recipient_user_id,
                 title="Appointment Cancelled",
                 message=message,
                 notification_type="appointment",
@@ -388,8 +399,8 @@ def _notify_staff_and_manager_cancellation(booking):
     except Exception:
         logger.exception(
             "Failed to notify staff/manager for cancelled booking_id=%s branch_id=%s",
-            booking.id,
-            branch.id,
+            getattr(booking, "id", booking.pk),
+            getattr(branch, "id", branch.pk),
         )
 
 
@@ -438,7 +449,22 @@ def _is_reschedule_option_available(booking, option):
     booked_count = sum(
         1 for existing in same_day_bookings if to_display_time(existing.time) == target_display_time
     )
-    return booked_count < slot_capacity
+    if booked_count >= slot_capacity:
+        return False
+
+    # Check customer 3 bookings limit & time conflict on target date
+    customer_other_bookings = Booking.objects.filter(
+        user=booking.user,
+        date=selected_date,
+    ).exclude(status__in=["cancelled", "no_show"]).exclude(pk=booking.pk)
+
+    if customer_other_bookings.count() >= 3:
+        return False
+
+    if any(to_display_time(b.time) == target_display_time for b in customer_other_bookings):
+        return False
+
+    return True
 
 
 def _format_reschedule_options(options):
@@ -454,20 +480,22 @@ class BranchListView(generics.ListAPIView):
 
 
 class BookingListCreateView(generics.ListCreateAPIView):
+    queryset           = Booking.objects.all()
     serializer_class   = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         qs = (
             Booking.objects
             .filter(user=self.request.user)
             .select_related("branch")
         )
-        schedule_view = self.request.query_params.get("schedule_view")
-        start_date    = self.request.query_params.get("start_date")
-        end_date      = self.request.query_params.get("end_date")
-        status_param  = self.request.query_params.get("status")
-        date_param    = self.request.query_params.get("date")
+        params = getattr(self.request, "query_params", getattr(self.request, "GET", {}))
+        schedule_view = params.get("schedule_view")
+        start_date    = params.get("start_date")
+        end_date      = params.get("end_date")
+        status_param  = params.get("status")
+        date_param    = params.get("date")
 
         today = timezone.localtime().date()
 
@@ -492,29 +520,69 @@ class BookingListCreateView(generics.ListCreateAPIView):
         return qs.order_by("-date", "-time", "-created_at")
 
     def perform_create(self, serializer):
-        has_active_booking = Booking.objects.filter(
-            user=self.request.user,
-            status__in=["pending", "confirmed", "rescheduled"],
-        ).exists()
+        user = self.request.user
+        booking_date = serializer.validated_data.get("date")
+        booking_time = serializer.validated_data.get("time")
+        branch = serializer.validated_data.get("branch")
 
-        if has_active_booking:
-            raise ValidationError(
-                {
-                    "non_field_errors": [
-                        "You already have an active booking. Please complete or cancel it before creating a new one."
-                    ]
-                }
-            )
+        if not is_staff_or_above(user):
+            # 1. Limit per customer is 3 bookings per day
+            existing_on_date = Booking.objects.filter(
+                user=user,
+                date=booking_date,
+            ).exclude(status__in=["cancelled", "no_show"])
 
-        booking = serializer.save(user=self.request.user, status="pending")
+            if existing_on_date.count() >= 3:
+                raise ValidationError(
+                    {
+                        "non_field_errors": [
+                            "You can only book up to 3 appointments per day. You already have 3 bookings on this date."
+                        ]
+                    }
+                )
+
+            # 2. Time slot conflict check for this customer on this date
+            req_time_display = to_display_time(booking_time)
+            for existing in existing_on_date:
+                if to_display_time(existing.time) == req_time_display:
+                    raise ValidationError(
+                        {
+                            "time": [
+                                f"You already have an appointment at {req_time_display} on this date. Time slots cannot conflict."
+                            ]
+                        }
+                    )
+
+            # 3. Branch capacity check for this time slot
+            if branch:
+                max_capacity = max(int(branch.slots or 1), 1)
+                slot_bookings = Booking.objects.filter(
+                    branch=branch,
+                    date=booking_date,
+                    status__in=["confirmed", "pending", "rescheduled"],
+                )
+                matching_count = sum(
+                    1 for b in slot_bookings if to_display_time(b.time) == req_time_display
+                )
+                if matching_count >= max_capacity:
+                    raise ValidationError(
+                        {
+                            "time": [
+                                "This time slot is already fully booked for this branch. Please choose another time slot."
+                            ]
+                        }
+                    )
+
+        booking = serializer.save(user=user, status="pending")
         _notify_staff_and_manager_new_booking(booking)
 
 
 class BookingDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset           = Booking.objects.all()
     serializer_class   = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         return (
             Booking.objects
             .filter(user=self.request.user)
@@ -640,13 +708,8 @@ class AvailableSlotsView(APIView):
         day_name = selected_date.strftime("%A")
         day_cfg = schedule_config.get("days", {}).get(day_name, {})
 
-        slot_duration = 30
-        try:
-            slot_duration = int(schedule_config.get("slotDuration", 30))
-        except (TypeError, ValueError):
-            slot_duration = 30
-        if slot_duration <= 0:
-            slot_duration = 30
+        # Booking slots always use fixed 30-minute intervals.
+        slot_duration = BOOKING_SLOT_MINUTES
 
         # Day disabled in schedule => no available slots.
         if not bool(day_cfg.get("enabled", False)):
@@ -662,20 +725,10 @@ class AvailableSlotsView(APIView):
                 }
             )
 
-        open_start = _parse_hhmm(day_cfg.get("start"))
-        open_end = _parse_hhmm(day_cfg.get("end"))
-        if not open_start or not open_end or open_start >= open_end:
-            return Response(
-                {
-                    "available_slots": {},
-                    "meta": self._build_meta(
-                        day_name=day_name,
-                        slot_duration=slot_duration,
-                        closed=True,
-                        closure_reason="Invalid schedule window.",
-                    ),
-                }
-            )
+        # Extended booking window: 8:00 AM to 12:00 midnight for every open day.
+        open_start = BOOKING_WINDOW_START
+        open_end = None  # None => runs until midnight (end of selected date)
+        half_day_end = None
 
         break_start = None
         break_end = None
@@ -727,7 +780,9 @@ class AvailableSlotsView(APIView):
             ex_end = _parse_hhmm(item.get("end"))
             if ex_start and ex_end and ex_start < ex_end:
                 open_start = ex_start
-                open_end = ex_end
+                half_day_end = ex_end
+        if half_day_end:
+            open_end = half_day_end
 
         schedule_meta = self._build_meta(
             day_name=day_name,
@@ -738,6 +793,8 @@ class AvailableSlotsView(APIView):
             break_end=break_end,
             closed=False,
         )
+        if open_end is None:
+            schedule_meta["open_end"] = "12:00 AM (midnight)"
 
         # Additional closure windows from exceptions with start/end.
         blocked_windows = []
@@ -750,10 +807,20 @@ class AvailableSlotsView(APIView):
         # Build slots from schedule windows.
         slots = []
         cursor = datetime.combine(selected_date, open_start)
-        close_dt = datetime.combine(selected_date, open_end)
+        close_dt = (
+            datetime.combine(selected_date, open_end)
+            if open_end
+            else datetime.combine(selected_date + timedelta(days=1), datetime.min.time())
+        )
         while cursor + timedelta(minutes=slot_duration) <= close_dt:
             slot_start = cursor.time()
-            slot_end = (cursor + timedelta(minutes=slot_duration)).time()
+            slot_end_dt = cursor + timedelta(minutes=slot_duration)
+            # Treat a slot ending exactly at midnight as 23:59:59 for overlap checks.
+            slot_end = (
+                slot_end_dt.time()
+                if slot_end_dt.date() == selected_date
+                else datetime.max.time()
+            )
 
             # Exclude configured break window.
             if break_start and break_end and _slot_overlaps(break_start, break_end, slot_start, slot_end):
@@ -832,7 +899,7 @@ class AvailableSlotsView(APIView):
         slot_counts = Counter(booked_slots)
 
         # Capacity per slot still follows branch slot capacity.
-        max_capacity = max(int(branch.slots or 1), 1)
+        max_capacity = max(branch.slots or 1, 1)
 
         # Daily cap from manager schedule settings.
         total_bookings_for_day = bookings.count()
@@ -840,8 +907,27 @@ class AvailableSlotsView(APIView):
 
         employee_capacity = len(active_employee_ids)
 
+        # Check customer daily limit (max 3) and time slot conflicts
+        customer_day_limit_reached = False
+        customer_booked_slots = set()
+        if request.user.is_authenticated and not is_staff_or_above(request.user):
+            user_day_bookings = Booking.objects.filter(
+                user=request.user,
+                date=selected_date,
+            ).exclude(status__in=["cancelled", "no_show"])
+
+            if user_day_bookings.count() >= 3:
+                customer_day_limit_reached = True
+
+            for ub in user_day_bookings:
+                customer_booked_slots.add(to_display_time(ub.time))
+
+        schedule_meta["customer_day_limit_reached"] = customer_day_limit_reached
+        schedule_meta["customer_booked_slots"] = list(customer_booked_slots)
+
         # Calculate availability for each generated slot.
         available_slots = {}
+        slot_conflicts = {}
         for slot in slots:
             current_bookings = slot_counts.get(slot, 0)
             base_available = (not daily_limit_reached) and (current_bookings < max_capacity)
@@ -854,18 +940,29 @@ class AvailableSlotsView(APIView):
                 if employee_capacity > 0 and len(busy_employee_ids) >= employee_capacity:
                     employee_available = False
 
-            available_slots[slot] = base_available and employee_available
+            is_available = base_available and employee_available
 
+            if customer_day_limit_reached:
+                is_available = False
+                slot_conflicts[slot] = "Daily limit reached (3 bookings max)"
+            elif slot in customer_booked_slots:
+                is_available = False
+                slot_conflicts[slot] = "You already booked this time slot"
+
+            available_slots[slot] = is_available
+
+        schedule_meta["slot_conflicts"] = slot_conflicts
         return Response({'available_slots': available_slots, 'meta': schedule_meta})
 
 
 # ─── Staff views ──────────────────────────────────────────────────────────────
 
 class StaffBookingListView(generics.ListAPIView):
+    queryset           = Booking.objects.all()
     serializer_class   = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         if not is_staff_or_above(self.request.user):
             return Booking.objects.none()
 
@@ -893,14 +990,15 @@ class StaffBookingListView(generics.ListAPIView):
                 Q(staff=full_name)
             )
 
-        schedule_view = self.request.query_params.get("schedule_view")
-        start_date    = self.request.query_params.get("start_date")
-        end_date      = self.request.query_params.get("end_date")
-        date_param    = self.request.query_params.get("date")
-        year_param    = self.request.query_params.get("year")
-        month_param   = self.request.query_params.get("month")
-        status_param  = self.request.query_params.get("status")
-        branch_param  = self.request.query_params.get("branch")
+        params = getattr(self.request, "query_params", getattr(self.request, "GET", {}))
+        schedule_view = params.get("schedule_view")
+        start_date    = params.get("start_date")
+        end_date      = params.get("end_date")
+        date_param    = params.get("date")
+        year_param    = params.get("year")
+        month_param   = params.get("month")
+        status_param  = params.get("status")
+        branch_param  = params.get("branch")
 
         today = timezone.localtime().date()
 
@@ -966,10 +1064,15 @@ class StaffBookingActionView(APIView):
             ]
         )
 
+        booking_branch = getattr(booking, "branch", None)
+        booking_branch_id = getattr(booking, "branch_id", None) or (getattr(booking_branch, "id", None) if booking_branch else None)
+        requester_staff_branch = getattr(requester_staff, "branch", None) if requester_staff else None
+        requester_branch_id = getattr(requester_staff, "branch_id", None) or (getattr(requester_staff_branch, "id", None) if requester_staff_branch else None)
+
         # Enforce branch isolation for branch managers and staff
         if not is_global_role:
-            if not requester_staff or not requester_staff.branch_id or (
-                booking.branch_id and booking.branch_id != requester_staff.branch_id
+            if not requester_staff or not requester_branch_id or (
+                booking_branch_id and booking_branch_id != requester_branch_id
             ):
                 return Response(
                     {"detail": "You do not have permission to manage appointments for another branch."},
@@ -1051,7 +1154,7 @@ class StaffBookingActionView(APIView):
                 target_path="/bookings",
             )
 
-            from api.serializers.bookings_serializer import BookingSerializer
+            from ..serializers.bookings_serializer import BookingSerializer
             return Response(BookingSerializer(booking).data)
 
         allowed = ["pending", "confirmed", "cancelled", "no_show", "done", "rescheduled"]
@@ -1080,7 +1183,7 @@ class StaffBookingActionView(APIView):
             except Exception:
                 logger.exception("Failed to send staff/manager cancellation notification")
             
-            from api.serializers.bookings_serializer import BookingSerializer
+            from ..serializers.bookings_serializer import BookingSerializer
             booking.refresh_from_db()
             return Response(BookingSerializer(booking).data)
 
@@ -1096,7 +1199,7 @@ class StaffBookingActionView(APIView):
                 _notify_customer_booking_status(booking, "no_show")
             except Exception:
                 logger.exception("Failed to send customer no-show notification")
-            from api.serializers.bookings_serializer import BookingSerializer
+            from ..serializers.bookings_serializer import BookingSerializer
             booking.refresh_from_db()
             return Response(BookingSerializer(booking).data)
 
@@ -1110,7 +1213,7 @@ class StaffBookingActionView(APIView):
                 if not queue_entry.completed_at:
                     queue_entry.completed_at = timezone.now()
                 queue_entry.save(update_fields=["status", "completed_at"])
-            from api.serializers.bookings_serializer import BookingSerializer
+            from ..serializers.bookings_serializer import BookingSerializer
             booking.refresh_from_db()
             return Response(BookingSerializer(booking).data)
 
@@ -1210,13 +1313,15 @@ class StaffBookingActionView(APIView):
                         status=status.HTTP_404_NOT_FOUND,
                     )
 
-                if booking.branch_id:
-                    assigned_branch_id = assigned_employee.branch_id
+                booking_branch_id = getattr(booking, "branch_id", None) or (booking.branch.id if getattr(booking, "branch", None) else None)
+                assigned_emp_id = getattr(assigned_employee, "id", assigned_employee.pk)
+                if booking_branch_id:
+                    assigned_branch_id = getattr(assigned_employee, "branch_id", None) or (assigned_employee.branch.id if getattr(assigned_employee, "branch", None) else None)
                     if not assigned_branch_id and assigned_employee.branch_name:
                         branch_match = Branch.objects.filter(name__iexact=assigned_employee.branch_name).first()
                         if branch_match:
-                            assigned_branch_id = branch_match.id
-                    if assigned_branch_id and assigned_branch_id != booking.branch_id:
+                            assigned_branch_id = getattr(branch_match, "id", branch_match.pk)
+                    if assigned_branch_id and assigned_branch_id != booking_branch_id:
                         return Response(
                             {"detail": "Assigned employee must belong to the same branch as this booking."},
                             status=status.HTTP_400_BAD_REQUEST,
@@ -1231,7 +1336,7 @@ class StaffBookingActionView(APIView):
                     time=booking.time,
                     status__in=["pending", "confirmed", "rescheduled"],
                 ).exclude(pk=booking.pk).filter(
-                    Q(staff=employee_full_name) | Q(queue_entry__assigned_employee_id=assigned_employee.id)
+                    Q(staff=employee_full_name) | Q(queue_entry__assigned_employee_id=assigned_emp_id)
                 ).exists()
 
                 if has_time_conflict:
@@ -1296,7 +1401,7 @@ class StaffBookingActionView(APIView):
                     entry.assigned_employee = assigned_employee
                     entry.save(update_fields=["assigned_employee"])
                     try:
-                        from api.views.queue_views import _notify_employee_task_assigned
+                        from .queue_views import _notify_employee_task_assigned
                         _notify_employee_task_assigned(entry)
                     except Exception:
                         logger.exception("Failed to notify employee of task assignment")
@@ -1318,7 +1423,7 @@ class StaffBookingActionView(APIView):
                 queue_entry.assigned_employee = assigned_employee
                 queue_entry.save(update_fields=["assigned_employee"])
                 try:
-                    from api.views.queue_views import _notify_employee_task_assigned
+                    from .queue_views import _notify_employee_task_assigned
                     _notify_employee_task_assigned(queue_entry)
                 except Exception:
                     logger.exception("Failed to notify employee of task assignment")
@@ -1339,7 +1444,7 @@ class StaffBookingActionView(APIView):
             except Exception:
                 logger.exception("Failed to send reschedule notification")
 
-        from api.serializers.bookings_serializer import BookingSerializer
+        from ..serializers.bookings_serializer import BookingSerializer
         booking.refresh_from_db()
         return Response(BookingSerializer(booking).data)
 
@@ -1353,7 +1458,8 @@ class BookingRescheduleResponseView(APIView):
         except Booking.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if booking.user_id != request.user.id:
+        booking_user_id = getattr(booking, "user_id", None) or (booking.user.id if booking.user else None)
+        if booking_user_id != request.user.id:
             return Response({"detail": "You can only respond to your own booking."}, status=status.HTTP_403_FORBIDDEN)
 
         if booking.reschedule_status != "pending_customer":
@@ -1464,7 +1570,7 @@ class BookingRescheduleResponseView(APIView):
                 target_path="/bookings",
             )
 
-        from api.serializers.bookings_serializer import BookingSerializer
+        from ..serializers.bookings_serializer import BookingSerializer
         return Response(BookingSerializer(booking).data)
 
 class BookingRescheduleRequestView(APIView):
@@ -1476,7 +1582,8 @@ class BookingRescheduleRequestView(APIView):
         except Booking.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if booking.user_id != request.user.id:
+        booking_user_id = getattr(booking, "user_id", None) or (booking.user.id if booking.user else None)
+        if booking_user_id != request.user.id:
             return Response(
                 {"detail": "You can only request reschedule for your own booking."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -1569,18 +1676,19 @@ class BookingRescheduleRequestView(APIView):
             ).select_related("user")
 
             notifications = []
-            appointment_time = to_display_time(str(booking.time))
+            appointment_time = to_display_time(booking.time)
             preferred_text = (
                 f" Preferred date/time: {preferred_option['date']} at {preferred_option['time']}."
                 if preferred_option
                 else ""
             )
             for staff_member in recipients:
-                if not getattr(staff_member, "user_id", None):
+                recipient_user_id = getattr(staff_member, "user_id", None) or (staff_member.user.id if getattr(staff_member, "user", None) else None)
+                if not recipient_user_id:
                     continue
                 notifications.append(
                     Notification(
-                        user_id=staff_member.user_id,
+                        user_id=recipient_user_id,
                         title="Customer Requested Reschedule",
                         message=(
                             f"{booking.user.get_username() or booking.user.email} requested a reschedule "
@@ -1596,7 +1704,7 @@ class BookingRescheduleRequestView(APIView):
                     Notification.objects.bulk_create(notifications)
                 except Exception:
                     logger.exception(
-                        "Failed to notify staff for reschedule request booking_id=%s", booking.id
+                        "Failed to notify staff for reschedule request booking_id=%s", getattr(booking, "id", booking.pk)
                     )
 
         # Confirm back to the customer
@@ -1616,5 +1724,5 @@ class BookingRescheduleRequestView(APIView):
             target_path="/bookings",
         )
 
-        from api.serializers.bookings_serializer import BookingSerializer
+        from ..serializers.bookings_serializer import BookingSerializer
         return Response(BookingSerializer(booking).data)

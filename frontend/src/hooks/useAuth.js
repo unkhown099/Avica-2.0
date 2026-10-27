@@ -100,11 +100,18 @@ export function getAuthHeaders() {
 
 function resolveStoredUser() {
   try {
-    const raw =
-      sessionStorage.getItem("user") ??
-      localStorage.getItem("user") ??
-      null;
-    return raw ? JSON.parse(raw) : null;
+    const sRaw = sessionStorage.getItem("user");
+    const lRaw = localStorage.getItem("user");
+    const s = sRaw ? JSON.parse(sRaw) : null;
+    const l = lRaw ? JSON.parse(lRaw) : null;
+    if (!s && !l) return null;
+    const merged = { ...(l || {}), ...(s || {}) };
+    const pic = l?.profile_picture || l?.profilePicture || s?.profile_picture || s?.profilePicture;
+    if (pic) {
+      merged.profile_picture = pic;
+      merged.profilePicture = pic;
+    }
+    return merged;
   } catch {
     return null;
   }
@@ -135,6 +142,7 @@ export function useAuth() {
     const isAdmin = ["admin", "business_owner", "super_admin"].includes(role);
 
     const stored = resolveStoredUser();
+    const pic = stored?.profile_picture || stored?.profilePicture || payload?.profile_picture || null;
 
     const user = {
       branch_id: stored?.branch_id ?? stored?.branch?.id ?? null,
@@ -146,6 +154,8 @@ export function useAuth() {
       first_name: stored?.first_name ?? null,
       last_name: stored?.last_name ?? null,
       role,
+      profile_picture: pic,
+      profilePicture: pic,
     };
 
     return {
@@ -169,7 +179,7 @@ function normalizeRole(raw) {
   if (str.includes("business_owner") || str.includes("branch_owner") || str === "owner") return "business_owner";
   if (str.includes("branch_manager") || (str.includes("manager") && !str.includes("inventory"))) return "branch_manager";
   if (str.includes("inventory_manager")) return "inventory_manager";
-  if (str.includes("inventory")) return "inventory_manager";
+  if (str.includes("inventory")) return "inventory";
   if (str.includes("admin")) return "admin";
   if (str.includes("cashier") || str.includes("staff")) return "staff";
   if (str.includes("employee") || str.includes("technician") || str.includes("worker") || str.includes("mechanic") || str.includes("detailer")) return "employee";

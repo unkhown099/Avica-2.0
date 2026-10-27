@@ -610,6 +610,13 @@ html[data-theme="light"] textarea:not(.landing-hero *) {
   border: 1px solid #cbd5e1 !important;
 }
 
+html[data-theme="light"] input.bg-transparent,
+html[data-theme="light"] input[class*="bg-transparent"] {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 html[data-theme="light"] label:not(.landing-hero *):not([class*="text-red"]) {
   color: #1e293b !important;
 }
@@ -748,7 +755,13 @@ html[data-theme="light"] .btn-action-red *,
 html[data-theme="light"] button.btn-action-red * {
   color: #ffffff !important;
   stroke: #ffffff !important;
-  fill: currentColor !important;
+}
+
+html[data-theme="light"] svg[fill="none"],
+html[data-theme="light"] svg[fill="none"] *,
+svg[fill="none"],
+svg[fill="none"] * {
+  fill: none !important;
 }
 
 html[data-theme="light"] button.bg-red-600:hover,

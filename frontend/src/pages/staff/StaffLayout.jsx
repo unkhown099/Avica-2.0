@@ -19,7 +19,7 @@ function StaffLayout({ children }) {
   const location = useLocation();
 
   useEffect(() => {
-    const title = PAGE_TITLES[location.pathname] ?? "Staff";
+    const title = PAGE_TITLES[location.pathname] ?? "Cashier";
     document.title = `${title} | Otokwikk`;
   }, [location.pathname]);
 

@@ -134,7 +134,7 @@ export default function InventoryDashboard({
             setTransactions(
               (txData ?? []).map((tx) => ({
                 item_name:        tx.inventory_item_name ?? tx.inventory_item?.name ?? "Unknown Item",
-                branch_name:      tx.branch_name ?? "Central",
+                branch_name:      tx.branch_name ?? "Main Warehouse (Saranay)",
                 action_type:      tx.action_type,
                 quantity_changed: tx.quantity_changed ?? 0,
                 created_at:       tx.created_at,

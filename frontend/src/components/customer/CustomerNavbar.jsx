@@ -234,8 +234,19 @@ function Navbar({ user: userProp, setUser }) {
   const { toggleTheme, isDark } = useTheme();
   const [localUser, setLocalUser] = useState(() => {
     try {
-      const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
-      if (raw) return JSON.parse(raw);
+      const sessionRaw = sessionStorage.getItem("user");
+      const localRaw = localStorage.getItem("user");
+      const s = sessionRaw ? JSON.parse(sessionRaw) : null;
+      const l = localRaw ? JSON.parse(localRaw) : null;
+      if (s || l) {
+        const merged = { ...(l || {}), ...(s || {}) };
+        const pic = l?.profile_picture || l?.profilePicture || s?.profile_picture || s?.profilePicture;
+        if (pic) {
+          merged.profile_picture = pic;
+          merged.profilePicture = pic;
+        }
+        return merged;
+      }
     } catch (_) {}
     return userProp || authUser;
   });
@@ -264,9 +275,18 @@ function Navbar({ user: userProp, setUser }) {
   useEffect(() => {
     const handleSync = () => {
       try {
-        const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
-        if (raw) {
-          setLocalUser(JSON.parse(raw));
+        const sessionRaw = sessionStorage.getItem("user");
+        const localRaw = localStorage.getItem("user");
+        const s = sessionRaw ? JSON.parse(sessionRaw) : null;
+        const l = localRaw ? JSON.parse(localRaw) : null;
+        if (s || l) {
+          const merged = { ...(l || {}), ...(s || {}) };
+          const pic = l?.profile_picture || l?.profilePicture || s?.profile_picture || s?.profilePicture;
+          if (pic) {
+            merged.profile_picture = pic;
+            merged.profilePicture = pic;
+          }
+          setLocalUser(merged);
           return;
         }
       } catch (_) {}
@@ -283,8 +303,56 @@ function Navbar({ user: userProp, setUser }) {
   }, [userProp, authUser]);
 
   useEffect(() => {
-    if (userProp) setLocalUser(userProp);
+    if (userProp) {
+      setLocalUser((prev) => {
+        const pic = userProp.profile_picture || userProp.profilePicture || prev?.profile_picture || prev?.profilePicture;
+        return {
+          ...(prev || {}),
+          ...userProp,
+          profile_picture: pic,
+          profilePicture: pic,
+        };
+      });
+    }
   }, [userProp]);
+
+  useEffect(() => {
+    if (!headers.Authorization) return;
+    const fetchMe = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/me/`, { headers });
+        if (res.ok) {
+          const freshData = await res.json();
+          const applyFresh = (storage) => {
+            const raw = storage.getItem("user");
+            const cur = raw ? JSON.parse(raw) : {};
+            const pic = freshData.profile_picture || freshData.profilePicture || cur.profile_picture || cur.profilePicture || null;
+            const updated = {
+              ...cur,
+              ...freshData,
+              profile_picture: pic,
+              profilePicture: pic,
+            };
+            storage.setItem("user", JSON.stringify(updated));
+            return updated;
+          };
+          const updated = applyFresh(localStorage);
+          applyFresh(sessionStorage);
+          setLocalUser((prev) => ({
+            ...(prev || {}),
+            ...updated,
+          }));
+          if (typeof setUser === "function") {
+            setUser((prev) => ({
+              ...(prev || {}),
+              ...updated,
+            }));
+          }
+        }
+      } catch (_) {}
+    };
+    fetchMe();
+  }, [headers.Authorization]);
 
   const fetchNotifications = async () => {
     if (!headers.Authorization) return;
@@ -429,7 +497,15 @@ function Navbar({ user: userProp, setUser }) {
       (firstName?.[0] || "") + (lastName?.[0] || "")
     ).toUpperCase() || (fullName ? fullName.slice(0, 2).toUpperCase() : "?");
   const email = user?.email || "";
-  const profilePic = user?.profilePicture || user?.profile_picture || user?.profile_pic;
+  const profilePic =
+    localUser?.profile_picture ||
+    localUser?.profilePicture ||
+    localUser?.profile_pic ||
+    user?.profile_picture ||
+    user?.profilePicture ||
+    user?.profile_pic ||
+    authUser?.profile_picture ||
+    authUser?.profilePicture;
 
   const NAV_LINKS = [
     { label: "Dashboard", href: "/dashboard" },

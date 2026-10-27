@@ -1,11 +1,19 @@
 import os
+import sys
 import django
 from decimal import Decimal
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
-from api.models import Branch, Staff, BranchScheduleConfig
+try:
+    from api.models import Branch, Staff, BranchScheduleConfig  # type: ignore
+except ImportError:
+    from backend.api.models import Branch, Staff, BranchScheduleConfig  # type: ignore
 
 branches_data = [
     {
@@ -82,7 +90,8 @@ for data in branches_data:
 
 # Re-link any staff to valid branches if branch is None
 first_branch = Branch.objects.first()
-Staff.objects.filter(branch__isnull=True).update(branch=first_branch, branch_name=first_branch.name)
+if first_branch:
+    Staff.objects.filter(branch__isnull=True).update(branch=first_branch, branch_name=first_branch.name)
 
 print("\n=== CURRENT BRANCHES IN DATABASE ===")
 for b in Branch.objects.all():

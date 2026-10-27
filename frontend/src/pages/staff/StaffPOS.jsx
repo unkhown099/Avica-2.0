@@ -635,6 +635,132 @@ function ValidatedInput({ value, onChange, placeholder, type = "text", hasError,
   );
 }
 
+function AdvancePayModal({
+  entry,
+  paymentMethod,
+  setPaymentMethod,
+  amountGiven,
+  setAmountGiven,
+  onConfirm,
+  onClose,
+  isProcessing,
+  isDark = true,
+}) {
+  if (!entry) return null;
+  const price = parseFloat(entry._resolvedPrice ?? entry.price ?? 0) || 0;
+  const statusLabel = entry.status === "in_service" ? "In Progress" : "Pending / Waiting";
+  const numGiven = parseFloat(amountGiven || 0);
+  const change = Math.max(0, numGiven - price);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+      <div className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden p-6 space-y-4 ${
+        isDark ? "bg-gray-900 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
+      }`}>
+        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            </span>
+            <div>
+              <h3 className="font-black text-base">Pay in Advance Confirmation</h3>
+              <p className="text-xs text-gray-400">Collect payment early without changing service status</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-lg">✕</button>
+        </div>
+
+        {/* Details Card */}
+        <div className={`rounded-xl p-3.5 space-y-2 border ${isDark ? "bg-black/40 border-white/5" : "bg-gray-50 border-gray-200"}`}>
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400 font-medium">Customer:</span>
+            <span className="font-bold">{entry.customer_name || "Walk-in Customer"}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400 font-medium">Service:</span>
+            <span className="font-bold">{entry.service || "Car Care Service"}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400 font-medium">Current Status:</span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-500/20 text-blue-400 border border-blue-500/30">
+              {statusLabel} (Remains Active)
+            </span>
+          </div>
+          <div className="flex justify-between text-sm pt-2 border-t border-white/5">
+            <span className="font-bold">Total Amount Due:</span>
+            <span className="text-base font-black text-emerald-400">₱{price.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Payment Method Selector */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-gray-400">Select Payment Method</label>
+          <div className="grid grid-cols-3 gap-2">
+            {["cash", "gcash", "card"].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setPaymentMethod(m)}
+                className={`py-2 px-3 rounded-xl text-xs font-black uppercase transition-all border ${
+                  paymentMethod === m
+                    ? "bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30"
+                    : isDark
+                    ? "bg-white/5 text-gray-400 border-white/5 hover:bg-white/10"
+                    : "bg-gray-100 text-gray-700 border-gray-200"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {paymentMethod === "cash" && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-gray-400">Amount Received (₱)</label>
+            <input
+              type="number"
+              min={price}
+              value={amountGiven}
+              onChange={(e) => setAmountGiven(e.target.value)}
+              placeholder={`Min ₱${price}`}
+              className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-red-500"
+            />
+            {numGiven > 0 && (
+              <p className="text-xs text-emerald-400 font-semibold flex justify-between">
+                <span>Change:</span>
+                <span>₱{change.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-[11px] text-amber-300">
+          ⚠️ <strong>Staff Note:</strong> Confirm with customer before charging. This records payment without altering the service status, allowing service employees to proceed normally.
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded-xl text-xs transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={isProcessing || (paymentMethod === "cash" && amountGiven && numGiven < price)}
+            onClick={onConfirm}
+            className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-red-600/30"
+          >
+            {isProcessing ? "Processing..." : "Confirm & Pay in Advance"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function StaffPOS() {
   const { user } = useAuth();
@@ -657,6 +783,10 @@ export default function StaffPOS() {
   const [fieldErrors, setFieldErrors] = useState({ name: false, phone: false });
   const [qrphCheckoutUrl, setQrphCheckoutUrl] = useState(null);
   const [isGeneratingUrl, setIsGeneratingUrl] = useState(false);
+  const [advancePayEntry, setAdvancePayEntry] = useState(null);
+  const [advancePaymentMethod, setAdvancePaymentMethod] = useState("cash");
+  const [advanceAmountGiven, setAdvanceAmountGiven] = useState("");
+  const [isProcessingAdvancePay, setIsProcessingAdvancePay] = useState(false);
   const { snackbars, push: pushSnack, dismiss: dismissSnack } = useSnackbar();
 
   // ── Phone validation helper ───────────────────────────────────────────────
@@ -727,6 +857,37 @@ export default function StaffPOS() {
       }));
     } catch { setUnpaidEntries([]); } finally { setLoadingUnpaid(false); }
   }, [services]);
+
+  const handleConfirmAdvancePay = async () => {
+    if (!advancePayEntry) return;
+    try {
+      setIsProcessingAdvancePay(true);
+      const price = parseFloat(advancePayEntry._resolvedPrice ?? advancePayEntry.price ?? 0) || 0;
+      const res = await fetch(`${API}/api/queue/${advancePayEntry.id}/mark-paid/`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          payment_status: "paid",
+          payment_method: advancePaymentMethod,
+          price: price,
+          notes: `[Pay in Advance - Status: ${advancePayEntry.status}] Customer: ${advancePayEntry.customer_name || "Walk-in"}`
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.detail || "Failed to record advance payment.");
+      }
+      pushSnack(`Pay in advance recorded for ${advancePayEntry.customer_name || "service"}! Status remains ${advancePayEntry.status === "in_service" ? "In Progress" : "Pending"}.`, "success", 5000);
+      setUnpaidEntries((prev) => prev.filter((e) => e.id !== advancePayEntry.id));
+      setAdvancePayEntry(null);
+      fetchUnpaid();
+    } catch (err) {
+      pushSnack(err.message || "Could not process advance payment.", "error");
+    } finally {
+      setIsProcessingAdvancePay(false);
+    }
+  };
 
   const intervalRef = useRef(null);
   useEffect(() => {
@@ -1420,18 +1581,37 @@ const filteredServices = services.filter((s) => {
                               }
                             />
                           </div>
-                          {alreadyIn ? (
-                            <div className="w-7 h-7 bg-emerald-500/20 rounded-md flex items-center justify-center shrink-0">
-                              <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          ) : (
-                            <button onClick={() => pullFromQueue(entry)}
-                              className="w-7 h-7 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/25 text-amber-400 rounded-md flex items-center justify-center shrink-0 transition-all font-black text-base">
-                              +
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {["waiting", "in_service", "pending"].includes(entry.status) && !alreadyIn && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdvancePayEntry(entry);
+                                  setAdvanceAmountGiven("");
+                                }}
+                                className="px-2 py-1 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 rounded-md text-[10px] font-bold transition-all flex items-center gap-1"
+                                title="Pay in Advance"
+                              >
+                                <svg className="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <span>Pay in Advance</span>
+                              </button>
+                            )}
+                            {alreadyIn ? (
+                              <div className="w-7 h-7 bg-emerald-500/20 rounded-md flex items-center justify-center shrink-0">
+                                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <button onClick={() => pullFromQueue(entry)}
+                                className="w-7 h-7 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/25 text-amber-400 rounded-md flex items-center justify-center shrink-0 transition-all font-black text-base"
+                                title="Add to Cart">
+                                +
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -1605,6 +1785,18 @@ const filteredServices = services.filter((s) => {
         </div>
       )}
 
+      {advancePayEntry && (
+        <AdvancePayModal
+          entry={advancePayEntry}
+          paymentMethod={advancePaymentMethod}
+          setPaymentMethod={setAdvancePaymentMethod}
+          amountGiven={advanceAmountGiven}
+          setAmountGiven={setAdvanceAmountGiven}
+          onConfirm={handleConfirmAdvancePay}
+          onClose={() => setAdvancePayEntry(null)}
+          isProcessing={isProcessingAdvancePay}
+        />
+      )}
       {receipt && <ReceiptModal {...receipt} onClose={() => setReceipt(null)} />}
       <SnackbarContainer snackbars={snackbars} onDismiss={dismissSnack} />
     </StaffLayout>

@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from django.db.models import Q
 import re
-from api.models import Customer, CustomerSetting, Booking, QueueEntry, Branch
-from api.serializers.customer_serializer import CustomerSerializer
+from api.models import Customer, CustomerSetting, CustomerVehicle, Booking, QueueEntry, Branch
+from api.serializers.customer_serializer import CustomerSerializer, CustomerVehicleSerializer
 
 
 DEFAULT_NOTIFICATIONS = {
@@ -87,7 +87,7 @@ class AdminCustomerListView(APIView):
             return Response([], status=200)
 
 
-# Add this new view for the current user's profile
+# Current user's profile view
 class CurrentCustomerProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -104,21 +104,52 @@ class CurrentCustomerProfileView(APIView):
                 "car_year": "",
                 "car_color": "",
                 "car_plate": "",
+                "vehicles": [],
             })
 
     def put(self, request):
         try:
-            customer, created = Customer.objects.get_or_create(user=request.user)
-            
-            # Update fields
-            customer.address = request.data.get("address", customer.address)
-            customer.car_make = request.data.get("car_make", customer.car_make)
-            customer.car_model = request.data.get("car_model", customer.car_model)
-            customer.car_year = request.data.get("car_year", customer.car_year)
-            customer.car_color = request.data.get("car_color", customer.car_color)
-            customer.car_plate = request.data.get("car_plate", customer.car_plate)
-            customer.save()
-            
+            customer, _ = Customer.objects.get_or_create(
+                user=request.user,
+                defaults={
+                    "first_name": getattr(request.user, "email", "User").split("@")[0],
+                    "last_name": "Customer",
+                },
+            )
+
+            # Sync primary vehicle if vehicle fields were submitted
+            car_make = (request.data.get("car_make") or "").strip()
+            car_model = (request.data.get("car_model") or "").strip()
+            car_year = (request.data.get("car_year") or "").strip()
+            car_color = (request.data.get("car_color") or "").strip()
+            car_plate = (request.data.get("car_plate") or "").strip().upper()
+
+            if car_make or car_plate:
+                primary_veh = customer.vehicles.filter(is_primary=True).first() or customer.vehicles.first()
+                if primary_veh:
+                    if car_make:
+                        primary_veh.make = car_make
+                    if car_model:
+                        primary_veh.model = car_model
+                    if car_year:
+                        primary_veh.year = car_year
+                    if car_color:
+                        primary_veh.color = car_color
+                    if car_plate:
+                        primary_veh.plate_number = car_plate
+                    primary_veh.save()
+                else:
+                    CustomerVehicle.objects.create(
+                        customer=customer,
+                        user=request.user,
+                        make=car_make or "Vehicle",
+                        model=car_model or "Model",
+                        year=car_year,
+                        color=car_color,
+                        plate_number=car_plate or "TBA",
+                        is_primary=True,
+                    )
+
             serializer = CustomerSerializer(customer)
             return Response(serializer.data)
         except Exception as e:
@@ -126,6 +157,137 @@ class CurrentCustomerProfileView(APIView):
                 {"error": str(e)},
                 status=400
             )
+
+
+class CustomerVehicleListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_customer(self, user):
+        customer, _ = Customer.objects.get_or_create(
+            user=user,
+            defaults={
+                "first_name": getattr(user, "email", "User").split("@")[0],
+                "last_name": "Customer",
+            },
+        )
+        return customer
+
+    def get(self, request):
+        customer = self._get_customer(request.user)
+        vehicles = customer.vehicles.all().order_by("-is_primary", "-created_at")
+        serializer = CustomerVehicleSerializer(vehicles, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        customer = self._get_customer(request.user)
+        data = request.data or {}
+
+        make = (data.get("make") or data.get("car_make") or "").strip()
+        model = (data.get("model") or data.get("car_model") or "").strip()
+        plate_number = (data.get("plate_number") or data.get("car_plate") or "").strip().upper()
+        year = str(data.get("year") or data.get("car_year") or "").strip()
+        color = (data.get("color") or data.get("car_color") or "").strip()
+        vehicle_size = (data.get("vehicle_size") or "small").strip()
+        is_primary = bool(data.get("is_primary", False))
+
+        if not make or not model:
+            return Response({"error": "Vehicle make and model are required."}, status=400)
+        if not plate_number:
+            return Response({"error": "Plate number is required."}, status=400)
+
+        # If this is the customer's first vehicle or is_primary is requested
+        if is_primary or not customer.vehicles.exists():
+            customer.vehicles.update(is_primary=False)
+            is_primary = True
+
+        vehicle = CustomerVehicle.objects.create(
+            customer=customer,
+            user=request.user,
+            make=make,
+            model=model,
+            year=year,
+            color=color,
+            plate_number=plate_number,
+            vehicle_size=vehicle_size,
+            is_primary=is_primary,
+        )
+
+        return Response(CustomerVehicleSerializer(vehicle).data, status=201)
+
+
+class CustomerVehicleDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_vehicle(self, request, pk):
+        try:
+            customer = Customer.objects.get(user=request.user)
+            return CustomerVehicle.objects.get(id=pk, customer=customer), customer
+        except (Customer.DoesNotExist, CustomerVehicle.DoesNotExist):
+            return None, None
+
+    def put(self, request, pk):
+        vehicle, customer = self._get_vehicle(request, pk)
+        if not vehicle or not customer:
+            return Response({"error": "Vehicle not found."}, status=404)
+
+        data = request.data or {}
+        if "make" in data or "car_make" in data:
+            vehicle.make = (data.get("make") or data.get("car_make") or vehicle.make).strip()
+        if "model" in data or "car_model" in data:
+            vehicle.model = (data.get("model") or data.get("car_model") or vehicle.model).strip()
+        if "year" in data or "car_year" in data:
+            vehicle.year = str(data.get("year") if "year" in data else data.get("car_year", vehicle.year)).strip()
+        if "color" in data or "car_color" in data:
+            vehicle.color = (data.get("color") if "color" in data else data.get("car_color", vehicle.color)).strip()
+        if "plate_number" in data or "car_plate" in data:
+            vehicle.plate_number = (data.get("plate_number") or data.get("car_plate") or vehicle.plate_number).strip().upper()
+        if "vehicle_size" in data:
+            vehicle.vehicle_size = (data.get("vehicle_size") or vehicle.vehicle_size).strip()
+
+        if data.get("is_primary"):
+            customer.vehicles.exclude(id=vehicle.id).update(is_primary=False)
+            vehicle.is_primary = True
+
+        vehicle.save()
+        return Response(CustomerVehicleSerializer(vehicle).data)
+
+    patch = put
+
+    def delete(self, request, pk):
+        vehicle, customer = self._get_vehicle(request, pk)
+        if not vehicle or not customer:
+            return Response({"error": "Vehicle not found."}, status=404)
+
+        was_primary = vehicle.is_primary
+        vehicle.delete()
+
+        # If the deleted vehicle was primary, make the first remaining vehicle primary
+        if was_primary:
+            first_remaining = customer.vehicles.first()
+            if first_remaining:
+                first_remaining.is_primary = True
+                first_remaining.save()
+
+        return Response({"message": "Vehicle deleted successfully.", "id": pk})
+
+
+class CustomerVehicleSetPrimaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            customer = Customer.objects.get(user=request.user)
+            vehicle = CustomerVehicle.objects.get(id=pk, customer=customer)
+        except (Customer.DoesNotExist, CustomerVehicle.DoesNotExist):
+            return Response({"error": "Vehicle not found."}, status=404)
+
+        customer.vehicles.exclude(id=vehicle.id).update(is_primary=False)
+        vehicle.is_primary = True
+        vehicle.save()
+
+        return Response(CustomerVehicleSerializer(vehicle).data)
+
+
 
 
 class CustomerSettingsView(APIView):

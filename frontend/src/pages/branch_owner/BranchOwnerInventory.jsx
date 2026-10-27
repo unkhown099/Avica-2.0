@@ -323,7 +323,7 @@ function BranchOwnerInventory() {
                         </>
                       )}
                       <span className="mx-2 text-gray-700">·</span>
-                      {item.branch_name || "Central"}
+                      {item.branch_name || "Main Warehouse (Saranay)"}
                     </div>
                   </div>
                 </div>
@@ -422,7 +422,7 @@ function BranchOwnerInventory() {
                   {getStatusBadge(item.status)}
                 </div>
                 <div className="text-gray-500 text-xs">
-                  {item.branch_name || "Central"} · {item.category || "—"} ·{" "}
+                  {item.branch_name || "Main Warehouse (Saranay)"} · {item.category || "—"} ·{" "}
                   {formatQuantity(item.quantity, item.unit)} ·{" "}
                   {formatPrice(item.price)}
                 </div>
@@ -493,7 +493,7 @@ function BranchOwnerInventory() {
                   {formatPrice(item.price)}
                 </div>
                 <div className="col-span-2 text-gray-400 text-sm truncate">
-                  {item.branch_name || "Central"}
+                  {item.branch_name || "Main Warehouse (Saranay)"}
                 </div>
                 <div className="col-span-2 text-gray-400 text-sm truncate">
                   {item.supplier || "—"}

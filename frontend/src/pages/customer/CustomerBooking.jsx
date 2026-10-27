@@ -13,17 +13,19 @@ import CustomDatePicker from "../../components/common/CustomDatePicker.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TIME_SLOTS = [
-  "8:00 AM",
-  "9:00 AM",
-  "10:00 AM",
-  "11:00 AM",
-  "12:00 PM",
-  "1:00 PM",
-  "2:00 PM",
-  "3:00 PM",
-  "4:00 PM",
-];
+// Booking window: 8:00 AM until 12:00 midnight in 30-minute intervals
+// (last slot 11:30 PM ends at midnight). Mirrors the backend slot generator.
+const TIME_SLOTS = (() => {
+  const slots = [];
+  for (let mins = 8 * 60; mins < 24 * 60; mins += 30) {
+    const h24 = Math.floor(mins / 60);
+    const m = mins % 60;
+    const period = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    slots.push(`${h12}:${String(m).padStart(2, "0")} ${period}`);
+  }
+  return slots;
+})();
 
 const PRICE_TIERS = [
   { key: "motor", label: "Motorcycle" },
@@ -1247,9 +1249,12 @@ function NewBookingModal({
   const [userBookings, setUserBookings] = useState([]);
   const [userBookingsLoaded, setUserBookingsLoaded] = useState(false);
   const [hasActiveBooking, setHasActiveBooking] = useState(false);
-  const [savedCustomerVehicle, setSavedCustomerVehicle] = useState(null);
+  const [customerVehicles, setCustomerVehicles] = useState([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState("");
+  const [isManualVehicle, setIsManualVehicle] = useState(false);
+  const [saveVehicleToProfile, setSaveVehicleToProfile] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState(null);
-  const [toast, setToast] = useState(null); // Add toast state
+  const [toast, setToast] = useState(null);
   const [canScrollMore, setCanScrollMore] = useState(false);
   const scrollRef = useRef(null);
 
@@ -1260,7 +1265,6 @@ function NewBookingModal({
     setCanScrollMore(hasMore);
   }, []);
 
-  // Toast helper functions
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4500);
@@ -1283,28 +1287,59 @@ function NewBookingModal({
     })();
   }, []);
 
-  // ── Load customer profile for registered vehicle ──
+  // ── Load customer vehicles for dropdown selection ──
   useEffect(() => {
     (async () => {
       try {
         const headers = await authHeaders();
-        const r = await fetch(`${API_BASE}/api/customers/me/`, { headers });
-        if (!r.ok) return;
-        const c = await r.json();
-        const vehStr = `${c.car_make || ""} ${c.car_model || ""} ${c.car_year || ""}`.trim();
-        if (vehStr || c.car_plate) {
-          setSavedCustomerVehicle({
-            vehicle: vehStr,
-            plate: c.car_plate || "",
-            make: c.car_make || "",
-            model: c.car_model || "",
-            year: c.car_year || "",
-          });
+        const [custRes, vehRes] = await Promise.allSettled([
+          fetch(`${API_BASE}/api/customers/me/`, { headers }),
+          fetch(`${API_BASE}/api/customer/vehicles/`, { headers }),
+        ]);
+
+        let list = [];
+        if (vehRes.status === "fulfilled" && vehRes.value.ok) {
+          const vData = await vehRes.value.json();
+          if (Array.isArray(vData) && vData.length > 0) {
+            list = vData;
+          }
+        }
+
+        if (list.length === 0 && custRes.status === "fulfilled" && custRes.value.ok) {
+          const c = await custRes.value.json();
+          if (Array.isArray(c.vehicles) && c.vehicles.length > 0) {
+            list = c.vehicles;
+          } else if (c.car_make || c.car_plate) {
+            list = [
+              {
+                id: "primary",
+                make: c.car_make || "Vehicle",
+                model: c.car_model || "",
+                year: c.car_year || "",
+                color: c.car_color || "",
+                plate_number: c.car_plate || "",
+                vehicle_size: "small",
+                is_primary: true,
+              },
+            ];
+          }
+        }
+
+        setCustomerVehicles(list);
+
+        if (list.length > 0) {
+          const primary = list.find((v) => v.is_primary) || list[0];
+          setSelectedVehicleId(String(primary.id));
+          setIsManualVehicle(false);
+          const vehStr = `${primary.make || ""} ${primary.model || ""} ${primary.year || ""}`.trim();
           setForm((prev) => ({
             ...prev,
             vehicle: prev.vehicle || vehStr,
-            plateNumber: prev.plateNumber || c.car_plate || "",
+            plateNumber: prev.plateNumber || primary.plate_number || "",
+            vehicleSize: prev.vehicleSize || primary.vehicle_size || "small",
           }));
+        } else {
+          setIsManualVehicle(true);
         }
       } catch {
         /* silent */
@@ -1312,24 +1347,57 @@ function NewBookingModal({
     })();
   }, []);
 
-  useEffect(() => {
-    if (!userBookingsLoaded) {
-      setHasActiveBooking(false);
-      return;
+  const handleSelectVehicleChange = (val) => {
+    if (val === "manual") {
+      setSelectedVehicleId("manual");
+      setIsManualVehicle(true);
+      setForm((prev) => ({
+        ...prev,
+        vehicle: "",
+        plateNumber: "",
+      }));
+    } else {
+      setSelectedVehicleId(String(val));
+      setIsManualVehicle(false);
+      const chosen = customerVehicles.find((v) => String(v.id) === String(val));
+      if (chosen) {
+        const vehStr = `${chosen.make || ""} ${chosen.model || ""} ${chosen.year || ""}`.trim();
+        setForm((prev) => ({
+          ...prev,
+          vehicle: vehStr,
+          plateNumber: chosen.plate_number || "",
+          vehicleSize: chosen.vehicle_size || prev.vehicleSize || "small",
+        }));
+      }
     }
-    const activeExists = userBookings.some(
-      (b) => ["pending", "confirmed", "rescheduled"].includes(b.status),
+  };
+
+  const bookingsOnSelectedDate = useMemo(() => {
+    if (!form.date || !userBookings) return [];
+    return userBookings.filter(
+      (b) => b.date === form.date && ["pending", "confirmed", "rescheduled"].includes(b.status),
     );
-    setHasActiveBooking(activeExists);
-    if (activeExists)
+  }, [form.date, userBookings]);
+
+  const isDailyLimitReached = bookingsOnSelectedDate.length >= 3;
+
+  const customerBookedTimesOnDate = useMemo(() => {
+    return new Set(bookingsOnSelectedDate.map((b) => b.time));
+  }, [bookingsOnSelectedDate]);
+
+  useEffect(() => {
+    if (form.date && isDailyLimitReached) {
       setError(
-        "You already have an active booking. Please complete or cancel it before creating a new one.",
+        "Daily limit reached: You already have 3 bookings on this date. Maximum 3 bookings allowed per day.",
       );
-    else
+    } else {
       setError((prev) =>
-        prev.includes("already have an active booking") ? "" : prev,
+        prev.includes("Maximum 3 bookings allowed") || prev.includes("already have an active booking")
+          ? ""
+          : prev,
       );
-  }, [userBookings, userBookingsLoaded]);
+    }
+  }, [form.date, isDailyLimitReached]);
 
   // ── Availability slots ──
   useEffect(() => {
@@ -1637,12 +1705,16 @@ function NewBookingModal({
         );
         return false;
       }
-      if (hasActiveBooking) {
-        setError("You already have an active booking.");
+      if (isDailyLimitReached) {
+        setError("You have reached the limit of 3 bookings for this date. Please choose another date.");
         return false;
       }
       if (!form.time) {
         setError("Please select a time slot.");
+        return false;
+      }
+      if (customerBookedTimesOnDate.has(form.time)) {
+        setError("You already have a booking at this time slot on this date. Time slots cannot conflict.");
         return false;
       }
       if (!isSlotAvailable(form.time)) {
@@ -1674,9 +1746,13 @@ function NewBookingModal({
         throw new Error(
           "Past dates are not allowed. Please select today or a later date.",
         );
-      if (hasActiveBooking)
+      if (isDailyLimitReached)
         throw new Error(
-          "You already have an active booking. Please complete or cancel it before creating a new one.",
+          "You can only book up to 3 appointments per day. You already have 3 bookings on this date.",
+        );
+      if (customerBookedTimesOnDate.has(form.time))
+        throw new Error(
+          "You already have a booking at this time slot on this date. Time slots cannot conflict.",
         );
       if (!isSlotAvailable(form.time))
         throw new Error(
@@ -1738,6 +1814,28 @@ function NewBookingModal({
         throw new Error(`Error ${res.status}`);
       }
       const newBooking = await res.json();
+
+      if (isManualVehicle && saveVehicleToProfile && vehicle && plateNumber) {
+        try {
+          const parts = vehicle.split(" ");
+          const make = parts[0] || vehicle;
+          const model = parts.slice(1).join(" ") || "Vehicle";
+          fetch(`${API_BASE}/api/customer/vehicles/`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              make,
+              model,
+              plate_number: plateNumber,
+              vehicle_size: form.vehicleSize || "small",
+              is_primary: customerVehicles.length === 0,
+            }),
+          }).catch(() => {});
+        } catch {
+          /* ignore */
+        }
+      }
+
       showToast("Booking created successfully!");
       onSuccess(newBooking);
     } catch (err) {
@@ -2273,10 +2371,9 @@ function NewBookingModal({
                     Past dates are not allowed. Please select a future date.
                   </p>
                 )}
-                {hasActiveBooking && (
-                  <p className="text-red-500 text-[8px] sm:text-[10px] mt-1">
-                    You already have an active booking. Please complete or cancel
-                    it before creating a new one.
+                {isDailyLimitReached && (
+                  <p className="text-red-500 text-[10px] sm:text-xs font-semibold mt-1">
+                    Daily limit reached (3/3 bookings). You cannot book more than 3 appointments on the same day.
                   </p>
                 )}
                 {scheduleWindowText && (
@@ -2296,11 +2393,13 @@ function NewBookingModal({
                     const dateValid = form.date && form.date >= todayISO();
                     const slotAvailable = isSlotAvailable(t);
                     const slotsLoaded = availableSlots !== null;
+                    const isConflict = customerBookedTimesOnDate.has(t);
                     const isDisabled =
                       !slotsLoaded ||
                       !slotAvailable ||
                       !dateValid ||
-                      hasActiveBooking ||
+                      isDailyLimitReached ||
+                      isConflict ||
                       checkingAvailability;
                     return (
                       <button
@@ -2313,13 +2412,15 @@ function NewBookingModal({
                         title={
                           !dateValid
                             ? "Select a valid date first"
-                            : hasActiveBooking
-                              ? "You already have an active booking"
-                              : !slotsLoaded || checkingAvailability
-                                ? "Loading availability…"
-                                : !slotAvailable
-                                  ? "This slot is fully booked"
-                                  : ""
+                            : isDailyLimitReached
+                              ? "Daily limit of 3 bookings reached for this date"
+                              : isConflict
+                                ? "You already have a booking at this time slot"
+                                : !slotsLoaded || checkingAvailability
+                                  ? "Loading availability…"
+                                  : !slotAvailable
+                                    ? "This slot is fully booked"
+                                    : ""
                         }
                         className={`py-2 sm:py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
                           active && !isDisabled
@@ -2330,10 +2431,21 @@ function NewBookingModal({
                         }`}
                       >
                         {t}
-                        {isDisabled &&
+                        {isConflict && (
+                          <span className="block text-[8px] text-amber-500 font-bold">
+                            Conflict
+                          </span>
+                        )}
+                        {!isConflict && isDailyLimitReached && (
+                          <span className="block text-[8px] text-red-500 font-normal">
+                            Limit Reached
+                          </span>
+                        )}
+                        {!isConflict &&
+                          !isDailyLimitReached &&
+                          isDisabled &&
                           slotsLoaded &&
                           !checkingAvailability &&
-                          !hasActiveBooking &&
                           dateValid && (
                             <span className="block text-[8px] text-gray-400 dark:text-gray-600 font-normal">
                               Fully Booked
@@ -2411,85 +2523,139 @@ function NewBookingModal({
                 </div>
               </div>
 
-              {savedCustomerVehicle && (savedCustomerVehicle.vehicle || savedCustomerVehicle.plate) && (
-                <div className="bg-gradient-to-r from-red-600/10 via-gray-50 to-gray-50 dark:via-white/5 dark:to-white/5 border border-red-500/20 rounded-xl p-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-red-600/15 border border-red-500/30 text-red-500 flex items-center justify-center shrink-0 text-base">
-                      🚗
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">
-                        Registered Customer Vehicle
-                      </p>
-                      <p className="text-gray-900 dark:text-white text-xs font-semibold truncate">
-                        {savedCustomerVehicle.vehicle || "Vehicle"} {savedCustomerVehicle.plate ? `• ${savedCustomerVehicle.plate}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (savedCustomerVehicle.vehicle) set("vehicle", savedCustomerVehicle.vehicle);
-                      if (savedCustomerVehicle.plate) set("plateNumber", savedCustomerVehicle.plate);
-                    }}
-                    className="shrink-0 text-[11px] font-bold text-red-600 dark:text-red-400 hover:text-red-500 px-3 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600/20 border border-red-500/30 transition-all cursor-pointer"
-                  >
-                    Use Saved
-                  </button>
-                </div>
-              )}
-
-              {[
-                {
-                  label: "Vehicle (Make & Model)",
-                  key: "vehicle",
-                  placeholder: "e.g., Toyota Vios 2020",
-                  apiKey: "vehicle",
-                },
-                {
-                  label: "Plate Number",
-                  key: "plateNumber",
-                  placeholder: "e.g., ABC1234",
-                  apiKey: "plate_number",
-                },
-              ].map(({ label, key, placeholder, apiKey }) => (
-                <div key={key}>
-                  <label className="block text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">
-                    {label} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={placeholder}
-                    value={form[key]}
-                    maxLength={key === "plateNumber" ? 8 : undefined}
-                    onChange={(e) => {
-                      if (key === "plateNumber")
-                        set("plateNumber", sanitizePlate(e.target.value));
-                      else set(key, e.target.value);
-                    }}
-                    className={`w-full bg-gray-50 dark:bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-gray-900 dark:text-white text-xs sm:text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-red-500 focus:bg-white dark:focus:bg-white/10 transition-all duration-200 ${fieldErrors[apiKey] ? "border-red-500" : "border-gray-200 dark:border-white/10"}`}
-                  />
-                  {key === "plateNumber" && (
-                    <div className="flex items-center justify-between mt-1">
-                      <p
-                        className={`text-[9px] sm:text-[10px] transition-colors ${form.plateNumber.length === 8 ? "text-yellow-600 dark:text-yellow-500" : "text-gray-400 dark:text-gray-500"}`}
+              {/* Vehicle Selection Dropdown */}
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">
+                  Select Vehicle For Appointment <span className="text-red-500">*</span>
+                </label>
+                {customerVehicles.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <select
+                        value={isManualVehicle ? "manual" : (selectedVehicleId || customerVehicles[0]?.id || "manual")}
+                        onChange={(e) => handleSelectVehicleChange(e.target.value)}
+                        className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-red-500 focus:bg-white dark:focus:bg-white/10 transition-all appearance-none cursor-pointer pr-10"
                       >
-                        {form.plateNumber.length}/8
-                      </p>
-                      {fieldErrors[apiKey] && (
-                        <p className="text-red-500 text-[9px] sm:text-[10px]">
+                        {customerVehicles.map((v) => (
+                          <option key={v.id} value={String(v.id)} className="bg-gray-900 text-white">
+                            {v.make} {v.model} {v.year ? `(${v.year})` : ""} — Plate: {v.plate_number} {v.is_primary ? "• Primary" : ""}
+                          </option>
+                        ))}
+                        <option value="manual" className="bg-gray-900 text-white font-bold">
+                          + Enter Another Vehicle
+                        </option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {!isManualVehicle && (
+                      <div className="p-3 bg-red-600/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-red-600/20 text-red-500 flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-gray-900 dark:text-white text-xs font-bold truncate">
+                              {form.vehicle} • {form.plateNumber}
+                            </p>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">
+                              Saved Profile Vehicle
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectVehicleChange("manual")}
+                          className="shrink-0 text-[11px] font-bold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+                        >
+                          Change / Edit
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 dark:text-gray-400 text-xs">
+                    Please enter your vehicle details below for this appointment.
+                  </p>
+                )}
+              </div>
+
+              {/* Show vehicle text inputs if manual vehicle or no saved vehicles */}
+              {(isManualVehicle || customerVehicles.length === 0) && (
+                <>
+                  {[
+                    {
+                      label: "Vehicle (Make & Model)",
+                      key: "vehicle",
+                      placeholder: "e.g., Toyota Vios 2020",
+                      apiKey: "vehicle",
+                    },
+                    {
+                      label: "Plate Number",
+                      key: "plateNumber",
+                      placeholder: "e.g., ABC1234",
+                      apiKey: "plate_number",
+                    },
+                  ].map(({ label, key, placeholder, apiKey }) => (
+                    <div key={key}>
+                      <label className="block text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">
+                        {label} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={placeholder}
+                        value={form[key]}
+                        maxLength={key === "plateNumber" ? 8 : undefined}
+                        onChange={(e) => {
+                          if (key === "plateNumber")
+                            set("plateNumber", sanitizePlate(e.target.value));
+                          else set(key, e.target.value);
+                        }}
+                        className={`w-full bg-gray-50 dark:bg-white/5 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-gray-900 dark:text-white text-xs sm:text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-red-500 focus:bg-white dark:focus:bg-white/10 transition-all duration-200 ${fieldErrors[apiKey] ? "border-red-500" : "border-gray-200 dark:border-white/10"}`}
+                      />
+                      {key === "plateNumber" && (
+                        <div className="flex items-center justify-between mt-1">
+                          <p
+                            className={`text-[9px] sm:text-[10px] transition-colors ${form.plateNumber.length === 8 ? "text-yellow-600 dark:text-yellow-500" : "text-gray-400 dark:text-gray-500"}`}
+                          >
+                            {form.plateNumber.length}/8
+                          </p>
+                          {fieldErrors[apiKey] && (
+                            <p className="text-red-500 text-[9px] sm:text-[10px]">
+                              {fieldErrors[apiKey]}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {key !== "plateNumber" && fieldErrors[apiKey] && (
+                        <p className="text-red-500 text-[9px] sm:text-[10px] mt-1">
                           {fieldErrors[apiKey]}
                         </p>
                       )}
                     </div>
-                  )}
-                  {key !== "plateNumber" && fieldErrors[apiKey] && (
-                    <p className="text-red-500 text-[9px] sm:text-[10px] mt-1">
-                      {fieldErrors[apiKey]}
-                    </p>
-                  )}
-                </div>
-              ))}
+                  ))}
+
+                  <div className="pt-1">
+                    <label className="flex items-center gap-2.5 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={saveVehicleToProfile}
+                        onChange={(e) => setSaveVehicleToProfile(e.target.checked)}
+                        className="w-4 h-4 accent-red-600 rounded cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-700 dark:text-gray-300 font-semibold">
+                        Save this vehicle to my profile for future bookings
+                      </span>
+                    </label>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">
@@ -4038,7 +4204,7 @@ function BookingsPage() {
     }
   };
 
-  const newBookingDisabled = !loading && hasActiveBooking;
+  const newBookingDisabled = loading;
 
   return (
     <CustomerLayout>
@@ -4075,19 +4241,6 @@ function BookingsPage() {
               </svg>
               New Booking
             </button>
-            {newBookingDisabled && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <div className="bg-white dark:bg-gray-900 border border-red-300 dark:border-red-600/30 rounded-xl px-3 py-2 text-center shadow-xl">
-                  <p className="text-red-600 dark:text-red-400 text-[10px] font-semibold leading-tight">
-                    Active booking in progress
-                  </p>
-                  <p className="text-gray-500 text-[9px] mt-0.5">
-                    Please complete or cancel your current booking first.
-                  </p>
-                </div>
-                <div className="w-2 h-2 bg-white dark:bg-gray-900 border-r border-b border-red-300 dark:border-red-600/30 rotate-45 mx-auto -mt-1" />
-              </div>
-            )}
           </div>
         </div>
 
@@ -4110,11 +4263,10 @@ function BookingsPage() {
             </div>
             <div>
               <p className="text-amber-800 dark:text-yellow-400 font-semibold text-xs sm:text-sm">
-                You have an active booking
+                Active Appointments
               </p>
               <p className="text-amber-700/70 dark:text-gray-500 text-[10px] sm:text-xs">
-                New bookings are blocked until your current one is completed or
-                cancelled.
+                You have active appointments. You can book up to 3 appointments per day without conflicting time slots.
               </p>
             </div>
           </div>

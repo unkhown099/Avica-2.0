@@ -11,6 +11,7 @@ const PAGE_TITLES = {
   "/inventory/alerts": "Reorder Alerts",
   "/inventory/movement-log": "Movement Log",
   "/inventory/branch-distribution": "Branch Distribution",
+  "/inventory/settings": "Account Settings",
 };
 
 function InventoryLayout({ children }) {

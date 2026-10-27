@@ -102,23 +102,44 @@ const ProfileDropdown = () => {
 
     const [currentUser, setCurrentUser] = useState(() => {
         try {
-            const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
-            if (raw) return JSON.parse(raw);
+            const sRaw = sessionStorage.getItem("user");
+            const lRaw = localStorage.getItem("user");
+            const s = sRaw ? JSON.parse(sRaw) : null;
+            const l = lRaw ? JSON.parse(lRaw) : null;
+            if (s || l) {
+                const merged = { ...(l || {}), ...(s || {}) };
+                const pic = l?.profile_picture || l?.profilePicture || s?.profile_picture || s?.profilePicture;
+                if (pic) {
+                    merged.profile_picture = pic;
+                    merged.profilePicture = pic;
+                }
+                return merged;
+            }
         } catch (_) {}
         return user;
     });
 
     useEffect(() => {
         const handleStorageChange = () => {
-            const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
-            if (raw) {
-                try {
-                    const parsed = JSON.parse(raw);
-                    setCurrentUser(parsed);
-                } catch (e) {
-                    console.error("ProfileDropdown sync error", e);
+            try {
+                const sRaw = sessionStorage.getItem("user");
+                const lRaw = localStorage.getItem("user");
+                const s = sRaw ? JSON.parse(sRaw) : null;
+                const l = lRaw ? JSON.parse(lRaw) : null;
+                if (s || l) {
+                    const merged = { ...(l || {}), ...(s || {}) };
+                    const pic = l?.profile_picture || l?.profilePicture || s?.profile_picture || s?.profilePicture;
+                    if (pic) {
+                        merged.profile_picture = pic;
+                        merged.profilePicture = pic;
+                    }
+                    setCurrentUser(merged);
+                    return;
                 }
+            } catch (e) {
+                console.error("ProfileDropdown sync error", e);
             }
+            if (user) setCurrentUser(user);
         };
         window.addEventListener("storage", handleStorageChange);
         window.addEventListener("userUpdate", handleStorageChange);
@@ -134,10 +155,22 @@ const ProfileDropdown = () => {
     const initials = ((userData?.first_name?.[0] || "") + (userData?.last_name?.[0] || "")).toUpperCase() || "?";
     const profilePic = userData?.profile_picture || userData?.profile_pic || userData?.profilePicture;
 
-    const settingsPath = role === 'super_admin' ? '/super-admin/account-settings' :
-        role === 'business_owner' ? '/branch-owner/settings' :
-            role === 'branch_manager' ? '/manager/settings' :
-                `/${role?.replace('_', '-')}/settings`;
+    const getSettingsPath = () => {
+        const rawRole = userData?.role || role || "";
+        const norm = String(rawRole).trim().toLowerCase().replace(/[- ]+/g, "_");
+        if (norm.includes("super_admin")) return "/super-admin/account-settings";
+        if (norm.includes("admin")) return "/admin/settings";
+        if (norm.includes("business_owner") || norm.includes("branch_owner") || norm === "owner") return "/branch-owner/settings";
+        if (norm.includes("branch_manager") || (norm.includes("manager") && !norm.includes("inventory"))) return "/manager/settings";
+        if (norm.includes("inventory_manager")) return "/inventory-manager/settings";
+        if (norm.includes("inventory")) return "/inventory/settings";
+        if (norm.includes("staff") || norm.includes("cashier")) return "/staff/settings";
+        if (norm.includes("employee") || norm.includes("technician") || norm.includes("worker") || norm.includes("detailer")) return "/employee/settings";
+        if (norm.includes("customer") || norm.includes("client")) return "/profile";
+        return "/settings";
+    };
+
+    const settingsPath = getSettingsPath();
 
     // Theme-aware styles
     const dropdownBg = isDark

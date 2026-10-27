@@ -51,29 +51,126 @@ SYSTEM_ACCOUNTS = [
         "is_superuser": True,
     },
 
-    # ── Inventory Management ──
+    # ── Inventory Management & Main Warehouse (Saranay) ──
     {
         "name": "Christian Dela Cruz",
         "email": "inventory.manager@avica.com",
+        "role": "Inventory Manager",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+    {
+        "name": "Christian Dela Cruz",
+        "email": "inventorymanager@avica.com",
+        "role": "Inventory Manager",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+
+    # ── Dedicated Branch Inventory Staff (All Branches) ──
+    # Branch 1 - South Caloocan
+    {
+        "name": "Aldrin Santos",
+        "email": "inventory.southcal@avica.com",
         "role": "Inventory",
-        "branch": "Central Warehouse",
+        "branch": "South Caloocan",
+        "branch_id": 1,
+        "type": "Staff",
+    },
+    {
+        "name": "Paolo Mendoza",
+        "email": "inventory1.southcal@avica.com",
+        "role": "Inventory",
+        "branch": "South Caloocan",
+        "branch_id": 1,
+        "type": "Staff",
+    },
+    # Branch 2 - Tanza Cavite
+    {
+        "name": "Jomar Gutierrez",
+        "email": "inventory.tanza@avica.com",
+        "role": "Inventory",
+        "branch": "Tanza Cavite",
+        "branch_id": 2,
+        "type": "Staff",
+    },
+    {
+        "name": "Renato Diaz",
+        "email": "inventory1.tanza@avica.com",
+        "role": "Inventory",
+        "branch": "Tanza Cavite",
+        "branch_id": 2,
+        "type": "Staff",
+    },
+    # Branch 3 - Saranay North Caloocan (Main Warehouse)
+    {
+        "name": "Gabriel Soriano",
+        "email": "inventory.saranay@avica.com",
+        "role": "Inventory",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
         "type": "Staff",
     },
     {
         "name": "Gabriel Soriano",
         "email": "inventory.staff@avica.com",
         "role": "Inventory",
-        "branch": "Central Warehouse",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+    {
+        "name": "Danilo Ocampo",
+        "email": "inventory1.saranay@avica.com",
+        "role": "Inventory",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+    # Branch 4 - San Mateo Rizal
+    {
+        "name": "Francis Morales",
+        "email": "inventory.sanmateo@avica.com",
+        "role": "Inventory",
+        "branch": "San Mateo Rizal",
+        "branch_id": 4,
+        "type": "Staff",
+    },
+    {
+        "name": "Jeffrey Tolentino",
+        "email": "inventory1.sanmateo@avica.com",
+        "role": "Inventory",
+        "branch": "San Mateo Rizal",
+        "branch_id": 4,
+        "type": "Staff",
+    },
+    # Branch 5 - Camarin North Caloocan
+    {
+        "name": "Nathaniel Reyes",
+        "email": "inventory.camarin@avica.com",
+        "role": "Inventory",
+        "branch": "Camarin North Caloocan",
+        "branch_id": 5,
+        "type": "Staff",
+    },
+    {
+        "name": "Marco Villanueva",
+        "email": "inventory1.camarin@avica.com",
+        "role": "Inventory",
+        "branch": "Camarin North Caloocan",
+        "branch_id": 5,
         "type": "Staff",
     },
 
     # ── Branch Managers ──
     {
-        "name": "Mateo Alcantara",
-        "email": "manager.saranay@avica.com",
+        "name": "Rolando Aquino",
+        "email": "manager.southcal@avica.com",
         "role": "Branch Manager",
-        "branch": "Saranay North Cal",
-        "branch_id": 4,
+        "branch": "South Caloocan",
+        "branch_id": 1,
         "type": "Staff",
     },
     {
@@ -81,15 +178,15 @@ SYSTEM_ACCOUNTS = [
         "email": "manager.tanza@avica.com",
         "role": "Branch Manager",
         "branch": "Tanza Cavite",
-        "branch_id": 3,
+        "branch_id": 2,
         "type": "Staff",
     },
     {
-        "name": "Rolando Aquino",
-        "email": "manager.southcal@avica.com",
+        "name": "Mateo Alcantara",
+        "email": "manager.saranay@avica.com",
         "role": "Branch Manager",
-        "branch": "South Caloocan",
-        "branch_id": 5,
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
         "type": "Staff",
     },
     {
@@ -97,7 +194,7 @@ SYSTEM_ACCOUNTS = [
         "email": "manager.sanmateo@avica.com",
         "role": "Branch Manager",
         "branch": "San Mateo Rizal",
-        "branch_id": 6,
+        "branch_id": 4,
         "type": "Staff",
     },
     {
@@ -105,17 +202,17 @@ SYSTEM_ACCOUNTS = [
         "email": "manager.camarin@avica.com",
         "role": "Branch Manager",
         "branch": "Camarin North Caloocan",
-        "branch_id": 7,
+        "branch_id": 5,
         "type": "Staff",
     },
 
     # ── Branch Staff / Cashiers / Service Advisors ──
     {
-        "name": "Jerome Bautista",
-        "email": "staff.saranay@avica.com",
+        "name": "Reggie Salazar",
+        "email": "staff.southcal@avica.com",
         "role": "Staff",
-        "branch": "Saranay North Cal",
-        "branch_id": 4,
+        "branch": "South Caloocan",
+        "branch_id": 1,
         "type": "Staff",
     },
     {
@@ -123,15 +220,15 @@ SYSTEM_ACCOUNTS = [
         "email": "staff.tanza@avica.com",
         "role": "Staff",
         "branch": "Tanza Cavite",
-        "branch_id": 3,
+        "branch_id": 2,
         "type": "Staff",
     },
     {
-        "name": "Reggie Salazar",
-        "email": "staff.southcal@avica.com",
+        "name": "Jerome Bautista",
+        "email": "staff.saranay@avica.com",
         "role": "Staff",
-        "branch": "South Caloocan",
-        "branch_id": 5,
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
         "type": "Staff",
     },
     {
@@ -139,7 +236,7 @@ SYSTEM_ACCOUNTS = [
         "email": "staff.sanmateo@avica.com",
         "role": "Staff",
         "branch": "San Mateo Rizal",
-        "branch_id": 6,
+        "branch_id": 4,
         "type": "Staff",
     },
     {
@@ -147,93 +244,17 @@ SYSTEM_ACCOUNTS = [
         "email": "staff.camarin@avica.com",
         "role": "Staff",
         "branch": "Camarin North Caloocan",
-        "branch_id": 7,
+        "branch_id": 5,
         "type": "Staff",
     },
 
-    # ── Auto Technicians / Employees: Saranay North Cal ──
-    {
-        "name": "Danilo Ramos",
-        "email": "danilo.ramos@avica.com",
-        "role": "Employee",
-        "branch": "Saranay North Cal",
-        "branch_id": 4,
-        "type": "Staff",
-    },
-    {
-        "name": "Raymond Garcia",
-        "email": "raymond.garcia@avica.com",
-        "role": "Employee",
-        "branch": "Saranay North Cal",
-        "branch_id": 4,
-        "type": "Staff",
-    },
-    {
-        "name": "Mark Joseph Castro",
-        "email": "markjoseph.castro@avica.com",
-        "role": "Employee",
-        "branch": "Saranay North Cal",
-        "branch_id": 4,
-        "type": "Staff",
-    },
-    {
-        "name": "Carlito Fernandez",
-        "email": "carlito.fernandez@avica.com",
-        "role": "Employee",
-        "branch": "Saranay North Cal",
-        "branch_id": 4,
-        "type": "Staff",
-    },
-    {
-        "name": "Rico Salazar",
-        "email": "rico.salazar@avica.com",
-        "role": "Employee",
-        "branch": "Saranay North Cal",
-        "branch_id": 4,
-        "type": "Staff",
-    },
-
-    # ── Auto Technicians / Employees: Tanza Cavite ──
-    {
-        "name": "Arnel Mendoza",
-        "email": "arnel.mendoza@avica.com",
-        "role": "Employee",
-        "branch": "Tanza Cavite",
-        "branch_id": 3,
-        "type": "Staff",
-    },
-    {
-        "name": "Kenneth Flores",
-        "email": "kenneth.flores@avica.com",
-        "role": "Employee",
-        "branch": "Tanza Cavite",
-        "branch_id": 3,
-        "type": "Staff",
-    },
-    {
-        "name": "John Paul Dela Rosa",
-        "email": "johnpaul.delarosa@avica.com",
-        "role": "Employee",
-        "branch": "Tanza Cavite",
-        "branch_id": 3,
-        "type": "Staff",
-    },
-    {
-        "name": "Joshua Ramos",
-        "email": "joshua.ramos@avica.com",
-        "role": "Employee",
-        "branch": "Tanza Cavite",
-        "branch_id": 3,
-        "type": "Staff",
-    },
-
-    # ── Auto Technicians / Employees: South Caloocan ──
+    # ── Auto Technicians / Employees: South Caloocan (Branch 1) ──
     {
         "name": "Michael Santos",
         "email": "michael.santos@avica.com",
         "role": "Employee",
         "branch": "South Caloocan",
-        "branch_id": 5,
+        "branch_id": 1,
         "type": "Staff",
     },
     {
@@ -241,7 +262,7 @@ SYSTEM_ACCOUNTS = [
         "email": "noel.vergara@avica.com",
         "role": "Employee",
         "branch": "South Caloocan",
-        "branch_id": 5,
+        "branch_id": 1,
         "type": "Staff",
     },
     {
@@ -249,7 +270,7 @@ SYSTEM_ACCOUNTS = [
         "email": "jeffrey.villanueva@avica.com",
         "role": "Employee",
         "branch": "South Caloocan",
-        "branch_id": 5,
+        "branch_id": 1,
         "type": "Staff",
     },
     {
@@ -257,17 +278,93 @@ SYSTEM_ACCOUNTS = [
         "email": "paolo.cruz@avica.com",
         "role": "Employee",
         "branch": "South Caloocan",
-        "branch_id": 5,
+        "branch_id": 1,
         "type": "Staff",
     },
 
-    # ── Auto Technicians / Employees: San Mateo Rizal ──
+    # ── Auto Technicians / Employees: Tanza Cavite (Branch 2) ──
+    {
+        "name": "Arnel Mendoza",
+        "email": "arnel.mendoza@avica.com",
+        "role": "Employee",
+        "branch": "Tanza Cavite",
+        "branch_id": 2,
+        "type": "Staff",
+    },
+    {
+        "name": "Kenneth Flores",
+        "email": "kenneth.flores@avica.com",
+        "role": "Employee",
+        "branch": "Tanza Cavite",
+        "branch_id": 2,
+        "type": "Staff",
+    },
+    {
+        "name": "John Paul Dela Rosa",
+        "email": "johnpaul.delarosa@avica.com",
+        "role": "Employee",
+        "branch": "Tanza Cavite",
+        "branch_id": 2,
+        "type": "Staff",
+    },
+    {
+        "name": "Joshua Ramos",
+        "email": "joshua.ramos@avica.com",
+        "role": "Employee",
+        "branch": "Tanza Cavite",
+        "branch_id": 2,
+        "type": "Staff",
+    },
+
+    # ── Auto Technicians / Employees: Saranay North Cal (Branch 3) ──
+    {
+        "name": "Danilo Ramos",
+        "email": "danilo.ramos@avica.com",
+        "role": "Employee",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+    {
+        "name": "Raymond Garcia",
+        "email": "raymond.garcia@avica.com",
+        "role": "Employee",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+    {
+        "name": "Mark Joseph Castro",
+        "email": "markjoseph.castro@avica.com",
+        "role": "Employee",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+    {
+        "name": "Carlito Fernandez",
+        "email": "carlito.fernandez@avica.com",
+        "role": "Employee",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+    {
+        "name": "Rico Salazar",
+        "email": "rico.salazar@avica.com",
+        "role": "Employee",
+        "branch": "Saranay North Cal",
+        "branch_id": 3,
+        "type": "Staff",
+    },
+
+    # ── Auto Technicians / Employees: San Mateo Rizal (Branch 4) ──
     {
         "name": "Alvin David",
         "email": "alvin.david@avica.com",
         "role": "Employee",
         "branch": "San Mateo Rizal",
-        "branch_id": 6,
+        "branch_id": 4,
         "type": "Staff",
     },
     {
@@ -275,7 +372,7 @@ SYSTEM_ACCOUNTS = [
         "email": "gerald.toralba@avica.com",
         "role": "Employee",
         "branch": "San Mateo Rizal",
-        "branch_id": 6,
+        "branch_id": 4,
         "type": "Staff",
     },
     {
@@ -283,7 +380,7 @@ SYSTEM_ACCOUNTS = [
         "email": "bryan.tolentino@avica.com",
         "role": "Employee",
         "branch": "San Mateo Rizal",
-        "branch_id": 6,
+        "branch_id": 4,
         "type": "Staff",
     },
     {
@@ -291,17 +388,17 @@ SYSTEM_ACCOUNTS = [
         "email": "lester.gonzales@avica.com",
         "role": "Employee",
         "branch": "San Mateo Rizal",
-        "branch_id": 6,
+        "branch_id": 4,
         "type": "Staff",
     },
 
-    # ── Auto Technicians / Employees: Camarin North Caloocan ──
+    # ── Auto Technicians / Employees: Camarin North Caloocan (Branch 5) ──
     {
         "name": "Christopher Reyes",
         "email": "christopher.reyes@avica.com",
         "role": "Employee",
         "branch": "Camarin North Caloocan",
-        "branch_id": 7,
+        "branch_id": 5,
         "type": "Staff",
     },
     {
@@ -309,7 +406,7 @@ SYSTEM_ACCOUNTS = [
         "email": "marvin.dizon@avica.com",
         "role": "Employee",
         "branch": "Camarin North Caloocan",
-        "branch_id": 7,
+        "branch_id": 5,
         "type": "Staff",
     },
     {
@@ -317,7 +414,7 @@ SYSTEM_ACCOUNTS = [
         "email": "ericson.valenzuela@avica.com",
         "role": "Employee",
         "branch": "Camarin North Caloocan",
-        "branch_id": 7,
+        "branch_id": 5,
         "type": "Staff",
     },
     {
@@ -325,7 +422,7 @@ SYSTEM_ACCOUNTS = [
         "email": "dexter.pascual@avica.com",
         "role": "Employee",
         "branch": "Camarin North Caloocan",
-        "branch_id": 7,
+        "branch_id": 5,
         "type": "Staff",
     },
 
@@ -380,7 +477,7 @@ for i, acc in enumerate(SYSTEM_ACCOUNTS, 1):
         if isinstance(branch_id_val, int) and branch_id_val in branches_by_id:
             branch_obj = branches_by_id[branch_id_val]
         else:
-            raw_branch = str(acc.get("branch", ""))
+            raw_branch = str(acc.get("branch", "")).strip()
             if raw_branch and raw_branch not in ["Central Head Office", "Central Warehouse"]:
                 key = raw_branch.split()[0].lower()
                 branch_obj = next((b for b in all_branches if key in b.name.lower()), None)

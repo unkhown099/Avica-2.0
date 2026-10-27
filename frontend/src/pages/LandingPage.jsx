@@ -46,7 +46,7 @@ export const OFFICIAL_FB_PAGES = [
   {
     branchId: 1,
     name: "Otokwikk - Saranay Branch (North Caloocan)",
-    matchKeys: ["saranay", "north caloocan", "north", "1"],
+    matchKeys: ["saranay", "1"],
     url: "https://www.facebook.com/profile.php?id=100090897126761",
   },
   {
@@ -57,8 +57,8 @@ export const OFFICIAL_FB_PAGES = [
   },
   {
     branchId: 3,
-    name: "Otokwikk - Camarin Branch",
-    matchKeys: ["camarin", "3"],
+    name: "Otokwikk - Camarin Branch (North Caloocan)",
+    matchKeys: ["camarin", "3", "5"],
     url: "https://www.facebook.com/profile.php?id=61586571534281",
   },
   {
@@ -86,8 +86,11 @@ export const getBranchDisplayName = (branch) => {
   if (!branch) return "";
   const name = branch.name || "";
   const lower = name.toLowerCase();
-  if (lower.includes("saranay") || lower.includes("north caloocan")) {
+  if (lower.includes("saranay")) {
     return "Otokwikk - Saranay Branch (North Caloocan)";
+  }
+  if (lower.includes("camarin")) {
+    return "Otokwikk - Camarin Branch (North Caloocan)";
   }
   if (lower.startsWith("otokwikk")) {
     return name;
@@ -1465,11 +1468,12 @@ function LandingPage() {
               {footer.tagline || "Your trusted automotive companion"}
             </p>
             <button
+              type="button"
               onClick={handleBackToTop}
-              className="mt-8 sm:mt-10 inline-flex items-center gap-3 border border-red-600 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-5 sm:px-6 py-3 rounded-xl text-xs sm:text-sm font-bold tracking-[0.16em] transition-all shadow-md hover:shadow-lg shadow-red-900/30 cursor-pointer"
+              className="mt-8 sm:mt-10 group inline-flex items-center gap-2.5 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white !text-white px-5 sm:px-6 py-3 rounded-xl text-xs sm:text-sm font-black tracking-widest uppercase transition-all duration-300 shadow-md shadow-red-600/30 hover:shadow-xl hover:shadow-red-600/40 hover:-translate-y-0.5 border border-red-500/40 cursor-pointer"
             >
               <svg
-                className="h-4 w-4"
+                className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-1 text-white !text-white"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -1483,7 +1487,7 @@ function LandingPage() {
                   strokeLinejoin="round"
                 />
               </svg>
-              BACK TO TOP
+              <span className="text-white !text-white">BACK TO TOP</span>
             </button>
           </div>
 

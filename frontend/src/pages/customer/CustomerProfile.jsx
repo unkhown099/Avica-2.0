@@ -42,21 +42,7 @@ function CustomerProfile() {
   const [isDirty, setIsDirty] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // Vehicle Section & Stats State
-  const [vehicleData, setVehicleData] = useState({
-    car_make: "",
-    car_model: "",
-    car_year: "",
-    car_color: "",
-    car_plate: "",
-  });
-  const [initialVehicleData, setInitialVehicleData] = useState({
-    car_make: "",
-    car_model: "",
-    car_year: "",
-    car_color: "",
-    car_plate: "",
-  });
+  // Profile Stats State
   const [profileStats, setProfileStats] = useState({
     tasksCompleted: 0,
     rating: "5.0 ★",
@@ -94,6 +80,7 @@ function CustomerProfile() {
       if (userRes.status === "fulfilled") {
         const u = userRes.value.data;
         setUserData(u);
+        updateStoredUser(u);
         setFormData({
           first_name: u.first_name || "",
           last_name: u.last_name || "",
@@ -110,15 +97,6 @@ function CustomerProfile() {
 
       if (custRes.status === "fulfilled" && custRes.value.data) {
         const c = custRes.value.data;
-        const v = {
-          car_make: c.car_make || "",
-          car_model: c.car_model || "",
-          car_year: c.car_year || "",
-          car_color: c.car_color || "",
-          car_plate: c.car_plate || "",
-        };
-        setVehicleData(v);
-        setInitialVehicleData(v);
         if (c.avg_rating) {
           setProfileStats((prev) => ({ ...prev, rating: `${c.avg_rating} ★` }));
         }
@@ -184,14 +162,29 @@ function CustomerProfile() {
   };
 
   const updateStoredUser = (newData) => {
-    const key = localStorage.getItem("user") ? "user" : sessionStorage.getItem("user") ? "user" : null;
-    if (!key) return;
-
-    const storage = localStorage.getItem(key) ? localStorage : sessionStorage;
     try {
-      const current = JSON.parse(storage.getItem(key));
-      const updated = { ...current, ...newData };
-      storage.setItem(key, JSON.stringify(updated));
+      const applyUpdate = (storage) => {
+        const raw = storage.getItem("user");
+        const current = raw ? JSON.parse(raw) : {};
+        const pic =
+          newData.profile_picture ||
+          newData.profilePicture ||
+          newData.profile_pic ||
+          current.profile_picture ||
+          current.profilePicture ||
+          current.profile_pic ||
+          null;
+        const updated = {
+          ...current,
+          ...newData,
+          profile_picture: pic,
+          profilePicture: pic,
+        };
+        storage.setItem("user", JSON.stringify(updated));
+      };
+
+      applyUpdate(localStorage);
+      applyUpdate(sessionStorage);
       window.dispatchEvent(new Event("userUpdate"));
     } catch (e) {
       console.error("Failed to update stored user", e);
@@ -250,15 +243,9 @@ function CustomerProfile() {
         phone: userData.phone || "",
       });
     }
-    setVehicleData(initialVehicleData);
     setErrors({});
     setIsDirty(false);
     setIsEditing(false);
-  };
-
-  const handleVehicleChange = (field, value) => {
-    setVehicleData((prev) => ({ ...prev, [field]: value }));
-    setIsDirty(true);
   };
 
   const handleUpdateProfile = async (e) => {
@@ -286,24 +273,20 @@ function CustomerProfile() {
 
     setSaving(true);
     try {
-      const [res] = await Promise.all([
-        axios.put(`${API_BASE}/me/`, {
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          phone: formData.phone,
-        }, { headers: getHeaders() }),
-        axios.put(`${API_BASE}/api/customers/me/`, vehicleData, { headers: getHeaders() }),
-      ]);
+      const res = await axios.put(`${API_BASE}/me/`, {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+      }, { headers: getHeaders() });
 
       setUserData(res.data);
-      setInitialVehicleData(vehicleData);
       updateStoredUser(res.data);
       setIsDirty(false);
       setIsEditing(false);
       Swal.fire({
         icon: "success",
         title: "Profile Updated",
-        text: "Your information and vehicle details have been successfully updated.",
+        text: "Your profile information has been successfully updated.",
         timer: 1500,
         showConfirmButton: false,
         background: "#111827",
@@ -535,6 +518,8 @@ function CustomerProfile() {
           </div>
         )}
 
+
+
         <div className="max-w-6xl mx-auto py-6 animate-in fade-in duration-500">
           {/* Header */}
           <div className="mb-10">
@@ -625,22 +610,7 @@ function CustomerProfile() {
             <div className="lg:w-2/3 space-y-6">
 
               {/* Profile Stats Overview Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-gray-900/40 border border-white/5 rounded-2xl p-4 backdrop-blur-xl">
-                  <div className="w-8 h-8 rounded-lg bg-red-600/20 text-red-500 flex items-center justify-center mb-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </div>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Vehicle</p>
-                  <p className="text-sm font-black text-white truncate mt-0.5">
-                    {vehicleData.car_make ? `${vehicleData.car_make} ${vehicleData.car_model}` : "Not Added"}
-                  </p>
-                  <p className="text-[10px] text-gray-400 font-bold truncate mt-0.5">
-                    {vehicleData.car_plate ? `Plate: ${vehicleData.car_plate}` : "No plate set"}
-                  </p>
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-gray-900/40 border border-white/5 rounded-2xl p-4 backdrop-blur-xl">
                   <div className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center mb-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -769,101 +739,6 @@ function CustomerProfile() {
                 </div>
               </div>
 
-              {/* Vehicle Section */}
-              <div className="bg-gray-900/40 border border-white/5 rounded-[2.5rem] p-8 sm:p-10 backdrop-blur-xl shadow-2xl">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-4 sm:gap-5">
-                    <div className="p-3.5 sm:p-4 bg-amber-600 text-white rounded-[1.25rem] shadow-xl shadow-amber-600/20">
-                      <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">Vehicle Information</h3>
-                      <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
-                        {isEditing ? "Update your registered vehicle details" : "Your primary vehicle for service appointments"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-6">
-                  <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Car Make / Brand</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Toyota, Honda"
-                      value={vehicleData.car_make}
-                      disabled={!isEditing}
-                      onChange={(e) => handleVehicleChange("car_make", e.target.value)}
-                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
-                        ? "border-transparent text-gray-500 cursor-not-allowed"
-                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
-                        }`}
-                    />
-                  </div>
-
-                  <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Car Model</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Vios, Civic"
-                      value={vehicleData.car_model}
-                      disabled={!isEditing}
-                      onChange={(e) => handleVehicleChange("car_model", e.target.value)}
-                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
-                        ? "border-transparent text-gray-500 cursor-not-allowed"
-                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
-                        }`}
-                    />
-                  </div>
-
-                  <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Year</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 2022"
-                      value={vehicleData.car_year}
-                      disabled={!isEditing}
-                      onChange={(e) => handleVehicleChange("car_year", e.target.value)}
-                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
-                        ? "border-transparent text-gray-500 cursor-not-allowed"
-                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
-                        }`}
-                    />
-                  </div>
-
-                  <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Color</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Pearl White"
-                      value={vehicleData.car_color}
-                      disabled={!isEditing}
-                      onChange={(e) => handleVehicleChange("car_color", e.target.value)}
-                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
-                        ? "border-transparent text-gray-500 cursor-not-allowed"
-                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
-                        }`}
-                    />
-                  </div>
-
-                  <div className="space-y-2 text-left sm:col-span-2">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Plate Number</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. ABC 1234"
-                      value={vehicleData.car_plate}
-                      disabled={!isEditing}
-                      onChange={(e) => handleVehicleChange("car_plate", e.target.value)}
-                      className={`w-full bg-black/40 border-2 rounded-2xl px-5 py-3.5 text-white font-bold transition-all outline-none ${!isEditing
-                        ? "border-transparent text-gray-500 cursor-not-allowed"
-                        : "border-white/5 focus:border-red-600 focus:ring-4 focus:ring-red-600/10"
-                        }`}
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* Security Section */}
               <div className="bg-gray-900/40 border border-white/5 rounded-[2.5rem] p-10 backdrop-blur-xl shadow-2xl overflow-hidden group">

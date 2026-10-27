@@ -9,7 +9,6 @@ const PAGE_TITLES = {
   "/super-admin/dashboard": "Dashboard",
   "/super-admin/content": "Content Management",
   "/super-admin/settings": "System Settings",
-  "/super-admin/plugins": "Plugins & Extensions",
   "/super-admin/security": "Security & Backup",
   "/super-admin/reports": "Reports & Monitoring",
 };

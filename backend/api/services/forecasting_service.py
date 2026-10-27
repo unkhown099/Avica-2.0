@@ -1,6 +1,7 @@
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Sum, Avg
 
 from api.models import (
@@ -17,6 +18,15 @@ from api.models import (
 )
 
 
+def _quantize_decimal(val, places="0.01", default=None):
+    if val is None:
+        return default
+    if not isinstance(val, Decimal):
+        val = Decimal(str(val))
+    return val.quantize(Decimal(places), rounding=ROUND_HALF_UP)
+
+
+@transaction.atomic
 def run_all_system_forecasts():
     now = timezone.now()
 
@@ -119,18 +129,17 @@ def run_all_system_forecasts():
         else:
             stock_risk = "ok"
 
+        count = g["count"] or 1
         InventoryDemandForecast.objects.create(
             forecasting_run=inventory_run,
             inventory_item=g["inventory_item"],
             branch=None,
             forecast_period_label=g["forecast_period_label"],
-            predicted_quantity=predicted,
-            historical_average_quantity=(
-                g["historical_average_quantity"] / g["count"] if g["count"] else Decimal("0")
-            ),
-            current_quantity=current_qty,
-            minimum_qty=minimum_qty,
-            recommended_restock_qty=restock_qty,
+            predicted_quantity=_quantize_decimal(predicted, default=Decimal("0.00")),
+            historical_average_quantity=_quantize_decimal(g["historical_average_quantity"] / Decimal(count)),
+            current_quantity=_quantize_decimal(current_qty),
+            minimum_qty=_quantize_decimal(minimum_qty),
+            recommended_restock_qty=_quantize_decimal(restock_qty),
             stock_risk_level=stock_risk,
         )
 
@@ -166,15 +175,14 @@ def run_all_system_forecasts():
         g["count"] += 1
 
     for _, g in service_grouped.items():
+        count = g["count"] or 1
         ServiceDemandForecast.objects.create(
             forecasting_run=service_run,
             service=g["service"],
             branch=None,
             forecast_period_label=g["forecast_period_label"],
             predicted_booking_count=g["predicted_booking_count"],
-            historical_average_count=(
-                g["historical_average_count"] / g["count"] if g["count"] else Decimal("0")
-            ),
+            historical_average_count=_quantize_decimal(g["historical_average_count"] / Decimal(count)),
             predicted_queue_count=g["predicted_queue_count"],
             peak_load_flag=g["peak_load_count"] > 0,
             staffing_suggestion=" | ".join(g["staffing_suggestions"][:3]) if g["staffing_suggestions"] else "Review staffing",
@@ -211,6 +219,7 @@ def run_all_system_forecasts():
         g["count"] += 1
 
     for _, g in duration_grouped.items():
+        count = g["count"] or 1
         ServiceDurationPrediction.objects.create(
             forecasting_run=duration_run,
             service=g["service"],
@@ -218,15 +227,12 @@ def run_all_system_forecasts():
             employee=g["employee"],
             based_on_queue_volume=g["based_on_queue_volume"],
             based_on_booking_volume=g["based_on_booking_volume"],
-            based_on_avg_duration_minutes=(
-                g["based_on_avg_duration_minutes"] / g["count"] if g["count"] else Decimal("0")
+            based_on_avg_duration_minutes=_quantize_decimal(g["based_on_avg_duration_minutes"] / Decimal(count)),
+            estimated_duration_minutes=_quantize_decimal(
+                g["estimated_duration_minutes"] / Decimal(count),
+                default=Decimal("0.00"),
             ),
-            estimated_duration_minutes=(
-                g["estimated_duration_minutes"] / g["count"] if g["count"] else Decimal("0")
-            ),
-            estimated_wait_minutes=(
-                g["estimated_wait_minutes"] / g["count"] if g["count"] else Decimal("0")
-            ),
+            estimated_wait_minutes=_quantize_decimal(g["estimated_wait_minutes"] / Decimal(count)),
         )
 
     return {
@@ -236,6 +242,7 @@ def run_all_system_forecasts():
     }
 
 
+@transaction.atomic
 def run_all_forecasts_for_branch(branch: Branch):
     now = timezone.now()
     period_label = now.strftime("%Y-%m")
@@ -294,11 +301,11 @@ def run_all_forecasts_for_branch(branch: Branch):
             branch=branch,
             inventory_item=item,
             forecast_period_label=period_label,
-            predicted_quantity=predicted_qty,
-            historical_average_quantity=current_qty,
-            current_quantity=current_qty,
-            minimum_qty=minimum_qty,
-            recommended_restock_qty=recommended_restock,
+            predicted_quantity=_quantize_decimal(predicted_qty, default=Decimal("0.00")),
+            historical_average_quantity=_quantize_decimal(current_qty),
+            current_quantity=_quantize_decimal(current_qty),
+            minimum_qty=_quantize_decimal(minimum_qty),
+            recommended_restock_qty=_quantize_decimal(recommended_restock),
             stock_risk_level=stock_risk,
         )
 

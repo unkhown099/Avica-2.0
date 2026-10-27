@@ -14,7 +14,7 @@ class BranchNameSerializer(serializers.ModelSerializer):
 class ServiceSerializer(serializers.ModelSerializer):
     branches     = BranchNameSerializer(many=True, read_only=True)
     branch_ids   = serializers.PrimaryKeyRelatedField(
-        queryset=Branch.objects.all(), many=True, write_only=True, source="branches"
+        queryset=Branch.objects.all(), many=True, write_only=True, source="branches", required=False
     )
     price_display = serializers.SerializerMethodField()
     features = serializers.SerializerMethodField()
@@ -27,9 +27,22 @@ class ServiceSerializer(serializers.ModelSerializer):
             "price_list", "is_active", "branches", "branch_ids", "created_at",
         ]
 
+    def to_internal_value(self, data):
+        # Support QueryDict getlist for PrimaryKeyRelatedField(many=True) when sent via multipart/form-data
+        if hasattr(data, "getlist") and "branch_ids" in data:
+            data = data.copy()
+            data.setlist("branch_ids", data.getlist("branch_ids"))
+        return super().to_internal_value(data)
+
     def validate_price_list(self, value):
         if value in (None, ""):
             return {}
+        if isinstance(value, str):
+            try:
+                import json
+                value = json.loads(value)
+            except Exception:
+                raise serializers.ValidationError("price_list must be a valid JSON object.")
         if not isinstance(value, dict):
             raise serializers.ValidationError("price_list must be an object.")
 

@@ -39,7 +39,7 @@ const toast = (icon, title) =>
     ...DARK_SWAL,
   });
 const ALL_BRANCHES = "All Branches";
-const CENTRAL_BRANCH = "Central";
+const CENTRAL_BRANCH = "Main Warehouse (Saranay)";
 
 const getItemBranchLabel = (item) =>
   item?.branch_name && String(item.branch_name).trim()
@@ -228,6 +228,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
     name: editItem?.name ?? "",
     category: editItem?.category ?? CATEGORIES[0],
     sku: editItem?.sku ?? "",
+    unit: editItem?.unit ?? "1",
     quantity: editItem?.quantity ?? "",
     minimum_qty: editItem?.minimum_qty ?? "",
     price: editItem?.price ?? "",
@@ -288,6 +289,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
       setSaving(true);
       const payload = {
         ...form,
+        unit: String(form.unit || "1").trim(),
         quantity: Number(form.quantity),
         minimum_qty: form.minimum_qty !== "" ? Number(form.minimum_qty) : 0,
         price: Number(form.price),
@@ -380,7 +382,41 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               />
             </Field>
             <Field label="Unit">
-              <input className={`${inputCls} opacity-60 cursor-not-allowed`} value="Pieces" disabled />
+              <div className="relative flex items-center">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  className={`${inputCls} pr-8`}
+                  placeholder="1"
+                  value={form.unit}
+                  onChange={(e) => set("unit", e.target.value)}
+                />
+                <div className="absolute right-2 flex flex-col items-center justify-center -space-y-0.5">
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => set("unit", Math.max(1, (Number(form.unit) || 0) + 1))}
+                    className="p-0.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
+                    title="Increment Unit"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => set("unit", Math.max(1, (Number(form.unit) || 1) - 1))}
+                    className="p-0.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
+                    title="Decrement Unit"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </Field>
           </div>
           {/* Row 3: Qty + Min Qty + Price */}
@@ -432,7 +468,7 @@ function ItemModal({ onClose, onSaved, editItem, authHeaders }) {
               <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>SKU is auto-generated based on category. Item will be added to Central inventory.</span>
+              <span>SKU is auto-generated based on category. Item will be added to Main Warehouse (Saranay) inventory.</span>
             </p>
           )}
           <div className="flex gap-3 pt-1">
@@ -546,7 +582,7 @@ function StockTransferModal({
           Send Stock to Branch
         </h2>
         <div className="space-y-4">
-          <Field label="Central Item (SKU)">
+          <Field label="Main Warehouse Item (SKU)">
             <select
               className={inputCls}
               value={form.source_item_id}
@@ -1629,7 +1665,7 @@ function AdminInventory({
                   )}
                 </div>
                 <div className="text-sm text-gray-400 font-medium">Tracked Products</div>
-                <div className="text-xs text-gray-500 mt-0.5">Across Central & Branches</div>
+                <div className="text-xs text-gray-500 mt-0.5">Across Main Warehouse & Branches</div>
               </div>
               <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 backdrop-blur-sm">
                 <div className="text-xl sm:text-2xl font-black text-emerald-400 mb-1">
@@ -1662,7 +1698,7 @@ function AdminInventory({
                   )}
                 </div>
                 <div className="text-sm text-gray-400 font-medium">Imbalanced Allocation</div>
-                <div className="text-xs text-rose-500/80 mt-0.5">Surplus/Central available while low</div>
+                <div className="text-xs text-rose-500/80 mt-0.5">Surplus/Main Warehouse available while low</div>
               </div>
             </div>
 
@@ -1674,7 +1710,7 @@ function AdminInventory({
                     Branch Stock Allocation Matrix
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
-                    Monitor product levels across Central and branches to ensure balanced stock distribution.
+                    Monitor product levels across Main Warehouse (Saranay) and branches to ensure balanced stock distribution.
                   </p>
                 </div>
                 <button
@@ -1703,7 +1739,7 @@ function AdminInventory({
                       <tr className="border-b border-white/5 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/[0.01]">
                         <th className="px-5 py-3.5">Product</th>
                         <th className="px-4 py-3.5">Category</th>
-                        <th className="px-4 py-3.5 text-center">Central Warehouse</th>
+                        <th className="px-4 py-3.5 text-center">Main Warehouse (Saranay)</th>
                         {(distributionData.branches || []).map((b) => (
                           <th key={b.id} className="px-4 py-3.5 text-center">
                             {b.name}
@@ -1846,7 +1882,7 @@ function AdminInventory({
                           {tx.quantity_changed}
                         </span>
                         {" · "}
-                        {tx.branch_name || "Central"}
+                        {tx.branch_name || CENTRAL_BRANCH}
                         {tx.target_branch_name
                           ? ` → ${tx.target_branch_name}`
                           : ""}

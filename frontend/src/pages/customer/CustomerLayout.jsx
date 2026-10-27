@@ -24,8 +24,16 @@ function CustomerLayout({ children, _title = "", _subtitle = "" }) {
   useEffect(() => {
     const handleStorage = () => setUser(getUserFromSession());
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("userUpdate", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("userUpdate", handleStorage);
+    };
   }, []);
+
+  useEffect(() => {
+    setUser(getUserFromSession());
+  }, [location.pathname]);
 
   useEffect(() => {
     const pageTitle = PAGE_TITLES[location.pathname] ?? "Dashboard";

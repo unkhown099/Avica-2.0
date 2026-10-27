@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { API_BASE } from "../../hooks/useAuth.js";
 import {
@@ -753,16 +753,8 @@ export default function AdminDashboard({ dataScope = "admin" }) {
   const { refetch } = useOverview();
 
   // ── Derived data ─────────────────────────────────────────────────────────
-  const serviceDistribution = analytics?.service_distribution ?? [];
-  const topServicesData = analytics?.top_services ?? [];
-  const highestDemandBranch = analytics?.highest_demand_branch;
-  const branchForecastRows = Array.isArray(analytics?.branch_forecasts) ? analytics.branch_forecasts : [];
-  const branchDemandSeriesRows = Array.isArray(analytics?.branch_demand_time_series) ? analytics.branch_demand_time_series : [];
   const topServiceCards = useMemo(() => {
     if (serviceBranchFilter !== "All Branches") {
-      if (Array.isArray(analytics?.top_services) && analytics.top_services.length > 0) {
-        return analytics.top_services;
-      }
       const counts = {};
       const revs = {};
       [...queueHistory, ...appointments].forEach((item) => {
@@ -799,6 +791,33 @@ export default function AdminDashboard({ dataScope = "admin" }) {
     }
     return list;
   }, [analytics, queueHistory, appointments, serviceBranchFilter]);
+
+  const serviceDistribution = useMemo(() => {
+    if (serviceBranchFilter !== "All Branches") {
+      const counts = {};
+      [...queueHistory, ...appointments].forEach((item) => {
+        const bName = item.branch_name || item.branch?.name;
+        const bId = item.branch?.id || item.branch_id || item.branch;
+        if (bName !== serviceBranchFilter && String(bId) !== String(serviceBranchFilter)) {
+          return;
+        }
+        const sName = item.service || item.service_name || "Standard Service";
+        counts[sName] = (counts[sName] || 0) + 1;
+      });
+      const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+      return Object.entries(counts).map(([name, count]) => ({
+        name,
+        count,
+        percentage: Math.round((count / total) * 100),
+      })).sort((a, b) => b.count - a.count);
+    }
+    return analytics?.service_distribution ?? [];
+  }, [serviceBranchFilter, analytics?.service_distribution, queueHistory, appointments]);
+
+  const topServicesData = analytics?.top_services ?? [];
+  const highestDemandBranch = analytics?.highest_demand_branch;
+  const branchForecastRows = Array.isArray(analytics?.branch_forecasts) ? analytics.branch_forecasts : [];
+  const branchDemandSeriesRows = Array.isArray(analytics?.branch_demand_time_series) ? analytics.branch_demand_time_series : [];
   const selectedFilterOptions = useMemo(
     () => ({
       period: appointmentPeriod,
@@ -914,13 +933,13 @@ export default function AdminDashboard({ dataScope = "admin" }) {
 
   const inventoryBranchOptions = [
     "All Branches",
-    ...Array.from(new Set(inventoryItems.map((i) => i.branch_name || "Central"))),
+    ...Array.from(new Set(inventoryItems.map((i) => i.branch_name || "Main Warehouse (Saranay)"))),
   ];
 
   const filteredInventoryItems = filteredInventoryItemsByDate.filter((i) =>
     inventoryBranchFilter === "All Branches"
       ? true
-      : (i.branch_name || "Central") === inventoryBranchFilter,
+      : (i.branch_name || "Main Warehouse (Saranay)") === inventoryBranchFilter,
   );
 
   const inventoryTimeSeriesData = {
@@ -1855,7 +1874,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
       exportToCSV(
         filteredInventoryItems.map((i) => [
           i.name,
-          i.branch_name ?? "Central",
+          i.branch_name ?? "Main Warehouse (Saranay)",
           i.quantity,
           i.unit,
           i.status,
@@ -3480,7 +3499,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                       <div className="flex justify-between items-start mb-1.5">
                         <div>
                           <div className="text-white font-semibold text-xs">{item.name}</div>
-                          <div className="text-gray-400 text-[10px]">{item.branch_name ?? "Central"}</div>
+                          <div className="text-gray-400 text-[10px]">{item.branch_name ?? "Main Warehouse (Saranay)"}</div>
                         </div>
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${INV_STYLE[invStatus]}`}>
                           {invStatus === "ok"
@@ -3530,7 +3549,7 @@ export default function AdminDashboard({ dataScope = "admin" }) {
                       >
                         <div className="col-span-4 text-white font-semibold text-sm truncate">{item.name}</div>
                         <div className="col-span-2 text-gray-400 text-sm truncate">
-                          {item.branch_name ?? "Central"}
+                          {item.branch_name ?? "Main Warehouse (Saranay)"}
                         </div>
                         <div className="col-span-2 text-gray-300 text-sm font-bold">
                           {Number(item.quantity ?? 0)}{" "}

@@ -574,6 +574,7 @@ def analyze_vehicle_images(images: list[str]) -> dict:
         parsed_result = _call_groq_vision(cleaned_images, groq_key, service_catalog_text)
 
     # 2. Try OpenRouter Vision if configured
+    openrouter_key = None
     if not parsed_result:
         openrouter_key = (
             getattr(settings, "OPENROUTER_API_KEY", None)

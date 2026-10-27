@@ -9,6 +9,7 @@ const PAGE_TITLES = {
   "/inventory-manager/dashboard": "Dashboard",
   "/inventory-manager/inventory": "Inventory",
   "/inventory-manager/transactions": "Transaction History",
+  "/inventory-manager/settings": "Account Settings",
 };
 
 function InventoryManagerLayout({ children }) {

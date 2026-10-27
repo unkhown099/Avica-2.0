@@ -129,7 +129,10 @@ function RestockModal({ item, headers, onClose, onSuccess }) {
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h3 className="text-lg font-black text-white">Request Restock</h3>
+          <div>
+            <h3 className="text-lg font-black text-white">Request Stock Refill</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Submit refill request to Inventory Manager at Main Warehouse (Saranay)</p>
+          </div>
           <button
             onClick={onClose}
             className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-all"
@@ -179,9 +182,24 @@ function RestockModal({ item, headers, onClose, onSuccess }) {
             <input
               type="number"
               min="1"
+              max="999"
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder={`Suggested: ${Math.max((item.minimum_qty ?? 0) * 2 - item.quantity, 1)}`}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 3);
+                setQuantity(val);
+              }}
+              onKeyDown={(e) => {
+                if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                if (
+                  quantity &&
+                  String(quantity).length >= 3 &&
+                  !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key) &&
+                  /^[0-9]$/.test(e.key)
+                ) {
+                  e.preventDefault();
+                }
+              }}
+              placeholder={`Suggested: ${Math.min(999, Math.max((item.minimum_qty ?? 0) * 2 - item.quantity, 1))}`}
               className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 transition-colors placeholder-gray-600"
             />
           </div>
@@ -343,7 +361,7 @@ function TransferModal({ item, headers, onClose, onSuccess }) {
                 From
               </label>
               <div className="w-full bg-gray-800 border border-gray-700 text-gray-400 text-sm rounded-xl px-4 py-2.5">
-                {item?.branch_name || "Central"}
+                {item?.branch_name || "Main Warehouse (Saranay)"}
               </div>
             </div>
             <div>
@@ -676,7 +694,7 @@ function StockOverview() {
             <div className="mb-4">
               <h3 className="text-lg font-black text-white">Approved Requests Awaiting Receipt</h3>
               <p className="text-gray-500 text-sm mt-0.5">
-                Confirm receipt to finalize stock transfer and notify Admin.
+                Confirm receipt when shipment arrives from Main Warehouse (Saranay) to update local branch stock.
               </p>
             </div>
             <div className="space-y-3">

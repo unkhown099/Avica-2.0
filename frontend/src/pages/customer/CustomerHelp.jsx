@@ -36,7 +36,7 @@ const faqsData = [
   {
     category: "General",
     q: "Where are your branch locations?",
-    a: "We have multiple active branches across Metro Manila. You can select your preferred branch during appointment booking or view branch details in the location selector.",
+    a: "We have multiple active branches across Metro Manila, Cavite, and Rizal (including South Caloocan, North Caloocan, Tanza, and San Mateo). You can select your preferred branch during appointment booking or view branch details in the location selector.",
   },
 ];
 

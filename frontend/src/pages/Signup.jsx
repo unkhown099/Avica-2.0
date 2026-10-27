@@ -6,10 +6,17 @@ import { API_BASE } from "../hooks/useAuth.js";
 import { GoogleLogin } from "@react-oauth/google";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { useTheme } from "../context/ThemeContext.jsx";
 
 const DARK_SWAL = {
-  background: "linear-gradient(to bottom right, #1f2937, #111827)",
+  background: "#111827",
   color: "#fff",
+  confirmButtonColor: "#dc2626",
+};
+
+const LIGHT_SWAL = {
+  background: "#ffffff",
+  color: "#0f172a",
   confirmButtonColor: "#dc2626",
 };
 
@@ -81,11 +88,11 @@ const BirthdayInput = React.forwardRef(({ value, onClick, onChange, placeholder,
         value={value}
         onClick={onClick}
         placeholder={placeholder || "mm/dd/yyyy"}
-        className={`w-full px-4 py-3.5 bg-gray-900 border ${hasError ? "border-red-600 focus:ring-red-600/50" : "border-gray-700 focus:border-red-600 focus:ring-red-600/50"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 pr-12 cursor-pointer group-hover:border-gray-600`}
+        className={`w-full px-4 py-3.5 bg-gray-50 dark:bg-[#1a2234] border ${hasError ? "border-red-600 focus:ring-red-600/30" : "border-gray-300 dark:border-gray-700 focus:border-red-600 focus:ring-red-600/30"} rounded-xl text-gray-900 dark:text-white text-base placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 pr-12 cursor-pointer group-hover:border-gray-400 dark:group-hover:border-gray-600`}
         onChange={handleInputChange}
         autoComplete="off"
       />
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-colors group-hover:text-red-500">
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none transition-colors group-hover:text-red-500">
         <svg className="w-5 h-5 transition-transform duration-300 transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
@@ -111,6 +118,7 @@ export const calculatePasswordStrength = (pwd = "") => {
 };
 
 function SignUpPage() {
+  const { isDark, toggleTheme } = useTheme();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -128,7 +136,6 @@ function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [isGoogleSignup, setIsGoogleSignup] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -138,21 +145,21 @@ function SignUpPage() {
     color: "",
   });
 
+  // Single consolidated legal document (Terms, Privacy & Cookie Policy)
   const [hasReadTerms, setHasReadTerms] = useState(false);
-  const [hasReadPrivacy, setHasReadPrivacy] = useState(false);
   const [landingPosts, setLandingPosts] = useState([]);
   const [policyLoading, setPolicyLoading] = useState(true);
   const [policyError, setPolicyError] = useState("");
 
-  // Auto-check agreement when both documents are read
+  // Auto-check agreement when the consolidated document has been read
   useEffect(() => {
-    if (hasReadTerms && hasReadPrivacy) {
+    if (hasReadTerms) {
       setFormData(prev => ({ ...prev, agreeToTerms: true }));
       if (errors.agreeToTerms) {
         setErrors(prev => ({ ...prev, agreeToTerms: "" }));
       }
     }
-  }, [hasReadTerms, hasReadPrivacy]);
+  }, [hasReadTerms]);
 
   useEffect(() => {
     const loadLandingContent = async () => {
@@ -494,15 +501,29 @@ function SignUpPage() {
       );
       const data = await response.json();
       if (response.ok) {
-        swal.fire({
-          title: data.title || "Account Created!",
-          text: data.message || "Please check your email to verify your account before logging in.",
-          icon: "success",
-          background: "linear-gradient(to bottom right, #1f2937, #111827)",
-          color: "#fff",
-          confirmButtonColor: "#dc2626",
-          confirmButtonText: "Got it!",
-        });
+        if (data.auto_verified) {
+          swal.fire({
+            title: data.title || "Account Created!",
+            text: data.message || "Account created successfully! You can now log in.",
+            icon: "success",
+            background: "linear-gradient(to bottom right, #1f2937, #111827)",
+            color: "#fff",
+            confirmButtonColor: "#dc2626",
+            confirmButtonText: "Go to Sign In",
+          }).then(() => {
+            navigate("/signin");
+          });
+        } else {
+          swal.fire({
+            title: data.title || "Account Created!",
+            text: data.message || "Please check your email to verify your account before logging in.",
+            icon: "success",
+            background: "linear-gradient(to bottom right, #1f2937, #111827)",
+            color: "#fff",
+            confirmButtonColor: "#dc2626",
+            confirmButtonText: "Got it!",
+          });
+        }
         setFormData({
           firstName: "",
           lastName: "",
@@ -604,28 +625,28 @@ function SignUpPage() {
     };
 
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-10">
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose} />
-        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-red-950/20 w-full max-w-2xl rounded-[32px] border border-white/10 shadow-3xl relative z-10 overflow-hidden flex flex-col max-h-[85vh]">
-          <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20">
-            <h3 className="text-2xl font-black text-white uppercase tracking-tighter">{title}</h3>
-            <button onClick={onClose} className="w-10 h-10 bg-white/5 hover:bg-red-600 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-10">
+        <div className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-md" onClick={onClose} />
+        <div className="bg-white dark:bg-[#111827] w-full max-w-2xl rounded-3xl sm:rounded-[32px] border border-gray-200 dark:border-gray-800 shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[85vh]">
+          <div className="p-6 sm:p-8 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-[#161f30]">
+            <h3 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{title}</h3>
+            <button onClick={onClose} className="w-10 h-10 bg-gray-100 hover:bg-red-600 rounded-xl flex items-center justify-center text-gray-500 hover:text-white dark:bg-gray-800 dark:text-gray-400 dark:hover:text-white transition-all">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
           <div
             ref={contentRef}
-            className="p-8 overflow-y-auto custom-scrollbar text-gray-400 space-y-6 text-lg leading-relaxed"
+            className="p-6 sm:p-8 overflow-y-auto custom-scrollbar text-gray-700 dark:text-gray-300 space-y-6 text-base sm:text-lg leading-relaxed"
             onScroll={handleScroll}
           >
             {children}
           </div>
-          <div className="p-8 border-t border-white/5 bg-black/20 text-center flex flex-col items-center gap-4">
+          <div className="p-6 sm:p-8 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#161f30] text-center flex flex-col items-center gap-4">
             {!hasRead && <p className="text-sm text-red-500 font-bold uppercase tracking-widest">Scroll to the bottom to acknowledge</p>}
             <button
               onClick={onClose}
               disabled={!hasRead}
-              className={`px-10 py-4 font-black rounded-2xl transition-all tracking-widest uppercase text-sm ${hasRead ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
+              className={`px-8 sm:px-10 py-3.5 sm:py-4 font-black rounded-2xl transition-all tracking-widest uppercase text-xs sm:text-sm shadow-md ${hasRead ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30' : 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed'}`}
             >
               {hasRead ? "I Accept & Close" : "Please Read Entirely"}
             </button>
@@ -642,93 +663,104 @@ function SignUpPage() {
     if (!post) return null;
     return (
       <section key={post.key} className="space-y-3">
-        <h4 className="text-white font-bold text-base uppercase tracking-wider border-b border-gray-800 pb-2">
+        <h4 className="text-gray-900 dark:text-white font-bold text-base uppercase tracking-wider border-b border-gray-200 dark:border-gray-800 pb-2">
           {post.title}
         </h4>
-        <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-line space-y-2">
+        <div className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-line space-y-2">
           {post.body}
         </div>
       </section>
     );
   };
 
-  const TermsContent = () => {
+  // Consolidated legal document: Terms and Conditions + Privacy Policy + Cookie Policy
+  const LegalContent = () => {
     if (policyLoading) {
-      return <div className="text-gray-400">Loading terms and conditions…</div>;
+      return <div className="text-gray-400">Loading terms and policies…</div>;
     }
 
     if (policyError) {
       return <div className="text-red-400">{policyError}</div>;
     }
 
-    const termsPost = getPostByKey("terms");
-    if (!termsPost) {
+    const sections = [
+      { key: "terms", label: "1. Terms and Conditions" },
+      { key: "privacy", label: "2. Privacy Policy" },
+      { key: "cookie", label: "3. Cookie Policy" },
+    ]
+      .map((s) => ({ ...s, post: getPostByKey(s.key) }))
+      .filter((s) => s.post);
+
+    if (sections.length === 0) {
       return (
         <div className="text-gray-400">
-          Terms and conditions content is not available at the moment.
-        </div>
-      );
-    }
-
-    return <div className="space-y-6">{renderPostBody(termsPost)}</div>;
-  };
-
-  const PrivacyAndCookieContent = () => {
-    if (policyLoading) {
-      return <div className="text-gray-400">Loading privacy and cookie policy…</div>;
-    }
-
-    if (policyError) {
-      return <div className="text-red-400">{policyError}</div>;
-    }
-
-    const privacyPost = getPostByKey("privacy");
-    const cookiePost = getPostByKey("cookie");
-
-    if (!privacyPost && !cookiePost) {
-      return (
-        <div className="text-gray-400">
-          Privacy and cookie policy content is not available at the moment.
+          Terms and policy content is not available at the moment.
         </div>
       );
     }
 
     return (
-      <div className="space-y-6">
-        {privacyPost && renderPostBody(privacyPost)}
-        {cookiePost && renderPostBody(cookiePost)}
+      <div className="space-y-8">
+        {sections.map((s, idx) => (
+          <div
+            key={s.key}
+            id={`legal-${s.key}`}
+            className={idx > 0 ? "pt-6 border-t border-gray-200 dark:border-gray-800" : ""}
+          >
+            {renderPostBody(s.post)}
+          </div>
+        ))}
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-start lg:items-center justify-center px-3 sm:px-6 py-16 sm:py-10 relative overflow-x-hidden overflow-y-auto">
-      {/* Top-left back arrow */}
-      <Link
-        to="/"
-        className="fixed top-3 left-3 sm:top-5 sm:left-5 z-50 w-10 h-10 sm:w-11 sm:h-11 bg-white/5 hover:bg-red-600 border border-white/10 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all duration-300 shadow-lg backdrop-blur-sm"
-      >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] text-gray-900 dark:text-white flex items-start lg:items-center justify-center px-3 sm:px-6 py-16 sm:py-10 relative overflow-x-hidden overflow-y-auto transition-colors duration-300">
+      {/* Top action controls: Back arrow & Theme toggle */}
+      <div className="fixed top-3 left-3 sm:top-5 sm:left-5 z-50 flex items-center gap-2">
+        <Link
+          to="/"
+          className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-[#111827] hover:bg-red-600 dark:hover:bg-red-600 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-white dark:hover:text-white transition-all duration-300 shadow-sm"
+          title="Back to home"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2.5}
-            d="M15 19l-7-7 7-7"
-          />
-        </svg>
-      </Link>
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2.5}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </Link>
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-[#111827] hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-300 shadow-sm"
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {isDark ? (
+            <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          )}
+        </button>
+      </div>
 
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-64 h-64 sm:w-96 sm:h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-0 left-0 w-64 h-64 sm:w-96 sm:h-96 bg-red-500/5 dark:bg-red-600/5 rounded-full blur-3xl" />
         <div
-          className="absolute bottom-0 right-0 w-64 h-64 sm:w-96 sm:h-96 bg-red-600/10 rounded-full blur-3xl animate-pulse"
-          style={{ animationDelay: "1s" }}
+          className="absolute bottom-0 right-0 w-64 h-64 sm:w-96 sm:h-96 bg-red-500/5 dark:bg-red-600/5 rounded-full blur-3xl"
         />
       </div>
 
@@ -741,15 +773,15 @@ function SignUpPage() {
               <img
                 src={logo}
                 alt="Otokwikk logo"
-                className="h-20 object-contain"
+                className="h-20 object-contain drop-shadow"
               />
               <div>
-                <h1 className="text-6xl font-black text-white mb-5 leading-tight">
+                <h1 className="text-6xl font-black text-gray-900 dark:text-white mb-5 leading-tight tracking-tight">
                   Join Otokwikk
                   <br />
                   Today
                 </h1>
-                <p className="text-xl text-gray-400 leading-relaxed mb-8">
+                <p className="text-xl text-gray-600 dark:text-gray-300 leading-relaxed mb-8">
                   Experience premium auto detailing services across Metro
                   Manila. Create your account and get started.
                 </p>
@@ -760,22 +792,24 @@ function SignUpPage() {
                     "Exclusive member discounts",
                   ].map((feature) => (
                     <div key={feature} className="flex items-center gap-4">
-                      <div className="w-11 h-11 bg-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-11 h-11 bg-red-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-red-600/20">
                         <svg
                           className="w-6 h-6 text-white"
                           fill="none"
-                          stroke="currentColor"
+                          stroke="#ffffff"
                           viewBox="0 0 24 24"
                           strokeWidth={2.5}
+                          style={{ fill: "none" }}
                         >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             d="M4.5 12.75l6 6 9-13.5"
+                            style={{ fill: "none" }}
                           />
                         </svg>
                       </div>
-                      <p className="text-gray-300 text-lg">{feature}</p>
+                      <p className="text-gray-900 dark:text-gray-200 font-semibold text-lg">{feature}</p>
                     </div>
                   ))}
                 </div>
@@ -785,7 +819,7 @@ function SignUpPage() {
 
           {/* Right Side - Sign Up Form */}
           <div className="w-full">
-            <div className="bg-gradient-to-br from-gray-900 to-red-950/20 rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-white/5 shadow-2xl">
+            <div className="bg-white dark:bg-[#111827] rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-gray-200 dark:border-gray-800 shadow-xl dark:shadow-2xl dark:shadow-black/60 transition-colors duration-300">
               {/* Mobile Logo */}
               <div className="lg:hidden mb-6 text-center">
                 <img
@@ -796,10 +830,10 @@ function SignUpPage() {
               </div>
 
               <div className="mb-5 sm:mb-6">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-1">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white mb-1">
                   Create Account
                 </h2>
-                <p className="text-gray-400 text-sm sm:text-base lg:text-lg">
+                <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base lg:text-lg">
                   {currentStep === 1 && "Step 1: Personal Information"}
                   {currentStep === 2 && "Step 2: Contact Information"}
                   {currentStep === 3 && "Step 3: Account Security"}
@@ -812,15 +846,15 @@ function SignUpPage() {
                   {[1, 2, 3].map((step, idx) => (
                     <React.Fragment key={step}>
                       <div
-                        className={`flex items-center ${currentStep >= step ? "text-red-600" : "text-gray-500"}`}
+                        className={`flex items-center ${currentStep >= step ? "text-red-600" : "text-gray-400 dark:text-gray-500"}`}
                       >
                         <div
-                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base border-2 
-                          ${currentStep >= step ? "border-red-600 bg-red-600 text-white" : "border-gray-600 text-gray-500"}`}
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base border-2 transition-all 
+                          ${currentStep >= step ? "border-red-600 bg-red-600 text-white shadow-md shadow-red-600/25" : "border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-[#1a2234] text-gray-500 dark:text-gray-400"}`}
                         >
                           {step}
                         </div>
-                        <span className="ml-2 text-sm sm:text-base font-medium hidden sm:block">
+                        <span className={`ml-2 text-sm sm:text-base font-semibold hidden sm:block ${currentStep >= step ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"}`}>
                           {step === 1
                             ? "Personal"
                             : step === 2
@@ -830,7 +864,7 @@ function SignUpPage() {
                       </div>
                       {idx < 2 && (
                         <div
-                          className={`flex-1 h-1 mx-2 sm:mx-4 ${currentStep > step ? "bg-red-600" : "bg-gray-700"}`}
+                          className={`flex-1 h-1 mx-2 sm:mx-4 rounded-full transition-colors ${currentStep > step ? "bg-red-600" : "bg-gray-200 dark:bg-gray-800"}`}
                         />
                       )}
                     </React.Fragment>
@@ -849,7 +883,7 @@ function SignUpPage() {
                     <div>
                       <label
                         htmlFor="firstName"
-                        className="block text-base font-semibold text-gray-300 mb-2"
+                        className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2"
                       >
                         First Name <span className="text-red-600">*</span>
                       </label>
@@ -862,7 +896,7 @@ function SignUpPage() {
                         autoComplete="off"
                         autoCapitalize="none"
                         spellCheck="false"
-                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.firstName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                        className={`w-full px-4 py-3.5 bg-gray-50 dark:bg-[#1a2234] border ${errors.firstName ? "border-red-600" : "border-gray-300 dark:border-gray-700"} rounded-xl text-gray-900 dark:text-white text-base placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/30 transition-all duration-300`}
                         placeholder="Juan"
                       />
                       {errors.firstName && (
@@ -874,7 +908,7 @@ function SignUpPage() {
                     <div>
                       <label
                         htmlFor="lastName"
-                        className="block text-base font-semibold text-gray-300 mb-2"
+                        className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2"
                       >
                         Last Name <span className="text-red-600">*</span>
                       </label>
@@ -887,7 +921,7 @@ function SignUpPage() {
                         autoComplete="off"
                         autoCapitalize="none"
                         spellCheck="false"
-                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.lastName ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300`}
+                        className={`w-full px-4 py-3.5 bg-gray-50 dark:bg-[#1a2234] border ${errors.lastName ? "border-red-600" : "border-gray-300 dark:border-gray-700"} rounded-xl text-gray-900 dark:text-white text-base placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/30 transition-all duration-300`}
                         placeholder="Dela Cruz"
                       />
                       {errors.lastName && (
@@ -899,7 +933,7 @@ function SignUpPage() {
                     <div>
                       <label
                         htmlFor="suffix"
-                        className="block text-base font-semibold text-gray-300 mb-2"
+                        className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2"
                       >
                         Suffix (Optional)
                       </label>
@@ -908,7 +942,7 @@ function SignUpPage() {
                         name="suffix"
                         value={formData.suffix}
                         onChange={handleChange}
-                        className="w-full px-4 py-3.5 bg-gray-900 border border-gray-700 rounded-xl text-white text-base focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300"
+                        className="w-full px-4 py-3.5 bg-gray-50 dark:bg-[#1a2234] border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-base focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/30 transition-all duration-300"
                       >
                         <option value="">Select suffix (optional)</option>
                         <option value="Jr.">Jr.</option>
@@ -921,7 +955,7 @@ function SignUpPage() {
                     <div>
                       <label
                         htmlFor="birthDate"
-                        className="block text-base font-semibold text-gray-300 mb-2"
+                        className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2"
                       >
                         Birth Date <span className="text-red-600">*</span>
                       </label>
@@ -1026,7 +1060,7 @@ function SignUpPage() {
                     <div>
                       <label
                         htmlFor="email"
-                        className="block text-base font-semibold text-gray-300 mb-2"
+                        className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2"
                       >
                         Email Address <span className="text-red-600">*</span>
                       </label>
@@ -1040,7 +1074,7 @@ function SignUpPage() {
                         autoCapitalize="none"
                         spellCheck="false"
                         disabled={isGoogleSignup}
-                        className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.email ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 ${isGoogleSignup ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`w-full px-4 py-3.5 bg-gray-50 dark:bg-[#1a2234] border ${errors.email ? "border-red-600" : "border-gray-300 dark:border-gray-700"} rounded-xl text-gray-900 dark:text-white text-base placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/30 transition-all duration-300 ${isGoogleSignup ? 'opacity-50 cursor-not-allowed' : ''}`}
                         placeholder="juan.delacruz@example.com"
                       />
                       {errors.email && (
@@ -1052,12 +1086,12 @@ function SignUpPage() {
                     <div>
                       <label
                         htmlFor="phone"
-                        className="block text-base font-semibold text-gray-300 mb-2"
+                        className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2"
                       >
                         Phone Number
                       </label>
-                      <div className={`flex items-center rounded-xl bg-gray-900 border ${errors.phone ? "border-red-600" : "border-gray-700"} focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-600/50 transition-all duration-300`}>
-                        <span className="px-4 py-3.5 text-gray-300 border-r border-gray-700 font-semibold">
+                      <div className={`flex items-center rounded-xl bg-gray-50 dark:bg-[#1a2234] border ${errors.phone ? "border-red-600" : "border-gray-300 dark:border-gray-700"} focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-600/30 transition-all duration-300`}>
+                        <span className="px-4 py-3.5 text-gray-600 dark:text-gray-300 border-r border-gray-300 dark:border-gray-700 font-semibold">
                           +63
                         </span>
                         <input
@@ -1069,7 +1103,7 @@ function SignUpPage() {
                           autoComplete="off"
                           inputMode="numeric"
                           maxLength={10}
-                          className="flex-1 px-4 py-3.5 bg-transparent text-white text-base placeholder-gray-500 focus:outline-none"
+                          className="flex-1 px-4 py-3.5 bg-transparent text-gray-900 dark:text-white text-base placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none border-none outline-none"
                           placeholder="9XXXXXXXXX"
                         />
                       </div>
@@ -1088,7 +1122,7 @@ function SignUpPage() {
                     <div>
                       <label
                         htmlFor="password"
-                        className="block text-base font-semibold text-gray-300 mb-2"
+                        className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2"
                       >
                         Password <span className="text-red-600">*</span>
                       </label>
@@ -1101,13 +1135,13 @@ function SignUpPage() {
                           value={formData.password}
                           onChange={handleChange}
                           autoComplete="new-password"
-                          className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.password ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12`}
+                          className={`w-full px-4 py-3.5 bg-gray-50 dark:bg-[#1a2234] border ${errors.password ? "border-red-600" : "border-gray-300 dark:border-gray-700"} rounded-xl text-gray-900 dark:text-white text-base placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/30 transition-all duration-300 pr-12`}
                           placeholder="••••••••"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
                         >
                           {showPassword ? eyeOff : eyeOn}
                         </button>
@@ -1121,19 +1155,19 @@ function SignUpPage() {
                       {(() => {
                         const crit = checkPasswordCriteria(formData.password || "");
                         return (
-                          <div className="mt-3 p-3.5 bg-gray-950/80 border border-white/10 rounded-xl space-y-2.5">
+                          <div className="mt-3 p-3.5 bg-gray-50 dark:bg-[#161f30] border border-gray-200 dark:border-gray-800 rounded-xl space-y-2.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                              <span className="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400">
                                 Password Requirements
                               </span>
                               {formData.password && (
                                 <span
                                   className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                                     passwordStrength.score === 3
-                                      ? "bg-emerald-500/20 text-emerald-400"
+                                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                                       : passwordStrength.score === 2
-                                      ? "bg-yellow-500/20 text-yellow-400"
-                                      : "bg-red-500/20 text-red-400"
+                                      ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400"
+                                      : "bg-red-500/20 text-red-600 dark:text-red-400"
                                   }`}
                                 >
                                   {passwordStrength.text || "Weak"}
@@ -1145,14 +1179,14 @@ function SignUpPage() {
                               {/* 1. 8-15 characters */}
                               <div
                                 className={`flex items-center gap-2 transition-colors ${
-                                  crit.length ? "text-emerald-400 font-semibold" : "text-gray-400"
+                                  crit.length ? "text-emerald-600 dark:text-emerald-400 font-semibold" : "text-gray-500 dark:text-gray-400"
                                 }`}
                               >
                                 <span
                                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black ${
                                     crit.length
-                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                                      : "bg-gray-800 text-gray-500 border border-gray-700"
+                                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                                      : "bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-400 border border-gray-300 dark:border-gray-700"
                                   }`}
                                 >
                                   {crit.length ? "✓" : "○"}
@@ -1164,15 +1198,15 @@ function SignUpPage() {
                               <div
                                 className={`flex items-center gap-2 transition-colors ${
                                   crit.hasUpper && crit.hasLower
-                                    ? "text-emerald-400 font-semibold"
-                                    : "text-gray-400"
+                                    ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                                    : "text-gray-500 dark:text-gray-400"
                                 }`}
                               >
                                 <span
                                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black ${
                                     crit.hasUpper && crit.hasLower
-                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                                      : "bg-gray-800 text-gray-500 border border-gray-700"
+                                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                                      : "bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-400 border border-gray-300 dark:border-gray-700"
                                   }`}
                                 >
                                   {crit.hasUpper && crit.hasLower ? "✓" : "○"}
@@ -1183,14 +1217,14 @@ function SignUpPage() {
                               {/* 3. Special character */}
                               <div
                                 className={`flex items-center gap-2 transition-colors ${
-                                  crit.hasSpecial ? "text-emerald-400 font-semibold" : "text-gray-400"
+                                  crit.hasSpecial ? "text-emerald-600 dark:text-emerald-400 font-semibold" : "text-gray-500 dark:text-gray-400"
                                 }`}
                               >
                                 <span
                                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black ${
                                     crit.hasSpecial
-                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                                      : "bg-gray-800 text-gray-500 border border-gray-700"
+                                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                                      : "bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-400 border border-gray-300 dark:border-gray-700"
                                   }`}
                                 >
                                   {crit.hasSpecial ? "✓" : "○"}
@@ -1202,15 +1236,15 @@ function SignUpPage() {
                               <div
                                 className={`flex items-center gap-2 transition-colors ${
                                   formData.confirmPassword && formData.password === formData.confirmPassword
-                                    ? "text-emerald-400 font-semibold"
-                                    : "text-gray-400"
+                                    ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                                    : "text-gray-500 dark:text-gray-400"
                                 }`}
                               >
                                 <span
                                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black ${
                                     formData.confirmPassword && formData.password === formData.confirmPassword
-                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                                      : "bg-gray-800 text-gray-500 border border-gray-700"
+                                      ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                                      : "bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-400 border border-gray-300 dark:border-gray-700"
                                   }`}
                                 >
                                   {formData.confirmPassword && formData.password === formData.confirmPassword ? "✓" : "○"}
@@ -1226,7 +1260,7 @@ function SignUpPage() {
                     <div>
                       <label
                         htmlFor="confirmPassword"
-                        className="block text-base font-semibold text-gray-300 mb-2"
+                        className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2"
                       >
                         Confirm Password <span className="text-red-600">*</span>
                       </label>
@@ -1239,7 +1273,7 @@ function SignUpPage() {
                           value={formData.confirmPassword}
                           onChange={handleChange}
                           autoComplete="new-password"
-                          className={`w-full px-4 py-3.5 bg-gray-900 border ${errors.confirmPassword ? "border-red-600" : "border-gray-700"} rounded-xl text-white text-base placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/50 transition-all duration-300 pr-12`}
+                          className={`w-full px-4 py-3.5 bg-gray-50 dark:bg-[#1a2234] border ${errors.confirmPassword ? "border-red-600" : "border-gray-300 dark:border-gray-700"} rounded-xl text-gray-900 dark:text-white text-base placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/30 transition-all duration-300 pr-12`}
                           placeholder="••••••••"
                         />
                         <button
@@ -1247,7 +1281,7 @@ function SignUpPage() {
                           onClick={() =>
                             setShowConfirmPassword(!showConfirmPassword)
                           }
-                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
                         >
                           {showConfirmPassword ? eyeOff : eyeOn}
                         </button>
@@ -1258,7 +1292,7 @@ function SignUpPage() {
                         </p>
                       )}
                       {formData.confirmPassword && !errors.confirmPassword && formData.password && (
-                        <p className="text-green-500 text-sm mt-1 flex items-center gap-1">
+                        <p className="text-green-500 text-sm mt-1 flex items-center gap-1 font-semibold">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                           </svg>
@@ -1274,29 +1308,21 @@ function SignUpPage() {
                           id="agreeToTerms"
                           name="agreeToTerms"
                           checked={formData.agreeToTerms}
-                          disabled={!(hasReadTerms && hasReadPrivacy)}
+                          disabled={!hasReadTerms}
                           onChange={handleChange}
-                          className={`w-5 h-5 mt-0.5 bg-gray-900 border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${errors.agreeToTerms ? "border-red-600" : ""}`}
+                          className={`w-5 h-5 mt-0.5 bg-gray-50 dark:bg-[#1a2234] border-gray-300 dark:border-gray-700 rounded text-red-600 focus:ring-red-600 focus:ring-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${errors.agreeToTerms ? "border-red-600" : ""}`}
                         />
                         <label
                           htmlFor="agreeToTerms"
-                          className="text-base text-gray-400 cursor-pointer"
+                          className="text-base text-gray-600 dark:text-gray-300 cursor-pointer"
                         >
                           I agree to the{" "}
                           <button
                             type="button"
                             onClick={() => setShowTermsModal(true)}
-                            className="text-red-600 hover:text-red-500 font-bold underline underline-offset-4"
+                            className="text-red-600 hover:text-red-500 dark:text-red-500 dark:hover:text-red-400 font-bold underline underline-offset-4 transition-colors"
                           >
-                            Terms and Conditions
-                          </button>
-                          {" "}and{" "}
-                          <button
-                            type="button"
-                            onClick={() => setShowPrivacyModal(true)}
-                            className="text-red-600 hover:text-red-500 font-bold underline underline-offset-4"
-                          >
-                            Privacy & Cookie Policy
+                            Terms, Privacy & Cookie Policy
                           </button>
                         </label>
                       </div>
@@ -1305,9 +1331,9 @@ function SignUpPage() {
                           {errors.agreeToTerms}
                         </p>
                       )}
-                      {!(hasReadTerms && hasReadPrivacy) && (
-                        <p className="text-gray-500 text-xs mt-2 italic">
-                          * Please read both documents to acknowledge
+                      {!hasReadTerms && (
+                        <p className="text-gray-500 dark:text-gray-400 text-xs mt-2 italic">
+                          * Please read the Terms, Privacy & Cookie Policy to acknowledge
                         </p>
                       )}
                     </div>
@@ -1320,7 +1346,7 @@ function SignUpPage() {
                     <button
                       type="button"
                       onClick={handlePrevious}
-                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-black py-3.5 sm:py-4 rounded-2xl transition-all duration-300 text-base sm:text-lg flex items-center justify-center gap-2 border border-white/10 group shadow-lg"
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-white font-black py-3.5 sm:py-4 rounded-xl transition-all duration-300 text-base sm:text-lg flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-700 group shadow-md"
                     >
                       <svg className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
@@ -1381,10 +1407,10 @@ function SignUpPage() {
                 <div className="text-center">
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-700" />
+                      <div className="w-full border-t border-gray-200 dark:border-gray-800" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-gray-900 text-gray-400">
+                      <span className="px-3 bg-white dark:bg-[#111827] text-gray-500 dark:text-gray-400 font-medium transition-colors">
                         Or sign up with
                       </span>
                     </div>
@@ -1393,18 +1419,18 @@ function SignUpPage() {
                     <GoogleLogin
                       onSuccess={handleGoogleSuccess}
                       onError={() => console.log('Login Failed')}
-                      theme="filled_black"
+                      theme={isDark ? "filled_black" : "outline"}
                       shape="pill"
                       size="large"
                       width="100%"
                       text="signup_with"
                     />
                   </div>
-                  <p className="text-gray-400 text-base sm:text-lg">
+                  <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg">
                     Already have an account?{" "}
                     <Link
                       to="/signin"
-                      className="text-red-600 hover:text-red-500 font-semibold"
+                      className="text-red-600 hover:text-red-500 dark:text-red-500 dark:hover:text-red-400 font-semibold transition-colors"
                     >
                       Sign In
                     </Link>
@@ -1419,21 +1445,11 @@ function SignUpPage() {
       <Modal
         isOpen={showTermsModal}
         onClose={() => setShowTermsModal(false)}
-        title="Terms and Conditions"
+        title="Terms, Privacy & Cookie Policy"
         onScrollEnd={() => setHasReadTerms(true)}
         hasRead={hasReadTerms}
       >
-        <TermsContent />
-      </Modal>
-
-      <Modal
-        isOpen={showPrivacyModal}
-        onClose={() => setShowPrivacyModal(false)}
-        title="Privacy & Cookie Policy"
-        onScrollEnd={() => setHasReadPrivacy(true)}
-        hasRead={hasReadPrivacy}
-      >
-        <PrivacyAndCookieContent />
+        <LegalContent />
       </Modal>
 
       <style>{`

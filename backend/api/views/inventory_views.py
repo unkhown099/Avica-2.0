@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.db import transaction
 from django.db.models import Q
+from typing import Any
 from collections import defaultdict
 from ..models import InventoryItem, RestockRequest, InventoryTransaction, Staff, Notification, Branch
 from ..serializers.inventory_serializer import InventoryItemSerializer
@@ -132,7 +133,7 @@ def check_and_notify_low_stock(item):
     if already_notified:
         return False
 
-    branch_name = item.branch.name if item.branch else "Central Warehouse"
+    branch_name = item.branch.name if item.branch else "Main Warehouse (Saranay)"
     is_out_of_stock = qty <= 0
     status_label = "OUT OF STOCK" if is_out_of_stock else "LOW STOCK"
     title = f"{'Out of Stock' if is_out_of_stock else 'Low Stock'}: {item.name} ({branch_name})"
@@ -174,7 +175,11 @@ class InventoryListCreateView(APIView):
         is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
             not requester_staff
             or not requester_staff.branch_id
-            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+            or str(getattr(requester_staff, "branch_name", "")).strip() in [
+                "Central Warehouse", "Central Head Office", "Central", "Main Warehouse", "Main Warehouse (Saranay)", ""
+            ]
+            or (role == "Inventory Manager" and getattr(requester_staff, "branch_id", None) == 3)
+            or (role == "Inventory Manager" and "saranay" in str(getattr(requester_staff, "branch_name", "")).lower())
         )
         global_roles = {"super_admin", "Admin", "Business Owner", "Inventory Manager"}
         if requester_staff and role not in global_roles and not is_central_inventory:
@@ -185,12 +190,12 @@ class InventoryListCreateView(APIView):
         if category:
             qs = qs.filter(category=category)
         if branch_id:
-            if str(branch_id).lower() in ["central", "0", "null", "none"]:
+            if str(branch_id).lower() in ["central", "0", "null", "none", "main", "main_warehouse"]:
                 qs = qs.filter(branch__isnull=True)
             elif str(branch_id).isdigit():
                 qs = qs.filter(branch_id=int(branch_id))
         if branch:
-            if branch in ["Central", "Central Warehouse", "Central Inventory"]:
+            if branch in ["Central", "Central Warehouse", "Central Inventory", "Main Warehouse", "Main Warehouse (Saranay)", "Saranay Main Warehouse"]:
                 qs = qs.filter(branch__isnull=True)
             elif str(branch).isdigit():
                 qs = qs.filter(branch_id=int(branch))
@@ -226,9 +231,9 @@ class InventoryListCreateView(APIView):
         data = serializer.data
         if inv_status and inv_status != "All Status":
             tokens = {
-                str(token).strip().lower()
+                token.strip().lower()
                 for token in str(inv_status).split(",")
-                if str(token).strip()
+                if token.strip()
             }
             if tokens:
                 def _matches_status(label):
@@ -265,7 +270,7 @@ class InventoryListCreateView(APIView):
                 quantity_before=0,
                 quantity_after=item.quantity or 0,
                 quantity_changed=item.quantity or 0,
-                branch_name=item.branch.name if item.branch else "Central",
+                branch_name=item.branch.name if item.branch else "Main Warehouse (Saranay)",
                 performed_by=getattr(request.user, "staff_profile", None),
                 notes=f"Created inventory item ({item.sku})",
             )
@@ -313,7 +318,7 @@ class InventoryDetailView(APIView):
                     quantity_before=before_qty,
                     quantity_after=after_qty,
                     quantity_changed=qty_changed,
-                    branch_name=item.branch.name if item.branch else "Central",
+                    branch_name=item.branch.name if item.branch else "Main Warehouse (Saranay)",
                     performed_by=getattr(request.user, "staff_profile", None),
                     notes=notes,
                 )
@@ -345,7 +350,11 @@ class RestockRequestListCreateView(APIView):
         is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
             not requester_staff
             or not requester_staff.branch_id
-            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+            or str(getattr(requester_staff, "branch_name", "")).strip() in [
+                "Central Warehouse", "Central Head Office", "Central", "Main Warehouse", "Main Warehouse (Saranay)", ""
+            ]
+            or (role == "Inventory Manager" and getattr(requester_staff, "branch_id", None) == 3)
+            or (role == "Inventory Manager" and "saranay" in str(getattr(requester_staff, "branch_name", "")).lower())
         )
         is_global_manager = role in ["super_admin", "Admin", "Business Owner", "Inventory Manager"] or is_central_inventory
         if requester_staff and not is_global_manager:
@@ -396,10 +405,10 @@ class RestockRequestListCreateView(APIView):
             requester_name = f"{requester_staff.first_name} {requester_staff.last_name}".strip() or "A staff member"
             _notify_roles(
                 roles=["Inventory Manager"],
-                title="New Stock Request",
+                title="New Stock Refill Request",
                 message=(
-                    f"{requester_name} requested {rr.quantity_requested} units of "
-                    f"{rr.inventory_item.name} for {rr.branch.name}."
+                    f"{requester_name} ({rr.branch.name if rr.branch else 'Branch'}) requested a refill of "
+                    f"{rr.quantity_requested} units of {rr.inventory_item.name} from Main Warehouse (Saranay)."
                 ),
                 notification_type="inventory",
                 target_path="/inventory-manager/inventory",
@@ -488,7 +497,7 @@ class RestockRequestActionView(APIView):
                 ).first()
                 if not central_item:
                     return Response(
-                        {"detail": "Cannot approve: no central stock found for this item."},
+                        {"detail": "Cannot approve: no Main Warehouse (Saranay) stock found for this item."},
                         status=400,
                     )
                 available_qty = central_item.quantity or 0
@@ -496,7 +505,7 @@ class RestockRequestActionView(APIView):
                     return Response(
                         {
                             "detail": (
-                                "Cannot approve: insufficient central stock. "
+                                "Cannot approve: insufficient stock at Main Warehouse (Saranay). "
                                 f"Available: {available_qty}, requested: {rr.quantity_requested}."
                             )
                         },
@@ -518,13 +527,13 @@ class RestockRequestActionView(APIView):
                 _notify_roles(
                     roles=["Inventory"],
                     branch_id=rr.branch_id,
-                    title="Stock Request Approved",
+                    title="Stock Refill Approved",
                     message=(
-                        f"Restock request #{rr.id} for {rr.inventory_item.name} "
-                        f"has been approved. Please confirm when stock is received."
+                        f"Refill request #{rr.id} for {rr.inventory_item.name} ({rr.quantity_requested} units) "
+                        f"has been approved from Main Warehouse (Saranay). Please confirm when stock is received."
                     ),
                     notification_type="inventory",
-                    target_path="/inventory/alerts",
+                    target_path="/inventory/stock-overview" if rr.request_type == "transfer" else "/inventory/alerts",
                 )
             else:
                 rr.status = "rejected"
@@ -568,12 +577,12 @@ class RestockRequestActionView(APIView):
             ).first()
             if not central_item:
                 return Response(
-                    {"detail": "No central stock found for this item."},
+                    {"detail": "No Main Warehouse (Saranay) stock found for this item."},
                     status=400,
                 )
             if (central_item.quantity or 0) < rr.quantity_requested:
                 return Response(
-                    {"detail": "Insufficient central stock for this transfer."},
+                    {"detail": "Insufficient stock at Main Warehouse (Saranay) for this transfer."},
                     status=400,
                 )
 
@@ -595,7 +604,7 @@ class RestockRequestActionView(APIView):
                 quantity_before=source_before,
                 quantity_after=central_item.quantity or 0,
                 quantity_changed=-(rr.quantity_requested or 0),
-                branch_name="Central",
+                branch_name="Main Warehouse (Saranay)",
                 target_branch_name=rr.branch.name if rr.branch else "",
                 performed_by=actor,
                 notes=f"Received {'transfer' if rr.request_type == 'transfer' else 'restock'} request #{rr.id}",
@@ -607,7 +616,7 @@ class RestockRequestActionView(APIView):
                 quantity_after=target_item.quantity or 0,
                 quantity_changed=rr.quantity_requested or 0,
                 branch_name=rr.branch.name if rr.branch else "",
-                target_branch_name="Central",
+                target_branch_name="Main Warehouse (Saranay)",
                 performed_by=actor,
                 notes=f"Received {'transfer' if rr.request_type == 'transfer' else 'restock'} request #{rr.id}",
             )
@@ -646,7 +655,11 @@ class DirectStockTransferView(APIView):
         is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
             not requester_staff
             or not requester_staff.branch_id
-            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+            or str(getattr(requester_staff, "branch_name", "")).strip() in [
+                "Central Warehouse", "Central Head Office", "Central", "Main Warehouse", "Main Warehouse (Saranay)", ""
+            ]
+            or (role == "Inventory Manager" and getattr(requester_staff, "branch_id", None) == 3)
+            or (role == "Inventory Manager" and "saranay" in str(getattr(requester_staff, "branch_name", "")).lower())
         )
         if role not in ["super_admin", "Inventory Manager"] and not is_central_inventory:
             return Response({"detail": "Only Inventory Manager, Central Inventory, or Super Admin can transfer stock."}, status=403)
@@ -708,7 +721,7 @@ class DirectStockTransferView(APIView):
             )
 
         actor = getattr(request.user, "staff_profile", None)
-        source_branch_name = source.branch.name if source.branch else "Central"
+        source_branch_name = source.branch.name if source.branch else "Main Warehouse (Saranay)"
         target_branch_name = target_branch.name
 
         if immediate:
@@ -884,7 +897,11 @@ class InventoryTransactionHistoryView(APIView):
         is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
             not requester_staff
             or not requester_staff.branch_id
-            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+            or str(getattr(requester_staff, "branch_name", "")).strip() in [
+                "Central Warehouse", "Central Head Office", "Central", "Main Warehouse", "Main Warehouse (Saranay)", ""
+            ]
+            or (role == "Inventory Manager" and getattr(requester_staff, "branch_id", None) == 3)
+            or (role == "Inventory Manager" and "saranay" in str(getattr(requester_staff, "branch_name", "")).lower())
         )
         if role in ["Inventory", "Branch Manager"] and not is_central_inventory:
             branch_name = requester_staff.branch.name if requester_staff and requester_staff.branch else ""
@@ -922,7 +939,11 @@ class InventoryDemandForecastView(APIView):
         is_central_inventory = role in ["Inventory Manager", "Inventory"] and (
             not requester_staff
             or not requester_staff.branch_id
-            or str(getattr(requester_staff, "branch_name", "")).strip() in ["Central Warehouse", "Central Head Office", "Central", ""]
+            or str(getattr(requester_staff, "branch_name", "")).strip() in [
+                "Central Warehouse", "Central Head Office", "Central", "Main Warehouse", "Main Warehouse (Saranay)", ""
+            ]
+            or (role == "Inventory Manager" and getattr(requester_staff, "branch_id", None) == 3)
+            or (role == "Inventory Manager" and "saranay" in str(getattr(requester_staff, "branch_name", "")).lower())
         )
         if role in ["Inventory", "Branch Manager", "Staff", "Employee"] and not is_central_inventory:
             if requester_staff and requester_staff.branch:
@@ -952,7 +973,7 @@ class InventoryDemandForecastView(APIView):
         for tx in transactions_qs:
             if not tx.created_at:
                 continue
-            change = int(tx.quantity_changed or 0)
+            change = tx.quantity_changed or 0
             usage = abs(change) if change < 0 else 0
             if usage <= 0:
                 continue
@@ -1008,8 +1029,8 @@ class InventoryDemandForecastView(APIView):
         stockout_risk_count = 0
         overstock_risk_count = 0
         for item in inventory_qs:
-            qty = int(item.quantity or 0)
-            reorder_level = int(item.minimum_qty or 0)
+            qty = item.quantity or 0
+            reorder_level = item.minimum_qty or 0
             branch_key = item.branch.name if item.branch else "Unassigned"
             branch_stock_needed[branch_key] += max(0, reorder_level - qty)
             if qty <= reorder_level:
@@ -1067,11 +1088,11 @@ class InventoryDistributionView(APIView):
         items = list(InventoryItem.objects.filter(is_active=True).select_related("branch").order_by("name"))
 
         # Group items by base product identity: (name.lower(), category.lower())
-        products = defaultdict(lambda: {
+        products: dict[tuple[str, str], dict[str, Any]] = defaultdict(lambda: {
             "name": "",
             "category": "",
             "sku": "",
-            "price": 0,
+            "price": 0.0,
             "central_stock": 0,
             "central_item_id": None,
             "branch_stocks": {},

@@ -64,6 +64,10 @@ function CustomerDashboard() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraFacingMode, setCameraFacingMode] = useState("environment");
   const [cameraError, setCameraError] = useState(null);
+  const [viewMismatchWarning, setViewMismatchWarning] = useState(null);
+  const [clickHotspot, setClickHotspot] = useState(null);
+  const [isValidatingImage, setIsValidatingImage] = useState(false);
+  const [imageValidationError, setImageValidationError] = useState(null);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -248,7 +252,201 @@ function CustomerDashboard() {
     });
   };
 
-  const capturePhotoFromCamera = () => {
+  const validateImageIsVehicle = (dataUrl) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const size = 100;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (!ctx) {
+            resolve({ valid: true });
+            return;
+          }
+          ctx.drawImage(img, 0, 0, size, size);
+          const imgData = ctx.getImageData(0, 0, size, size);
+          const data = imgData.data;
+
+          let totalR = 0;
+          let totalG = 0;
+          let totalB = 0;
+          let skinPixels = 0;
+          let centerSkinPixels = 0;
+          const totalPixels = size * size;
+
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            totalR += r;
+            totalG += g;
+            totalB += b;
+
+            const pxIdx = i / 4;
+            const x = pxIdx % size;
+            const y = Math.floor(pxIdx / size);
+
+            // YCbCr skin chromaticity detection
+            const cb = -0.1687 * r - 0.3313 * g + 0.5 * b + 128;
+            const cr = 0.5 * r - 0.4187 * g - 0.0813 * b + 128;
+            if (cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173 && r > g && r > b) {
+              skinPixels++;
+              if (x >= 20 && x <= 80 && y >= 20 && y <= 80) {
+                centerSkinPixels++;
+              }
+            }
+          }
+
+          const meanR = totalR / totalPixels;
+          const meanG = totalG / totalPixels;
+          const meanB = totalB / totalPixels;
+
+          let varSum = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const rDiff = data[i] - meanR;
+            const gDiff = data[i + 1] - meanG;
+            const bDiff = data[i + 2] - meanB;
+            varSum += (rDiff * rDiff + gDiff * gDiff + bDiff * bDiff) / 3;
+          }
+          const stdDev = Math.sqrt(varSum / totalPixels);
+
+          // 1. Blurry, blank or solid background
+          if (stdDev < 5) {
+            resolve({
+              valid: false,
+              reason: "The uploaded image is blank, blurry, or lacks visual detail to recognize a vehicle.",
+            });
+            return;
+          }
+
+          const skinRatio = skinPixels / totalPixels;
+          const centerRatio = centerSkinPixels / (60 * 60);
+          const aspectRatio = img.width / Math.max(img.height, 1);
+
+          // 2. Person / portrait / selfie detection
+          if ((skinRatio > 0.35 && centerRatio > 0.38) || (aspectRatio < 0.75 && skinRatio > 0.25 && centerRatio > 0.30)) {
+            resolve({
+              valid: false,
+              reason: `The uploaded image appears to be a person or portrait (skin tone ratio ${(skinRatio * 100).toFixed(0)}%). Please upload a clear photo of your vehicle.`,
+            });
+            return;
+          }
+
+          resolve({ valid: true });
+        } catch (err) {
+          console.warn("Vehicle validation check error:", err);
+          resolve({ valid: true });
+        }
+      };
+      img.onerror = () => {
+        resolve({ valid: false, reason: "Unable to load image. Please provide a valid vehicle image file." });
+      };
+      img.src = dataUrl;
+    });
+  };
+
+  const handleVehicleImageClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const xRatio = clickX / rect.width;
+    const xPercent = (clickX / rect.width) * 100;
+    const yPercent = (clickY / rect.height) * 100;
+
+    // View validation: Check Front View vs Rear Portion click
+    if (currentIdStep === 0) {
+      if (xRatio > 0.52) {
+        // Front View selected, but user clicked the rear portion
+        setViewMismatchWarning("Invalid View Selection: You have selected Front View, but clicked the rear portion of the vehicle image. Please click or select the front portion.");
+        setClickHotspot({
+          xPercent,
+          yPercent,
+          invalid: true,
+          label: "Rear Portion (Invalid for Front View)",
+        });
+        showToast("Invalid selection: Clicked rear portion while Front View is selected.", "error");
+      } else {
+        setViewMismatchWarning(null);
+        setClickHotspot({
+          xPercent,
+          yPercent,
+          invalid: false,
+          label: "Front Portion Verified",
+        });
+        showToast("Front portion verified.", "success");
+      }
+    } else if (currentIdStep === 1) {
+      if (xRatio < 0.48) {
+        // Rear View selected, but user clicked the front portion
+        setViewMismatchWarning("Invalid View Selection: You have selected Rear View, but clicked the front portion of the vehicle image. Please click or select the rear portion.");
+        setClickHotspot({
+          xPercent,
+          yPercent,
+          invalid: true,
+          label: "Front Portion (Invalid for Rear View)",
+        });
+        showToast("Invalid selection: Clicked front portion while Rear View is selected.", "error");
+      } else {
+        setViewMismatchWarning(null);
+        setClickHotspot({
+          xPercent,
+          yPercent,
+          invalid: false,
+          label: "Rear Portion Verified",
+        });
+        showToast("Rear portion verified.", "success");
+      }
+    }
+  };
+
+  const handleSelectViewZone = (zone) => {
+    if (currentIdStep === 0) {
+      if (zone === "rear") {
+        setViewMismatchWarning("Invalid View Selection: You have selected Front View, but clicked the rear portion of the vehicle image. Please click or select the front portion.");
+        setClickHotspot({
+          xPercent: 78,
+          yPercent: 50,
+          invalid: true,
+          label: "Rear Portion (Invalid for Front View)",
+        });
+        showToast("Invalid selection: Rear portion cannot be selected for Front View.", "error");
+      } else {
+        setViewMismatchWarning(null);
+        setClickHotspot({
+          xPercent: 24,
+          yPercent: 50,
+          invalid: false,
+          label: "Front Portion Verified",
+        });
+        showToast("Front portion verified.", "success");
+      }
+    } else if (currentIdStep === 1) {
+      if (zone === "front") {
+        setViewMismatchWarning("Invalid View Selection: You have selected Rear View, but clicked the front portion of the vehicle image. Please click or select the rear portion.");
+        setClickHotspot({
+          xPercent: 24,
+          yPercent: 50,
+          invalid: true,
+          label: "Front Portion (Invalid for Rear View)",
+        });
+        showToast("Invalid selection: Front portion cannot be selected for Rear View.", "error");
+      } else {
+        setViewMismatchWarning(null);
+        setClickHotspot({
+          xPercent: 78,
+          yPercent: 50,
+          invalid: false,
+          label: "Rear Portion Verified",
+        });
+        showToast("Rear portion verified.", "success");
+      }
+    }
+  };
+
+  const capturePhotoFromCamera = async () => {
     const video = videoRef.current;
     if (!video) return;
     const canvas = document.createElement("canvas");
@@ -273,6 +471,20 @@ function CustomerDashboard() {
     const stepKey = VEHICLE_ID_STEPS[currentIdStep]?.key;
     if (!stepKey) return;
 
+    setIsValidatingImage(true);
+    setImageValidationError(null);
+    setViewMismatchWarning(null);
+    setClickHotspot(null);
+
+    const check = await validateImageIsVehicle(dataUrl);
+    setIsValidatingImage(false);
+
+    if (!check.valid) {
+      setImageValidationError(check.reason);
+      showToast(check.reason, "error");
+      return;
+    }
+
     setVehiclePhotos((prev) => ({
       ...prev,
       [stepKey]: {
@@ -282,7 +494,7 @@ function CustomerDashboard() {
       },
     }));
     stopLiveCamera();
-    showToast(`${VEHICLE_ID_STEPS[currentIdStep]?.shortLabel} captured.`);
+    showToast(`${VEHICLE_ID_STEPS[currentIdStep]?.shortLabel} captured and verified.`);
   };
 
   useEffect(() => {
@@ -305,9 +517,25 @@ function CustomerDashboard() {
     const stepKey = VEHICLE_ID_STEPS[currentIdStep]?.key;
     if (!stepKey) return;
 
+    setIsValidatingImage(true);
+    setImageValidationError(null);
+    setViewMismatchWarning(null);
+    setClickHotspot(null);
+
     const dataUrl = await compressImageFile(file, 960, 0.82);
     if (!dataUrl) {
+      setIsValidatingImage(false);
       showToast("Could not read image file. Please try another.", "error");
+      return;
+    }
+
+    const check = await validateImageIsVehicle(dataUrl);
+    setIsValidatingImage(false);
+
+    if (!check.valid) {
+      setImageValidationError(check.reason);
+      showToast(check.reason, "error");
+      e.target.value = "";
       return;
     }
 
@@ -319,12 +547,15 @@ function CustomerDashboard() {
         name: file.name,
       },
     }));
-    showToast(`${VEHICLE_ID_STEPS[currentIdStep]?.shortLabel} photo added.`);
+    showToast(`${VEHICLE_ID_STEPS[currentIdStep]?.shortLabel} photo added and verified.`);
     e.target.value = "";
   };
 
   const handleRetakeStep = (stepIdx) => {
     stopLiveCamera();
+    setViewMismatchWarning(null);
+    setClickHotspot(null);
+    setImageValidationError(null);
     const targetKey = VEHICLE_ID_STEPS[stepIdx]?.key;
     if (targetKey) {
       setVehiclePhotos((prev) => ({
@@ -337,6 +568,9 @@ function CustomerDashboard() {
 
   const handleClearAllIdPhotos = () => {
     stopLiveCamera();
+    setViewMismatchWarning(null);
+    setClickHotspot(null);
+    setImageValidationError(null);
     setVehiclePhotos({
       front: null,
       rear: null,
@@ -352,6 +586,17 @@ function CustomerDashboard() {
   const canRunAIAnalysis = Boolean(vehiclePhotos.front && vehiclePhotos.rear && vehiclePhotos.side);
 
   const runVehicleAIAnalysis = async () => {
+    if (viewMismatchWarning) {
+      showToast("Cannot continue: Please correct the vehicle view mismatch before running AI analysis.", "error");
+      alert("Invalid Vehicle View: A view mismatch was detected. Please verify vehicle angles before continuing.");
+      return;
+    }
+    if (imageValidationError) {
+      showToast("Cannot continue: " + imageValidationError, "error");
+      alert(imageValidationError);
+      return;
+    }
+
     const photosToAnalyze = VEHICLE_ID_STEPS.map((s) => vehiclePhotos[s.key]).filter(Boolean);
     if (photosToAnalyze.length < 3) {
       alert("Please ensure Front, Rear, and Side photos are captured.");
@@ -549,24 +794,18 @@ function CustomerDashboard() {
               </p>
             </div>
 
-            {/* Hero CTA — blocked when active booking exists */}
-            <BookingBlockedTooltip enabled={!isDashboardLoading && hasActiveBooking}>
-              <button
-                disabled={!isDashboardLoading && hasActiveBooking}
-                onClick={() =>
-                  navigate("/bookings", { state: { openBooking: true } })
-                }
-                className={`w-full sm:w-auto font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base ${!isDashboardLoading && hasActiveBooking
-                  ? "bg-red-600/30 text-red-300/50 cursor-not-allowed shadow-none"
-                  : "bg-red-600 hover:bg-red-500 text-white hover:scale-105 shadow-red-600/30"
-                  }`}
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Book New Service
-              </button>
-            </BookingBlockedTooltip>
+            {/* Hero CTA */}
+            <button
+              onClick={() =>
+                navigate("/bookings", { state: { openBooking: true } })
+              }
+              className="w-full sm:w-auto font-bold px-6 py-3 sm:px-8 sm:py-4 rounded-xl transition-all duration-300 shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base bg-red-600 hover:bg-red-500 text-white hover:scale-105 shadow-red-600/30"
+            >
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Book New Service
+            </button>
           </div>
 
           {/* ── Active Booking Banner ── */}
@@ -578,11 +817,11 @@ function CustomerDashboard() {
                 </svg>
               </div>
               <div className="flex-1">
-                <p className="text-yellow-400 font-semibold text-xs sm:text-sm">You have an active booking</p>
+                <p className="text-yellow-400 font-semibold text-xs sm:text-sm">Active Appointment Scheduled</p>
                 <p className="text-gray-400 text-[10px] sm:text-xs">
-                  New bookings are blocked until your current one is completed or cancelled.{" "}
+                  You have active appointments. You can book up to 3 appointments per day.{" "}
                   <button onClick={() => navigate("/bookings")} className="text-yellow-400 hover:text-yellow-300 underline underline-offset-2 transition-colors">
-                    View booking →
+                    View bookings →
                   </button>
                 </p>
               </div>
@@ -670,10 +909,10 @@ function CustomerDashboard() {
                 state: null,
                 isBookingAction: false,
               },
-            ].map(({ title, desc, icon, accent, path, state, isBookingAction }) => {
-              const blocked = isBookingAction && !isDashboardLoading && hasActiveBooking;
+            ].map(({ title, desc, icon, accent, path, state }) => {
+              const blocked = false;
               return (
-                <BookingBlockedTooltip key={title} enabled={blocked}>
+                <div key={title}>
                   <button
                     disabled={blocked}
                     onClick={() => { if (!blocked) navigate(path, state ? { state } : {}); }}
@@ -695,7 +934,7 @@ function CustomerDashboard() {
                       <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>{desc}</p>
                     </div>
                   </button>
-                </BookingBlockedTooltip>
+                </div>
               );
             })}
           </div>
@@ -841,16 +1080,126 @@ function CustomerDashboard() {
                           ) : photo ? (
                             /* Case B: Photo Captured for this Step */
                             <div className="w-full space-y-3">
-                              <div className="relative rounded-xl overflow-hidden border border-emerald-500/40">
+                              {/* View Mismatch Warning Banner */}
+                              {viewMismatchWarning && (
+                                <div className="p-3 bg-red-500/15 border-2 border-red-500 rounded-xl text-left flex items-start gap-2.5 animate-pulse shadow-lg shadow-red-500/20">
+                                  <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-xs font-black">
+                                    !
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-xs font-bold text-red-500">Invalid View Selected</p>
+                                    <p className={`text-[11px] mt-0.5 leading-relaxed ${isDark ? "text-red-300" : "text-red-700"}`}>
+                                      {viewMismatchWarning}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewMismatchWarning(null)}
+                                    className="text-red-400 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded"
+                                    title="Dismiss warning"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Interactive Vehicle View Area Selector / Verification */}
+                              <div className="flex items-center justify-between text-[11px] px-1">
+                                <span className={`font-semibold ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                                  Target Vehicle Area:
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectViewZone("front")}
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                                      currentIdStep === 0
+                                        ? "bg-red-600 text-white border-red-500 shadow-sm shadow-red-600/40"
+                                        : isDark
+                                        ? "bg-white/5 hover:bg-white/10 text-gray-300 border-white/10"
+                                        : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300"
+                                    }`}
+                                  >
+                                    <span>🚗 Front Portion (Bumper/Hood)</span>
+                                    {currentIdStep === 0 && !viewMismatchWarning && <span className="text-white text-[10px]">✓</span>}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectViewZone("rear")}
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                                      currentIdStep === 1
+                                        ? "bg-red-600 text-white border-red-500 shadow-sm shadow-red-600/40"
+                                        : isDark
+                                        ? "bg-white/5 hover:bg-white/10 text-gray-300 border-white/10"
+                                        : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300"
+                                    }`}
+                                  >
+                                    <span>🚗 Rear Portion (Trunk/Tail)</span>
+                                    {currentIdStep === 1 && !viewMismatchWarning && <span className="text-white text-[10px]">✓</span>}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Photo Canvas with Click Area & Warning Hotspot */}
+                              <div
+                                onClick={handleVehicleImageClick}
+                                className={`relative rounded-xl overflow-hidden border cursor-crosshair group transition-all ${
+                                  viewMismatchWarning
+                                    ? "border-red-500 ring-2 ring-red-500/50 shadow-lg shadow-red-500/20"
+                                    : "border-emerald-500/40 hover:border-emerald-500"
+                                }`}
+                                title="Click on the photo to verify vehicle view area"
+                              >
                                 <img
                                   src={photo.url}
                                   alt={step.title}
-                                  className="w-full h-56 sm:h-64 object-cover"
+                                  className="w-full h-56 sm:h-64 object-cover select-none pointer-events-none"
                                 />
-                                <div className="absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-emerald-500/50 flex items-center gap-1.5 text-emerald-400 text-xs font-bold">
+
+                                {/* Step Status Badge */}
+                                <div className="absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-emerald-500/50 flex items-center gap-1.5 text-emerald-400 text-xs font-bold pointer-events-none">
                                   <span>✓</span>
                                   <span>{step.title} Captured</span>
                                 </div>
+
+                                {/* Click Hint Indicator */}
+                                <div className="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-gray-300 font-medium pointer-events-none border border-white/10">
+                                  Click image to verify portion
+                                </div>
+
+                                {/* Hotspot Marker Indicator */}
+                                {clickHotspot && (
+                                  <div
+                                    className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20 flex flex-col items-center"
+                                    style={{ left: `${clickHotspot.xPercent}%`, top: `${clickHotspot.yPercent}%` }}
+                                  >
+                                    <span
+                                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-xs shadow-xl animate-ping absolute ${
+                                        clickHotspot.invalid
+                                          ? "bg-red-500/50 border-red-500"
+                                          : "bg-emerald-500/50 border-emerald-500"
+                                      }`}
+                                    />
+                                    <span
+                                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-xs shadow-xl z-10 ${
+                                        clickHotspot.invalid
+                                          ? "bg-red-600 border-white text-white"
+                                          : "bg-emerald-600 border-white text-white"
+                                      }`}
+                                    >
+                                      {clickHotspot.invalid ? "✕" : "✓"}
+                                    </span>
+                                    <span
+                                      className={`mt-1 text-[10px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap border ${
+                                        clickHotspot.invalid
+                                          ? "bg-red-600 border-red-400 text-white"
+                                          : "bg-emerald-600 border-emerald-400 text-white"
+                                      }`}
+                                    >
+                                      {clickHotspot.label}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
 
                               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
@@ -863,8 +1212,20 @@ function CustomerDashboard() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setCurrentIdStep((prev) => prev + 1)}
-                                  className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2"
+                                  disabled={Boolean(viewMismatchWarning)}
+                                  onClick={() => {
+                                    if (viewMismatchWarning) {
+                                      showToast("Please correct the vehicle view mismatch before continuing.", "error");
+                                      return;
+                                    }
+                                    setCurrentIdStep((prev) => prev + 1);
+                                  }}
+                                  className={`w-full sm:w-auto px-6 py-2.5 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                                    viewMismatchWarning
+                                      ? "bg-gray-700 text-gray-400 border border-gray-600 cursor-not-allowed opacity-60"
+                                      : "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30"
+                                  }`}
+                                  title={viewMismatchWarning ? "Cannot proceed while view mismatch is present" : ""}
                                 >
                                   <span>
                                     {currentIdStep === 3
@@ -877,50 +1238,85 @@ function CustomerDashboard() {
                           ) : (
                             /* Case C: Waiting for Photo */
                             <div className="space-y-4 max-w-sm">
-                              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto ${
-                                isDark ? "bg-red-500/10 text-red-400" : "bg-red-100 text-red-600"
-                              }`}>
-                                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className={`text-sm font-bold mb-0.5 ${isDark ? "text-white" : "text-gray-900"}`}>
-                                  Capture {step.shortLabel}
-                                </p>
-                                <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                                  {step.placeholderTip}
-                                </p>
-                              </div>
+                              {isValidatingImage ? (
+                                <div className="py-8 space-y-3">
+                                  <div className="w-10 h-10 border-3 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                                  <p className={`text-xs font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                                    Validating vehicle image...
+                                  </p>
+                                  <p className={`text-[11px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                                    Checking image clarity and vehicle subject
+                                  </p>
+                                </div>
+                              ) : (
+                                <>
+                                  {imageValidationError && (
+                                    <div className="p-3 bg-red-500/15 border-2 border-red-500 rounded-xl text-left flex items-start gap-2.5 animate-pulse shadow-md">
+                                      <div className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-xs font-black">
+                                        !
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="text-xs font-bold text-red-500">Image Rejected</p>
+                                        <p className={`text-[11px] mt-0.5 leading-relaxed ${isDark ? "text-red-300" : "text-red-700"}`}>
+                                          {imageValidationError}
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setImageValidationError(null)}
+                                        className="text-red-400 hover:text-white text-xs font-bold px-1"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  )}
 
-                              {/* Two Clear Action Buttons */}
-                              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
-                                <button
-                                  type="button"
-                                  onClick={() => startLiveCamera()}
-                                  className="w-full sm:w-auto px-5 py-3 bg-red-600 hover:bg-red-500 text-white !text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-red-600/30 flex items-center justify-center gap-2"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                  </svg>
-                                  <span>Take Photo with Camera</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => stepFileInputRef.current?.click()}
-                                  className={`w-full sm:w-auto px-5 py-3 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 border ${
-                                    isDark
-                                      ? "bg-white/5 hover:bg-white/10 text-white border-white/10"
-                                      : "bg-white hover:bg-gray-50 text-gray-800 border-gray-300 shadow-sm"
-                                  }`}
-                                >
-                                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                  </svg>
-                                  <span>Choose from Files</span>
-                                </button>
-                              </div>
+                                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto ${
+                                    isDark ? "bg-red-500/10 text-red-400" : "bg-red-100 text-red-600"
+                                  }`}>
+                                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className={`text-sm font-bold mb-0.5 ${isDark ? "text-white" : "text-gray-900"}`}>
+                                      Capture {step.shortLabel}
+                                    </p>
+                                    <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                                      {step.placeholderTip}
+                                    </p>
+                                  </div>
+
+                                  {/* Two Clear Action Buttons */}
+                                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => startLiveCamera()}
+                                      className="w-full sm:w-auto px-5 py-3 bg-red-600 hover:bg-red-500 text-white !text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-red-600/30 flex items-center justify-center gap-2"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                      </svg>
+                                      <span>Take Photo with Camera</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => stepFileInputRef.current?.click()}
+                                      className={`w-full sm:w-auto px-5 py-3 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 border ${
+                                        isDark
+                                          ? "bg-white/5 hover:bg-white/10 text-white border-white/10"
+                                          : "bg-white hover:bg-gray-50 text-gray-800 border-gray-300 shadow-sm"
+                                      }`}
+                                    >
+                                      <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                      </svg>
+                                      <span>Choose from Files</span>
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1438,19 +1834,12 @@ function CustomerDashboard() {
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
                       <div className="text-lg sm:text-xl font-black text-white">{service.price}</div>
                       <div className="flex gap-2">
-                        {/* "Book Again" also blocked if active booking exists */}
-                        <BookingBlockedTooltip enabled={!isDashboardLoading && hasActiveBooking}>
-                          <button
-                            disabled={!isDashboardLoading && hasActiveBooking}
-                            onClick={() => { if (!hasActiveBooking) navigate("/bookings", { state: { openBooking: true } }); }}
-                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 shadow-lg shadow-red-600/20 ${!isDashboardLoading && hasActiveBooking
-                              ? "bg-red-600/20 text-red-400/50 cursor-not-allowed shadow-none"
-                              : "bg-red-600 hover:bg-red-500 text-white"
-                              }`}
-                          >
-                            Book Again
-                          </button>
-                        </BookingBlockedTooltip>
+                        <button
+                          onClick={() => navigate("/bookings", { state: { openBooking: true } })}
+                          className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 shadow-lg shadow-red-600/20 bg-red-600 hover:bg-red-500 text-white"
+                        >
+                          Book Again
+                        </button>
                         <button className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs sm:text-sm font-semibold transition-colors duration-200 border border-white/5">
                           Leave Review
                         </button>

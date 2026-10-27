@@ -31,7 +31,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_archived    = models.BooleanField(default=False)
     is_staff       = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
-    last_login     = models.DateTimeField(null=True, blank=True)
     created_at     = models.DateTimeField(default=timezone.now)
     updated_at     = models.DateTimeField(auto_now=True)
 
@@ -112,6 +111,47 @@ class CustomerSetting(models.Model):
 
     def __str__(self):
         return f"Settings for {self.customer_id}"
+
+
+class CustomerVehicle(models.Model):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="vehicles",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="vehicles",
+        null=True,
+        blank=True,
+    )
+    make = models.CharField(max_length=100)
+    model = models.CharField(max_length=100)
+    year = models.CharField(max_length=10, blank=True, default="")
+    color = models.CharField(max_length=50, blank=True, default="")
+    plate_number = models.CharField(max_length=20)
+    vehicle_size = models.CharField(
+        max_length=30,
+        choices=[
+            ("small", "Small (Sedan/Hatchback)"),
+            ("medium", "Medium (Crossover/SUV)"),
+            ("large", "Large (Van/Pickup)"),
+            ("extra_large", "XL (Commercial/Bus)"),
+        ],
+        default="small",
+        blank=True,
+    )
+    is_primary = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "customer_vehicles"
+        ordering = ["-is_primary", "-created_at"]
+
+    def __str__(self):
+        return f"{self.make} {self.model} ({self.plate_number})"
 
 
 # ── Branch ────────────────────────────────────────────────────────────────────

@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import { apiFetch } from "../../hooks/api";
 import SuperAdminLayout from "./SuperAdminLayout.jsx";
+import Pagination from "../../components/Pagination.jsx";
+import usePagination from "../../hooks/usePagination";
+
+const USERS_PER_PAGE = 6;
 
 // ── Validation Functions ──────────────────────────────────────────────────────
 const isValidName = (value) =>
@@ -1015,6 +1019,23 @@ export default function SuperAdminUsers() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  const {
+    currentPage,
+    setCurrentPage,
+    totalItems: totalFilteredUsers,
+    totalPages,
+    startItem,
+    endItem,
+    paginatedItems: paginatedUsers,
+  } = usePagination({
+    items: filteredUsers,
+    pageSize: USERS_PER_PAGE,
+    resetDeps: [searchTerm, selectedRole, selectedStatus],
+  });
+
+  // Super Admin is intentionally excluded from the role filter options.
+  const filterableRoles = roles.filter((role) => role !== "super_admin");
+
   const stats = {
     total: users.length,
     active: users.filter((u) => u.is_active && !u.is_archived).length,
@@ -1169,7 +1190,7 @@ export default function SuperAdminUsers() {
                 className="flex-1 sm:flex-none px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:border-red-500"
               >
                 <option value="all">All Roles</option>
-                {roles.map((role) => (
+                {filterableRoles.map((role) => (
                   <option key={role} value={role}>
                     {roleLabels[role] || role}
                   </option>
@@ -1191,11 +1212,26 @@ export default function SuperAdminUsers() {
 
         {/* Users Table/Cards */}
         <UsersTable
-          users={filteredUsers}
+          users={paginatedUsers}
           loading={loading}
           onArchive={handleArchiveUser}
           onRestore={handleRestoreUser}
         />
+
+        {!loading && totalFilteredUsers > 0 && (
+          <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs sm:text-sm text-gray-400">
+              Showing <span className="font-semibold text-white">{startItem}</span>–
+              <span className="font-semibold text-white">{endItem}</span> of{" "}
+              <span className="font-semibold text-white">{totalFilteredUsers}</span> users
+            </p>
+            <Pagination
+              current={currentPage}
+              total={totalPages}
+              onChange={(p) => setCurrentPage(Math.min(Math.max(1, p), totalPages))}
+            />
+          </div>
+        )}
       </div>
     </SuperAdminLayout>
   );

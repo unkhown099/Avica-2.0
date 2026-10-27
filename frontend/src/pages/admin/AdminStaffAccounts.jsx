@@ -35,6 +35,7 @@ const roleColors = {
   "Business Owner": "#a855f7",
   "Branch Manager": "#3b82f6",
   Staff: "#10b981",
+  Cashier: "#10b981",
   Employee: "#f59e0b",
   Inventory: "#f97316",
   "Inventory Manager": "#fb923c",
@@ -45,6 +46,7 @@ const ROLE_BADGE_STYLE = {
   "Business Owner": "bg-purple-500/20 text-purple-400 border-purple-500/30",
   "Branch Manager": "bg-blue-500/20 text-blue-400 border-blue-500/30",
   Staff: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  Cashier: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   Employee: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   Inventory: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   "Inventory Manager": "bg-orange-600/20 text-orange-300 border-orange-600/30",
@@ -54,10 +56,10 @@ const getRoleBadge = (role) => (
   <span
     className={`inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold border ${
       ROLE_BADGE_STYLE[role] ||
-      "bg-gray-500/20 text-gray-400 border-gray-500/30"
+      (role === "Staff" ? ROLE_BADGE_STYLE.Cashier : "bg-gray-500/20 text-gray-400 border-gray-500/30")
     }`}
   >
-    {role}
+    {role === "Staff" ? "Cashier" : role}
   </span>
 );
 

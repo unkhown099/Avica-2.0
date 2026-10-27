@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from typing import Any
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.permissions import IsAuthenticated
@@ -28,8 +29,9 @@ logger = logging.getLogger(__name__)
 
 def _get_frontend_url(request=None):
     """Resolve base frontend URL from env or request origin."""
-    if os.getenv("FRONTEND_URL"):
-        return os.getenv("FRONTEND_URL").rstrip("/")
+    env_url = os.getenv("FRONTEND_URL")
+    if env_url:
+        return env_url.rstrip("/")
     if request:
         origin = request.headers.get("Origin") or request.headers.get("Referer")
         if origin:
@@ -61,7 +63,7 @@ class SignupView(APIView):
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
+            user: Any = serializer.save()
 
             # Keep user inactive until email verification
             user.is_active = False
@@ -130,19 +132,23 @@ class SignupView(APIView):
             
             text_content = strip_tags(html_content)
             
+            email_sent = False
             try:
                 msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [user.email])
                 msg.attach_alternative(html_content, "text/html")
                 _attach_email_logo(msg)
-                msg.send()
+                msg.send(fail_silently=False)
+                email_sent = True
             except Exception as e:
                 logger.error("Failed to send signup verification email to %s: %s", user.email, e)
 
+            # Account strictly requires email verification before activation
             return Response(
                 {
                     "success": True,
                     "title": "Account Created!",
                     "message": "Please check your email to verify your account before logging in.",
+                    "email_sent": email_sent,
                 },
                 status=status.HTTP_201_CREATED,
             )
@@ -209,6 +215,9 @@ def send_google_signup_email(user, temp_password):
     </html>
     """
     text_content = strip_tags(html_content)
+    if not getattr(settings, "EMAIL_HOST_USER", None):
+        logger.info("EMAIL_HOST_USER is not configured. Google signup welcome email skipped.")
+        return
     try:
         msg = EmailMultiAlternatives(subject, text_content, settings.DEFAULT_FROM_EMAIL, [user.email])
         msg.attach_alternative(html_content, "text/html")
@@ -327,7 +336,7 @@ class LoginView(APIView):
                     status=400,
                 )
 
-            user = authenticate(email=email, password=password)
+            user: Any = authenticate(email=email, password=password)
             print("User authenticated?", user)
  
             if not user:
@@ -353,7 +362,7 @@ class LoginView(APIView):
                 pass
 
             # Build JWT with extra claims
-            refresh = RefreshToken.for_user(user)
+            refresh: Any = RefreshToken.for_user(user)
             refresh["first_name"] = first_name
             refresh["last_name"]  = last_name
             refresh["suffix"]     = suffix
@@ -580,10 +589,16 @@ class GoogleLoginView(APIView):
                 )
             else:
                 if not user.is_active:
-                    return Response({
-                        "success": False, 
-                        "message": "Please verify your email before logging in. If you signed up, an email was sent to you."
-                    }, status=401)
+                    # If this is Google OAuth and email is verified by Google, activate the account
+                    if idinfo.get("email_verified", False):
+                        user.is_active = True
+                        user.email_verified = True
+                        user.save(update_fields=["is_active", "email_verified"])
+                    else:
+                        return Response({
+                            "success": False, 
+                            "message": "Please verify your email before logging in. If you signed up, an email was sent to you."
+                        }, status=401)
                     
                 # Update picture if it changed
                 try:
@@ -603,7 +618,7 @@ class GoogleLoginView(APIView):
 
             user_role, profile_first_name, profile_last_name, suffix, phone, profile_picture = _get_profile_data(user)
 
-            refresh = RefreshToken.for_user(user)
+            refresh: Any = RefreshToken.for_user(user)
             refresh["first_name"] = profile_first_name
             refresh["last_name"]  = profile_last_name
             refresh["suffix"]     = suffix

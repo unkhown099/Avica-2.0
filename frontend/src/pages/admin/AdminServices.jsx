@@ -156,29 +156,35 @@ function ServiceModal({
   categories,
 }) {
   const isEdit = !!editService;
-  const editPriceList =
-    editService?.price_list && typeof editService.price_list === "object"
-      ? editService.price_list
-      : {};
 
-  const [form, setForm] = useState({
-    name: editService?.name ?? "",
-    category: editService?.category ?? categories?.[0]?.name ?? "",
-    description: editService?.description ?? "",
-    duration: editService?.duration ?? "",
-    price: editService?.price ?? "",
-    use_price_list: Object.keys(editPriceList).length > 0,
-    price_list: {
-      motor: editPriceList?.motor ?? "",
-      small: editPriceList?.small ?? "",
-      medium: editPriceList?.medium ?? "",
-      large: editPriceList?.large ?? "",
-      xl: editPriceList?.xl ?? "",
-    },
-    branch_ids:
-      editService?.branches?.map((b) => b.id) ?? (branches?.map((b) => b.id) || []),
-  });
+  const getInitialForm = (svc) => {
+    const editPriceList =
+      svc?.price_list && typeof svc.price_list === "object"
+        ? svc.price_list
+        : {};
+    const branchIds = Array.isArray(svc?.branches)
+      ? svc.branches.map((b) => (typeof b === "object" && b !== null ? b.id : b))
+      : (branches?.map((b) => b.id) || []);
 
+    return {
+      name: svc?.name ?? "",
+      category: svc?.category ?? categories?.[0]?.name ?? "",
+      description: svc?.description ?? "",
+      duration: svc?.duration ?? "",
+      price: svc?.price != null && svc?.price !== "" ? String(svc.price) : "",
+      use_price_list: Object.keys(editPriceList).length > 0,
+      price_list: {
+        motor: editPriceList?.motor != null ? String(editPriceList.motor) : "",
+        small: editPriceList?.small != null ? String(editPriceList.small) : "",
+        medium: editPriceList?.medium != null ? String(editPriceList.medium) : "",
+        large: editPriceList?.large != null ? String(editPriceList.large) : "",
+        xl: editPriceList?.xl != null ? String(editPriceList.xl) : "",
+      },
+      branch_ids: branchIds,
+    };
+  };
+
+  const [form, setForm] = useState(() => getInitialForm(editService));
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(
     editService?.image
@@ -188,6 +194,20 @@ function ServiceModal({
       : null
   );
   const [saving, setSaving] = useState(false);
+
+  // Synchronize form and image preview every time editService or isOpen changes
+  useEffect(() => {
+    if (!isOpen) return;
+    setForm(getInitialForm(editService));
+    setImage(null);
+    setImagePreview(
+      editService?.image
+        ? editService.image.startsWith("http")
+          ? editService.image
+          : `${API_BASE}${editService.image}`
+        : null
+    );
+  }, [isOpen, editService]);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -1331,6 +1351,7 @@ function AdminServices() {
       </div>
 
       <ServiceModal
+        key={editService ? `edit-${editService.id}` : (showModal ? "create-open" : "create-closed")}
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         onSaved={fetchServices}

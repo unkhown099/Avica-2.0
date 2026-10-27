@@ -379,7 +379,26 @@ class AdminDashboardView(APIView):
         selected_branch = None
         branch_scope = "all"
 
-        if normalized_role == "branch_manager":
+        if branch_id_raw not in [None, ""] and str(branch_id_raw).lower() in ["all", "all branches"]:
+            selected_branch = None
+            branch_scope = "all"
+        elif branch_name_raw not in [None, ""] and str(branch_name_raw).lower() in ["all", "all branches"]:
+            selected_branch = None
+            branch_scope = "all"
+        elif branch_id_raw not in [None, ""]:
+            try:
+                selected_branch = Branch.objects.get(pk=int(branch_id_raw))
+                branch_scope = "single_branch"
+            except (ValueError, Branch.DoesNotExist):
+                return Response({"detail": "Invalid branch_id."}, status=400)
+        elif branch_name_raw not in [None, ""]:
+            if str(branch_name_raw).isdigit():
+                selected_branch = Branch.objects.filter(pk=int(branch_name_raw)).first()
+            else:
+                selected_branch = Branch.objects.filter(name__iexact=branch_name_raw).first()
+            if selected_branch:
+                branch_scope = "single_branch"
+        elif normalized_role == "branch_manager":
             selected_branch = requester_staff.branch if requester_staff else None
             if not selected_branch and requester_staff and requester_staff.branch_id:
                 selected_branch = Branch.objects.filter(id=requester_staff.branch_id).first()
@@ -388,19 +407,6 @@ class AdminDashboardView(APIView):
             if not selected_branch:
                 selected_branch = Branch.objects.filter(is_active=True).first() or Branch.objects.first()
             branch_scope = "single_branch"
-        elif branch_id_raw not in [None, ""] and str(branch_id_raw).lower() not in ["all", "all branches"]:
-            try:
-                selected_branch = Branch.objects.get(pk=int(branch_id_raw))
-                branch_scope = "single_branch"
-            except (ValueError, Branch.DoesNotExist):
-                return Response({"detail": "Invalid branch_id."}, status=400)
-        elif branch_name_raw not in [None, ""] and str(branch_name_raw).lower() not in ["all", "all branches"]:
-            if str(branch_name_raw).isdigit():
-                selected_branch = Branch.objects.filter(pk=int(branch_name_raw)).first()
-            else:
-                selected_branch = Branch.objects.filter(name__iexact=branch_name_raw).first()
-            if selected_branch:
-                branch_scope = "single_branch"
 
         queue_scope = QueueEntry.objects.all()
         booking_scope = Booking.objects.all()
@@ -1022,7 +1028,11 @@ class StaffDashboardView(APIView):
         try:
             staff = getattr(request.user, "staff_profile", None)
             is_superuser = getattr(request.user, "is_superuser", False) or getattr(request.user, "is_staff", False)
-            allowed_roles = {"Staff", "Employee", "staff", "employee", "Admin", "Branch Manager", "Super Admin", "super_admin", "Business Owner", "Inventory", "Inventory Manager"}
+            allowed_roles = {
+                "Staff", "Employee", "staff", "employee", "Admin", "Branch Manager",
+                "Super Admin", "super_admin", "Business Owner", "Inventory", "Inventory Manager",
+                "Cashier", "cashier", "Service Advisor", "service_advisor"
+            }
             if not is_superuser and staff and staff.role not in allowed_roles:
                 return Response({"detail": "Permission denied."}, status=403)
 
@@ -1037,8 +1047,10 @@ class StaffDashboardView(APIView):
             if not branch:
                 branch = Branch.objects.filter(is_active=True).first() or Branch.objects.first()
 
+            is_cashier_role = not staff or staff.role in ["Staff", "staff", "Cashier", "cashier", "Service Advisor", "service_advisor"]
+
             # Scope bookings
-            if not staff or staff.role in ["Staff", "staff"]:
+            if is_cashier_role:
                 booking_scope = Booking.objects.all().select_related("user", "branch", "queue_entry")
                 if branch:
                     booking_scope = booking_scope.filter(branch=branch)
@@ -1052,7 +1064,7 @@ class StaffDashboardView(APIView):
                     booking_scope = booking_scope.filter(branch=branch)
 
             # Scope queue entries
-            if not staff or staff.role in ["Staff", "staff"]:
+            if is_cashier_role:
                 queue_assigned = QueueEntry.objects.filter(assigned_employee_id=staff.id) if staff else QueueEntry.objects.none()
                 if queue_assigned.exists():
                     queue_scope = queue_assigned
@@ -1075,7 +1087,7 @@ class StaffDashboardView(APIView):
             walkin_jobs_count = queue_scope.filter(source="walk_in").count()
 
             # Staff revenue analytics (single source of truth: payment_transactions)
-            if not staff or staff.role in ["Staff", "staff"]:
+            if is_cashier_role:
                 if branch:
                     payment_scope = PaymentTransaction.objects.filter(Q(staff_id=staff.id) | Q(branch=branch)) if staff else PaymentTransaction.objects.filter(branch=branch)
                 else:

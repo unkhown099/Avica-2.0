@@ -806,8 +806,9 @@ export default function KpiDetailModal({
                                 <h5 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">
                                   {staff.employee || staff.employee_name}
                                 </h5>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  📍 {staff.branch || "Central Branch"} · Service Specialist
+                                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                                  <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                  <span>{staff.branch || "Central Branch"} · Service Specialist</span>
                                 </p>
                               </div>
                             </div>
@@ -993,13 +994,17 @@ export default function KpiDetailModal({
                                 {(task.plate_number || task.vehicle) && (
                                   <>
                                     <span>•</span>
-                                    <span className="font-mono bg-gray-100 dark:bg-white/5 px-1 py-0.5 rounded border border-gray-200/60 dark:border-white/10 text-gray-700 dark:text-gray-300 text-[10px]">
-                                      🚗 {task.plate_number || task.vehicle}
+                                    <span className="font-mono bg-gray-100 dark:bg-white/5 px-1 py-0.5 rounded border border-gray-200/60 dark:border-white/10 text-gray-700 dark:text-gray-300 text-[10px] inline-flex items-center gap-1">
+                                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zm0 0l2-5h3l2 5v1h-2m-5 0H9" /></svg>
+                                      <span>{task.plate_number || task.vehicle}</span>
                                     </span>
                                   </>
                                 )}
                                 <span>•</span>
-                                <span>📍 {task.branch?.name || task.branch_name || (typeof task.branch === "string" ? task.branch : "Main Branch")}</span>
+                                <span className="inline-flex items-center gap-1">
+                                  <svg className="w-3 h-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                  <span>{task.branch?.name || task.branch_name || (typeof task.branch === "string" ? task.branch : "Main Branch")}</span>
+                                </span>
                               </div>
                               <div className="mt-1.5 flex items-center gap-1.5">
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200/80 dark:border-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-semibold">
@@ -1153,12 +1158,17 @@ export default function KpiDetailModal({
 
                   if (filteredByCompletion.length === 0) {
                     return (
-                      <div className="p-6 border border-dashed border-gray-300 dark:border-white/10 rounded-2xl text-center">
-                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          {completionFilter === "completed"
-                            ? "No completed tasks yet."
-                            : "All tasks have been successfully completed! 🎉"}
-                        </p>
+                      <div className="p-6 border border-dashed border-gray-300 dark:border-white/10 rounded-2xl text-center flex flex-col items-center justify-center gap-2">
+                        {completionFilter === "completed" ? (
+                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            No completed tasks yet.
+                          </p>
+                        ) : (
+                          <div className="flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">All tasks have been successfully completed!</span>
+                          </div>
+                        )}
                       </div>
                     );
                   }
@@ -1181,8 +1191,18 @@ export default function KpiDetailModal({
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                              👤 {task.customer_name || "Customer"} · Specialist: {task.assigned_employee?.full_name || task.assigned_employee_name || "Specialist"} · 📍 {task.branch?.name || task.branch_name || "Branch"}
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                              <span className="inline-flex items-center gap-1">
+                                <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                <span>{task.customer_name || "Customer"}</span>
+                              </span>
+                              <span>·</span>
+                              <span>Specialist: {task.assigned_employee?.full_name || task.assigned_employee_name || "Specialist"}</span>
+                              <span>·</span>
+                              <span className="inline-flex items-center gap-1">
+                                <svg className="w-3 h-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                <span>{task.branch?.name || task.branch_name || "Branch"}</span>
+                              </span>
                             </p>
                           </div>
 
@@ -1435,7 +1455,7 @@ export default function KpiDetailModal({
                         >
                           <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{item.name}</p>
-                            <p className="text-gray-500 dark:text-gray-400 text-[11px]">{item.branch_name || "Central"} · Reorder at: {item.minimum_qty ?? 5} {item.unit || "pcs"}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-[11px]">{item.branch_name || "Main Warehouse (Saranay)"} · Reorder at: {item.minimum_qty ?? 5} {item.unit || "pcs"}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-gray-900 dark:text-white">{item.quantity} {item.unit || "in stock"}</p>

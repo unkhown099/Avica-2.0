@@ -29,7 +29,15 @@ from api.views.service_views import (
     ServiceListCreateView, ServiceDetailView, ServiceCategoryListCreateView,
     Top10ServicesView, RecommendedServicesView
 )
-from api.views.customer_views import AdminCustomerListView, CurrentCustomerProfileView, CustomerSettingsView, ManagerCustomerHistoryView
+from api.views.customer_views import (
+    AdminCustomerListView,
+    CurrentCustomerProfileView,
+    CustomerSettingsView,
+    ManagerCustomerHistoryView,
+    CustomerVehicleListCreateView,
+    CustomerVehicleDetailView,
+    CustomerVehicleSetPrimaryView,
+)
 from api.views.appointment_views import AdminAppointmentListView, AdminAppointmentDetailView
 from api.views.inventory_views import (
     InventoryListCreateView,
@@ -223,6 +231,9 @@ urlpatterns = [
     path('api/customer/history/',   CustomerHistoryAPIView.as_view(),   name='customer-history'),
     path('api/customer/settings/',  CustomerSettingsView.as_view(),      name='customer-settings'),
     path('api/customers/me/', CurrentCustomerProfileView.as_view(), name='current-customer-profile'),
+    path('api/customer/vehicles/', CustomerVehicleListCreateView.as_view(), name='customer-vehicles-list-create'),
+    path('api/customer/vehicles/<int:pk>/', CustomerVehicleDetailView.as_view(), name='customer-vehicles-detail'),
+    path('api/customer/vehicles/<int:pk>/set-primary/', CustomerVehicleSetPrimaryView.as_view(), name='customer-vehicles-set-primary'),
 
     # ── Ratings ───────────────────────────────────────────────────────────────
     path('api/ratings/', RatingCreateView.as_view(), name='rating-create'),

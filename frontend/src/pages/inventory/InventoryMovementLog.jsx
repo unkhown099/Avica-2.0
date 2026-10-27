@@ -134,14 +134,27 @@ function MovementLog({
         const time = dt
           ? dt.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })
           : "";
+        let calculatedQty = 0;
+        if (tx.quantity_changed != null && !isNaN(Number(tx.quantity_changed)) && Number(tx.quantity_changed) !== 0) {
+          calculatedQty = Number(tx.quantity_changed);
+        } else if (tx.quantity_after != null && tx.quantity_before != null && Number(tx.quantity_after) !== Number(tx.quantity_before)) {
+          calculatedQty = Number(tx.quantity_after) - Number(tx.quantity_before);
+        } else if (tx.quantity_after != null && !isNaN(Number(tx.quantity_after))) {
+          calculatedQty = Number(tx.quantity_after);
+        } else if (tx.quantity != null && !isNaN(Number(tx.quantity))) {
+          calculatedQty = Number(tx.quantity);
+        } else {
+          calculatedQty = Number(tx.quantity_changed ?? 0);
+        }
+
         return {
           id: tx.id,
           item: tx.item_name || "Unknown Item",
           sku: tx.item_sku || "—",
-          branch: tx.branch_name || "Central",
+          branch: tx.branch_name || "Main Warehouse (Saranay)",
           type: tx.action_type || "",
           typeLabel: formatActionLabel(tx.action_type),
-          qty: Number(tx.quantity_changed || 0),
+          qty: calculatedQty,
           date,
           time,
           by: tx.performed_by_name || "System",
@@ -453,9 +466,9 @@ function MovementLog({
                     </div>
                     <div className="text-right">
                       <span
-                        className={`text-lg font-black ${m.qty > 0 ? "text-emerald-400" : m.qty < 0 ? "text-red-400" : "text-gray-500"}`}
+                        className={`text-lg font-black ${m.qty > 0 ? "text-emerald-400" : m.qty < 0 ? "text-red-400" : "text-gray-300"}`}
                       >
-                        {m.qty > 0 ? `+${m.qty}` : m.qty < 0 ? m.qty : "—"}
+                        {m.qty > 0 ? `+${m.qty}` : m.qty < 0 ? `${m.qty}` : "0"}
                       </span>
                       <p className="text-gray-500 text-xs">{m.date}</p>
                     </div>
@@ -490,9 +503,9 @@ function MovementLog({
                   </div>
                   <div className="hidden lg:flex col-span-1 items-center justify-center">
                     <span
-                      className={`text-sm font-black ${m.qty > 0 ? "text-emerald-400" : m.qty < 0 ? "text-red-400" : "text-gray-500"}`}
+                      className={`text-sm font-black ${m.qty > 0 ? "text-emerald-400" : m.qty < 0 ? "text-red-400" : "text-gray-300"}`}
                     >
-                      {m.qty > 0 ? `+${m.qty}` : m.qty < 0 ? m.qty : "—"}
+                      {m.qty > 0 ? `+${m.qty}` : m.qty < 0 ? `${m.qty}` : "0"}
                     </span>
                   </div>
                   <div className="hidden lg:flex col-span-2 items-center">

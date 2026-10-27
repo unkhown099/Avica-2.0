@@ -341,7 +341,7 @@ function Layout() {
           <Route
             path="/admin/inventory"
             element={
-              <ProtectedRoute allowedRoles={["admin", "inventory_manager"]}>
+              <ProtectedRoute allowedRoles={["admin", "inventory_manager", "inventory"]}>
                 <AdminInventory />
               </ProtectedRoute>
             }
@@ -349,7 +349,7 @@ function Layout() {
           <Route
             path="/inventory-manager/inventory"
             element={
-              <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <ProtectedRoute allowedRoles={["inventory_manager", "inventory"]}>
                 <InventoryManagerInventory />
               </ProtectedRoute>
             }
@@ -357,7 +357,7 @@ function Layout() {
           <Route
             path="/inventory-manager/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <ProtectedRoute allowedRoles={["inventory_manager", "inventory"]}>
                 <InventoryManagerDashboard />
               </ProtectedRoute>
             }
@@ -365,7 +365,7 @@ function Layout() {
           <Route
             path="/inventory-manager/transactions"
             element={
-              <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <ProtectedRoute allowedRoles={["inventory_manager", "inventory"]}>
                 <InventoryManagerTransactions />
               </ProtectedRoute>
             }
@@ -373,7 +373,7 @@ function Layout() {
           <Route
             path="/inventory-manager/settings"
             element={
-              <ProtectedRoute allowedRoles={["inventory_manager"]}>
+              <ProtectedRoute allowedRoles={["inventory_manager", "inventory"]}>
                 <InventoryManagerSettings />
               </ProtectedRoute>
             }
@@ -547,7 +547,7 @@ function Layout() {
           <Route
             path="/inventory/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["inventory"]}>
+              <ProtectedRoute allowedRoles={["inventory", "inventory_manager"]}>
                 <InventoryDashboard />
               </ProtectedRoute>
             }
@@ -555,7 +555,7 @@ function Layout() {
           <Route
             path="/inventory/alerts"
             element={
-              <ProtectedRoute allowedRoles={["inventory"]}>
+              <ProtectedRoute allowedRoles={["inventory", "inventory_manager"]}>
                 <InventoryAlerts />
               </ProtectedRoute>
             }
@@ -563,7 +563,7 @@ function Layout() {
           <Route
             path="/inventory/movement-log"
             element={
-              <ProtectedRoute allowedRoles={["inventory"]}>
+              <ProtectedRoute allowedRoles={["inventory", "inventory_manager"]}>
                 <InventoryMovementLog />
               </ProtectedRoute>
             }
@@ -571,7 +571,7 @@ function Layout() {
           <Route
             path="/inventory/stock"
             element={
-              <ProtectedRoute allowedRoles={["inventory"]}>
+              <ProtectedRoute allowedRoles={["inventory", "inventory_manager"]}>
                 <InventoryStockOverview />
               </ProtectedRoute>
             }
@@ -579,7 +579,7 @@ function Layout() {
           <Route
             path="/inventory/settings"
             element={
-              <ProtectedRoute allowedRoles={["inventory"]}>
+              <ProtectedRoute allowedRoles={["inventory", "inventory_manager"]}>
                 <InventorySettings />
               </ProtectedRoute>
             }

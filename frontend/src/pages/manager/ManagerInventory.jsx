@@ -247,7 +247,7 @@ function ManagerInventory() {
           category: item.category || "",
           sku: item.sku || "",
           quantity: item.quantity || 0,
-          unit: "Pieces",
+          unit: item.unit || "Pieces",
           price: item.price ? `₱${Number(item.price).toLocaleString()}` : "₱0",
           supplier: item.supplier || "",
           status:
@@ -410,7 +410,7 @@ function ManagerInventory() {
           name: item.name,
           current: item.quantity,
           minimum: item.minimum || 0,
-          unit: "Pieces",
+          unit: item.unit || "Pieces",
         }))
     : [];
 

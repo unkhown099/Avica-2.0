@@ -2,12 +2,15 @@
   "include": [
     "backend"
   ],
+  "venvPath": ".",
+  "venv": "venv",
   "extraPaths": [
     "./backend",
     "backend",
     "c:/Users/Admin/Documents/Avica-2.0/backend"
   ],
   "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
   "executionEnvironments": [
     {
       "root": ".",
