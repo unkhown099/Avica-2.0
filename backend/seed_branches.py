@@ -58,10 +58,10 @@ branches_data = [
     },
     {
         "name": "Camarin North Caloocan",
-        "address": "B15 L5 Camarin Rd, Caloocan, Metro Manila",
+        "address": "Block 15 Lot 4 Capt. Samano Street, Area A Camarin Road, Caloocan, 1423",
         "fb_url": "https://www.facebook.com/profile.php?id=61586571534281",
-        "latitude": Decimal("14.756690000"),
-        "longitude": Decimal("121.048450000"),
+        "latitude": Decimal("14.764331500"),
+        "longitude": Decimal("121.044370400"),
         "hours": "Mon-Sat 8:00 AM - 6:00 PM",
         "slots": 5,
         "is_active": True,

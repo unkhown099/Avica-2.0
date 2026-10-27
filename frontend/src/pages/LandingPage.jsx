@@ -115,6 +115,20 @@ export const getBranchFbUrl = (branch) => {
   return OFFICIAL_FB_PAGES[0].url;
 };
 
+// Helper: Get verified official Google Maps location URL for a branch
+export const getBranchMapsUrl = (branch) => {
+  if (!branch) return "https://share.google/MDLhFcH4dTAKQNEaO";
+  const branchNameLower = (branch.name || "").toLowerCase();
+  if (branchNameLower.includes("camarin")) {
+    return "https://share.google/MDLhFcH4dTAKQNEaO";
+  }
+  if (branch.maps_url && branch.maps_url.trim()) return branch.maps_url;
+  if (branch.latitude && branch.longitude) {
+    return `https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Otokwikk " + (branch.name || ""))}`;
+};
+
 // ─── Hardcoded fallback (used only if API is unreachable) ─────────────────────
 const EMPTY_LANDING_CONTENT = {
   hero: {
@@ -166,12 +180,13 @@ const EMPTY_LANDING_CONTENT = {
     {
       id: 3,
       name: "Camarin Branch",
-      address: "Block 15 Lot 4 Capt. Samano Street, Area A Camarin Road, Caloocan, Philippines, 1423",
+      address: "Block 15 Lot 4 Capt. Samano Street, Area A Camarin Road, Caloocan, 1423",
       hours: "8:00 AM - 7:00 PM",
-      phone: "+639123456783",
-      latitude: 14.7570,
-      longitude: 121.0330,
+      phone: "+63 2 1234 5678",
+      latitude: 14.7643315,
+      longitude: 121.0443704,
       fb_url: "https://www.facebook.com/profile.php?id=61586571534281",
+      maps_url: "https://share.google/MDLhFcH4dTAKQNEaO",
       is_active: true,
     },
     {
@@ -928,6 +943,7 @@ function LandingPage() {
   const filteredServices = Array.isArray(services.items) ? services.items : [];
   const currentStation = activeBranch ?? null;
   const currentFbUrl = getBranchFbUrl(currentStation);
+  const currentMapsUrl = getBranchMapsUrl(currentStation);
   const currentDisplayName = getBranchDisplayName(currentStation);
 
   return (
@@ -1466,6 +1482,36 @@ function LandingPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Google Maps Exact Location CTA */}
+              {currentMapsUrl && (
+                <a
+                  href={currentMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`w-full group font-black py-3.5 px-5 rounded-xl sm:rounded-2xl transition-all duration-300 flex items-center justify-between text-xs sm:text-sm uppercase tracking-wider shadow-lg transform hover:-translate-y-1 cursor-pointer border ${
+                    isDark
+                      ? "bg-gray-900 hover:bg-gray-800 text-white border-white/15 hover:border-red-500/50"
+                      : "bg-white hover:bg-gray-50 text-gray-900 border-gray-300 hover:border-red-500"
+                  }`}
+                  title="Open exact location in Google Maps"
+                >
+                  <span className="flex items-center gap-3 truncate">
+                    <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="truncate">OPEN LOCATION IN GOOGLE MAPS</span>
+                  </span>
+                  <svg
+                    className="w-4 h-4 transform group-hover:translate-x-1.5 transition-transform flex-shrink-0 text-red-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              )}
 
               {currentFbUrl && (
                 <a
