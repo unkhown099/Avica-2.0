@@ -674,7 +674,7 @@ function CustomerDashboard() {
       }
     } catch (error) {
       console.error("Analysis Error:", error);
-      showToast(error.message || "Failed to analyze vehicle. Please try again.", "error");
+      alert(error.message || "Failed to analyze vehicle. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
