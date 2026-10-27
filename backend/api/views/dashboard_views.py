@@ -107,9 +107,10 @@ def merge_manager_schedule_config(raw):
     raw_days = raw.get("days") if isinstance(raw.get("days"), dict) else {}
     merged_days = {}
     for day in WEEK_DAYS:
-        default_day = base["days"][day]
+        default_day = base["days"].get(day, {})
+        default_dict = default_day if isinstance(default_day, dict) else {}
         custom_day = raw_days.get(day) if isinstance(raw_days.get(day), dict) else {}
-        merged_days[day] = {**default_day, **custom_day}
+        merged_days[day] = {**default_dict, **custom_day}
 
     merged["days"] = merged_days
     merged["assignments"] = raw.get("assignments") if isinstance(raw.get("assignments"), dict) else {}
@@ -271,8 +272,9 @@ def build_retention_analytics(queue_scope, customer_scope, now):
         campaign_notifications = campaign_notifications.filter(user_id__in=scope_user_ids)
 
     campaign_tracker = {}
-    for note in campaign_notifications.only("user_id", "notification_type", "created_at"):
-        campaign_type = (note.notification_type or "promotion").strip().lower()
+    for note in campaign_notifications.values("user_id", "notification_type", "created_at"):
+        note_user_id = note["user_id"]
+        campaign_type = (note["notification_type"] or "promotion").strip().lower()
         if campaign_type not in campaign_types:
             continue
 
@@ -283,10 +285,10 @@ def build_retention_analytics(queue_scope, customer_scope, now):
                 "first_notified_at": {},
             },
         )
-        bucket["users_sent"].add(note.user_id)
-        first_seen = bucket["first_notified_at"].get(note.user_id)
-        if first_seen is None or note.created_at < first_seen:
-            bucket["first_notified_at"][note.user_id] = note.created_at
+        bucket["users_sent"].add(note_user_id)
+        first_seen = bucket["first_notified_at"].get(note_user_id)
+        if first_seen is None or note["created_at"] < first_seen:
+            bucket["first_notified_at"][note_user_id] = note["created_at"]
 
     campaign_rows = []
     overall_sent_users = set()
@@ -646,7 +648,7 @@ class AdminDashboardView(APIView):
         )
         highest_demand_branch = branch_forecasts[0] if branch_forecasts else None
 
-        employee_workload = defaultdict(lambda: {
+        employee_workload: dict[str, dict] = defaultdict(lambda: {
             "employee_id": None,
             "employee_name": "Unassigned",
             "branch": "Unknown Branch",
@@ -820,7 +822,7 @@ class AdminDashboardView(APIView):
                         if getattr(q, "queue_entry", None) and q.queue_entry.customer_name
                         else "Walk-in Customer"
                     ),
-                    "service": q.description or str(q.transaction_type).replace("_", " ").title(),
+                    "service": q.description or (q.transaction_type or "").replace("_", " ").title(),
                     "amount": float(q.amount or 0),
                     "status": "paid",
                     "_ts": q.paid_at or q.created_at,
@@ -1060,6 +1062,7 @@ class StaffDashboardView(APIView):
             if not branch:
                 branch = Branch.objects.filter(is_active=True).first() or Branch.objects.first()
 
+            staff_id = staff.id if staff else None
             is_cashier_role = not staff or staff.role in ["Staff", "staff", "Cashier", "cashier", "Service Advisor", "service_advisor"]
 
             # Scope bookings
@@ -1071,14 +1074,14 @@ class StaffDashboardView(APIView):
                     booking_scope = booking_scope.none()
             else:
                 booking_scope = Booking.objects.all().select_related("user", "branch", "queue_entry").filter(
-                    Q(queue_entry__assigned_employee_id=staff.id) | Q(staff=full_name)
+                    Q(queue_entry__assigned_employee_id=staff_id) | Q(staff=full_name)
                 )
                 if branch:
                     booking_scope = booking_scope.filter(branch=branch)
 
             # Scope queue entries
             if is_cashier_role:
-                queue_assigned = QueueEntry.objects.filter(assigned_employee_id=staff.id) if staff else QueueEntry.objects.none()
+                queue_assigned = QueueEntry.objects.filter(assigned_employee_id=staff_id) if staff_id else QueueEntry.objects.none()
                 if queue_assigned.exists():
                     queue_scope = queue_assigned
                 elif branch:
@@ -1088,7 +1091,7 @@ class StaffDashboardView(APIView):
                 else:
                     queue_scope = QueueEntry.objects.all()
             else:
-                queue_scope = QueueEntry.objects.filter(assigned_employee_id=staff.id)
+                queue_scope = QueueEntry.objects.filter(assigned_employee_id=staff_id) if staff_id else QueueEntry.objects.none()
                 if branch:
                     queue_scope = queue_scope.filter(Q(branch=branch) | Q(branch_name__iexact=branch.name))
 
@@ -1102,11 +1105,11 @@ class StaffDashboardView(APIView):
             # Staff revenue analytics (single source of truth: payment_transactions)
             if is_cashier_role:
                 if branch:
-                    payment_scope = PaymentTransaction.objects.filter(Q(staff_id=staff.id) | Q(branch=branch)) if staff else PaymentTransaction.objects.filter(branch=branch)
+                    payment_scope = PaymentTransaction.objects.filter(Q(staff_id=staff_id) | Q(branch=branch)) if staff_id else PaymentTransaction.objects.filter(branch=branch)
                 else:
-                    payment_scope = PaymentTransaction.objects.filter(staff_id=staff.id) if staff else PaymentTransaction.objects.all()
+                    payment_scope = PaymentTransaction.objects.filter(staff_id=staff_id) if staff_id else PaymentTransaction.objects.all()
             else:
-                payment_scope = PaymentTransaction.objects.filter(staff_id=staff.id)
+                payment_scope = PaymentTransaction.objects.filter(staff_id=staff_id) if staff_id else PaymentTransaction.objects.none()
                 if branch:
                     payment_scope = payment_scope.filter(branch=branch)
             if not payment_scope.exists():
@@ -1148,9 +1151,9 @@ class StaffDashboardView(APIView):
                     return Response(
                         {
                             "staff": {
-                                "id": staff.id,
+                                "id": staff_id,
                                 "name": full_name,
-                                "branch_name": staff.branch.name if staff.branch else staff.branch_name,
+                                "branch_name": staff.branch.name if (staff and staff.branch) else (staff.branch_name if staff else "Main Branch"),
                             },
                             "stats": stats,
                             "analytics": {

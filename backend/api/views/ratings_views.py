@@ -50,13 +50,15 @@ class RatingCreateView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            if queue.booking_id:
-                if queue.booking.user_id != request.user.id:
+            booking = queue.booking
+            if booking is not None:
+                booking_user_id = getattr(booking, "user_id", None) or (booking.user.id if getattr(booking, "user", None) else None)
+                if booking_user_id != request.user.id:
                     return Response(
                         {"detail": "Queue entry not found or not eligible for review."},
                         status=status.HTTP_404_NOT_FOUND,
                     )
-            elif queue.customer_user_id != request.user.id:
+            elif queue.customer_user != request.user:
                 return Response(
                     {"detail": "Queue entry not found or not eligible for review."},
                     status=status.HTTP_404_NOT_FOUND,
@@ -80,11 +82,12 @@ class RatingCreateView(APIView):
             queue.save(update_fields=["rating_score", "rating_comment", "rated_at"])
 
             # Keep existing booking rating behavior for booking-linked queue entries.
-            if queue.booking_id and not Rating.objects.filter(booking=queue.booking).exists():
+            if queue.booking_id and queue.booking and not Rating.objects.filter(booking=queue.booking).exists():
+                branch_obj = queue.booking.branch or queue.branch
                 Rating.objects.create(
                     booking=queue.booking,
                     customer=customer,
-                    branch=queue.booking.branch or queue.branch,
+                    branch=branch_obj,
                     score=int(score),
                     comment=comment or "",
                 )
@@ -302,7 +305,7 @@ class ManagerReviewReplyView(APIView):
             )
             msg.attach_alternative(html_content, "text/html")
             msg.send()
-        except (SMTPException, OSError, ValueError, BadHeaderError):
+        except (SMTPException, OSError, ValueError):
             return Response({"detail": "Failed to send email response."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         rating.response_status = "responded"
